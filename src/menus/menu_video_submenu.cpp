@@ -74,7 +74,7 @@ void MenuVideoSubmenu::setVisibility(c2d::Visibility visibility, bool tweenPlay)
 }
 
 bool MenuVideoSubmenu::onInput(c2d::Input::Player *players) {
-    if (players[0].keys & Input::Left || players[0].keys & Input::Key::Fire2) {
+    if (players[0].buttons & Input::Left || players[0].buttons & Input::B) {
         setVisibility(Visibility::Hidden, true);
         main->getMenuVideo()->setVisibility(Visibility::Visible, true);
         return true;

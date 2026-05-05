@@ -1,12 +1,14 @@
 //
 // Created by cpasjuste on 02/10/18.
 //
+#include <sstream>
 #include "main.h"
 #include "io.h"
 #include "filer.h"
 #include "menu_main.h"
 #include "menu_video.h"
 #include "scrapper.h"
+#include "utility.h"
 
 #ifdef __SWITCH__
 
@@ -47,6 +49,85 @@ using namespace c2d;
 using namespace c2d::config;
 using namespace pplay;
 
+static std::string ensureTrailingSlash(const std::string &url) {
+    if (url.empty() || c2d::Utility::endsWith(url, "/")) {
+        return url;
+    }
+    return url + "/";
+}
+
+static std::string normalizePath(const std::string &path) {
+    if (path.empty()) return path;
+    size_t schemePos = path.find("://");
+    std::string prefix;
+    std::string rest = path;
+    if (schemePos != std::string::npos) {
+        size_t firstSlash = path.find('/', schemePos + 3);
+        if (firstSlash == std::string::npos) {
+            return ensureTrailingSlash(path);
+        }
+        prefix = path.substr(0, firstSlash);
+        rest = path.substr(firstSlash);
+    }
+    std::vector<std::string> out;
+    std::stringstream ss(rest);
+    std::string part;
+    while (std::getline(ss, part, '/')) {
+        if (part.empty() || part == ".") continue;
+        if (part == "..") {
+            if (!out.empty()) out.pop_back();
+            continue;
+        }
+        out.push_back(part);
+    }
+    std::string normalized = schemePos == std::string::npos ? "/" : prefix + "/";
+    for (size_t i = 0; i < out.size(); i++) {
+        normalized += out[i];
+        if (i + 1 < out.size()) normalized += "/";
+    }
+    return normalized.empty() ? "/" : normalized;
+}
+
+static std::string getParentPath(const std::string &path) {
+    std::string p = normalizePath(path);
+    if (p.empty() || p == "/") return "/";
+    size_t schemePos = p.find("://");
+    size_t minPos = 0;
+    if (schemePos != std::string::npos) {
+        size_t afterHost = p.find('/', schemePos + 3);
+        if (afterHost == std::string::npos) return ensureTrailingSlash(p);
+        minPos = afterHost + 1;
+    }
+    size_t pos = p.find_last_of('/');
+    if (pos == std::string::npos || pos < minPos) return p;
+    if (pos == 0) return "/";
+    return p.substr(0, pos);
+}
+
+static std::string getLeafName(const std::string &path) {
+    if (path.empty() || path == "/") return "";
+    size_t pos = path.find_last_of('/');
+    if (pos == std::string::npos) return path;
+    if (pos + 1 >= path.size()) return "";
+    return path.substr(pos + 1);
+}
+
+static bool startsWithPath(const std::string &path, const std::string &prefix) {
+    if (prefix.empty()) return true;
+    if (path.size() < prefix.size()) return false;
+    if (path.compare(0, prefix.size(), prefix) != 0) return false;
+    return path.size() == prefix.size() || path[prefix.size()] == '/';
+}
+
+static std::string clampNetworkPathToBase(const std::string &path, const std::string &baseUrl) {
+    std::string base = normalizePath(ensureTrailingSlash(baseUrl));
+    std::string normalized = normalizePath(path);
+    if (!startsWithPath(normalized, base)) {
+        return base;
+    }
+    return normalized;
+}
+
 Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
 
 #ifndef NDEBUG
@@ -68,13 +149,18 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
 
     // init/load config file
     config = new PPLAYConfig(this);
+    pplay::Utility::setLogLevel((pplay::Utility::LogLevel) config->getOption(OPT_LOG_LEVEL)->getInteger());
 
     // scaling
     scaling = {size.x / 1280.0f, size.y / 720.0f};
 
     // font
     font = new Font();
-    font->loadFromFile(Main::getIo()->getRomFsPath() + "skin/font.ttf");
+    std::string customFont = Main::getIo()->getDataPath() + "font.ttf";
+    std::string defaultFont = Main::getIo()->getRomFsPath() + "skin/font.ttf";
+    std::string fontPath = Main::getIo()->exist(customFont) ? customFont : defaultFont;
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main::font path=" + fontPath);
+    font->loadFromFile(fontPath);
     font->setFilter(Texture::Filter::Point);
     font->setOffset({0, -4.0f});
 
@@ -91,7 +177,36 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     filer = new Filer(this, "/", filerRect);
     filer->setLayer(1);
     Main::add(filer);
-    filer->getDir(config->getOption(OPT_LAST_PATH)->getString());
+    currentMenuType = config->getOption(OPT_LAST_MODULE)->getString() == "NETWORK"
+                      ? MenuType::Network : MenuType::Local;
+    if (currentMenuType == MenuType::Network) {
+        std::string root = ensureTrailingSlash(config->getOption(OPT_NETWORK)->getString());
+        std::string path = clampNetworkPathToBase(
+                config->getOption(OPT_LAST_NETWORK_PATH)->getString(),
+                config->getOption(OPT_NETWORK)->getString());
+        if (pplayIo->getDeviceType(path) == pplay::Io::DeviceType::Local || path.empty()) {
+            path = root;
+        }
+        std::string dirPath = getParentPath(path);
+        if (!filer->getDir(dirPath)) {
+            filer->getDir(root);
+        } else {
+            filer->selectByPath(path);
+            filer->clearHistory();
+        }
+    }
+    else if (currentMenuType == MenuType::Local) {
+        std::string path = normalizePath(config->getOption(OPT_LAST_LOCAL_PATH)->getString());
+        if (path.empty()) {
+            path = config->getOption(OPT_HOME_PATH)->getString();
+        }
+        std::string dirPath = getParentPath(path);
+        if (!filer->getDir(dirPath)) {
+            filer->getDir(config->getOption(OPT_HOME_PATH)->getString());
+        } else {
+            filer->selectByPath(path);
+        }
+    }
 
     // status bar
     statusBar = new StatusBar(this);
@@ -105,12 +220,14 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
 
     // main menu
     std::vector<MenuItem> items;
-    items.emplace_back("Home", "home.png", MenuItem::Position::Top);
+    items.emplace_back("Local", "home.png", MenuItem::Position::Top);
 #ifdef __SWITCH__
     items.emplace_back("Usb", "usb.png", MenuItem::Position::Top);
 #endif
     items.emplace_back("Network", "network.png", MenuItem::Position::Top);
+#ifdef __SWITCH__
     items.emplace_back("Options", "options.png", MenuItem::Position::Top);
+#endif
     items.emplace_back("Exit", "exit.png", MenuItem::Position::Bottom);
     menu_main = new MenuMain(this, {-250 * scaling.x, 0, 250 * scaling.x, Main::getSize().y}, items);
     menu_main->setVisibility(Visibility::Hidden, false);
@@ -161,9 +278,9 @@ bool Main::onInput(c2d::Input::Player *players) {
         return false;
     }
 
-    unsigned int keys = players[0].keys;
+    unsigned int keys = players[0].buttons;
 
-    if (keys & EV_QUIT) {
+    if (keys & Input::Quit) {
         if (player->isFullscreen()) {
             player->setFullscreen(false);
             filer->setVisibility(Visibility::Visible, true);
@@ -176,8 +293,8 @@ bool Main::onInput(c2d::Input::Player *players) {
 }
 
 void Main::onUpdate() {
-    unsigned int keys = getInput()->getKeys(0);
-    if (keys != Input::Key::Delay) {
+    unsigned int keys = getInput()->getButtons();
+    if (keys != Input::Delay) {
         bool changed = (oldKeys ^ keys) != 0;
         oldKeys = keys;
         if (!changed) {
@@ -198,20 +315,32 @@ void Main::onUpdate() {
 }
 
 void Main::show(MenuType type) {
+    if (type == MenuType::Current) {
+        type = currentMenuType;
+    } else {
+        currentMenuType = type;
+    }
+
     if (player->getMpv()->isStopped() && player->isFullscreen()) {
         player->setFullscreen(false);
     }
 
     filer->setVisibility(Visibility::Visible, true);
-    if (type == MenuType::Home) {
+    if (type == MenuType::Local) {
 #ifdef __SWITCH__
         usbHsFsExit();
 #endif
-        std::string path = config->getOption(OPT_HOME_PATH)->getString();
-        if (!filer->getDir(path)) {
-            if (filer->getDir("/")) {
+        std::string path = normalizePath(config->getOption(OPT_LAST_LOCAL_PATH)->getString());
+        if (path.empty()) {
+            path = config->getOption(OPT_HOME_PATH)->getString();
+        }
+        std::string dirPath = getParentPath(path);
+        if (!filer->getDir(dirPath)) {
+            if (filer->getDir(config->getOption(OPT_HOME_PATH)->getString())) {
                 filer->clearHistory();
             }
+        } else {
+            filer->selectByPath(path);
         }
 #ifdef __SWITCH__
         } else if (type == MenuType::Usb) {
@@ -222,11 +351,21 @@ void Main::show(MenuType type) {
 #ifdef __SWITCH__
         usbHsFsExit();
 #endif
-        std::string path = config->getOption(OPT_NETWORK)->getString();
-        if (!filer->getDir(path)) {
-            messageBox->show("OOPS", filer->getError(), "OK");
-            show(MenuType::Home);
+        std::string root = ensureTrailingSlash(config->getOption(OPT_NETWORK)->getString());
+        std::string path = clampNetworkPathToBase(
+                config->getOption(OPT_LAST_NETWORK_PATH)->getString(),
+                config->getOption(OPT_NETWORK)->getString());
+        if (pplayIo->getDeviceType(path) == pplay::Io::DeviceType::Local || path.empty()) {
+            path = root;
+        }
+        std::string dirPath = getParentPath(path);
+        if (!filer->getDir(dirPath)) {
+            if (!filer->getDir(root)) {
+                messageBox->show("OOPS", filer->getError(), "OK");
+                show(MenuType::Local);
+            }
         } else {
+            filer->selectByPath(path);
             filer->clearHistory();
         }
     }
@@ -246,8 +385,7 @@ void Main::setRunningStop() {
 }
 
 void Main::quit() {
-    // TODO: save network path
-    config->getOption(OPT_LAST_PATH)->setString(filer->getPath());
+    syncLastLocation();
     config->save();
     exit = true;
     if (player->getMpv()->isStopped()) {
@@ -255,6 +393,40 @@ void Main::quit() {
     } else {
         player->stop();
     }
+}
+
+void Main::syncLastLocation() {
+    MediaFile selected = filer->getSelection();
+    std::string selectedPath = selected.path.empty() ? filer->getPath() : selected.path;
+    if (selected.name == "..") {
+        selectedPath = filer->getPath() + "/..";
+    }
+    selectedPath = normalizePath(selectedPath);
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main::syncLastLocation module="
+                        + std::string(currentMenuType == MenuType::Network ? "NETWORK" : "LOCAL")
+                        + " selected=" + selectedPath
+                        + " leaf=" + getLeafName(selectedPath));
+    if (currentMenuType == MenuType::Network) {
+        config->getOption(OPT_LAST_MODULE)->setString("NETWORK");
+        if (pplayIo->getDeviceType(selectedPath) != pplay::Io::DeviceType::Local) {
+            selectedPath = clampNetworkPathToBase(
+                    selectedPath,
+                    config->getOption(OPT_NETWORK)->getString());
+            if (getLeafName(selectedPath).empty()) {
+                config->getOption(OPT_LAST_NETWORK_PATH)->setString(ensureTrailingSlash(selectedPath));
+            } else {
+                config->getOption(OPT_LAST_NETWORK_PATH)->setString(selectedPath);
+            }
+        }
+    } else {
+        config->getOption(OPT_LAST_MODULE)->setString("LOCAL");
+        if (getLeafName(selectedPath).empty()) {
+            config->getOption(OPT_LAST_LOCAL_PATH)->setString(ensureTrailingSlash(selectedPath));
+        } else {
+            config->getOption(OPT_LAST_LOCAL_PATH)->setString(selectedPath);
+        }
+    }
+    config->save();
 }
 
 Player *Main::getPlayer() {
@@ -307,7 +479,7 @@ pplay::Scrapper *Main::getScrapper() {
 
 int main() {
 
-    Vector2f size = {C2D_SCREEN_WIDTH, C2D_SCREEN_HEIGHT};
+    Vector2f size = {1920, 1080};
 
 #ifdef __SWITCH__
 #ifdef NDEBUG

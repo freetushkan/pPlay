@@ -84,6 +84,11 @@ void Filer::setSelection(int index) {
         } else {
             // load media info, set file
             MediaFile file = files[index_start + i];
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Filer::setSelection item idx="
+                                                                 + std::to_string(index_start + i)
+                                                                 + " name=" + file.name
+                                                                 + " path=" + file.path
+                                                                 + " type=" + std::to_string((int) file.type));
             items[i]->setFile(file);
             items[i]->setVisibility(Visibility::Visible);
             if (!file.movies.empty()) {
@@ -111,16 +116,82 @@ void Filer::setSelection(int index) {
     }
 
     mutex->unlock();
+    MediaFile selected = getSelection();
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Filer::setSelection index=" + std::to_string(item_index)
+                        + " path=" + path
+                        + " selectedName=" + selected.name
+                        + " selectedPath=" + selected.path
+                        + " selectedType=" + std::to_string((int) selected.type));
+    main->syncLastLocation();
 }
 
 MediaFile Filer::getSelection() const {
     mutex->lock();
     if (!files.empty() && files.size() > (unsigned int) item_index) {
-        return files[item_index];
+        MediaFile file = files[item_index];
+        mutex->unlock();
+        return file;
     }
     mutex->unlock();
 
     return {};
+}
+
+
+bool Filer::getNextMediaFile(const MediaFile &current, MediaFile &next) {
+    mutex->lock();
+    if (files.empty()) {
+        mutex->unlock();
+        return false;
+    }
+
+    int currentIndex = -1;
+    for (size_t i = 0; i < files.size(); i++) {
+        if (files[i].path == current.path) {
+            currentIndex = (int) i;
+            break;
+        }
+    }
+
+    if (currentIndex < 0) {
+        mutex->unlock();
+        return false;
+    }
+
+    for (size_t off = 1; off < files.size(); off++) {
+        size_t idx = ((size_t) currentIndex + off) % files.size();
+        if (pplay::Utility::isMedia(files[idx])) {
+            next = files[idx];
+            mutex->unlock();
+            return true;
+        }
+    }
+
+    mutex->unlock();
+    return false;
+}
+
+std::vector<MediaFile> Filer::getFilesSnapshot() const {
+    mutex->lock();
+    std::vector<MediaFile> snapshot = files;
+    mutex->unlock();
+    return snapshot;
+}
+
+bool Filer::selectByPath(const std::string &targetPath) {
+    if (targetPath.empty()) {
+        return false;
+    }
+    mutex->lock();
+    for (size_t i = 0; i < files.size(); i++) {
+        if (files[i].path == targetPath) {
+            mutex->unlock();
+            setSelection((int) i);
+            return true;
+        }
+    }
+    mutex->unlock();
+    return false;
 }
 
 bool Filer::onInput(c2d::Input::Player *players) {
@@ -133,42 +204,45 @@ bool Filer::onInput(c2d::Input::Player *players) {
     size_t filesSize = files.size();
     mutex->unlock();
 
-    unsigned int keys = players[0].keys;
+    unsigned int keys = players[0].buttons;
 
-    if (keys & c2d::Input::Start || keys & c2d::Input::Select) {
+    if (keys & c2d::Input::LB || keys & c2d::Input::RB) {
         main->getMenuMain()->setVisibility(Visibility::Visible, true);
-    } else if (keys & Input::Key::Up) {
+    } else if (keys & Input::Up) {
         item_index--;
         if (item_index < 0)
             item_index = (int) (filesSize - 1);
         setSelection(item_index);
         scrapView->unload();
-    } else if (keys & Input::Key::Down) {
+    } else if (keys & Input::Down) {
         item_index++;
         if (item_index >= (int) filesSize) {
             item_index = 0;
         }
         setSelection(item_index);
         scrapView->unload();
-    } else if (keys & Input::Key::Left) {
+    } else if (keys & Input::Left) {
         main->getMenuMain()->setVisibility(Visibility::Visible, true);
-    } else if (keys & Input::Key::Right) {
+    } else if (keys & Input::Right) {
         if (!main->getPlayer()->getMpv()->isStopped()
             && !main->getPlayer()->isFullscreen()) {
             main->getPlayer()->setFullscreen(true);
         }
-    } else if (keys & Input::Key::Fire1) {
+    } else if (keys & Input::A) {
         if (getSelection().type == Io::Type::Directory) {
             scrapView->unload();
             enter(item_index);
         } else if (pplay::Utility::isMedia(getSelection())) {
             main->getPlayer()->load(files[item_index]);
         }
-    } else if (keys & Input::Key::Fire2) {
+    } else if (keys & Input::B) {
         scrapView->unload();
         exit();
-    } else if (keys & Input::Key::Fire3) {
-        main->getScrapper()->scrap(path);
+    } else if (keys & Input::X) {
+        const bool loopEnabled = main->getConfig()->getOption(OPT_ENABLE_SCRAPPING)->getInteger() == 1;
+        if (loopEnabled) {
+            main->getScrapper()->scrap(path);
+        }
     }
 
     return true;
@@ -199,6 +273,7 @@ static bool compare(const MediaFile &a, const MediaFile &b) {
 
 bool Filer::getDir(const std::string &p) {
     printf("getDir(%s)\n", p.c_str());
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Filer::getDir path=" + p);
 
     mutex->lock();
     files.clear();
@@ -209,8 +284,9 @@ bool Filer::getDir(const std::string &p) {
 
     std::vector<std::string> ext = pplay::Utility::getMediaExtensions();
     pplay::Io::DeviceType type = ((pplay::Io *) main->getIo())->getDeviceType(p);
+    int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
     std::vector<Io::File> _files =
-            ((pplay::Io *) main->getIo())->getDirList(type, ext, path, false);
+        ((pplay::Io *) main->getIo())->getDirList(type, ext, path, timeout, false);
 
     for (auto &file: _files) {
         MediaFile mf(file, MediaInfo(file));
@@ -236,6 +312,11 @@ bool Filer::getDir(const std::string &p) {
     }
 
     mutex->unlock();
+    for (size_t i = 0; i < files.size(); i++) {
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Filer::file[" + std::to_string(i) + "] name=" + files[i].name
+                            + " path=" + files[i].path
+                            + " type=" + std::to_string((int) files[i].type));
+    }
     setSelection(0);
 
     return true;

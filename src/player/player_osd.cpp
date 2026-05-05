@@ -160,26 +160,37 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
         return true;
     }
 
-    unsigned int keys = players[0].keys;
+    unsigned int keys = players[0].buttons;
 
-    if ((keys & Input::Key::Up) || keys & Input::Key::Fire2) {
+#ifdef __PS4__
+    if (keys & Input::Down) {
+        main->getPlayer()->getMpv()->changeVolume(-1);
+        clock.restart();
+    } else if (keys & Input::Up) {
+        main->getPlayer()->getMpv()->changeVolume(1);
+        clock.restart();
+    }
+    else if (keys & Input::B) {
+#else
+    if ((keys & Input::Up) || keys & Input::B) {
+#endif
         setVisibility(Visibility::Hidden, true);
         main->getStatusBar()->setVisibility(Visibility::Hidden, true);
-    } else if (keys & Input::Key::Left) {
+    } else if (keys & Input::Left) {
         index--;
         if (index < 0) {
             index = (int) buttons.size() - 1;
         }
         highlight->tweenTo({buttons.at((size_t) index)->getPosition().x, 0});
         clock.restart();
-    } else if (keys & Input::Key::Right) {
+    } else if (keys & Input::Right) {
         index++;
         if (index >= (int) buttons.size()) {
             index = 0;
         }
         highlight->tweenTo({buttons.at((size_t) index)->getPosition().x, 0});
         clock.restart();
-    } else if (keys & Input::Key::Fire1) {
+    } else if (keys & Input::A) {
         if (index == (int) ButtonID::Pause) {
             bool pause = !main->getPlayer()->getMpv()->isPaused();
             btn_play->setVisibility(pause ? Visibility::Visible : Visibility::Hidden);

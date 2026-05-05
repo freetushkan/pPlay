@@ -47,7 +47,7 @@ class Main : public c2d::C2DRenderer {
 public:
 
     enum class MenuType {
-        Home,
+        Local,
         Network,
         Current,
 #ifdef __SWITCH__
@@ -72,6 +72,7 @@ public:
     bool isRunning();
 
     void setRunningStop();
+    void syncLastLocation();
 
     MenuMain *getMenuMain();
 
@@ -135,6 +136,7 @@ private:
 
     bool exit = false;
     bool running = true;
+    MenuType currentMenuType = MenuType::Local;
 };
 
 #endif //PPLAY_MAIN_H

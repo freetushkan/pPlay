@@ -4,9 +4,12 @@
 
 #include <regex>
 #include "io.h"
+#include "main.h"
 #include "media_info.h"
+#include "utility.h"
 #include "ftplib.h"
 #include "Browser/Browser.hpp"
+#include "pplay_config.h"
 
 using namespace pplay;
 
@@ -33,7 +36,6 @@ Io::Io() : c2d::C2DIo() {
     browser = new Browser();
     browser->set_handle_gzip(true);
     browser->set_handle_redirect(true);
-    browser->set_handle_ssl(false);
     browser->fetch_forms(false);
 
     // ftp io
@@ -41,14 +43,17 @@ Io::Io() : c2d::C2DIo() {
 }
 
 std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, const std::vector<std::string> &extensions,
-                                          const std::string &path, bool sort, bool showHidden) {
+                                          const std::string &path, int timeout, bool sort, bool showHidden) {
 
     std::vector<c2d::Io::File> files;
 
     printf("Io::getDirList(%s)\n", path.c_str());
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::getDirList path=" + path);
 
     if (type == DeviceType::Local) {
         files = c2d::C2DIo::getDirList(path, sort, showHidden);
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::Local path=" + path
+                                                            + " entries=" + std::to_string(files.size()));
     } else if (type == DeviceType::Http) {
         std::string http_path = path;
         if (!c2d::Utility::endsWith(http_path, "/")) {
@@ -60,7 +65,9 @@ std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, con
         std::string dir = browser->escape(http_path.substr(pos + 1, http_path.length() - 1));
         dir = std::regex_replace(dir, std::regex("%2F"), "/");
         //printf("home: %s | dir: %s\n", home.c_str(), dir.c_str());
-        browser->open(home + dir, 3);
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::Browser->open url=" + home + dir);
+        browser->open(home + dir, timeout);
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::Browser->open done.");
         if (browser->error() || browser->links.size() < 1) {
             return files;
         }
@@ -91,6 +98,8 @@ std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, con
         if (sort) {
             std::sort(files.begin(), files.end(), compare);
         }
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::Browser path=" + path
+                                                            + " entries=" + std::to_string(files.size()));
     } else if (type == DeviceType::Ftp) {
         std::string ftp_path = path;
         if (!c2d::Utility::endsWith(ftp_path, "/")) {
@@ -230,6 +239,8 @@ Io::DeviceType Io::getDeviceType(const std::string &path) {
     Io::DeviceType type = Io::DeviceType::Local;
 
     if (c2d::Utility::startWith(path, "http://")) {
+        type = pplay::Io::DeviceType::Http;
+    } else if (c2d::Utility::startWith(path, "https://")) {
         type = pplay::Io::DeviceType::Http;
     } else if (c2d::Utility::startWith(path, "ftp://")) {
         type = pplay::Io::DeviceType::Ftp;

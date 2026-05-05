@@ -36,6 +36,8 @@ public:
 
     int stop();
 
+    int changeVolume(double delta);
+
     int seek(double position);
 
     int setSpeed(double speed);

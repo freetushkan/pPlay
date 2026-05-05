@@ -729,21 +729,28 @@ void forms_class::get_raw_inputs(std::string raw_form, std::vector <std::string>
     replaceAll(raw_form_lower,"\n"," ");
     replaceAll(raw_form,"\n"," ");
 
-    unsigned int first_index=0;
-    unsigned int last_index ;
+    std::string::size_type first_index = 0;
+    std::string::size_type last_index = std::string::npos;
     int backward_ite=1;
     int loop_index;
     bool find_first_index = false;
 
     //save the index of the first input
-    while(find_first_index ==false && first_index!=std::string::npos) {
-        first_index = raw_form_lower.find("input ",first_index);
-        backward_ite= 1;
+    while(find_first_index == false && first_index != std::string::npos) {
+        first_index = raw_form_lower.find("input ", first_index);
+        if (first_index == std::string::npos || first_index == 0) {
+            break;
+        }
+
+        backward_ite = 1;
         //we go backward after the word input ignoring spaces
-        while(raw_form_lower[first_index-backward_ite]==' ')
+        while(first_index >= static_cast<std::string::size_type>(backward_ite)
+              && raw_form_lower[first_index - backward_ite] == ' ') {
             backward_ite++;
+        }
         //the first char before input must be '<'
-        if(raw_form_lower[first_index-backward_ite]=='<')
+        if(first_index >= static_cast<std::string::size_type>(backward_ite)
+           && raw_form_lower[first_index - backward_ite] == '<')
             find_first_index = true;
     }
 
@@ -752,15 +759,20 @@ void forms_class::get_raw_inputs(std::string raw_form, std::vector <std::string>
         find_first_index = false;
         backward_ite     = 1;
         loop_index       = first_index;
-        while(find_first_index==false  && last_index!=std::string::npos) {
+        while(find_first_index == false  && last_index != std::string::npos) {
             //save the last index
-            last_index       = raw_form_lower.find("input ",loop_index+3);
-            while(raw_form_lower[last_index-backward_ite]==' ')
+            last_index = raw_form_lower.find("input ",loop_index+3);
+            if (last_index == std::string::npos || last_index == 0) {
+                break;
+            }
+            while(last_index >= static_cast<std::string::size_type>(backward_ite)
+                  && raw_form_lower[last_index-backward_ite]==' ')
                 backward_ite++;
             //the first char before input must be '<'
-            if(raw_form_lower[last_index-backward_ite]=='<')
+            if(last_index >= static_cast<std::string::size_type>(backward_ite)
+               && raw_form_lower[last_index-backward_ite]=='<')
                 find_first_index = true;
-            loop_index = last_index+3;
+            loop_index = (int)last_index + 3;
         }
 
         //append to the container the input we just found

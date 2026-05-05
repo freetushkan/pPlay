@@ -15,7 +15,15 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
     addOption({OPT_UMS_DEVICE, "ums0:/"});
 #endif
     addOption({OPT_HOME_PATH, main->getIo()->getDataPath()});
-    addOption({OPT_LAST_PATH, main->getIo()->getDataPath()});
+    addOption({OPT_LAST_LOCAL_PATH, main->getIo()->getDataPath()});
+    addOption({OPT_LAST_NETWORK_PATH, "/"});
+    addOption({OPT_LAST_MODULE, "LOCAL"});
+    addOption({OPT_NETWORK_TIMEOUT, (int) 15});
+    addOption({OPT_NETWORK_RETRIES, (int) 3});
+    addOption({OPT_AUTOPLAY_NEXT, (int) 1});
+    addOption({OPT_AUTOPLAY_LOOP, (int) 0});
+    addOption({OPT_ENABLE_SCRAPPING, (int) 0});
+    addOption({OPT_LOG_LEVEL, (int) 0}); // 0 OFF, 1 ERROR, 2 INFO, 3 DEBUG
     addOption({OPT_CACHE_MEDIA_INFO, (int) 1});
     //addOption({OPT_BUFFER, "Low"}); // Low, Medium, High, VeryHigh
 #ifdef __SWITCH__
@@ -30,8 +38,14 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
         getOption(OPT_HOME_PATH)->setString(main->getIo()->getDataPath());
     }
 
-    if (!main->getIo()->exist(getOption(OPT_LAST_PATH)->getString())) {
-        getOption(OPT_LAST_PATH)->setString(main->getIo()->getDataPath());
+    if (!main->getIo()->exist(getOption(OPT_LAST_LOCAL_PATH)->getString())) {
+        getOption(OPT_LAST_LOCAL_PATH)->setString(main->getIo()->getDataPath());
+    }
+    if (getOption(OPT_LAST_NETWORK_PATH)->getString().empty()) {
+        getOption(OPT_LAST_NETWORK_PATH)->setString("/");
+    }
+    if (getOption(OPT_LAST_MODULE)->getString().empty()) {
+        getOption(OPT_LAST_MODULE)->setString("LOCAL");
     }
 
     if (getOption(OPT_TMDB_LANGUAGE)->getString().empty()) {

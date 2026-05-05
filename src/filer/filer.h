@@ -32,6 +32,10 @@ public:
 
     virtual MediaFile getSelection() const;
 
+    virtual bool getNextMediaFile(const MediaFile &current, MediaFile &next);
+    virtual std::vector<MediaFile> getFilesSnapshot() const;
+    virtual bool selectByPath(const std::string &targetPath);
+
     virtual void setSelection(int index);
 
     virtual void clearHistory();

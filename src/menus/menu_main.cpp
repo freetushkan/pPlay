@@ -46,13 +46,13 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
 }
 
 void MenuMain::onOptionSelection(MenuItem *item) {
-    if (item->name == "Home") {
+    if (item->name == "Local") {
         setVisibility(Visibility::Hidden, true);
-        main->show(Main::MenuType::Home);
+        main->show(Main::MenuType::Local);
     } else if (item->name == "Network") {
         setVisibility(Visibility::Hidden, true);
         main->show(Main::MenuType::Network);
-    } else if (item->name == "Options" && !menuMainOptions->getButtons().empty()) {
+    } else if (item->name == "Options") {
         setVisibility(Visibility::Hidden, true);
         menuMainOptions->setVisibility(Visibility::Visible);
 #ifdef __SWITCH__
@@ -66,12 +66,12 @@ void MenuMain::onOptionSelection(MenuItem *item) {
 }
 
 bool MenuMain::onInput(c2d::Input::Player *players) {
-    if (players[0].keys & Input::Right || players[0].keys & Input::Key::Fire2) {
+    if (players[0].buttons & Input::Right || players[0].buttons & Input::B) {
         setVisibility(Visibility::Hidden, true);
         return true;
     }
 
-    if (players[0].keys & Input::Left) {
+    if (players[0].buttons & Input::Left) {
         MenuItem *item = getSelection();
         if (item->name == "Options") {
             onOptionSelection(item);

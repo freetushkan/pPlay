@@ -13,6 +13,12 @@ namespace pplay {
     class Utility {
 
     public:
+        enum class LogLevel {
+            Off = 0,
+            Error = 1,
+            Info = 2,
+            Debug = 3
+        };
 
         enum class CpuClock {
             Min = 0,
@@ -36,6 +42,10 @@ namespace pplay {
         static std::string formatTimeShort(double seconds);
 
         static std::string formatSize(size_t size);
+
+        static std::string ensureUtf8(const std::string &text);
+        static void setLogLevel(LogLevel level);
+        static void log(LogLevel level, const std::string &message);
 
         static void setCpuClock(const CpuClock &clock);
     };

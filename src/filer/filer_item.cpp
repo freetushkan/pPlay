@@ -34,8 +34,12 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
 void FilerItem::setFile(const MediaFile &f) {
 
     this->file = f;
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "FilerItem::setFile name=" + file.name
+                                                         + " path=" + file.path
+                                                         + " type=" + std::to_string((int) file.type));
 
     textTitle->setString(file.name);
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "FilerItem::setFile titleUtf8=" + textTitle->getString());
     uint8_t alpha = textTitle->getAlpha();
     if (file.type == Io::Type::Directory) {
         textTitle->setFillColor(COLOR_BLUE);
@@ -51,5 +55,6 @@ void FilerItem::setFile(const MediaFile &f) {
 }
 
 void FilerItem::setTitle(const std::string &title) {
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "FilerItem::setTitle title=" + title);
     textTitle->setString(title);
 }

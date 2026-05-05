@@ -7,7 +7,7 @@
 
 using namespace c2d;
 
-VideoTexture::VideoTexture(Main *m, const c2d::Vector2f &size) : GLTextureBuffer(size, Format::RGBA8) {
+VideoTexture::VideoTexture(Main *m, const c2d::Vector2f &size) : GLTextureBuffer({(int) size.x, (int) size.y}, Format::RGBA8) {
     main = m;
 
     // fade

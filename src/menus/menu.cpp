@@ -88,7 +88,7 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title,
 }
 
 bool Menu::onInput(c2d::Input::Player *players) {
-    unsigned int keys = players[0].keys;
+    unsigned int keys = players[0].buttons;
 
     if (keys & Input::Touch) {
         Vector2f touch = players[0].touch;
@@ -114,7 +114,7 @@ bool Menu::onInput(c2d::Input::Player *players) {
             if (index == (int) buttons.size()) {
                 index = 0;
             }
-        } else if (keys & Input::Fire1) {
+        } else if (keys & Input::A) {
             onOptionSelection(&buttons[index]->item);
         }
     }

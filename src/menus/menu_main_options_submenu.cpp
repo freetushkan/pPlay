@@ -51,7 +51,7 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
 }
 
 bool MenuMainOptionsSubmenu::onInput(c2d::Input::Player *players) {
-    if (players[0].keys & Input::Right || players[0].keys & Input::Key::Fire2) {
+    if (players[0].buttons & Input::Right || players[0].buttons & Input::B) {
         setVisibility(Visibility::Hidden, true);
         main->getMenuMain()->getMenuMainOptions()->setVisibility(Visibility::Visible, true);
         return true;

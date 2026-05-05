@@ -15,8 +15,9 @@ static std::vector<c2d::Io::File> scrapList;
 static void find_medias(Main *main, const std::string &path) {
     std::vector<std::string> ext = pplay::Utility::getMediaExtensions();
     pplay::Io::DeviceType type = ((pplay::Io *) main->getIo())->getDeviceType(path);
+    int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
     std::vector<c2d::Io::File> files =
-            ((pplay::Io *) main->getIo())->getDirList(type, ext, path);
+            ((pplay::Io *) main->getIo())->getDirList(type, ext, path, timeout);
 
     if (files.empty()) {
         return;

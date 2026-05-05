@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.10)
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
 ####################
@@ -27,9 +27,13 @@ add_subdirectory(pscrap)
 ##############
 project(pplay)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 # pplay version
-set(VERSION_MAJOR "3")
-set(VERSION_MINOR "8")
+set(VERSION_MAJOR "4")
+set(VERSION_MINOR "0")
 set(PROJECT_AUTHOR "Cpasjuste")
 set(TITLE_ID "PPLAY0001")
 

@@ -3,7 +3,41 @@
 //
 
 #include <SDL_video.h>
+#include <cmath>
 #include "mpv.h"
+#include "utility.h"
+
+extern "C" {
+#include <libavformat/avformat.h>
+}
+
+#include <vector>
+#include <string>
+#include <sstream>
+
+static std::vector<std::string> get_ffmpeg_protocols(bool output) {
+    std::vector<std::string> result;
+
+    void *opaque = nullptr;
+    const char *name = nullptr;
+
+    while ((name = avio_enum_protocols(&opaque, output))) {
+        if (name) {
+            result.emplace_back(name);
+        }
+    }
+
+    return result;
+}
+
+static std::string join_protocols(const std::vector<std::string> &protos) {
+    std::ostringstream oss;
+    for (size_t i = 0; i < protos.size(); ++i) {
+        if (i) oss << ' ';
+        oss << protos[i];
+    }
+    return oss.str();
+}
 
 #ifdef __PS4__
 extern "C" int ps4_mpv_use_precompiled_shaders;
@@ -15,6 +49,7 @@ static void *get_proc_address_mpv(void *unused, const char *name) {
 }
 
 Mpv::Mpv(const std::string &configPath, bool initRender) {
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Mpv::Mpv: configPath=" + configPath);
 #ifdef __PS4__
     ps4_mpv_use_precompiled_shaders = 1;
     ps4_mpv_dump_shaders = 0;
@@ -46,6 +81,8 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     mpv_set_option_string(handle, "audio-channels", "stereo");
 #ifdef __PS4__
     mpv_set_option_string(handle, "ignore-path-in-watch-later-config", "yes");
+    mpv_set_option_string(handle, "stream-lavf-o", "tls_verify=0,verify=0");
+    mpv_set_option_string(handle, "tls-verify", "no");
 #endif
 
 #ifdef FULL_TEXTURE_TEST
@@ -70,10 +107,45 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     int res = mpv_initialize(handle);
     if (res) {
         printf("Mpv::Mpv: error: mpv_initialize: %s\n", mpv_error_string(res));
+        pplay::Utility::log(pplay::Utility::LogLevel::Info,
+            std::string("Mpv::Mpv: error: mpv_initialize:\n") + mpv_error_string(res));
+
         mpv_terminate_destroy(handle);
         handle = nullptr;
         return;
     }
+
+    char *mpvVersion = mpv_get_property_string(handle, "mpv-version");
+    std::string versionStr = mpvVersion ? mpvVersion : "unknown";
+    mpv_node node;
+    std::string protoList = "unknown";
+    if (mpv_get_property(handle, "protocol-list", MPV_FORMAT_NODE, &node) >= 0) {
+        if (node.format == MPV_FORMAT_NODE_ARRAY && node.u.list) {
+            protoList.clear();
+            for (int i = 0; i < node.u.list->num; i++) {
+                const mpv_node &v = node.u.list->values[i];
+                if (v.format == MPV_FORMAT_STRING && v.u.string) {
+                    if (!protoList.empty())
+                        protoList += " ";
+                    protoList += v.u.string;
+                }
+            }
+        }
+        mpv_free_node_contents(&node);
+    }
+    pplay::Utility::log(
+        pplay::Utility::LogLevel::Info,
+        "Mpv::Mpv: version: " + versionStr + " | protocols: " + protoList
+    );
+    if (mpvVersion) {
+        mpv_free(mpvVersion);
+    }
+
+    auto in_protos = get_ffmpeg_protocols(false);
+    auto out_protos = get_ffmpeg_protocols(true);
+    std::string log = "FFmpeg protocols:\n  Input: " + join_protocols(in_protos) +
+                      "\n  Output: " + join_protocols(out_protos);
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, log);
 
     if (initRender) {
         mpv_opengl_init_params gl_init_params{get_proc_address_mpv,
@@ -134,6 +206,11 @@ int Mpv::resume() {
 int Mpv::stop() {
     save();
     return mpv_command_string(handle, "stop");
+}
+
+int Mpv::changeVolume(double delta) {
+    std::string cmd = "add volume " + std::to_string(delta);
+    return mpv_command_string(handle, cmd.c_str());
 }
 
 int Mpv::seek(double position) {

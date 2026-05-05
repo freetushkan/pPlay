@@ -118,11 +118,11 @@ GLOBALREF int FtpRename(const char *src, const char *dst, netbuf *nControl);
 GLOBALREF int FtpDelete(const char *fnm, netbuf *nControl);
 GLOBALREF void FtpQuit(netbuf *nControl);
 
-// pplay
-std::vector<c2d::Io::File> FtpDirList(const char *path, netbuf *nControl);
-
 #ifdef __cplusplus
 };
+
+// pplay
+std::vector<c2d::Io::File> FtpDirList(const char *path, netbuf *nControl);
 #endif
 
 #endif /* __FTPLIB_H */

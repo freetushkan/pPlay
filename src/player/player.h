@@ -23,7 +23,7 @@ public:
 
     ~Player() override;
 
-    bool load(const MediaFile &file);
+    bool load(const MediaFile &file, bool resetRetry = true);
 
     void pause();
 
@@ -80,6 +80,11 @@ private:
     MenuVideoSubmenu *menuAudioStreams = nullptr;
     MenuVideoSubmenu *menuSubtitlesStreams = nullptr;
     MediaFile file;
+    std::vector<MediaFile> autoplayFiles;
+    int retryCount = 0;
+    long lastProgressSave = 0;
+    long lastKnownDuration = 0;
+    long lastKnownPosition = 0;
 
     // player
     VideoTexture *texture = nullptr;

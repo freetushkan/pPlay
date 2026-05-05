@@ -40,6 +40,7 @@ in this Software without prior written authorization of the copyright holder.
 #include "forms.hpp"
 #include "links.hpp"
 #include <errno.h>
+#include "utility.h"
 
 
 ///==================================THE BROWSER CLASS==============================///
@@ -285,13 +286,27 @@ void Browser::fetch_links(bool allow)
 
 
 ///==================THE OPEN PAGE WITH THE OVERLOADING=============================///
-void Browser::open(std::string url, int usertimeout=20,bool save_history=true)
+void Browser::open(std::string url, int usertimeout=20, bool save_history=true)
 {
     init();
     timeout = usertimeout;
     assert(timeout>0);
     //set the url in the options
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str() );
+    auto *vi = curl_version_info(CURLVERSION_NOW);
+    if (vi) {
+        std::ostringstream oss;
+        oss << "libcurl version=" << vi->version
+            << ", ssl=" << (vi->ssl_version ? vi->ssl_version : "unknown")
+            << ", libz=" << (vi->libz_version ? vi->libz_version : "none");
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, oss.str());
+    }
+    char errbuf[CURL_ERROR_SIZE];
+    std::memset(errbuf, 0, sizeof(errbuf));
+    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
+    // curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
     //Handle the response
     if(writing_bytes==false)
     {
@@ -309,7 +324,31 @@ void Browser::open(std::string url, int usertimeout=20,bool save_history=true)
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, filepipe);
     }
 
+    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                        "Browser::open url=" + url +
+                        ", timeout=" + std::to_string(timeout) +
+                        ", writing_bytes=" + std::string(writing_bytes ? "true" : "false"));
     res = curl_easy_perform(curl);
+
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    char *effective_url = nullptr;
+    curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effective_url);
+    long connect_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_HTTP_CONNECTCODE, &connect_code);
+    long ssl_verify = 0;
+    curl_easy_getinfo(curl, CURLINFO_SSL_VERIFYRESULT, &ssl_verify);
+
+    pplay::Utility::log(
+        pplay::Utility::LogLevel::Info,
+        std::string("Browser::curl result=") + curl_easy_strerror(res) +
+        ", http_code=" + std::to_string(http_code) +
+        ", connect_code=" + std::to_string(connect_code) +
+        ", ssl_verify=" + std::to_string(ssl_verify) +
+        ", effective_url=" + (effective_url ? effective_url : "null") +
+        ", errbuf=" + (errbuf[0] ? errbuf : "")
+    );
+
     if(error())
     {
         std::cerr<<"\n";

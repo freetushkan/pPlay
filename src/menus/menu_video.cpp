@@ -42,12 +42,12 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
 
 bool MenuVideo::onInput(c2d::Input::Player *players) {
 
-    if (players[0].keys & Input::Left || players[0].keys & Input::Key::Fire2) {
+    if (players[0].buttons & Input::Left || players[0].buttons & Input::B) {
         setVisibility(Visibility::Hidden, true);
         return true;
     }
 
-    if (players[0].keys & Input::Right) {
+    if (players[0].buttons & Input::Right) {
         MenuItem *item = getSelection();
         if (item->name != "Stop") {
             onOptionSelection(item);

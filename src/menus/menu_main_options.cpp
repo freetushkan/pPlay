@@ -12,18 +12,21 @@ MenuMainOptions::MenuMainOptions(Main *main, const c2d::FloatRect &rect, const s
 }
 
 void MenuMainOptions::onOptionSelection(MenuItem *item) {
-    setVisibility(Visibility::Hidden);
-    main->getMenuMain()->getMenuMainOptionsSubmenu(item->name)->setVisibility(Visibility::Visible);
+    auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(item->name);
+    if (submenu != nullptr) {
+        setVisibility(Visibility::Hidden);
+        submenu->setVisibility(Visibility::Visible);
+    }
 }
 
 bool MenuMainOptions::onInput(c2d::Input::Player *players) {
-    if (players[0].keys & Input::Right || players[0].keys & Input::Key::Fire2) {
+    if (players[0].buttons & Input::Right || players[0].buttons & Input::B) {
         setVisibility(Visibility::Hidden, true);
         main->getMenuMain()->setVisibility(Visibility::Visible, true);
         return true;
     }
 
-    if (players[0].keys & Input::Left) {
+    if (players[0].buttons & Input::Left) {
         onOptionSelection(getSelection());
         return true;
     }

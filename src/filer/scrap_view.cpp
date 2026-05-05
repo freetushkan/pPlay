@@ -146,7 +146,7 @@ void ScrapView::onUpdate() {
         return;
     }
 
-    unsigned int keys = main->getInput()->getKeys();
+    unsigned int keys = main->getInput()->getButtons();
 
     if (keys > 0 && keys != Input::Delay) {
         clock->restart();

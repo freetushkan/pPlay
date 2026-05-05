@@ -23,6 +23,8 @@ namespace pplay {
 
     public:
 
+        using c2d::C2DIo::getDirList;
+
         Io();
 
         ~Io() override;
@@ -32,13 +34,13 @@ namespace pplay {
         };
 
         std::vector<Io::File> getDirList(const DeviceType &type, const std::vector<std::string> &extensions,
-                                         const std::string &path, bool sort = false, bool showHidden = false);
+                                         const std::string &path, int timeout = 5, bool sort = false, bool showHidden = false);
 
         DeviceType getDeviceType(const std::string &path);
 
 #ifdef __PS4__
 
-        std::string getHomePath() override {
+        std::string getHomePath() {
             return "/data/pplay/";
         }
 

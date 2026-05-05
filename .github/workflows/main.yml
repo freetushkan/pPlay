@@ -2,10 +2,17 @@ name: ps4-release
 
 on:
   workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
 
 jobs:
   ps4:
     runs-on: ubuntu-24.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
       - name: Checkout
@@ -17,13 +24,17 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            pacman-package-manager wget cmake git gettext smpq
+            pacman-package-manager wget cmake git gettext smpq \
+            makepkg libarchive-tools build-essential \
+            autoconf libtool nasm curl
 
           sudo tee -a /etc/pacman.conf > /dev/null <<TEXT
           [pacbrew]
           SigLevel = Optional TrustAll
           Server = https://pacman.mydedibox.fr/pacbrew/packages/
           TEXT
+
+          git clone --depth 1 https://github.com/PacBrew/ps4-openorbis-portlibs.git /tmp/portlibs
 
       - name: Setup pacman packages
         run: |
@@ -34,6 +45,36 @@ jobs:
           # Fix missing header
           sudo mkdir -p /opt/pacbrew/ps4/openorbis/include/sys
           echo '#include <endian.h>' | sudo tee /opt/pacbrew/ps4/openorbis/include/sys/endian.h > /dev/null
+
+      - name: Rebuild ffmpeg with mbedTLS and https
+        run: |
+          set -eux
+          cd /tmp/portlibs/ffmpeg
+          sed -i "s/'ps4-openorbis-libfribidi' 'ps4-openorbis-freetype'/'ps4-openorbis-libfribidi' 'ps4-openorbis-freetype' 'ps4-openorbis-mbedtls'/" PKGBUILD
+          sed -i 's/--enable-libfribidi/--enable-libfribidi --enable-version3 --enable-mbedtls/' PKGBUILD
+          sed -i 's/--enable-protocol=file,http,ftp,tcp,udp,rtmp/--enable-protocol=file,http,ftp,tcp,udp,rtmp,https/' PKGBUILD
+          cat PKGBUILD
+          grep -q 'ps4-openorbis-mbedtls' PKGBUILD
+          grep -q 'enable-mbedtls' PKGBUILD
+          grep -q 'udp,rtmp,https' PKGBUILD
+          makepkg --noconfirm --syncdeps --install
+
+      - name: Verify ffmpeg build flags
+        run: |
+          set -eux
+          cd /tmp/portlibs/ffmpeg
+          cfg="$(find . -type f -path '*/ffbuild/config.mak' | head -n1)"
+          test -n "$cfg"
+          cat "$cfg"
+          grep -q '^CONFIG_MBEDTLS=yes$' "$cfg"
+          grep -q '^CONFIG_HTTPS_PROTOCOL=yes$' "$cfg"
+
+      - name: Rebuild mpv with updated ffmpeg
+        run: |
+          set -eux
+          cd /tmp/portlibs/libmpv
+          source /opt/pacbrew/ps4/openorbis/ps4vars.sh
+          makepkg --noconfirm --syncdeps --cleanbuild --install
 
       - name: Configure
         run: |
@@ -84,3 +125,9 @@ jobs:
         with:
           name: pPlay-PS4-PKG
           path: "*.pkg"
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'release'
+        with:
+          files: "*.pkg"

@@ -4,18 +4,25 @@
 
 #include <sstream>
 #include <iomanip>
+#include <codecvt>
+#include <locale>
+#include <fstream>
+#include <ctime>
 
 #include "cross2d/c2d.h"
 
 #ifdef __SWITCH__
-
+#if __has_include("cross2d/platforms/switch/switch_sys.h")
 #include "cross2d/platforms/switch/switch_sys.h"
-
+#elif __has_include("platforms/switch/switch_sys.h")
+#include "platforms/switch/switch_sys.h"
+#endif
 #endif
 
 #include "utility.h"
 
 using namespace pplay;
+static Utility::LogLevel g_logLevel = Utility::LogLevel::Info;
 
 std::string Utility::getMediaInfoPath(const c2d::Io::File &file) {
     std::string hash = std::to_string(std::hash<std::string>()(file.path));
@@ -149,6 +156,28 @@ std::string Utility::formatSize(size_t size) {
     return convertToString(roundOff(size_d)) + " " + sizes[div];
 }
 
+void Utility::setLogLevel(Utility::LogLevel level) {
+    g_logLevel = level;
+}
+
+void Utility::log(Utility::LogLevel level, const std::string &message) {
+    if ((int) level > (int) g_logLevel || g_logLevel == Utility::LogLevel::Off) {
+        return;
+    }
+    std::string path = c2d_renderer->getIo()->getDataPath() + "pplay.log";
+    bool writeBom = !c2d_renderer->getIo()->exist(path);
+    std::ofstream out(path, std::ios::app);
+    if (!out.is_open()) {
+        return;
+    }
+    if (writeBom) {
+        const unsigned char bom[] = {0xEF, 0xBB, 0xBF};
+        out.write((const char *) bom, 3);
+    }
+    std::time_t t = std::time(nullptr);
+    out << std::to_string((long long) t) << " | " << message << "\n";
+}
+
 void Utility::setCpuClock(const CpuClock &clock) {
 #ifdef __SWITCH__
     if (clock == CpuClock::Min) {
@@ -171,5 +200,3 @@ void Utility::setCpuClock(const CpuClock &clock) {
     }
 #endif
 }
-
-
