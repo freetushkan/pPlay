@@ -25,6 +25,10 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
     addOption({OPT_ENABLE_SCRAPPING, (int) 0});
     addOption({OPT_LOG_LEVEL, (int) 0}); // 0 OFF, 1 ERROR, 2 INFO, 3 DEBUG
     addOption({OPT_CACHE_MEDIA_INFO, (int) 1});
+    addOption({OPT_SWAP_CONTROLS, (int) 0});
+    addOption({OPT_UTC_OFFSET, (float) 0.0});
+    addOption({OPT_SEEK_SHORT, (float) 0.5});
+    addOption({OPT_SEEK_LONG, (float) 5.0});
     //addOption({OPT_BUFFER, "Low"}); // Low, Medium, High, VeryHigh
 #ifdef __SWITCH__
     addOption({OPT_CPU_BOOST, "Disabled"}); // Disabled, Enabled

@@ -18,7 +18,7 @@ Highlight::Highlight(const c2d::Vector2f &size, const CursorPosition &pos) : Rec
     Highlight::add(gradientRectangle);
 
     cursor = new RectangleShape(Vector2f{6, size.y});
-    cursor->setFillColor(COLOR_BLUE);
+    cursor->setFillColor(COLOR_ACCENT);
     if (pos == CursorPosition::Right) {
         cursor->move(size.x - 4, 0);
     }

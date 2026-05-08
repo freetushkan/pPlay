@@ -20,13 +20,16 @@ public:
 
     void setTitle(const std::string &title);
 
+    void onUpdate();
+
 private:
 
     Main *main;
     MediaFile file;
 
+    c2d::C2DClock updateClock;
+
     c2d::Text *textTitle;
-    c2d::Text *textInfo;
 };
 
 #endif //PPLAY_FILERITEM_H

@@ -53,7 +53,6 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title,
 
     // title
     title = new Text(_title, main->getFontSize(Main::FontSize::Big), main->getFont());
-    title->setStyle(Text::Underlined);
     title->setPosition(main->getScaled(32, 32));
     title->setFillColor(COLOR_FONT);
     Menu::add(title);

@@ -10,6 +10,7 @@
 #include "main.h"
 #include "status_bar.h"
 #include "utility.h"
+#include "pplay_config.h"
 
 #ifdef __SWITCH__
 
@@ -19,6 +20,7 @@
 
 using namespace c2d;
 
+#ifdef __SWITCH__
 class Battery : public RectangleShape {
 
 public:
@@ -55,9 +57,7 @@ public:
             return;
         }
 
-#ifdef __SWITCH__
         psmGetBatteryChargePercentage(&percent);
-#endif
         // ps4: not std::clamp
         if (percent < 1) {
             percent = 1;
@@ -84,27 +84,36 @@ public:
     unsigned int percent = 100;
     float maxWidth;
 };
+#endif
 
-StatusBar::StatusBar(Main *main)
-        : GradientRectangle({0, 0,
-                             main->getSize().x, 32 * main->getScaling().y}) {
+StatusBar::StatusBar(Main *m) : GradientRectangle({0, 0, 64, 64}) {
 
 #ifdef __SWITCH__
     psmInitialize();
 #endif
 
+    main = m;
+
     setColor(COLOR_BG, Color::Transparent, Direction::Left);
+    StatusBar::setSize(m->getSize().x, 32 * m->getScaling().y);
     StatusBar::setPosition(0, -StatusBar::getSize().y);
     StatusBar::add(new TweenPosition(StatusBar::getPosition(), {0, 0}, 0.5f));
 
-    battery = new Battery(StatusBar::getGlobalBounds(), main->getScaling());
+#ifdef __SWITCH__
+    battery = new Battery(StatusBar::getGlobalBounds(), m->getScaling());
     StatusBar::add(battery);
+#endif
 
     // time
-    timeText = new Text("12:00", main->getFontSize(Main::FontSize::Medium), main->getFont());
+    timeText = new Text("12:00", m->getFontSize(Main::FontSize::Big), m->getFont());
     timeText->setOrigin(Origin::Right);
-    timeText->setPosition(battery->getPosition().x - battery->getSize().x - (main->getScaling().x * 20),
+#ifdef __SWITCH__
+    timeText->setPosition(battery->getPosition().x - battery->getSize().x - (m->getScaling().x * 20),
                           StatusBar::getSize().y / 2);
+#else
+    timeText->setPosition(StatusBar::getGlobalBounds().width - (m->getScaling().x * 20),
+                          StatusBar::getSize().y / 2);
+#endif
     timeText->setFillColor(COLOR_FONT);
     StatusBar::add(timeText);
 
@@ -121,7 +130,15 @@ void StatusBar::onUpdate() {
     struct tm *time_struct;
 
     time(&time_raw);
+    // localtime() cannot handle real offset on PS4.
+#ifdef __PS4__
+    float offset_hours = main->getConfig()->getOption(OPT_UTC_OFFSET)->getFloat();
+    long offset_seconds = static_cast<long>(offset_hours * 3600.0);
+    time_raw += offset_seconds;
+    time_struct = gmtime(&time_raw);
+#else
     time_struct = localtime(&time_raw);
+#endif
     std::ostringstream oss;
     oss << std::setfill('0') << std::setw(2) << time_struct->tm_hour << ":";
     oss << std::setfill('0') << std::setw(2) << time_struct->tm_min;

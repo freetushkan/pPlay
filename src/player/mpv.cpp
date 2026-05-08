@@ -204,12 +204,23 @@ int Mpv::resume() {
 }
 
 int Mpv::stop() {
-    save();
     return mpv_command_string(handle, "stop");
 }
 
+int Mpv::changeBrightness(double delta) {
+    std::string cmd = "no-osd add brightness " + std::to_string(delta)
+                    + "; show-text \"Brightness: ${brightness}%\"";
+    return mpv_command_string(handle, cmd.c_str());
+}
+
 int Mpv::changeVolume(double delta) {
-    std::string cmd = "add volume " + std::to_string(delta);
+    std::string cmd = "no-osd add volume " + std::to_string(delta)
+                    + "; show-text \"Volume: ${volume}%\"";
+    return mpv_command_string(handle, cmd.c_str());
+}
+
+int Mpv::showText(std::string message) {
+    std::string cmd = "show-text \"" + message + "\"";
     return mpv_command_string(handle, cmd.c_str());
 }
 

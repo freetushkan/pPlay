@@ -9,16 +9,16 @@
 
 class Main;
 
-class PlayerOSD : public c2d::Rectangle {
+class PlayerOSD : public c2d::GradientRectangle {
 
 public:
 
     enum class ButtonID {
         Pause,
-        SeekBackward10,
-        SeekBackward1,
-        SeekForward1,
-        SeekForward10,
+        SeekBackwardLong,
+        SeekBackwardShort,
+        SeekForwardShort,
+        SeekForwardLong,
         Stop
     };
 
@@ -27,6 +27,9 @@ public:
     void reset();
 
     void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
+
+    c2d::Texture *btn_play = nullptr;
+    c2d::Texture *btn_pause = nullptr;
 
 private:
 
@@ -40,7 +43,6 @@ private:
     c2d::Text *title = nullptr;
     c2d::Text *progress_text = nullptr;
     c2d::Text *duration_text = nullptr;
-    c2d::Texture *btn_play = nullptr;
     std::vector<c2d::Texture *> buttons;
     float position = 0;
     float duration = 0;

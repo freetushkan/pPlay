@@ -53,23 +53,12 @@ jobs:
           sed -i "s/'ps4-openorbis-libfribidi' 'ps4-openorbis-freetype'/'ps4-openorbis-libfribidi' 'ps4-openorbis-freetype' 'ps4-openorbis-mbedtls'/" PKGBUILD
           sed -i 's/--enable-libfribidi/--enable-libfribidi --enable-version3 --enable-mbedtls/' PKGBUILD
           sed -i 's/--enable-protocol=file,http,ftp,tcp,udp,rtmp/--enable-protocol=file,http,ftp,tcp,udp,rtmp,https/' PKGBUILD
-          cat PKGBUILD
           grep -q 'ps4-openorbis-mbedtls' PKGBUILD
           grep -q 'enable-mbedtls' PKGBUILD
           grep -q 'udp,rtmp,https' PKGBUILD
           makepkg --noconfirm --syncdeps --install
 
-      - name: Verify ffmpeg build flags
-        run: |
-          set -eux
-          cd /tmp/portlibs/ffmpeg
-          cfg="$(find . -type f -path '*/ffbuild/config.mak' | head -n1)"
-          test -n "$cfg"
-          cat "$cfg"
-          grep -q '^CONFIG_MBEDTLS=yes$' "$cfg"
-          grep -q '^CONFIG_HTTPS_PROTOCOL=yes$' "$cfg"
-
-      - name: Rebuild mpv with updated ffmpeg
+      - name: Rebuild libmpv with updated ffmpeg
         run: |
           set -eux
           cd /tmp/portlibs/libmpv

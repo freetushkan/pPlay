@@ -20,6 +20,11 @@
 #endif
 
 #include "utility.h"
+#include "io.h"
+#include <string>
+#include <vector>
+#include <mbedtls/md5.h>
+#include <cstdio>
 
 using namespace pplay;
 static Utility::LogLevel g_logLevel = Utility::LogLevel::Info;
@@ -176,6 +181,75 @@ void Utility::log(Utility::LogLevel level, const std::string &message) {
     }
     std::time_t t = std::time(nullptr);
     out << std::to_string((long long) t) << " | " << message << "\n";
+}
+
+std::string Utility::md5hash(const std::string &input) {
+    unsigned char output[16];
+    mbedtls_md5_context ctx;
+    mbedtls_md5_init(&ctx);
+    mbedtls_md5_starts_ret(&ctx);
+    mbedtls_md5_update_ret(&ctx, (const unsigned char*)input.c_str(), input.length());
+    mbedtls_md5_finish_ret(&ctx, output);
+    mbedtls_md5_free(&ctx);
+
+    std::stringstream ss;
+    for(int i = 0; i < 16; i++) {
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int)output[i];
+    }
+    return ss.str();
+}
+
+bool Utility::deleteFile(const std::string &path) {
+    if (std::remove(path.c_str()) == 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool Utility::fileExists(const std::string &path) {
+    if (FILE* file = std::fopen(path.c_str(), "r")) {
+        std::fclose(file);
+        return true;
+    }
+    return false;
+}
+
+std::string Utility::getWatchLater(const std::string &video_path) {
+    std::string hash = pplay::Utility::md5hash(video_path);
+    std::transform(hash.begin(), hash.end(), hash.begin(), ::toupper);
+    std::string path = c2d_renderer->getIo()->getDataPath() + "mpv/watch_later/" + hash;
+    log(LogLevel::Info, "Utility::getWatchLater path=" + path);
+    return path;
+}
+
+bool Utility::isWatchLaterExist(const std::string &video_path) {
+    std::string path = getWatchLater(video_path);
+    return fileExists(path);
+}
+
+bool Utility::deleteWatchLater(const std::string &video_path) {
+    std::string path = getWatchLater(video_path);
+    if (fileExists(path)) {
+        return deleteFile(path);
+    }
+}
+
+std::string Utility::getKeysString(unsigned int keys) {
+    if (keys == 0) return "";
+    
+    static const std::pair<unsigned int, const char*> btns[] = {
+        {c2d::Input::Up, "Up"}, {c2d::Input::Down, "Down"}, {c2d::Input::Left, "Left"}, {c2d::Input::Right, "Right"},
+        {c2d::Input::LB, "LB"}, {c2d::Input::RB, "RB"}, {c2d::Input::LT, "LT"}, {c2d::Input::RT, "RT"},
+        {c2d::Input::A, "A"}, {c2d::Input::B, "B"}, {c2d::Input::X, "X"}, {c2d::Input::Y, "Y"},
+        {c2d::Input::Start, "Start"}, {c2d::Input::Select, "Select"}
+    };
+
+    std::string res = "Keys(" + std::to_string(keys) + "): ";
+    for (const auto& [bit, name] : btns) {
+        if (keys & bit) res += std::string(name) + " ";
+    }
+    return res;
 }
 
 void Utility::setCpuClock(const CpuClock &clock) {

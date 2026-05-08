@@ -8,7 +8,7 @@
 using namespace c2d;
 
 MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<MenuItem> &items)
-        : Menu(main, rect, "PPLAY", items, true) {
+        : Menu(main, rect, "pPlay v" APP_VERSION, items, true) {
     std::vector<MenuItem> it;
 
 #ifdef __SWITCH__

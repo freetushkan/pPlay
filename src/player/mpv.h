@@ -36,7 +36,11 @@ public:
 
     int stop();
 
+    int changeBrightness(double delta);
+
     int changeVolume(double delta);
+
+    int showText(std::string delta);
 
     int seek(double position);
 

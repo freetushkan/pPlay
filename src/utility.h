@@ -43,9 +43,23 @@ namespace pplay {
 
         static std::string formatSize(size_t size);
 
-        static std::string ensureUtf8(const std::string &text);
         static void setLogLevel(LogLevel level);
+        
         static void log(LogLevel level, const std::string &message);
+        
+        static std::string md5hash(const std::string &input);
+
+        static bool deleteFile(const std::string &path);
+
+        static bool fileExists(const std::string &path);
+
+        static std::string getWatchLater(const std::string &video_path);
+
+        static bool isWatchLaterExist(const std::string &video_path);
+
+        static bool deleteWatchLater(const std::string &video_path);
+
+        static std::string getKeysString(unsigned int keys);
 
         static void setCpuClock(const CpuClock &clock);
     };

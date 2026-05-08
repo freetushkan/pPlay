@@ -33,7 +33,7 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
 
 #ifndef FULL_TEXTURE_TEST
     texture = new VideoTexture(main, pos);
-    texture->setOutlineColor(Color::Red);
+    texture->setOutlineColor(COLOR_ACCENT);
     texture->setOutlineThickness(4);
 #else
     texture = new VideoTexture(main, {64, 64});
@@ -69,10 +69,11 @@ bool Player::load(const MediaFile &f, bool resetRetry) {
     lastProgressSave = 0;
     lastKnownDuration = 0;
     lastKnownPosition = 0;
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::load path=" + file.path + " name=" + file.name
-                        + " type=" + std::to_string((int) file.type)
-                        + " resetRetry=" + std::to_string(resetRetry ? 1 : 0)
-                        + " retryCount=" + std::to_string(retryCount));
+    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+        "Player::load path=" + file.path + " name=" + file.name
+        + " type=" + std::to_string((int) file.type)
+        + " resetRetry=" + std::to_string(resetRetry ? 1 : 0)
+        + " retryCount=" + std::to_string(retryCount));
     std::string path = file.path;
 #ifdef __SMB2__
 #if 0
@@ -91,9 +92,11 @@ bool Player::load(const MediaFile &f, bool resetRetry) {
 
     int res = mpv->load(path, Mpv::LoadType::Replace, "pause=yes,speed=1");
     if (res != 0) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Error, "Player::load error code=" + std::to_string(res)
-                            + " msg=" + std::string(mpv_error_string(res)));
-        main->getStatus()->show("Error...", "Could not play file:\n" + std::string(mpv_error_string(res)));
+        pplay::Utility::log(pplay::Utility::LogLevel::Error,
+            "Player::load error code=" + std::to_string(res)
+            + " msg=" + std::string(mpv_error_string(res)));
+        main->getStatus()->show("Error...", "Could not play file:\n"
+            + std::string(mpv_error_string(res)));
         printf("Player::load: could not play file: %s\n", mpv_error_string(res));
         return false;
     }
@@ -119,7 +122,7 @@ void Player::onLoadEvent() {
                                "", MenuItem::Position::Top, stream.id);
         }
         menuVideoStreams = new MenuVideoSubmenu(
-                main, main->getMenuVideo()->getGlobalBounds(), "VIDEO", items, MENU_VIDEO_TYPE_VID);
+                main, main->getMenuVideo()->getGlobalBounds(), "Video", items, MENU_VIDEO_TYPE_VID);
         menuVideoStreams->setVisibility(Visibility::Hidden, false);
         menuVideoStreams->setLayer(3);
         add(menuVideoStreams);
@@ -136,7 +139,7 @@ void Player::onLoadEvent() {
                                "", MenuItem::Position::Top, stream.id);
         }
         menuAudioStreams = new MenuVideoSubmenu(
-                main, main->getMenuVideo()->getGlobalBounds(), "AUDIO", items, MENU_VIDEO_TYPE_AUD);
+                main, main->getMenuVideo()->getGlobalBounds(), "Audio", items, MENU_VIDEO_TYPE_AUD);
         menuAudioStreams->setVisibility(Visibility::Hidden, false);
         menuAudioStreams->setLayer(3);
         add(menuAudioStreams);
@@ -151,7 +154,7 @@ void Player::onLoadEvent() {
             items.emplace_back(stream.title + "\nLang: " + stream.language, "", MenuItem::Position::Top, stream.id);
         }
         menuSubtitlesStreams = new MenuVideoSubmenu(
-                main, main->getMenuVideo()->getGlobalBounds(), "SUBTITLES", items, MENU_VIDEO_TYPE_SUB);
+                main, main->getMenuVideo()->getGlobalBounds(), "Subtitles", items, MENU_VIDEO_TYPE_SUB);
         menuSubtitlesStreams->setVisibility(Visibility::Hidden, false);
         menuSubtitlesStreams->setLayer(3);
         add(menuSubtitlesStreams);
@@ -317,7 +320,11 @@ void Player::onUpdate() {
 }
 
 bool Player::onInput(c2d::Input::Player *players) {
-    unsigned int keys = players[0].buttons;
+    // unsigned int keys = players[0].buttons;
+    unsigned int keys = main->getInput()->getButtons(0);
+    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+        "Player::onInput keys=" + pplay::Utility::getKeysString(keys));
+
 
     if (mpv->isStopped()
         || main->getFiler()->isVisible()
@@ -328,23 +335,22 @@ bool Player::onInput(c2d::Input::Player *players) {
         return C2DObject::onInput(players);
     }
 
-    if (keys & c2d::Input::LT) {
+    int swap = main->getConfig()->getOption(OPT_SWAP_CONTROLS)->getInteger();
+    int btnSpeedReset = swap ? c2d::Input::LT : c2d::Input::LB;
+    int btnSpeedUp = swap ? c2d::Input::RT : c2d::Input::RB;
+    int btnSeekBack = swap ? c2d::Input::LB : c2d::Input::LT;
+    int btnSeekForward = swap ? c2d::Input::RB : c2d::Input::RT;
+
+    float seek = main->getConfig()->getOption(OPT_SEEK_SHORT)->getFloat();
+    if (keys & btnSpeedReset) {
         setSpeed(1);
-    } else if (keys & c2d::Input::RT) {
-        double new_speed = mpv->getSpeed() + 0.1;
-        if (new_speed <= 100) {
-            setSpeed(new_speed);
-        }
-    }
-#ifdef __PS4__
-    else if (keys & c2d::Input::LB) {
+    } else if (keys & btnSpeedUp) {
+        double new_speed = mpv->getSpeed() + 0.05;
+        if (new_speed <= 100) setSpeed(new_speed);
+    } else if (keys & (btnSeekBack | btnSeekForward)) {
         osd->setVisibility(c2d::Visibility::Visible);
-        getMpv()->seek(-60.0);
-    } else if (keys & c2d::Input::RB) {
-        osd->setVisibility(c2d::Visibility::Visible);
-        getMpv()->seek(60.0);
+        getMpv()->seek(((keys & btnSeekBack) ? -seek : seek) * 60.0);
     }
-#endif
 
     if (osd->isVisible()) {
         return C2DObject::onInput(players);
@@ -353,19 +359,25 @@ bool Player::onInput(c2d::Input::Player *players) {
     //////////////////
     /// handle inputs
     //////////////////
-#ifdef __PS4__
-    if ((keys & Input::A) || (keys & Input::Up) || keys & Input::Down) {
-#else
-    if ((keys & Input::A) || keys & Input::Down) {
-#endif
-        if (!osd->isVisible()) {
-            osd->setVisibility(Visibility::Visible, true);
-            main->getStatusBar()->setVisibility(Visibility::Visible, true);
-        }
-    } else if ((keys & Input::Left) || keys & Input::B) {
+    if (keys & (Input::Up | Input::Down))
+        mpv->changeVolume((keys & Input::Up) ? 1 : -1);
+    else if (keys & Input::B)
         setFullscreen(false);
-    } else if (keys & Input::Right) {
+    else if (keys & Input::X) {
         main->getMenuVideo()->setVisibility(Visibility::Visible, true);
+        return true;
+    }
+    else if (keys & Input::A) {
+        bool paused = mpv->isPaused();
+        mpv->showText(paused ? "Resuming playback..." : "Pausing playback...");
+        paused ? resume() : pause();
+        getOSD()->btn_play->setVisibility(paused ? Visibility::Hidden : Visibility::Visible);
+        getOSD()->btn_pause->setVisibility(paused ? Visibility::Visible : Visibility::Hidden);
+    }
+
+    if (keys && !getOSD()->isVisible()) {
+        getOSD()->setVisibility(Visibility::Visible, true);
+        main->getStatusBar()->setVisibility(Visibility::Visible, true);
     }
 
     return true;

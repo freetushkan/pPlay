@@ -17,9 +17,9 @@ MenuVideoSubmenu::MenuVideoSubmenu(
     // highlight
     highlight_selection = new Highlight({MenuVideoSubmenu::getSize().x, BUTTON_HEIGHT * main->getScaling().y},
                                         Highlight::CursorPosition::Left);
-    highlight_selection->setFillColor(COLOR_BLUE);
+    highlight_selection->setFillColor(COLOR_ACCENT);
     highlight_selection->setAlpha(60);
-    highlight_selection->setCursorColor(COLOR_RED);
+    highlight_selection->setCursorColor(COLOR_ACCENT);
     highlight_selection->setOrigin(Origin::Left);
     highlight_selection->setPosition(0, 200 * main->getScaling().y);
     highlight_selection->setLayer(-1);

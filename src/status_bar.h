@@ -21,6 +21,10 @@ public:
 
     Battery *battery = nullptr;
     c2d::Text *timeText = nullptr;
+
+private:
+
+    Main *main;
 };
 
 #endif //PPLAY_STATUSBAR_H

@@ -24,23 +24,29 @@
 #define ICON_SIZE 24
 #define BUTTON_HEIGHT 64
 
-#define COLOR_BG            Color(50, 45, 45, 255)
-#define COLOR_FONT          Color(170, 170, 170, 255)
+#define COLOR_BG            Color(20, 22, 24, 255)
+#define COLOR_BG_ALPHA      Color(20, 22, 24, 128)
+#define COLOR_FONT          Color(230, 230, 230, 255)
 #define COLOR_HIGHLIGHT     Color(255, 255, 255, 60)
+#define COLOR_ACCENT        Color(16, 120, 200, 255)
 
-#define COLOR_CLOUD         Color(0xecf0f1ff)
-#define COLOR_GRAY          Color(0x636e72ff)
-#define COLOR_GRAY_LIGHT    Color(0xb2bec3ff)
-#define COLOR_GRAY_DARK     Color(0x2d3436ff)
-#define COLOR_BLUE          Color(0x0984e3ff)
-#define COLOR_BLUE_LIGHT    Color(0x74b9ffff)
-#define COLOR_PURPLE        Color(0x6c5ce7ff)
-#define COLOR_PURPLE_LIGHT  Color(0xa29bfeff)
-#define COLOR_GREEN         Color(0x1abc9cff)
-#define COLOR_GREEN_LIGHT   Color(0x55efc4ff)
-#define COLOR_ORANGE        Color(0xd35400ff)
-#define COLOR_ORANGE_LIGHT  Color(0xe67e22ff)
-#define COLOR_RED           Color(0xff0000ff)
+#define COLOR_BLACK         Color(0x000000FF)
+#define COLOR_WHITE         Color(0xFFFFFFFF)
+#define COLOR_CLOUD         Color(0xDFE6E9FF)
+#define COLOR_GRAY          Color(0x95A5A6FF)
+#define COLOR_GRAY_LIGHT    Color(0xD2D7D9FF)
+#define COLOR_GRAY_DARK     Color(0x34495EFF)
+#define COLOR_BLUE          Color(0x54A0FFFF)
+#define COLOR_BLUE_LIGHT    Color(0x81ECECFF)
+#define COLOR_PURPLE        Color(0xA29BFEFF)
+#define COLOR_PURPLE_LIGHT  Color(0xD6D1FFFF)
+#define COLOR_GREEN         Color(0x26DE81FF)
+#define COLOR_GREEN_LIGHT   Color(0x7BED9FFF)
+#define COLOR_ORANGE        Color(0xFA8231FF)
+#define COLOR_ORANGE_LIGHT  Color(0xFFB142FF)
+#define COLOR_RED           Color(0xEB4D4BFF)
+#define COLOR_VIEWED        Color(0x5B6464FF)
+
 
 class Main : public c2d::C2DRenderer {
 
@@ -56,9 +62,13 @@ public:
     };
 
     enum class FontSize {
-        Small = 14,
+        XS = 14,
+        Small = 16,
         Medium = 18,
-        Big = 22
+        Large = 20,
+        Big = 22,
+        Bigger = 24,
+        XL = 36
     };
 
     explicit Main(const c2d::Vector2f &size);

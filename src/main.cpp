@@ -137,6 +137,7 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     // custom io
     pplayIo = new pplay::Io();
     Main::setIo(pplayIo);
+    setClearColor(COLOR_BG);
 
     // create pplay data directory
     pplayIo->create(pplayIo->getDataPath() + "mpv");
@@ -164,7 +165,7 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     font->setFilter(Texture::Filter::Point);
     font->setOffset({0, -4.0f});
 
-    statusBox = new StatusBox(this, {0, Main::getSize().y - 16});
+    statusBox = new StatusBox(this, {0, Main::getSize().y - 16});  // TODO: Change position?
     statusBox->setOrigin(Origin::BottomLeft);
     statusBox->setLayer(10);
     Main::add(statusBox);
@@ -211,6 +212,7 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     // status bar
     statusBar = new StatusBar(this);
     statusBar->setLayer(10);
+    statusBar->setVisibility(Visibility::Visible, true);
     Main::add(statusBar);
 
     // ffmpeg player
@@ -253,7 +255,7 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     messageBox->setOrigin(Origin::Center);
     messageBox->setFillColor(COLOR_BG);
     messageBox->setAlpha(240);
-    messageBox->setOutlineColor(COLOR_RED);
+    messageBox->setOutlineColor(COLOR_ACCENT);
     messageBox->setOutlineThickness(2);
     messageBox->getTitleText()->setOutlineThickness(0);
     messageBox->getMessageText()->setOutlineThickness(0);

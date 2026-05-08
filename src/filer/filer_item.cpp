@@ -17,44 +17,53 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
     file = f;
 
     textTitle = new Text(file.name.empty() ? "AjIilp" : file.name,
-                         main->getFontSize(Main::FontSize::Medium), main->getFont());
+            main->getFontSize(Main::FontSize::Bigger), main->getFont());
     textTitle->setOrigin(Origin::Left);
-    textTitle->setPosition(16, (FilerItem::getSize().y / 4) + 3);
+    textTitle->setPosition(16, FilerItem::getSize().y / 2);
     textTitle->setSizeMax(FilerItem::getSize().x - 64, 0);
     FilerItem::add(textTitle);
-
-    textInfo = new Text("INFO", main->getFontSize(Main::FontSize::Small), main->getFont());
-    textInfo->setOrigin(Origin::Left);
-    textInfo->setPosition(16, ((FilerItem::getSize().y / 4) * 3) - (2 * main->getScaling().y));
-    textInfo->setSizeMax(FilerItem::getSize().x - 64, 0);
-    textInfo->setFillColor(COLOR_FONT);
-    FilerItem::add(textInfo);
 }
 
 void FilerItem::setFile(const MediaFile &f) {
 
     this->file = f;
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "FilerItem::setFile name=" + file.name
-                                                         + " path=" + file.path
-                                                         + " type=" + std::to_string((int) file.type));
+    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+        "FilerItem::setFile name=" + file.name + " path=" + file.path
+        + " type=" + std::to_string((int) file.type));
 
-    textTitle->setString(file.name);
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "FilerItem::setFile titleUtf8=" + textTitle->getString());
+    if (file.name == "..") {
+        textTitle->setString("◀ BACK");
+    } else {
+        textTitle->setString(file.name);
+    }
     uint8_t alpha = textTitle->getAlpha();
     if (file.type == Io::Type::Directory) {
-        textTitle->setFillColor(COLOR_BLUE);
+        textTitle->setFillColor(COLOR_ACCENT);
     } else {
-        textTitle->setFillColor(COLOR_RED);
+        bool exists = pplay::Utility::isWatchLaterExist(file.path);
+        textTitle->setFillColor(exists ? COLOR_VIEWED : COLOR_FONT);
     }
     textTitle->setAlpha(alpha);
-    if (file.type == Io::Type::File) {
-        textInfo->setString(file.name);
-    } else {
-        textInfo->setString("");
-    }
 }
 
 void FilerItem::setTitle(const std::string &title) {
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "FilerItem::setTitle title=" + title);
+
+    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+        "FilerItem::setTitle title=" + title);
     textTitle->setString(title);
+}
+
+void FilerItem::onUpdate() {
+
+    if (updateClock.getElapsedTime().asSeconds() > 5.0f) {
+        if (file.type != Io::Type::Directory) {
+            bool exists = pplay::Utility::isWatchLaterExist(file.path);
+            Color targetColor = exists ? COLOR_VIEWED : COLOR_FONT;
+            if (textTitle->getFillColor() != targetColor) {
+                textTitle->setFillColor(targetColor);
+            }
+        }
+        updateClock.restart();
+    }
+    Rectangle::onUpdate();
 }

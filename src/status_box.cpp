@@ -27,7 +27,7 @@ StatusBox::StatusBox(Main *m, const c2d::Vector2f &position)
     StatusBox::add(icon);
 
     titleText = new Text("Please Wait...", main->getFontSize(Main::FontSize::Medium), main->getFont());
-    titleText->setFillColor(COLOR_RED);
+    titleText->setFillColor(COLOR_ACCENT);
     titleText->setPosition(icon->getSize().x + (16 * m->getScaling().x), (4 * m->getScaling().y));
     StatusBox::add(titleText);
 

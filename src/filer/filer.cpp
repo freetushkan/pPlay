@@ -4,10 +4,11 @@
 
 #include "main.h"
 #include "filer.h"
+// #include "filer_item.h"
 #include "utility.h"
 #include "p_search.h"
 
-#define ITEM_HEIGHT 50
+#define ITEM_HEIGHT 30
 
 using namespace c2d;
 
@@ -18,13 +19,20 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) :
 
     mutex = new C2DMutex();
 
-    // force scrap view width to scrapped backdrop width
-    scrapView = new ScrapView(main, {rect.width - (780 * m->getScaling().x), 0,
-                                     780 * m->getScaling().x, rect.height});
-    Filer::add(scrapView);
-
-    /// scaling this too much is not pretty, so no scaling for filer
-    Vector2f size = {rect.width - (670 * m->getScaling().x), rect.height - (64 * m->getScaling().y)};
+    Filer::setSize(main->getSize().x, main->getScaling().y);
+    Vector2f size;
+    const bool scrapping_enabled = main->getConfig()->getOption(OPT_ENABLE_SCRAPPING)->getInteger() == 1;
+    if (scrapping_enabled) {
+        // force scrap view width to scrapped backdrop width
+        scrapView = new ScrapView(main, {rect.width - (780 * m->getScaling().x), 0,
+                                        780 * m->getScaling().x, rect.height});
+        Filer::add(scrapView);
+        /// scaling this too much is not pretty, so no scaling for filer
+        size = {rect.width - (670 * m->getScaling().x),
+            rect.height - (64 * m->getScaling().y)};
+    } else {
+        size = {rect.width, rect.height - (64 * m->getScaling().y)};
+    }
 
     // highlight
     highlight = new Highlight({size.x, (float) ITEM_HEIGHT * m->getScaling().y}, Highlight::CursorPosition::Left);
@@ -84,11 +92,10 @@ void Filer::setSelection(int index) {
         } else {
             // load media info, set file
             MediaFile file = files[index_start + i];
-            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Filer::setSelection item idx="
-                                                                 + std::to_string(index_start + i)
-                                                                 + " name=" + file.name
-                                                                 + " path=" + file.path
-                                                                 + " type=" + std::to_string((int) file.type));
+            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                "Filer::setSelection item idx="
+                + std::to_string(index_start + i) + " name=" + file.name
+                + " path=" + file.path + " type=" + std::to_string((int) file.type));
             items[i]->setFile(file);
             items[i]->setVisibility(Visibility::Visible);
             if (!file.movies.empty()) {
@@ -97,13 +104,15 @@ void Filer::setSelection(int index) {
             // set highlight position
             if (index_start + i == (unsigned int) item_index) {
                 highlight->tweenTo(items[i]->getPosition());
-                if (file.type == Io::Type::File) {
-                    if (!scrapView->isVisible()) {
-                        scrapView->setVisibility(Visibility::Visible);
+                if (scrapping_enabled) {
+                    if (file.type == Io::Type::File) {
+                        if (!scrapView->isVisible()) {
+                            scrapView->setVisibility(Visibility::Visible);
+                        }
+                        scrapView->setMovie(file);
+                    } else {
+                        scrapView->setVisibility(Visibility::Hidden);
                     }
-                    scrapView->setMovie(file);
-                } else {
-                    scrapView->setVisibility(Visibility::Hidden);
                 }
             }
         }
@@ -117,11 +126,10 @@ void Filer::setSelection(int index) {
 
     mutex->unlock();
     MediaFile selected = getSelection();
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Filer::setSelection index=" + std::to_string(item_index)
-                        + " path=" + path
-                        + " selectedName=" + selected.name
-                        + " selectedPath=" + selected.path
-                        + " selectedType=" + std::to_string((int) selected.type));
+    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+        "Filer::setSelection index=" + std::to_string(item_index) + " path=" + path
+        + " selectedName=" + selected.name + " selectedPath=" + selected.path
+        + " selectedType=" + std::to_string((int) selected.type));
     main->syncLastLocation();
 }
 
@@ -213,14 +221,14 @@ bool Filer::onInput(c2d::Input::Player *players) {
         if (item_index < 0)
             item_index = (int) (filesSize - 1);
         setSelection(item_index);
-        scrapView->unload();
+        if (scrapping_enabled) scrapView->unload();
     } else if (keys & Input::Down) {
         item_index++;
         if (item_index >= (int) filesSize) {
             item_index = 0;
         }
         setSelection(item_index);
-        scrapView->unload();
+        if (scrapping_enabled) scrapView->unload();
     } else if (keys & Input::Left) {
         main->getMenuMain()->setVisibility(Visibility::Visible, true);
     } else if (keys & Input::Right) {
@@ -230,18 +238,22 @@ bool Filer::onInput(c2d::Input::Player *players) {
         }
     } else if (keys & Input::A) {
         if (getSelection().type == Io::Type::Directory) {
-            scrapView->unload();
+            if (scrapping_enabled) scrapView->unload();
             enter(item_index);
         } else if (pplay::Utility::isMedia(getSelection())) {
             main->getPlayer()->load(files[item_index]);
         }
     } else if (keys & Input::B) {
-        scrapView->unload();
+        if (scrapping_enabled) scrapView->unload();
         exit();
     } else if (keys & Input::X) {
-        const bool loopEnabled = main->getConfig()->getOption(OPT_ENABLE_SCRAPPING)->getInteger() == 1;
-        if (loopEnabled) {
+        if (scrapping_enabled) {
             main->getScrapper()->scrap(path);
+        }
+    } else if (keys & Input::Y) {
+        if (pplay::Utility::isWatchLaterExist(files[item_index].path)) {
+            main->getStatus()->show("Info...", "Removing watch later data...");
+            pplay::Utility::deleteWatchLater(files[item_index].path);
         }
     }
 
@@ -313,9 +325,9 @@ bool Filer::getDir(const std::string &p) {
 
     mutex->unlock();
     for (size_t i = 0; i < files.size(); i++) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Filer::file[" + std::to_string(i) + "] name=" + files[i].name
-                            + " path=" + files[i].path
-                            + " type=" + std::to_string((int) files[i].type));
+        pplay::Utility::log(pplay::Utility::LogLevel::Info,
+            "Filer::file[" + std::to_string(i) + "] name=" + files[i].name
+            + " path=" + files[i].path + " type=" + std::to_string((int) files[i].type));
     }
     setSelection(0);
 

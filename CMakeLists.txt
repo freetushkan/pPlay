@@ -33,9 +33,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # pplay version
 set(VERSION_MAJOR "4")
-set(VERSION_MINOR "0")
+set(VERSION_MINOR "1")
 set(PROJECT_AUTHOR "Cpasjuste")
 set(TITLE_ID "PPLAY0001")
+set(APP_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
 
 # deps
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
@@ -110,7 +111,7 @@ if (PLATFORM_SWITCH)
             lzma opus vpx ass freetype fribidi png bz2 usbhsfs ntfs-3g lwext4
             )
 elseif (PLATFORM_PS4)
-    set(PS4_PKG_TITLE "pplay @ cpasjuste")
+    set(PS4_PKG_TITLE "pPlay @ cpasjuste")
     set(PS4_PKG_TITLE_ID "PPLA00001")
     set(PS4_PKG_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
     list(APPEND PPLAY_INC)
@@ -129,6 +130,9 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${PPLAY_INC})
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE ${PPLAY_CFLAGS})
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
 target_link_libraries(${CMAKE_PROJECT_NAME} cross2d pscrap ${PPLAY_LDFLAGS})
+target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
+    APP_VERSION="${APP_VERSION}"
+)
 
 #####################
 # targets

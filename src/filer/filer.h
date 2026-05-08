@@ -65,6 +65,7 @@ private:
     c2d::C2DMutex *mutex;
 
     bool dirty = false;
+    bool scrapping_enabled = false;
 };
 
 #endif //NXFILER_FILER_H
