@@ -404,7 +404,7 @@ void Main::syncLastLocation() {
         selectedPath = filer->getPath() + "/..";
     }
     selectedPath = normalizePath(selectedPath);
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main::syncLastLocation module="
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Main::syncLastLocation module="
                         + std::string(currentMenuType == MenuType::Network ? "NETWORK" : "LOCAL")
                         + " selected=" + selectedPath
                         + " leaf=" + getLeafName(selectedPath));

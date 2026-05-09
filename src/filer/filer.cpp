@@ -92,7 +92,7 @@ void Filer::setSelection(int index) {
         } else {
             // load media info, set file
             MediaFile file = files[index_start + i];
-            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+            pplay::Utility::log(pplay::Utility::LogLevel::Debug,
                 "Filer::setSelection item idx="
                 + std::to_string(index_start + i) + " name=" + file.name
                 + " path=" + file.path + " type=" + std::to_string((int) file.type));
@@ -126,7 +126,7 @@ void Filer::setSelection(int index) {
 
     mutex->unlock();
     MediaFile selected = getSelection();
-    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
         "Filer::setSelection index=" + std::to_string(item_index) + " path=" + path
         + " selectedName=" + selected.name + " selectedPath=" + selected.path
         + " selectedType=" + std::to_string((int) selected.type));
@@ -325,7 +325,7 @@ bool Filer::getDir(const std::string &p) {
 
     mutex->unlock();
     for (size_t i = 0; i < files.size(); i++) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Info,
+        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
             "Filer::file[" + std::to_string(i) + "] name=" + files[i].name
             + " path=" + files[i].path + " type=" + std::to_string((int) files[i].type));
     }

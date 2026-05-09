@@ -27,7 +27,7 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
 void FilerItem::setFile(const MediaFile &f) {
 
     this->file = f;
-    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
         "FilerItem::setFile name=" + file.name + " path=" + file.path
         + " type=" + std::to_string((int) file.type));
 

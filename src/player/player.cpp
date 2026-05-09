@@ -288,8 +288,9 @@ void Player::onUpdate() {
             && (position - lastProgressSave) >= 30
             && (duration - position) >= 60) {
             mpv->save();
-            pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                "Player::onUpdate::saveProgress position=" + std::to_string(position));
+            pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+                "Player::onUpdate::saveProgress position=" + std::to_string(position)
+                + " duration=" + std::to_string(duration));
             lastProgressSave = position;
         }
         mpv_event *event = mpv->getEvent();
@@ -322,7 +323,7 @@ void Player::onUpdate() {
 bool Player::onInput(c2d::Input::Player *players) {
     // unsigned int keys = players[0].buttons;
     unsigned int keys = main->getInput()->getButtons(0);
-    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
         "Player::onInput keys=" + pplay::Utility::getKeysString(keys));
 
 

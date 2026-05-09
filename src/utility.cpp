@@ -219,7 +219,7 @@ std::string Utility::getWatchLater(const std::string &video_path) {
     std::string hash = pplay::Utility::md5hash(video_path);
     std::transform(hash.begin(), hash.end(), hash.begin(), ::toupper);
     std::string path = c2d_renderer->getIo()->getDataPath() + "mpv/watch_later/" + hash;
-    log(LogLevel::Info, "Utility::getWatchLater path=" + path);
+    log(LogLevel::Debug, "Utility::getWatchLater path=" + path);
     return path;
 }
 
