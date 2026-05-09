@@ -59,6 +59,8 @@ namespace pplay {
 
         static bool deleteWatchLater(const std::string &video_path);
 
+        static std::string getCertificatesPath();
+
         static std::string getKeysString(unsigned int keys);
 
         static void setCpuClock(const CpuClock &clock);

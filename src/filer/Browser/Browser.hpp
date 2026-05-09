@@ -185,6 +185,7 @@ Browser::Browser()
     curl_global_init(CURL_GLOBAL_SSL);
     curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
+    curl_easy_setopt(curl, CURLOPT_CAINFO, pplay::Utility::getCertificatesPath().c_str());
     //for authentification
     curl_easy_setopt(curl, CURLOPT_HTTPAUTH,  CURLAUTH_DIGEST|CURLAUTH_BASIC|CURLAUTH_ANYSAFE);
     curl_easy_setopt(curl, CURLOPT_PROXYAUTH,  CURLAUTH_ANYSAFE);
@@ -305,8 +306,9 @@ void Browser::open(std::string url, int usertimeout=20, bool save_history=true)
     std::memset(errbuf, 0, sizeof(errbuf));
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
     // curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+    // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+    curl_easy_setopt(curl, CURLOPT_CAINFO, pplay::Utility::getCertificatesPath().c_str());
     //Handle the response
     if(writing_bytes==false)
     {
