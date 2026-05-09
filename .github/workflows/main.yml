@@ -46,9 +46,18 @@ jobs:
           sudo mkdir -p /opt/pacbrew/ps4/openorbis/include/sys
           echo '#include <endian.h>' | sudo tee /opt/pacbrew/ps4/openorbis/include/sys/endian.h > /dev/null
 
+      - name: Cache for recompiled PS4 Portlibs
+        id: cache-libs
+        uses: actions/cache@v4
+        with:
+          path: /opt/compiled_libs
+          key: ${{ runner.os }}-ps4-libs-v1
+
       - name: Rebuild ffmpeg with mbedTLS and https
+        if: steps.cache-libs.outputs.cache-hit != 'true'
         run: |
           set -eux
+          mkdir -p /opt/compiled_libs/ffmpeg
           cd /tmp/portlibs/ffmpeg
           sed -i "s/'ps4-openorbis-libfribidi' 'ps4-openorbis-freetype'/'ps4-openorbis-libfribidi' 'ps4-openorbis-freetype' 'ps4-openorbis-mbedtls'/" PKGBUILD
           sed -i 's/--enable-libfribidi/--enable-libfribidi --enable-version3 --enable-mbedtls/' PKGBUILD
@@ -56,16 +65,34 @@ jobs:
           grep -q 'ps4-openorbis-mbedtls' PKGBUILD
           grep -q 'enable-mbedtls' PKGBUILD
           grep -q 'udp,rtmp,https' PKGBUILD
-          makepkg --noconfirm --syncdeps --install
+          makepkg --noconfirm --syncdeps
+          ls -l ./
+          find ./ -name "*.pkg.tar.*" -exec cp -v {} /opt/compiled_libs/ffmpeg/ \;
+          find ./ -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
 
       - name: Rebuild libmpv with updated ffmpeg
+        if: steps.cache-libs.outputs.cache-hit != 'true'
         run: |
           set -eux
+          mkdir -p /opt/compiled_libs/libmpv
           cd /tmp/portlibs/libmpv
           source /opt/pacbrew/ps4/openorbis/ps4vars.sh
-          makepkg --noconfirm --syncdeps --cleanbuild --install
+          makepkg --noconfirm --syncdeps --cleanbuild
+          ls -l ./
+          find ./ -name "*.pkg.tar.*" -exec cp -v {} /opt/compiled_libs/libmpv/ \;
+          find ./ -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
 
-      - name: Configure
+      - name: Install cached ffmpeg
+        if: steps.cache-libs.outputs.cache-hit == 'true'
+        run: |
+          find /opt/compiled_libs/ffmpeg -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
+
+      - name: Install cached libmpv
+        if: steps.cache-libs.outputs.cache-hit == 'true'
+        run: |
+          find /opt/compiled_libs/libmpv -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
+
+      - name: Configure pPlay
         run: |
           MAIN_CPP="src/main.cpp"
           IO_CPP="src/io.cpp"
