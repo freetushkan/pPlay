@@ -9,7 +9,9 @@
 #include "utility.h"
 #include "ftplib.h"
 #include "Browser/Browser.hpp"
+#include "Browser/json.hpp"
 #include "pplay_config.h"
+#include "torrserve.h"
 
 using namespace pplay;
 
@@ -99,6 +101,13 @@ std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, con
             std::sort(files.begin(), files.end(), compare);
         }
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::Browser path=" + path
+                                                            + " entries=" + std::to_string(files.size()));
+    } else if (type == DeviceType::TorrServe) {
+        files = pplay::TorrServe::getDirList(browser, path, timeout);
+        if (sort) {
+            std::sort(files.begin(), files.end(), compare);
+        }
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::TorrServe path=" + path
                                                             + " entries=" + std::to_string(files.size()));
     } else if (type == DeviceType::Ftp) {
         std::string ftp_path = path;
@@ -246,6 +255,10 @@ Io::DeviceType Io::getDeviceType(const std::string &path) {
         type = pplay::Io::DeviceType::Ftp;
     } else if (c2d::Utility::startWith(path, "smb://")) {
         type = pplay::Io::DeviceType::Smb;
+    } else if (c2d::Utility::startWith(path, "tss://")) {
+        type = pplay::Io::DeviceType::TorrServe;
+    } else if (c2d::Utility::startWith(path, "ts://")) {
+        type = pplay::Io::DeviceType::TorrServe;
     }
 
     return type;

@@ -39,8 +39,13 @@ in this Software without prior written authorization of the copyright holder.
 #include <map>
 #include "forms.hpp"
 #include "links.hpp"
+#include <json.hpp>
 #include <errno.h>
 #include "utility.h"
+
+#include <json.hpp>
+
+using json = nlohmann::json;
 
 
 ///==================================THE BROWSER CLASS==============================///
@@ -127,6 +132,8 @@ class Browser {
         void open(std::string url, std::string post_data, int usertimeout);
         void open(std::string url, int usertimeout,std::string post_data);
         void open_novisit(std::string url, int usertimeout);
+        nlohmann::json get_json(std::string url, int usertimeout);
+        nlohmann::json post_json(std::string url, const nlohmann::json& send_data, int usertimeout);
         void follow_link(std::string name_of_link_to_follow,int usertimeout);
         void set_handle_redirect(bool allow);
         void set_handle_gzip(bool allow);
@@ -240,6 +247,18 @@ void Browser::init()
     forms.all_forms.clear();
     form.clear();
     links.clear();
+
+    curl_easy_setopt(curl, CURLOPT_CAINFO, pplay::Utility::getCertificatesPath().c_str());
+
+    auto *vi = curl_version_info(CURLVERSION_NOW);
+    if (vi) {
+        std::ostringstream oss;
+        oss << "libcurl version=" << vi->version
+            << ", ssl=" << (vi->ssl_version ? vi->ssl_version : "unknown")
+            << ", libz=" << (vi->libz_version ? vi->libz_version : "none")
+            << ", CApath=" << pplay::Utility::getCertificatesPath();
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, oss.str());
+    }
 }
 ///=================================================================================///
 
@@ -294,21 +313,10 @@ void Browser::open(std::string url, int usertimeout=20, bool save_history=true)
     assert(timeout>0);
     //set the url in the options
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str() );
-    auto *vi = curl_version_info(CURLVERSION_NOW);
-    if (vi) {
-        std::ostringstream oss;
-        oss << "libcurl version=" << vi->version
-            << ", ssl=" << (vi->ssl_version ? vi->ssl_version : "unknown")
-            << ", libz=" << (vi->libz_version ? vi->libz_version : "none");
-        pplay::Utility::log(pplay::Utility::LogLevel::Info, oss.str());
-    }
     char errbuf[CURL_ERROR_SIZE];
     std::memset(errbuf, 0, sizeof(errbuf));
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
     // curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-    // curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-    curl_easy_setopt(curl, CURLOPT_CAINFO, pplay::Utility::getCertificatesPath().c_str());
     //Handle the response
     if(writing_bytes==false)
     {
@@ -556,6 +564,66 @@ void Browser::open_form(std::string url, int usertimeout=20)
     writing_bytes               = false;
     timeout                     = 20;
     direct_form_post_           = false;
+}
+nlohmann::json Browser::post_json(std::string url, const nlohmann::json& send_data, int usertimeout) {
+    init();
+    timeout = usertimeout;
+    html_response.clear();
+    std::string request_body = send_data.dump();
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    char errbuf[CURL_ERROR_SIZE];
+    std::memset(errbuf, 0, sizeof(errbuf));
+    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
+    curl_easy_setopt(curl, CURLOPT_POST, 1L);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, request_body.c_str());
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)request_body.length());
+
+    struct curl_slist *headers = NULL;
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+    headers = curl_slist_append(headers, "Accept: application/json");
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_to_string);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &html_response);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
+
+
+    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+            "Browser::open url=" + url + ", timeout=" + std::to_string(timeout));
+    res = curl_easy_perform(curl);
+
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    char *effective_url = nullptr;
+    curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effective_url);
+    long connect_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_HTTP_CONNECTCODE, &connect_code);
+    long ssl_verify = 0;
+    curl_easy_getinfo(curl, CURLINFO_SSL_VERIFYRESULT, &ssl_verify);
+
+    pplay::Utility::log(
+        pplay::Utility::LogLevel::Info,
+        std::string("Browser::curl result=") + curl_easy_strerror(res) +
+        ", response=" + html_response +
+        ", http_code=" + std::to_string(http_code) +
+        ", connect_code=" + std::to_string(connect_code) +
+        ", ssl_verify=" + std::to_string(ssl_verify) +
+        ", effective_url=" + (effective_url ? effective_url : "null") +
+        ", errbuf=" + (errbuf[0] ? errbuf : "")
+    );
+
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, NULL);
+    curl_slist_free_all(headers);
+    curl_easy_setopt(curl, CURLOPT_POST, 0L);
+
+    if (res != CURLE_OK || html_response.empty()) {
+        return nlohmann::json::object();
+    }
+
+    try {
+        return nlohmann::json::parse(html_response);
+    } catch (const nlohmann::json::parse_error& e) {
+        return nlohmann::json::object();
+    }
 }
 ///=================================================================================///
 

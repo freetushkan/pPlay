@@ -49,8 +49,9 @@ void MenuMain::onOptionSelection(MenuItem *item) {
     if (item->name == "Local") {
         setVisibility(Visibility::Hidden, true);
         main->show(Main::MenuType::Local);
-    } else if (item->name == "Network") {
+    } else if (item->name.rfind("Network", 0) == 0) {
         setVisibility(Visibility::Hidden, true);
+        main->setCurrentNetworkIndex(item->id);
         main->show(Main::MenuType::Network);
     } else if (item->name == "Options") {
         setVisibility(Visibility::Hidden, true);

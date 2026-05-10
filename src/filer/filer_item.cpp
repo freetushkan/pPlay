@@ -8,6 +8,7 @@
 #include "main.h"
 #include "filer_item.h"
 #include "utility.h"
+#include "torrserve.h"
 
 using namespace c2d;
 
@@ -40,8 +41,9 @@ void FilerItem::setFile(const MediaFile &f) {
     if (file.type == Io::Type::Directory) {
         textTitle->setFillColor(COLOR_ACCENT);
     } else {
-        bool exists = pplay::Utility::isWatchLaterExist(file.path);
-        textTitle->setFillColor(exists ? COLOR_VIEWED : COLOR_FONT);
+        bool wlExists = pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path));
+        bool tsViewed = pplay::TorrServe::isFileViewed(file.path);
+        textTitle->setFillColor((wlExists || tsViewed) ? COLOR_VIEWED : COLOR_FONT);
     }
     textTitle->setAlpha(alpha);
 }
@@ -55,10 +57,11 @@ void FilerItem::setTitle(const std::string &title) {
 
 void FilerItem::onUpdate() {
 
-    if (updateClock.getElapsedTime().asSeconds() > 5.0f) {
+    if (updateClock.getElapsedTime().asSeconds() > 30.0f) {
         if (file.type != Io::Type::Directory) {
-            bool exists = pplay::Utility::isWatchLaterExist(file.path);
-            Color targetColor = exists ? COLOR_VIEWED : COLOR_FONT;
+            bool wlExists = pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path));
+            bool tsViewed = pplay::TorrServe::isFileViewed(file.path);
+            Color targetColor = (wlExists || tsViewed) ? COLOR_VIEWED : COLOR_FONT;
             if (textTitle->getFillColor() != targetColor) {
                 textTitle->setFillColor(targetColor);
             }

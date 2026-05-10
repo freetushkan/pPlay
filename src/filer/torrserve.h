@@ -1,0 +1,22 @@
+//
+// TorrServe virtual filesystem helpers.
+//
+
+#ifndef PPLAY_TORRSERVE_H
+#define PPLAY_TORRSERVE_H
+
+#include <string>
+#include <vector>
+#include "cross2d/c2d.h"
+
+class Browser;
+
+namespace pplay::TorrServe {
+
+std::vector<c2d::Io::File> getDirList(Browser *browser, const std::string &path, int timeout);
+std::string toStreamUrl(const std::string &path);
+bool isFileViewed(const std::string &path);
+
+}
+
+#endif // PPLAY_TORRSERVE_H

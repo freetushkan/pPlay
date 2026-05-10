@@ -30,7 +30,7 @@ namespace pplay {
         ~Io() override;
 
         enum class DeviceType {
-            Local, Http, Ftp, Smb
+            Local, Http, Ftp, Smb, TorrServe
         };
 
         std::vector<Io::File> getDirList(const DeviceType &type, const std::vector<std::string> &extensions,

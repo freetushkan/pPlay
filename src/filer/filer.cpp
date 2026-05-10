@@ -2,11 +2,12 @@
 // Created by cpasjuste on 12/04/18.
 //
 
+#include <algorithm>
 #include "main.h"
 #include "filer.h"
-// #include "filer_item.h"
 #include "utility.h"
 #include "p_search.h"
+#include "torrserve.h"
 
 #define ITEM_HEIGHT 30
 
@@ -145,7 +146,6 @@ MediaFile Filer::getSelection() const {
     return {};
 }
 
-
 bool Filer::getNextMediaFile(const MediaFile &current, MediaFile &next) {
     mutex->lock();
     if (files.empty()) {
@@ -251,9 +251,9 @@ bool Filer::onInput(c2d::Input::Player *players) {
             main->getScrapper()->scrap(path);
         }
     } else if (keys & Input::Y) {
-        if (pplay::Utility::isWatchLaterExist(files[item_index].path)) {
+        if (pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(files[item_index].path))) {
             main->getStatus()->show("Info...", "Removing watch later data...");
-            pplay::Utility::deleteWatchLater(files[item_index].path);
+            pplay::Utility::deleteWatchLater(pplay::TorrServe::toStreamUrl(files[item_index].path));
         }
     }
 
@@ -343,7 +343,9 @@ void Filer::enter(int index) {
         return;
     }
 
-    if (path == "/") {
+    if (!file.path.empty() && file.path != "..") {
+        success = getDir(file.path);
+    } else if (path == "/") {
         success = getDir(path + file.name);
     } else {
         success = getDir(path + "/" + file.name);
@@ -367,8 +369,12 @@ void Filer::exit() {
         if (!Utility::endsWith(s, "/")) {
             s += "/";
         }
-        if (s == main->getConfig()->getOption(OPT_NETWORK)->getString()) {
-            return;
+        for (int i = 1; i <= 9; i++) {
+            std::string root = main->getConfig()->getOption(PPLAYConfig::networkOption(i))->getString();
+            if (!root.empty() && !Utility::endsWith(root, "/")) root += "/";
+            if (s == root) {
+                return;
+            }
         }
     }
 

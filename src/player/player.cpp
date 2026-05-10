@@ -5,6 +5,7 @@
 #include <sstream>
 #include "main.h"
 #include "player.h"
+#include "torrserve.h"
 #include "player_osd.h"
 #include "video_texture.h"
 #include "utility.h"
@@ -74,7 +75,7 @@ bool Player::load(const MediaFile &f, bool resetRetry) {
         + " type=" + std::to_string((int) file.type)
         + " resetRetry=" + std::to_string(resetRetry ? 1 : 0)
         + " retryCount=" + std::to_string(retryCount));
-    std::string path = file.path;
+    std::string path = pplay::TorrServe::toStreamUrl(file.path);
 #ifdef __SMB2__
 #if 0
     if (Utility::startWith(path, "smb://")) {

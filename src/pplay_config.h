@@ -7,11 +7,29 @@
 
 #include "cross2d/skeleton/config.h"
 
-#define OPT_NETWORK             "NETWORK"
+#define OPT_NETWORK             "NETWORK1"
+#define OPT_NETWORK1            "NETWORK1"
+#define OPT_NETWORK2            "NETWORK2"
+#define OPT_NETWORK3            "NETWORK3"
+#define OPT_NETWORK4            "NETWORK4"
+#define OPT_NETWORK5            "NETWORK5"
+#define OPT_NETWORK6            "NETWORK6"
+#define OPT_NETWORK7            "NETWORK7"
+#define OPT_NETWORK8            "NETWORK8"
+#define OPT_NETWORK9            "NETWORK9"
 #define OPT_UMS_DEVICE          "UMS_DEVICE"
 #define OPT_HOME_PATH           "HOME_PATH"
 #define OPT_LAST_LOCAL_PATH     "LAST_LOCAL_PATH"
-#define OPT_LAST_NETWORK_PATH   "LAST_NETWORK_PATH"
+#define OPT_LAST_NETWORK_PATH   "NETWORK1_LAST"
+#define OPT_NETWORK1_LAST       "NETWORK1_LAST"
+#define OPT_NETWORK2_LAST       "NETWORK2_LAST"
+#define OPT_NETWORK3_LAST       "NETWORK3_LAST"
+#define OPT_NETWORK4_LAST       "NETWORK4_LAST"
+#define OPT_NETWORK5_LAST       "NETWORK5_LAST"
+#define OPT_NETWORK6_LAST       "NETWORK6_LAST"
+#define OPT_NETWORK7_LAST       "NETWORK7_LAST"
+#define OPT_NETWORK8_LAST       "NETWORK8_LAST"
+#define OPT_NETWORK9_LAST       "NETWORK9_LAST"
 #define OPT_LAST_MODULE         "LAST_MODULE"
 #define OPT_NETWORK_TIMEOUT     "NETWORK_TIMEOUT"
 #define OPT_NETWORK_RETRIES     "NETWORK_RETRIES"
@@ -35,6 +53,9 @@ class PPLAYConfig : public c2d::config::Config {
 public:
 
     explicit PPLAYConfig(Main *main, int version = 1);
+
+    static const char *networkOption(int index);
+    static const char *networkLastOption(int index);
 };
 
 #endif //PPLAY_CONFIG_H
