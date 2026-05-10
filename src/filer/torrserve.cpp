@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cctype>
 #include <mutex>
 #include <set>
 #include <cstring>
@@ -73,6 +74,21 @@ std::string relativeOf(const std::string &path) {
 
 std::string apiRoot(const std::string &path) {
     return replaceScheme(rootOf(path));
+}
+
+std::string escapeSegment(const std::string &value) {
+    static const char *hex = "0123456789ABCDEF";
+    std::string out;
+    for (unsigned char c: value) {
+        if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            out += (char) c;
+        } else {
+            out += '%';
+            out += hex[c >> 4];
+            out += hex[c & 15];
+        }
+    }
+    return out;
 }
 
 int hexValue(char c) {
@@ -273,7 +289,7 @@ std::string joinVirtual(const std::string &root, const std::vector<std::string> 
     std::string out = root;
     for (size_t i = 0; i < parts.size(); i++) {
         if (!c2d::Utility::endsWith(out, "/")) out += "/";
-        out += parts[i];
+        out += escapeSegment(parts[i]);
     }
     return out;
 }
@@ -301,7 +317,8 @@ std::vector<c2d::Io::File> getDirList(Browser *browser, const std::string &path,
 
     if (parts.empty()) {
         for (const auto &torrent: torrents) {
-            files.emplace_back(torrent.title, root + torrent.title, c2d::Io::Type::Directory);
+            files.emplace_back(torrent.title,
+                root + escapeSegment(torrent.title), c2d::Io::Type::Directory);
         }
         return files;
     }
@@ -331,9 +348,9 @@ std::vector<c2d::Io::File> getDirList(Browser *browser, const std::string &path,
             }
         } else {
             std::string virtualPath = joinVirtual(root, virtualParts)
-                                      + "?link=" + torrentIt->hash
+                                      + "?link=" + escapeSegment(torrentIt->hash)
                                       + "&index=" + std::to_string(torrentFile.id)
-                                      + "&dummy=" + basename(torrentFile.path);
+                                      + "&dummy=" + escapeSegment(basename(torrentFile.path));
             files.emplace_back(name, virtualPath, c2d::Io::Type::File, torrentFile.length);
         }
     }
