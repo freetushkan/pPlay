@@ -9,13 +9,13 @@
 #include <vector>
 #include "cross2d/c2d.h"
 
-class Browser;
+class Player; 
 
 namespace pplay::TorrServe {
 
 std::vector<c2d::Io::File> getDirList(Browser *browser, const std::string &path, int timeout);
 std::string toStreamUrl(const std::string &path);
-bool isFileViewed(const std::string &path);
+bool isFileViewed(const std::string &path, Player *player);
 
 }
 

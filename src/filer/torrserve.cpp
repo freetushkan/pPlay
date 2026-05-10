@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cctype>
 #include <mutex>
 #include <set>
 #include <cstring>
@@ -16,6 +15,8 @@
 #include <json.hpp>
 #include "torrserve.h"
 #include "utility.h"
+#include "player.h"
+
 
 namespace {
 
@@ -72,21 +73,6 @@ std::string relativeOf(const std::string &path) {
 
 std::string apiRoot(const std::string &path) {
     return replaceScheme(rootOf(path));
-}
-
-std::string escapeSegment(const std::string &value) {
-    static const char *hex = "0123456789ABCDEF";
-    std::string out;
-    for (unsigned char c: value) {
-        if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
-            out += (char) c;
-        } else {
-            out += '%';
-            out += hex[c >> 4];
-            out += hex[c & 15];
-        }
-    }
-    return out;
 }
 
 int hexValue(char c) {
@@ -240,9 +226,7 @@ std::set<int> getViewedRemote(const std::string &root, const std::string &hash, 
     return viewed;
 }
 
-std::set<int> getViewedCached(const std::string &root, const std::string &hash) {
-    // TODO: Renew cache only if fullscreen is false
-    // probably via main->getPlayer()->isFullscreen().
+std::set<int> getViewedCached(const std::string &root, const std::string &hash, Player *player) {
     using Clock = std::chrono::steady_clock;
 
     struct CacheEntry {
@@ -259,8 +243,13 @@ std::set<int> getViewedCached(const std::string &root, const std::string &hash) 
     {
         std::lock_guard<std::mutex> lock(cacheMutex);
         auto it = cache.find(key);
-        if (it != cache.end() && now - it->second.updated < std::chrono::seconds(30)) {
+        if (it != cache.end()
+            && (now - it->second.updated < std::chrono::seconds(30)
+            || player->isFullscreen())) {
             return it->second.viewed;
+        }
+        if (player->isFullscreen()) {
+            return {};
         }
     }
 
@@ -284,7 +273,7 @@ std::string joinVirtual(const std::string &root, const std::vector<std::string> 
     std::string out = root;
     for (size_t i = 0; i < parts.size(); i++) {
         if (!c2d::Utility::endsWith(out, "/")) out += "/";
-        out += escapeSegment(parts[i]);
+        out += parts[i];
     }
     return out;
 }
@@ -298,8 +287,8 @@ std::string basename(const std::string &path) {
 
 namespace pplay::TorrServe {
 
-std::set<int> getViewed(const std::string &root, const std::string &hash) {
-    return getViewedCached(root, hash);
+std::set<int> getViewed(const std::string &root, const std::string &hash, Player *player) {
+    return getViewedCached(root, hash, player);
 }
 
 std::vector<c2d::Io::File> getDirList(Browser *browser, const std::string &path, int timeout) {
@@ -312,7 +301,7 @@ std::vector<c2d::Io::File> getDirList(Browser *browser, const std::string &path,
 
     if (parts.empty()) {
         for (const auto &torrent: torrents) {
-            files.emplace_back(torrent.title, root + escapeSegment(torrent.title), c2d::Io::Type::Directory);
+            files.emplace_back(torrent.title, root + torrent.title, c2d::Io::Type::Directory);
         }
         return files;
     }
@@ -342,9 +331,9 @@ std::vector<c2d::Io::File> getDirList(Browser *browser, const std::string &path,
             }
         } else {
             std::string virtualPath = joinVirtual(root, virtualParts)
-                                      + "?link=" + escapeSegment(torrentIt->hash)
+                                      + "?link=" + torrentIt->hash
                                       + "&index=" + std::to_string(torrentFile.id)
-                                      + "&dummy=" + escapeSegment(basename(torrentFile.path));
+                                      + "&dummy=" + basename(torrentFile.path);
             files.emplace_back(name, virtualPath, c2d::Io::Type::File, torrentFile.length);
         }
     }
@@ -379,7 +368,7 @@ std::string toStreamUrl(const std::string &path) {
     return replaceScheme(rootOf(path)) + "stream/?link=" + link + "&index=" + index + "&play";
 }
 
-bool isFileViewed(const std::string &path) {
+bool isFileViewed(const std::string &path, Player *player) {
     if (!c2d::Utility::startWith(path, "ts://") && !c2d::Utility::startWith(path, "tss://")) {
         return false;
     }
@@ -407,7 +396,7 @@ bool isFileViewed(const std::string &path) {
 
     try {
         int index = std::stoi(index_str);
-        std::set<int> viewed = getViewed(apiRoot(path), link);
+        std::set<int> viewed = getViewed(apiRoot(path), link, player);
         return viewed.count(index) > 0;
     } catch (...) {
         return false;

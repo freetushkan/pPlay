@@ -42,7 +42,7 @@ void FilerItem::setFile(const MediaFile &f) {
         textTitle->setFillColor(COLOR_ACCENT);
     } else {
         bool wlExists = pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path));
-        bool tsViewed = pplay::TorrServe::isFileViewed(file.path);
+        bool tsViewed = pplay::TorrServe::isFileViewed(file.path, main->getPlayer());
         textTitle->setFillColor((wlExists || tsViewed) ? COLOR_VIEWED : COLOR_FONT);
     }
     textTitle->setAlpha(alpha);
@@ -60,7 +60,7 @@ void FilerItem::onUpdate() {
     if (updateClock.getElapsedTime().asSeconds() > 30.0f) {
         if (file.type != Io::Type::Directory) {
             bool wlExists = pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path));
-            bool tsViewed = pplay::TorrServe::isFileViewed(file.path);
+            bool tsViewed = pplay::TorrServe::isFileViewed(file.path, main->getPlayer());
             Color targetColor = (wlExists || tsViewed) ? COLOR_VIEWED : COLOR_FONT;
             if (textTitle->getFillColor() != targetColor) {
                 textTitle->setFillColor(targetColor);
