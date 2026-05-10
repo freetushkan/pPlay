@@ -23,6 +23,14 @@ const char *PPLAYConfig::networkLastOption(int index) {
     return options[index - 1];
 }
 
+const char *PPLAYConfig::networkNameOption(int index) {
+    static const char *options[] = {
+            OPT_NETWORK1_NAME, OPT_NETWORK2_NAME, OPT_NETWORK3_NAME, OPT_NETWORK4_NAME, OPT_NETWORK5_NAME
+    };
+    if (index < 1 || index > 5) return OPT_NETWORK1_NAME;
+    return options[index - 1];
+}
+
 PPLAYConfig::PPLAYConfig(Main *main, int version)
         : Config("PPLAY", main->getIo()->getDataPath() + "pplay.cfg", version) {
 
@@ -36,6 +44,7 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
     addOption({OPT_LAST_LOCAL_PATH, main->getIo()->getDataPath()});
     for (int i = 1; i <= 5; i++) {
         addOption({networkLastOption(i), "/"});
+        addOption({networkNameOption(i), "Network " + std::to_string(i)});
     }
     addOption({OPT_LAST_MODULE, "LOCAL"});
     addOption({OPT_NETWORK_TIMEOUT, (int) 15});
@@ -68,6 +77,9 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
     for (int i = 1; i <= 5; i++) {
         if (getOption(networkLastOption(i))->getString().empty()) {
             getOption(networkLastOption(i))->setString("/");
+        }
+        if (getOption(networkNameOption(i))->getString().empty()) {
+            getOption(networkNameOption(i))->setString("Network " + std::to_string(i));
         }
     }
     if (getOption(OPT_LAST_MODULE)->getString().empty()) {

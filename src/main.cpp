@@ -251,7 +251,8 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
 #endif
     for (int i = 1; i <= 5; i++) {
         if (!config->getOption(PPLAYConfig::networkOption(i))->getString().empty()) {
-            items.emplace_back("Network " + std::to_string(i), "network.png", MenuItem::Position::Top, i);
+            items.emplace_back(config->getOption(PPLAYConfig::networkNameOption(i))->getString(),
+                "network.png", MenuItem::Position::Top, i);
         }
     }
 #ifdef __SWITCH__

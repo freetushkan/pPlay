@@ -49,7 +49,7 @@ void MenuMain::onOptionSelection(MenuItem *item) {
     if (item->name == "Local") {
         setVisibility(Visibility::Hidden, true);
         main->show(Main::MenuType::Local);
-    } else if (item->name.rfind("Network", 0) == 0) {
+    } else if (item->icon == "network.png") {
         setVisibility(Visibility::Hidden, true);
         main->setCurrentNetworkIndex(item->id);
         main->show(Main::MenuType::Network);

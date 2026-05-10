@@ -22,6 +22,11 @@
 #define OPT_NETWORK3_LAST       "NETWORK3_LAST"
 #define OPT_NETWORK4_LAST       "NETWORK4_LAST"
 #define OPT_NETWORK5_LAST       "NETWORK5_LAST"
+#define OPT_NETWORK1_NAME       "NETWORK1_NAME"
+#define OPT_NETWORK2_NAME       "NETWORK2_NAME"
+#define OPT_NETWORK3_NAME       "NETWORK3_NAME"
+#define OPT_NETWORK4_NAME       "NETWORK4_NAME"
+#define OPT_NETWORK5_NAME       "NETWORK5_NAME"
 #define OPT_LAST_MODULE         "LAST_MODULE"
 #define OPT_NETWORK_TIMEOUT     "NETWORK_TIMEOUT"
 #define OPT_NETWORK_RETRIES     "NETWORK_RETRIES"
@@ -48,6 +53,7 @@ public:
 
     static const char *networkOption(int index);
     static const char *networkLastOption(int index);
+    static const char *networkNameOption(int index);
 };
 
 #endif //PPLAY_CONFIG_H
