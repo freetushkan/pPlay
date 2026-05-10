@@ -9,26 +9,24 @@ using namespace c2d;
 
 const char *PPLAYConfig::networkOption(int index) {
     static const char *options[] = {
-            OPT_NETWORK1, OPT_NETWORK2, OPT_NETWORK3, OPT_NETWORK4, OPT_NETWORK5,
-            OPT_NETWORK6, OPT_NETWORK7, OPT_NETWORK8, OPT_NETWORK9
+            OPT_NETWORK1, OPT_NETWORK2, OPT_NETWORK3, OPT_NETWORK4, OPT_NETWORK5
     };
-    if (index < 1 || index > 9) return OPT_NETWORK1;
+    if (index < 1 || index > 5) return OPT_NETWORK1;
     return options[index - 1];
 }
 
 const char *PPLAYConfig::networkLastOption(int index) {
     static const char *options[] = {
-            OPT_NETWORK1_LAST, OPT_NETWORK2_LAST, OPT_NETWORK3_LAST, OPT_NETWORK4_LAST, OPT_NETWORK5_LAST,
-            OPT_NETWORK6_LAST, OPT_NETWORK7_LAST, OPT_NETWORK8_LAST, OPT_NETWORK9_LAST
+            OPT_NETWORK1_LAST, OPT_NETWORK2_LAST, OPT_NETWORK3_LAST, OPT_NETWORK4_LAST, OPT_NETWORK5_LAST
     };
-    if (index < 1 || index > 9) return OPT_NETWORK1_LAST;
+    if (index < 1 || index > 5) return OPT_NETWORK1_LAST;
     return options[index - 1];
 }
 
 PPLAYConfig::PPLAYConfig(Main *main, int version)
         : Config("PPLAY", main->getIo()->getDataPath() + "pplay.cfg", version) {
 
-    for (int i = 1; i <= 9; i++) {
+    for (int i = 1; i <= 5; i++) {
         addOption({networkOption(i), ""});
     }
 #ifdef __SWITCH__
@@ -36,7 +34,7 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
 #endif
     addOption({OPT_HOME_PATH, main->getIo()->getDataPath()});
     addOption({OPT_LAST_LOCAL_PATH, main->getIo()->getDataPath()});
-    for (int i = 1; i <= 9; i++) {
+    for (int i = 1; i <= 5; i++) {
         addOption({networkLastOption(i), "/"});
     }
     addOption({OPT_LAST_MODULE, "LOCAL"});
@@ -67,7 +65,7 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
     if (!main->getIo()->exist(getOption(OPT_LAST_LOCAL_PATH)->getString())) {
         getOption(OPT_LAST_LOCAL_PATH)->setString(main->getIo()->getDataPath());
     }
-    for (int i = 1; i <= 9; i++) {
+    for (int i = 1; i <= 5; i++) {
         if (getOption(networkLastOption(i))->getString().empty()) {
             getOption(networkLastOption(i))->setString("/");
         }

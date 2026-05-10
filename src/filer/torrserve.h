@@ -10,6 +10,7 @@
 #include "cross2d/c2d.h"
 
 class Player; 
+class Browser; 
 
 namespace pplay::TorrServe {
 

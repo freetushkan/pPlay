@@ -59,7 +59,7 @@ static int parseNetworkModule(const std::string &module) {
         return 1;
     }
     int index = std::atoi(module.substr(7).c_str());
-    return index >= 1 && index <= 9 ? index : 1;
+    return index >= 1 && index <= 5 ? index : 1;
 }
 
 static std::string networkModuleName(int index) {
@@ -249,9 +249,9 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
 #ifdef __SWITCH__
     items.emplace_back("Usb", "usb.png", MenuItem::Position::Top);
 #endif
-    for (int i = 1; i <= 9; i++) {
+    for (int i = 1; i <= 5; i++) {
         if (!config->getOption(PPLAYConfig::networkOption(i))->getString().empty()) {
-            items.emplace_back("Network" + std::to_string(i), "network.png", MenuItem::Position::Top, i);
+            items.emplace_back("Network " + std::to_string(i), "network.png", MenuItem::Position::Top, i);
         }
     }
 #ifdef __SWITCH__
@@ -466,7 +466,7 @@ void Main::syncLastLocation() {
 }
 
 void Main::setCurrentNetworkIndex(int index) {
-    if (index >= 1 && index <= 9) {
+    if (index >= 1 && index <= 5) {
         currentNetworkIndex = index;
     }
 }
