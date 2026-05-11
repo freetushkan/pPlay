@@ -59,7 +59,9 @@ namespace pplay {
 
         static bool deleteWatchLater(const std::string &video_path);
 
+#ifdef __PS4__
         static std::string getCertificatesPath();
+#endif
 
         static std::string getKeysString(unsigned int keys);
 

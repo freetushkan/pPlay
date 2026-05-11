@@ -63,7 +63,9 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
 
     mpv_set_option_string(handle, "config", "yes");
     mpv_set_option_string(handle, "config-dir", configPath.c_str());
+#ifdef __PS4__
     mpv_set_option_string(handle, "tls-ca-file", pplay::Utility::getCertificatesPath().c_str());
+#endif
     mpv_set_option_string(handle, "osd-scale", "0.5");
 #ifndef NDEBUG
     mpv_set_option_string(handle, "terminal", "yes");

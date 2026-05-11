@@ -192,7 +192,9 @@ Browser::Browser()
     curl_global_init(CURL_GLOBAL_SSL);
     curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
+#ifdef __PS4__
     curl_easy_setopt(curl, CURLOPT_CAINFO, pplay::Utility::getCertificatesPath().c_str());
+#endif
     //for authentification
     curl_easy_setopt(curl, CURLOPT_HTTPAUTH,  CURLAUTH_DIGEST|CURLAUTH_BASIC|CURLAUTH_ANYSAFE);
     curl_easy_setopt(curl, CURLOPT_PROXYAUTH,  CURLAUTH_ANYSAFE);
@@ -248,7 +250,9 @@ void Browser::init()
     form.clear();
     links.clear();
 
+#ifdef __PS4__
     curl_easy_setopt(curl, CURLOPT_CAINFO, pplay::Utility::getCertificatesPath().c_str());
+#endif
 
     auto *vi = curl_version_info(CURLVERSION_NOW);
     if (vi) {
@@ -256,7 +260,10 @@ void Browser::init()
         oss << "libcurl version=" << vi->version
             << ", ssl=" << (vi->ssl_version ? vi->ssl_version : "unknown")
             << ", libz=" << (vi->libz_version ? vi->libz_version : "none")
-            << ", CApath=" << pplay::Utility::getCertificatesPath();
+#ifdef __PS4__
+            << ", CApath=" << pplay::Utility::getCertificatesPath()
+#endif
+            ;
         pplay::Utility::log(pplay::Utility::LogLevel::Info, oss.str());
     }
 }

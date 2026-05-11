@@ -235,11 +235,13 @@ bool Utility::deleteWatchLater(const std::string &video_path) {
     }
 }
 
+#ifdef __PS4__
 std::string Utility::getCertificatesPath() {
     std::string customCA = c2d_renderer->getIo()->getDataPath() + "cacert.pem";
     std::string defaultCA = c2d_renderer->getIo()->getRomFsPath() + "cacert.pem";
     return fileExists(customCA) ? customCA : defaultCA;
 }
+#endif
 
 std::string Utility::getKeysString(unsigned int keys) {
     if (keys == 0) return "";

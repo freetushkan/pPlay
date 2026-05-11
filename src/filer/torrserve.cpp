@@ -148,7 +148,9 @@ std::string httpRequest(const std::string &url, int timeout, const std::string &
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+#ifdef __PS4__
     curl_easy_setopt(curl, CURLOPT_CAINFO, pplay::Utility::getCertificatesPath().c_str());
+#endif
 
     struct curl_slist *headers = nullptr;
     if (!postBody.empty()) {
