@@ -117,6 +117,19 @@ jobs:
             sed -i 's|devices.push_back({"/data/", "DATA", DeviceType::HDD});|devices.push_back({"/mnt/disc/", "NAPED BD", DeviceType::USB});|g' "$IO_CPP"
           fi
 
+          # Patches for libsmb2
+          cat >> src/main.cpp <<EOF
+          #include <cstdlib>
+          #include <fcntl.h>
+          #include <stdarg.h>
+          extern "C" long __isoc23_strtol(const char *nptr, char **endptr, int base) { return strtol(nptr, endptr, base); }
+          extern "C" unsigned long __isoc23_strtoul(const char *nptr, char **endptr, int base) { return strtoul(nptr, endptr, base); }
+          extern "C" int fcntl64(int fd, int cmd, ...) { 
+              va_list ap; va_start(ap, cmd); void *arg = va_arg(ap, void *); va_end(ap);
+              return fcntl(fd, cmd, arg); 
+          }
+          EOF
+
           # Build
           rm -rf cmake-build
           mkdir -p pscrap && echo "test" > pscrap/tmdb.key
@@ -128,6 +141,7 @@ jobs:
 
           cmake -G "Unix Makefiles" \
             -DPLATFORM_PS4=ON \
+            -DOPTION_SMB2=ON \
             -DCMAKE_BUILD_TYPE=Release ..
 
       - name: Build pplay

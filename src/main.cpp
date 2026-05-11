@@ -1,6 +1,7 @@
 //
 // Created by cpasjuste on 02/10/18.
 //
+#include <algorithm>
 #include <cstdlib>
 #include <sstream>
 #include "main.h"
@@ -51,6 +52,34 @@ using namespace c2d::config;
 using namespace pplay;
 
 
+
+static size_t findFirstPathSeparator(const std::string &str, size_t from) {
+    size_t slash = str.find('/', from);
+    size_t backslash = str.find('\\', from);
+    if (slash == std::string::npos) return backslash;
+    if (backslash == std::string::npos) return slash;
+    return std::min(slash, backslash);
+}
+
+static std::string normalizeSmbPathSeparators(const std::string &path) {
+    if (!c2d::Utility::startWith(path, "smb://")) {
+        return path;
+    }
+
+    size_t schemeEnd = std::string("smb://").size();
+    size_t at = path.find_last_of('@');
+    size_t hostStart = at != std::string::npos && at >= schemeEnd ? at + 1 : schemeEnd;
+    size_t pathStart = findFirstPathSeparator(path, hostStart);
+    if (pathStart == std::string::npos) {
+        return path;
+    }
+
+    std::string normalized = path.substr(0, pathStart);
+    std::string rest = path.substr(pathStart);
+    std::replace(rest.begin(), rest.end(), '\\', '/');
+    return normalized + rest;
+}
+
 static int parseNetworkModule(const std::string &module) {
     if (module.rfind("NETWORK", 0) != 0) {
         return 0;
@@ -67,24 +96,26 @@ static std::string networkModuleName(int index) {
 }
 
 static std::string ensureTrailingSlash(const std::string &url) {
-    if (url.empty() || c2d::Utility::endsWith(url, "/")) {
-        return url;
+    std::string normalized = normalizeSmbPathSeparators(url);
+    if (normalized.empty() || c2d::Utility::endsWith(normalized, "/")) {
+        return normalized;
     }
-    return url + "/";
+    return normalized + "/";
 }
 
 static std::string normalizePath(const std::string &path) {
     if (path.empty()) return path;
-    size_t schemePos = path.find("://");
+    std::string normalizedInput = normalizeSmbPathSeparators(path);
+    size_t schemePos = normalizedInput.find("://");
     std::string prefix;
-    std::string rest = path;
+    std::string rest = normalizedInput;
     if (schemePos != std::string::npos) {
-        size_t firstSlash = path.find('/', schemePos + 3);
+        size_t firstSlash = normalizedInput.find('/', schemePos + 3);
         if (firstSlash == std::string::npos) {
-            return path + "/"; // Или логика ensureTrailingSlash
+            return normalizedInput + "/";
         }
-        prefix = path.substr(0, firstSlash);
-        rest = path.substr(firstSlash);
+        prefix = normalizedInput.substr(0, firstSlash);
+        rest = normalizedInput.substr(firstSlash);
     }
     std::vector<std::string> segments;
     size_t start = 0, end = 0;
@@ -186,7 +217,7 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     font->setFilter(Texture::Filter::Point);
     font->setOffset({0, -4.0f});
 
-    statusBox = new StatusBox(this, {0, Main::getSize().y - 16});  // TODO: Change position?
+    statusBox = new StatusBox(this, {0, Main::getSize().y - 16});
     statusBox->setOrigin(Origin::BottomLeft);
     statusBox->setLayer(10);
     Main::add(statusBox);

@@ -279,6 +279,34 @@ void Filer::onUpdate() {
     C2DObject::onUpdate();
 }
 
+
+static size_t findFirstPathSeparator(const std::string &str, size_t from) {
+    size_t slash = str.find('/', from);
+    size_t backslash = str.find('\\', from);
+    if (slash == std::string::npos) return backslash;
+    if (backslash == std::string::npos) return slash;
+    return std::min(slash, backslash);
+}
+
+static std::string normalizeSmbPathSeparators(const std::string &path) {
+    if (!Utility::startWith(path, "smb://")) {
+        return path;
+    }
+
+    size_t schemeEnd = std::string("smb://").size();
+    size_t at = path.find_last_of('@');
+    size_t hostStart = at != std::string::npos && at >= schemeEnd ? at + 1 : schemeEnd;
+    size_t pathStart = findFirstPathSeparator(path, hostStart);
+    if (pathStart == std::string::npos) {
+        return path;
+    }
+
+    std::string normalized = path.substr(0, pathStart);
+    std::string rest = path.substr(pathStart);
+    std::replace(rest.begin(), rest.end(), '\\', '/');
+    return normalized + rest;
+}
+
 static bool compare(const MediaFile &a, const MediaFile &b) {
     if (a.type == Io::Type::Directory && b.type != Io::Type::Directory) {
         return true;
@@ -379,8 +407,9 @@ void Filer::exit() {
         if (!Utility::endsWith(s, "/")) {
             s += "/";
         }
-        for (int i = 1; i <= 9; i++) {
+        for (int i = 1; i <= 5; i++) {
             std::string root = main->getConfig()->getOption(PPLAYConfig::networkOption(i))->getString();
+            root = normalizeSmbPathSeparators(root);
             if (!root.empty() && !Utility::endsWith(root, "/")) root += "/";
             if (s == root) {
                 return;

@@ -2,6 +2,7 @@
 // Created by cpasjuste on 31/03/19.
 //
 
+#include <algorithm>
 #include <regex>
 #include "io.h"
 #include "main.h"
@@ -14,6 +15,101 @@
 #include "torrserve.h"
 
 using namespace pplay;
+
+
+#ifdef __SMB2__
+struct SmbUrlParts {
+    std::string domain;
+    std::string user;
+    std::string password;
+    std::string server;
+    std::string path;
+    std::string libsmbUrl;
+    std::string displayUrl;
+};
+
+static size_t findFirstOf(const std::string &str, const std::string &chars, size_t from) {
+    size_t pos = std::string::npos;
+    for (char ch: chars) {
+        size_t p = str.find(ch, from);
+        if (p != std::string::npos && (pos == std::string::npos || p < pos)) {
+            pos = p;
+        }
+    }
+    return pos;
+}
+
+static std::string normalizeSeparators(std::string path) {
+    std::replace(path.begin(), path.end(), '\\', '/');
+    return path;
+}
+
+static SmbUrlParts parseSmbUrl(const std::string &input) {
+    SmbUrlParts parts;
+    std::string smbPath = input;
+    if (!c2d::Utility::endsWith(smbPath, "/") && !c2d::Utility::endsWith(smbPath, "\\")) {
+        smbPath += "/";
+    }
+
+    const std::string scheme = "smb://";
+    size_t authStart = scheme.size();
+    size_t at = smbPath.find_last_of('@');
+    if (at != std::string::npos && at >= authStart) {
+        std::string auth = smbPath.substr(authStart, at - authStart);
+        size_t colon = auth.find(':');
+        std::string userWithDomain = colon == std::string::npos ? auth : auth.substr(0, colon);
+        if (colon != std::string::npos) {
+            parts.password = auth.substr(colon + 1);
+        }
+
+        size_t domainSlash = userWithDomain.find('\\');
+        size_t domainSemi = userWithDomain.find(';');
+        size_t domainSep = domainSlash != std::string::npos ? domainSlash : domainSemi;
+        if (domainSep != std::string::npos) {
+            parts.domain = userWithDomain.substr(0, domainSep);
+            parts.user = userWithDomain.substr(domainSep + 1);
+        } else {
+            parts.user = userWithDomain;
+        }
+    } else {
+        at = std::string::npos;
+    }
+
+    size_t serverStart = at == std::string::npos ? authStart : at + 1;
+    size_t pathStart = findFirstOf(smbPath, "/\\", serverStart);
+    if (pathStart == std::string::npos) {
+        parts.server = smbPath.substr(serverStart);
+        parts.path = "/";
+    } else {
+        parts.server = smbPath.substr(serverStart, pathStart - serverStart);
+        parts.path = normalizeSeparators(smbPath.substr(pathStart));
+    }
+
+    parts.displayUrl = scheme;
+    if (!parts.user.empty()) {
+        if (!parts.domain.empty()) {
+            parts.displayUrl += parts.domain + "\\";
+        }
+        parts.displayUrl += parts.user;
+        if (!parts.password.empty()) {
+            parts.displayUrl += ":" + parts.password;
+        }
+        parts.displayUrl += "@";
+    }
+    parts.displayUrl += parts.server + parts.path;
+
+    parts.libsmbUrl = scheme;
+    if (!parts.user.empty()) {
+        if (!parts.domain.empty()) {
+            parts.libsmbUrl += parts.domain + ";";
+        }
+        parts.libsmbUrl += parts.user + "@";
+    }
+    parts.libsmbUrl += parts.server + parts.path;
+
+    return parts;
+}
+#endif
 
 static size_t find_Nth(const std::string &str, unsigned int n, const std::string &find) {
     size_t pos = std::string::npos, from = 0;
@@ -158,10 +254,8 @@ std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, con
     }
 #ifdef __SMB2__
     else if (type == DeviceType::Smb) {
-        std::string smb_path = path;
-        if (!c2d::Utility::endsWith(smb_path, "/")) {
-            smb_path += "/";
-        }
+        SmbUrlParts smbUrl = parseSmbUrl(path);
+        std::string smb_path = smbUrl.displayUrl;
 
         smb2 = smb2_init_context();
         if (!smb2) {
@@ -169,21 +263,33 @@ std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, con
             return files;
         }
 
-        // parse smb path
-        smb2_url *url = smb2_parse_url(smb2, smb_path.c_str());
+        smb2_set_timeout(smb2, timeout);
+        if (!smbUrl.domain.empty()) {
+            smb2_set_domain(smb2, smbUrl.domain.c_str());
+        }
+        if (!smbUrl.user.empty()) {
+            smb2_set_user(smb2, smbUrl.user.c_str());
+        }
+        if (!smbUrl.password.empty()) {
+            smb2_set_password(smb2, smbUrl.password.c_str());
+        }
+
+        // libsmb2 does not accept passwords in URLs. Parse a sanitized URL and
+        // provide credentials explicitly through the context above.
+        smb2_url *url = smb2_parse_url(smb2, smbUrl.libsmbUrl.c_str());
         if (!url) {
             printf("Io::getDirList: failed to parse url: %s\n", smb2_get_error(smb2));
             smb2_destroy_context(smb2);
             return files;
         }
 
-        smb2_set_domain(smb2, "WORKGROUP");
-        smb2_set_user(smb2, "cpasjuste");
-        smb2_set_password(smb2, "xxxxx");
+        printf("Io::getDirList: domain: %s, user: %s, host: %s, share: %s, path: %s\n",
+               smbUrl.domain.c_str(), smbUrl.user.c_str(), url->server, url->share, url->path ? url->path : "");
 
         // set security
         smb2_set_security_mode(smb2, SMB2_NEGOTIATE_SIGNING_ENABLED);
-        if (smb2_connect_share(smb2, url->server, url->share, nullptr) < 0) {
+        const char *user = smbUrl.user.empty() ? url->user : smbUrl.user.c_str();
+        if (smb2_connect_share(smb2, url->server, url->share, user) < 0) {
             printf("Io::getDirList: smb2_connect_share failed: %s\n", smb2_get_error(smb2));
             smb2_destroy_url(url);
             smb2_destroy_context(smb2);
@@ -191,7 +297,8 @@ std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, con
         }
 
         // open dir
-        smb2dir *dir = smb2_opendir(smb2, url->path);
+        const char *dirPath = url->path && url->path[0] ? url->path : "";
+        smb2dir *dir = smb2_opendir(smb2, dirPath);
         if (!dir) {
             printf("Io::getDirList: smb2_opendir failed: %s\n", smb2_get_error(smb2));
             // cleanup
@@ -204,15 +311,19 @@ std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, con
         // get dir list
         smb2dirent *ent;
         while ((ent = smb2_readdir(smb2, dir))) {
+            bool isParentEntry = ent->name[0] == '.'
+                                 && (ent->name[1] == '\0'
+                                     || (ent->name[1] == '.' && ent->name[2] == '\0'));
+            if (isParentEntry) {
+                continue;
+            }
             switch (ent->st.smb2_type) {
                 case SMB2_TYPE_FILE:
                     files.emplace_back(ent->name, smb_path + ent->name,
                                        Io::Type::File, ent->st.smb2_size);
                     break;
                 case SMB2_TYPE_DIRECTORY:
-                    if (ent->name[0] != '.') {
-                        files.emplace_back(ent->name, smb_path + ent->name, Io::Type::Directory);
-                    }
+                    files.emplace_back(ent->name, smb_path + ent->name, Io::Type::Directory);
                     break;
                 case SMB2_TYPE_LINK:
                 default:
