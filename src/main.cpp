@@ -149,17 +149,6 @@ static bool startsWithPath(const std::string &path, const std::string &prefix) {
     return path.size() == prefix.size() || path[prefix.size()] == '/';
 }
 
-static std::string clampNetworkPathToBase(const std::string &path, const std::string &baseUrl) {
-    std::string base = normalizePath(ensureTrailingSlash(baseUrl));
-    std::string normalized = normalizePath(path);
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "Main::clampNetworkPathToBase path=" + path + " normalized=" + normalized + " normalized=" + normalized);
-    if (!startsWithPath(normalized, base)) {
-        return base;
-    }
-    return normalized;
-}
-
 Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
 
 #ifndef NDEBUG
@@ -220,7 +209,6 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
             std::string root = ensureTrailingSlash(network);
             std::string path = config->getOption(
                 PPLAYConfig::networkLastOption(currentNetworkIndex))->getString();
-            // path = clampNetworkPathToBase(path, network);
             if (pplayIo->getDeviceType(path) == pplay::Io::DeviceType::Local || path.empty()) {
                 path = root;
             }
@@ -405,7 +393,6 @@ void Main::show(MenuType type) {
         std::string root = ensureTrailingSlash(network);
         std::string path = config->getOption(
             PPLAYConfig::networkLastOption(currentNetworkIndex))->getString();
-        // path = clampNetworkPathToBase(path, network);
         if (pplayIo->getDeviceType(path) == pplay::Io::DeviceType::Local
             || path.empty()) {
             path = root;
@@ -463,9 +450,6 @@ void Main::syncLastLocation() {
     if (currentMenuType == MenuType::Network) {
         config->getOption(OPT_LAST_MODULE)->setString(networkModuleName(currentNetworkIndex));
         if (pplayIo->getDeviceType(selectedPath) != pplay::Io::DeviceType::Local) {
-            // std::string basePath = config->getOption(
-            //     PPLAYConfig::networkOption(currentNetworkIndex))->getString();
-            // selectedPath = clampNetworkPathToBase(selectedPath, basePath);
             const char *lastOption = PPLAYConfig::networkLastOption(currentNetworkIndex);
             if (getLeafName(selectedPath).empty()) {
                 config->getOption(lastOption)->setString(ensureTrailingSlash(selectedPath));
