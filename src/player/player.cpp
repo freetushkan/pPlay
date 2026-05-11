@@ -183,7 +183,7 @@ void Player::onStopEvent(int reason) {
     if (position <= 0) {
         position = lastKnownPosition;
     }
-    bool playbackCompleted = duration > 0 && (position / duration) >= 0.98;
+    bool playbackCompleted = duration > 0 && ((double)position / duration) >= 0.98;
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent reason=" + std::to_string(reason)
                         + " duration=" + std::to_string(duration)
                         + " position=" + std::to_string(position)
@@ -371,7 +371,8 @@ bool Player::onInput(c2d::Input::Player *players) {
     }
     else if (keys & Input::A) {
         bool paused = mpv->isPaused();
-        mpv->showText(paused ? "Resuming playback..." : "Pausing playback...");
+        main->getStatus()->show("Info...",
+            paused ? "Resuming playback..." : "Pausing playback...");
         paused ? resume() : pause();
         getOSD()->btn_play->setVisibility(paused ? Visibility::Hidden : Visibility::Visible);
         getOSD()->btn_pause->setVisibility(paused ? Visibility::Visible : Visibility::Hidden);

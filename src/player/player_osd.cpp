@@ -9,7 +9,7 @@
 using namespace c2d;
 
 #define OSD_HEIGHT      80.0f
-#define OSD_HIDE_TIME   4.0f
+#define OSD_HIDE_TIME   7.0f
 
 PlayerOSD::PlayerOSD(Main *m) : GradientRectangle({0, 0, 64, 64}) {
 
@@ -205,7 +205,8 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
                 bool pause = !mpv->isPaused();
                 btn_play->setVisibility(pause ? Visibility::Visible : Visibility::Hidden);
                 btn_pause->setVisibility(pause ? Visibility::Hidden : Visibility::Visible);
-                mpv->showText(pause ? "Pausing playback..." : "Resuming playback...");
+                main->getStatus()->show("Info...",
+                    pause ? "Pausing playback..." : "Resuming playback...");
                 pause ? player->pause() : player->resume();
                 break;
             }
