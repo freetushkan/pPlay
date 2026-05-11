@@ -350,8 +350,9 @@ void Browser::open(std::string url, int usertimeout=20, bool save_history=true)
     curl_easy_getinfo(curl, CURLINFO_SSL_VERIFYRESULT, &ssl_verify);
 
     pplay::Utility::log(
-        pplay::Utility::LogLevel::Info,
+        pplay::Utility::LogLevel::Debug,
         std::string("Browser::curl result=") + curl_easy_strerror(res) +
+        ", CURLE_OK=" + std::to_string(res == CURLE_OK) +
         ", http_code=" + std::to_string(http_code) +
         ", connect_code=" + std::to_string(connect_code) +
         ", ssl_verify=" + std::to_string(ssl_verify) +
@@ -359,22 +360,24 @@ void Browser::open(std::string url, int usertimeout=20, bool save_history=true)
         ", errbuf=" + (errbuf[0] ? errbuf : "")
     );
 
-    if(error())
-    {
-        std::cerr<<"\n";
-    }
-    if(writing_bytes==true)
-        fclose(filepipe);
-    //because we don't want to parse bytes for forms
-    else
-    {
-        if(fetching_forms == true)
-            forms.initialize(html_response);
-        if(fetching_links == true)
+    if (res == CURLE_OK) {
+        if(writing_bytes==true)
+            fclose(filepipe);
+        //because we don't want to parse bytes for forms
+        else
         {
-            links.getlinks(html_response);
-            emails.init(links);
+            if(fetching_forms == true)
+                forms.initialize(html_response);
+            if(fetching_links == true)
+            {
+                links.getlinks(html_response);
+                emails.init(links);
+            }
         }
+    } else {
+        pplay::Utility::log(pplay::Utility::LogLevel::Error,
+            std::string("Browser::curl failed: ") + curl_easy_strerror(res));
+        return;
     }
     //add current url to the history
     if(save_history)

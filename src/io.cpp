@@ -69,7 +69,7 @@ std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, con
         //printf("home: %s | dir: %s\n", home.c_str(), dir.c_str());
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::Browser->open url=" + home + dir);
         browser->open(home + dir, timeout);
-        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::Browser->open done.");
+        pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Io::Browser->open finished.");
         if (browser->error() || browser->links.size() < 1) {
             return files;
         }
