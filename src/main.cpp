@@ -81,28 +81,41 @@ static std::string normalizePath(const std::string &path) {
     if (schemePos != std::string::npos) {
         size_t firstSlash = path.find('/', schemePos + 3);
         if (firstSlash == std::string::npos) {
-            return ensureTrailingSlash(path);
+            return path + "/"; // Или логика ensureTrailingSlash
         }
         prefix = path.substr(0, firstSlash);
         rest = path.substr(firstSlash);
     }
-    std::vector<std::string> out;
-    std::stringstream ss(rest);
-    std::string part;
-    while (std::getline(ss, part, '/')) {
-        if (part.empty() || part == ".") continue;
-        if (part == "..") {
-            if (!out.empty()) out.pop_back();
-            continue;
+    std::vector<std::string> segments;
+    size_t start = 0, end = 0;
+    while ((end = rest.find('/', start)) != std::string::npos) {
+        std::string part = rest.substr(start, end - start);
+        if (!part.empty() && part != ".") {
+            if (part == "..") {
+                if (!segments.empty()) segments.pop_back();
+            } else {
+                segments.push_back(part);
+            }
         }
-        out.push_back(part);
+        start = end + 1;
     }
-    std::string normalized = schemePos == std::string::npos ? "/" : prefix + "/";
-    for (size_t i = 0; i < out.size(); i++) {
-        normalized += out[i];
-        if (i + 1 < out.size()) normalized += "/";
+    std::string lastPart = rest.substr(start);
+    if (!lastPart.empty() && lastPart != ".") {
+        if (lastPart == "..") {
+            if (!segments.empty()) segments.pop_back();
+        } else {
+            segments.push_back(lastPart);
+        }
     }
-    return normalized.empty() ? "/" : normalized;
+    std::string normalized = prefix + "/";
+    for (size_t i = 0; i < segments.size(); ++i) {
+        normalized += segments[i];
+        if (i < segments.size() - 1) normalized += "/";
+    }
+    if (rest.back() == '/' && normalized.back() != '/') {
+        normalized += "/";
+    }
+    return normalized;
 }
 
 static std::string getParentPath(const std::string &path) {
@@ -139,6 +152,8 @@ static bool startsWithPath(const std::string &path, const std::string &prefix) {
 static std::string clampNetworkPathToBase(const std::string &path, const std::string &baseUrl) {
     std::string base = normalizePath(ensureTrailingSlash(baseUrl));
     std::string normalized = normalizePath(path);
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+        "Main::clampNetworkPathToBase path=" + path + " normalized=" + normalized + " normalized=" + normalized);
     if (!startsWithPath(normalized, base)) {
         return base;
     }
@@ -440,6 +455,7 @@ void Main::syncLastLocation() {
     selectedPath = normalizePath(selectedPath);
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Main::syncLastLocation module="
                         + std::string(currentMenuType == MenuType::Network ? networkModuleName(currentNetworkIndex) : "LOCAL")
+                        + " index=" + std::to_string(currentNetworkIndex)
                         + " selected=" + selectedPath
                         + " leaf=" + getLeafName(selectedPath));
     if (currentMenuType == MenuType::Network) {
