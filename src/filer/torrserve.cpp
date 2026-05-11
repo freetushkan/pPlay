@@ -451,7 +451,7 @@ bool remFileViewed(const std::string &path) {
         request["action"] = "rem";
         request["hash"] = hash;
         request["file_index"] = std::stoi(index_str);
-        httpRequest(root + "viewed", 5, request.dump());
+        httpRequest(apiRoot(path) + "viewed", 5, request.dump());
         return true;
     } catch (...) {
         return false;
