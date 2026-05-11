@@ -84,6 +84,9 @@ void Filer::setSelection(int index) {
     item_index = index;
     int page = item_index / item_max;
     unsigned int index_start = (unsigned int) page * item_max;
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+        "Filer::setSelection item_index=" + std::to_string(item_index)
+        + " item_max=" + std::to_string(item_max));
 
     mutex->lock();
 
@@ -128,13 +131,14 @@ void Filer::setSelection(int index) {
     mutex->unlock();
     MediaFile selected = getSelection();
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "Filer::setSelection index=" + std::to_string(item_index) + " path=" + path
+        "Filer::setSelection finished index=" + std::to_string(item_index) + " path=" + path
         + " selectedName=" + selected.name + " selectedPath=" + selected.path
         + " selectedType=" + std::to_string((int) selected.type));
     main->syncLastLocation();
 }
 
 MediaFile Filer::getSelection() const {
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Filer::getSelection started.");
     mutex->lock();
     if (!files.empty() && files.size() > (unsigned int) item_index) {
         MediaFile file = files[item_index];
@@ -142,6 +146,7 @@ MediaFile Filer::getSelection() const {
         return file;
     }
     mutex->unlock();
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Filer::getSelection finished.");
 
     return {};
 }
@@ -255,10 +260,11 @@ bool Filer::onInput(c2d::Input::Player *players) {
             main->getStatus()->show("Info...", "Removing local watch later data...");
             pplay::Utility::deleteWatchLater(pplay::TorrServe::toStreamUrl(files[item_index].path));
         }
-        if (pplay::TorrServe::isFileViewed(files[item_index].path, main->getPlayer())) {
+        if (pplay::TorrServe::isFileViewed(files[item_index].path)) {
             main->getStatus()->show("Info...", "Removing TorrServer watched state...");
             pplay::TorrServe::remFileViewed(files[item_index].path);
         }
+        dirty = true;
     }
 
     return true;

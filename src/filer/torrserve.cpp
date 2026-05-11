@@ -16,7 +16,6 @@
 #include <json.hpp>
 #include "torrserve.h"
 #include "utility.h"
-#include "player.h"
 
 
 namespace {
@@ -224,59 +223,6 @@ std::vector<Torrent> getTorrents(const std::string &root, int timeout) {
     return torrents;
 }
 
-std::set<int> getViewedRemote(const std::string &root, const std::string &hash, int timeout) {
-    nlohmann::json request;
-    request["action"] = "list";
-    request["hash"] = hash;
-    nlohmann::json response = nlohmann::json::parse(
-            httpRequest(root + "viewed", timeout, request.dump()), nullptr, false);
-    std::set<int> viewed;
-    if (!response.is_array()) {
-        return viewed;
-    }
-    for (const auto &item: response) {
-        if (item.contains("file_index") && item["file_index"].is_number_integer()) {
-            viewed.insert(item["file_index"].get<int>());
-        }
-    }
-    return viewed;
-}
-
-std::set<int> getViewedCached(const std::string &root, const std::string &hash, Player *player) {
-    using Clock = std::chrono::steady_clock;
-
-    struct CacheEntry {
-        std::set<int> viewed;
-        Clock::time_point updated;
-    };
-
-    static std::mutex cacheMutex;
-    static std::unordered_map<std::string, CacheEntry> cache;
-
-    const auto now = Clock::now();
-    const std::string key = root + "|" + hash;
-
-    {
-        std::lock_guard<std::mutex> lock(cacheMutex);
-        auto it = cache.find(key);
-        if (it != cache.end()
-            && (now - it->second.updated < std::chrono::seconds(30)
-            || player->isFullscreen())) {
-            return it->second.viewed;
-        }
-        if (player->isFullscreen()) {
-            return {};
-        }
-    }
-
-    std::set<int> viewed = getViewedRemote(root, hash, 5);
-    {
-        std::lock_guard<std::mutex> lock(cacheMutex);
-        cache[key] = CacheEntry{viewed, Clock::now()};
-    }
-    return viewed;
-}
-
 bool hasPrefix(const std::vector<std::string> &path, const std::vector<std::string> &prefix) {
     if (path.size() < prefix.size()) return false;
     for (size_t i = 0; i < prefix.size(); i++) {
@@ -303,8 +249,65 @@ std::string basename(const std::string &path) {
 
 namespace pplay::TorrServe {
 
-std::set<int> getViewed(const std::string &root, const std::string &hash, Player *player) {
-    return getViewedCached(root, hash, player);
+std::set<int> getViewedRemote(const std::string &root, const std::string &hash, int timeout) {
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+        "TorrServe::getViewedRemote hash=" + hash);
+    nlohmann::json request;
+    request["action"] = "list";
+    request["hash"] = hash;
+    nlohmann::json response = nlohmann::json::parse(
+            httpRequest(root + "viewed", timeout, request.dump()), nullptr, false);
+    std::set<int> viewed;
+    if (!response.is_array()) {
+        return viewed;
+    }
+    for (const auto &item: response) {
+        if (item.contains("file_index") && item["file_index"].is_number_integer()) {
+            viewed.insert(item["file_index"].get<int>());
+        }
+    }
+    return viewed;
+}
+
+std::set<int> getViewedCached(const std::string &root, const std::string &hash) {
+    using Clock = std::chrono::steady_clock;
+
+    struct CacheEntry {
+        std::set<int> viewed;
+        Clock::time_point updated;
+    };
+
+    static std::mutex cacheMutex;
+    static std::unordered_map<std::string, CacheEntry> cache;
+
+    const auto now = Clock::now();
+    const std::string key = root + "|" + hash;
+
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+        "TorrServe::getViewedCached key=" + key);
+
+    {
+        std::lock_guard<std::mutex> lock(cacheMutex);
+        auto it = cache.find(key);
+        if (it != cache.end()
+            && (now - it->second.updated < std::chrono::seconds(30)
+            && !forceViewedRefresh)) {
+            return it->second.viewed;
+        }
+    }
+
+    std::set<int> viewed = getViewedRemote(root, hash, 5);
+    {
+        std::lock_guard<std::mutex> lock(cacheMutex);
+        cache[key] = CacheEntry{viewed, Clock::now()};
+    }
+    return viewed;
+}
+
+std::set<int> getViewed(const std::string &root, const std::string &hash) {
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+        "TorrServe::getViewed hash=" + hash + " forced=" + std::to_string(forceViewedRefresh));
+    return getViewedCached(root, hash);
 }
 
 std::vector<c2d::Io::File> getDirList(Browser *browser, const std::string &path, int timeout) {
@@ -385,7 +388,7 @@ std::string toStreamUrl(const std::string &path) {
     return replaceScheme(rootOf(path)) + "stream/?link=" + link + "&index=" + index + "&play";
 }
 
-bool isFileViewed(const std::string &path, Player *player) {
+bool isFileViewed(const std::string &path) {
     if (!c2d::Utility::startWith(path, "ts://") && !c2d::Utility::startWith(path, "tss://")) {
         return false;
     }
@@ -395,7 +398,8 @@ bool isFileViewed(const std::string &path, Player *player) {
         return false;
     }
 
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "TorrServe::isFileViewed path=" + path);
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+        "TorrServe::isFileViewed started path=" + path);
     std::string hash;
     std::string index_str;
     std::stringstream ss(path.substr(query + 1));
@@ -413,7 +417,13 @@ bool isFileViewed(const std::string &path, Player *player) {
 
     try {
         int index = std::stoi(index_str);
-        std::set<int> viewed = getViewed(apiRoot(path), hash, player);
+        std::set<int> viewed = getViewed(apiRoot(path), hash);
+        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+            "TorrServe::isFileViewed finished path=" + path
+                + " root=" + apiRoot(path) + " index=" + index_str);
+        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+            "TorrServe::isFileViewed finished path=" + path
+                + " result=" + std::to_string(viewed.count(index) > 0));
         return viewed.count(index) > 0;
     } catch (...) {
         return false;
@@ -430,7 +440,7 @@ bool remFileViewed(const std::string &path) {
         return false;
     }
 
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "TorrServe::isFileViewed path=" + path);
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "TorrServe::remFileViewed path=" + path);
     std::string hash;
     std::string index_str;
     std::stringstream ss(path.substr(query + 1));
@@ -452,6 +462,9 @@ bool remFileViewed(const std::string &path) {
         request["hash"] = hash;
         request["file_index"] = std::stoi(index_str);
         httpRequest(apiRoot(path) + "viewed", 5, request.dump());
+        forceViewedRefresh = true;
+        getViewed(apiRoot(path), hash);
+        forceViewedRefresh = false;
         return true;
     } catch (...) {
         return false;

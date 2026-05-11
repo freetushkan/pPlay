@@ -41,16 +41,18 @@ void FilerItem::setFile(const MediaFile &f) {
     if (file.type == Io::Type::Directory) {
         textTitle->setFillColor(COLOR_ACCENT);
     } else {
-        bool wlExists = pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path));
-        bool tsViewed = pplay::TorrServe::isFileViewed(file.path, main->getPlayer());
-        textTitle->setFillColor((wlExists || tsViewed) ? COLOR_VIEWED : COLOR_FONT);
+        if (main->getPlayer() == nullptr || !main->getPlayer()->isFullscreen()) {
+            bool wlExists = pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path));
+            bool tsViewed = pplay::TorrServe::isFileViewed(file.path);
+            textTitle->setFillColor((wlExists || tsViewed) ? COLOR_VIEWED : COLOR_FONT);
+        }
     }
     textTitle->setAlpha(alpha);
 }
 
 void FilerItem::setTitle(const std::string &title) {
 
-    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
         "FilerItem::setTitle title=" + title);
     textTitle->setString(title);
 }
@@ -58,9 +60,12 @@ void FilerItem::setTitle(const std::string &title) {
 void FilerItem::onUpdate() {
 
     if (updateClock.getElapsedTime().asSeconds() > 30.0f) {
-        if (file.type != Io::Type::Directory) {
-            bool wlExists = pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path));
-            bool tsViewed = pplay::TorrServe::isFileViewed(file.path, main->getPlayer());
+        if (file.type != Io::Type::Directory
+            && (main->getPlayer() == nullptr || !main->getPlayer()->isFullscreen())
+        ) {
+            bool wlExists = pplay::Utility::isWatchLaterExist(
+                pplay::TorrServe::toStreamUrl(file.path));
+            bool tsViewed = pplay::TorrServe::isFileViewed(file.path);
             Color targetColor = (wlExists || tsViewed) ? COLOR_VIEWED : COLOR_FONT;
             if (textTitle->getFillColor() != targetColor) {
                 textTitle->setFillColor(targetColor);
