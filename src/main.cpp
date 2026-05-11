@@ -173,13 +173,6 @@ static std::string getLeafName(const std::string &path) {
     return path.substr(pos + 1);
 }
 
-static bool startsWithPath(const std::string &path, const std::string &prefix) {
-    if (prefix.empty()) return true;
-    if (path.size() < prefix.size()) return false;
-    if (path.compare(0, prefix.size(), prefix) != 0) return false;
-    return path.size() == prefix.size() || path[prefix.size()] == '/';
-}
-
 Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
 
 #ifndef NDEBUG
