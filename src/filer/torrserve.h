@@ -17,6 +17,7 @@ namespace pplay::TorrServe {
 std::vector<c2d::Io::File> getDirList(Browser *browser, const std::string &path, int timeout);
 std::string toStreamUrl(const std::string &path);
 bool isFileViewed(const std::string &path, Player *player);
+bool remFileViewed(const std::string &path);
 
 }
 

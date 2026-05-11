@@ -252,8 +252,12 @@ bool Filer::onInput(c2d::Input::Player *players) {
         }
     } else if (keys & Input::Y) {
         if (pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(files[item_index].path))) {
-            main->getStatus()->show("Info...", "Removing watch later data...");
+            main->getStatus()->show("Info...", "Removing local watch later data...");
             pplay::Utility::deleteWatchLater(pplay::TorrServe::toStreamUrl(files[item_index].path));
+        }
+        if (pplay::TorrServe::isFileViewed(files[item_index].path, main->getPlayer())) {
+            main->getStatus()->show("Info...", "Removing TorrServer watched state...");
+            pplay::TorrServe::remFileViewed(files[item_index].path);
         }
     }
 

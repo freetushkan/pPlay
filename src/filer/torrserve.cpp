@@ -186,7 +186,7 @@ std::vector<Torrent> getTorrents(const std::string &root, int timeout) {
         return torrents;
     }
 
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "TorrServe::getTorrents response=" + response);
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "TorrServe::getTorrents response=" + response);
     nlohmann::json json = nlohmann::json::parse(response, nullptr, false);
     if (!json.is_array()) {
         return torrents;
@@ -396,7 +396,7 @@ bool isFileViewed(const std::string &path, Player *player) {
     }
 
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "TorrServe::isFileViewed path=" + path);
-    std::string link;
+    std::string hash;
     std::string index_str;
     std::stringstream ss(path.substr(query + 1));
     std::string param;
@@ -404,17 +404,55 @@ bool isFileViewed(const std::string &path, Player *player) {
         size_t eq = param.find('=');
         std::string key = eq == std::string::npos ? param : param.substr(0, eq);
         std::string value = eq == std::string::npos ? "" : param.substr(eq + 1);
-        if (key == "link") link = value;
+        if (key == "link") hash = value;
         if (key == "index") index_str = value;
     }
-    if (link.empty() || index_str.empty()) {
+    if (hash.empty() || index_str.empty()) {
         return false;
     }
 
     try {
         int index = std::stoi(index_str);
-        std::set<int> viewed = getViewed(apiRoot(path), link, player);
+        std::set<int> viewed = getViewed(apiRoot(path), hash, player);
         return viewed.count(index) > 0;
+    } catch (...) {
+        return false;
+    }
+}
+
+bool remFileViewed(const std::string &path) {
+    if (!c2d::Utility::startWith(path, "ts://") && !c2d::Utility::startWith(path, "tss://")) {
+        return false;
+    }
+
+    size_t query = path.find('?');
+    if (query == std::string::npos) {
+        return false;
+    }
+
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "TorrServe::isFileViewed path=" + path);
+    std::string hash;
+    std::string index_str;
+    std::stringstream ss(path.substr(query + 1));
+    std::string param;
+    while (std::getline(ss, param, '&')) {
+        size_t eq = param.find('=');
+        std::string key = eq == std::string::npos ? param : param.substr(0, eq);
+        std::string value = eq == std::string::npos ? "" : param.substr(eq + 1);
+        if (key == "link") hash = value;
+        if (key == "index") index_str = value;
+    }
+    if (hash.empty() || index_str.empty()) {
+        return false;
+    }
+
+    try {
+        nlohmann::json request;
+        request["action"] = "rem";
+        request["hash"] = hash;
+        request["file_index"] = std::stoi(index_str);
+        httpRequest(root + "viewed", 5, request.dump());
+        return true;
     } catch (...) {
         return false;
     }
