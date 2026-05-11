@@ -183,7 +183,7 @@ void Player::onStopEvent(int reason) {
     if (position <= 0) {
         position = lastKnownPosition;
     }
-    bool playbackCompleted = duration > 0 && (duration - position) <= 10;
+    bool playbackCompleted = duration > 0 && (position / duration) >= 0.99;
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent reason=" + std::to_string(reason)
                         + " duration=" + std::to_string(duration)
                         + " position=" + std::to_string(position)
