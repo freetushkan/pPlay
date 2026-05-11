@@ -6,4 +6,5 @@
 	url = https://github.com/Cpasjuste/pscrap.git
 [submodule "libsmb2"]
 	path = libsmb2
-	url = https://github.com/sahlberg/libsmb2.git
+	url = https://github.com/cy33hc/libsmb2.git
+	branch = ps4-new
