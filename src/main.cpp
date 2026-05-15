@@ -223,12 +223,14 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     filer = new Filer(this, "/", filerRect);
     filer->setLayer(1);
     Main::add(filer);
+    // TODO: Switch usb module support.
     currentNetworkIndex = parseNetworkModule(config->getOption(OPT_LAST_MODULE)->getString());
     currentMenuType = currentNetworkIndex > 0 ? MenuType::Network : MenuType::Local;
     if (currentMenuType == MenuType::Network) {
         std::string network = config->getOption(PPLAYConfig::networkOption(currentNetworkIndex))->getString();
         if (network.empty()) {
             currentMenuType = MenuType::Local;
+            currentNetworkIndex = 0;
         } else {
             std::string root = ensureTrailingSlash(network);
             std::string path = config->getOption(
@@ -246,7 +248,7 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
             }
         }
     }
-    else if (currentMenuType == MenuType::Local) {
+    if (currentMenuType == MenuType::Local) {
         std::string path = normalizePath(config->getOption(OPT_LAST_LOCAL_PATH)->getString());
         if (path.empty()) {
             path = config->getOption(OPT_HOME_PATH)->getString();
@@ -262,8 +264,10 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     // status bar
     statusBar = new StatusBar(this);
     statusBar->setLayer(10);
-    statusBar->setVisibility(Visibility::Visible, true);
     Main::add(statusBar);
+    // Without this trick the status bar is not shown on startup..
+    statusBar->setVisibility(Visibility::Hidden, false);
+    statusBar->setVisibility(Visibility::Visible, true);
 
     // ffmpeg player
     player = new Player(this);
@@ -372,12 +376,6 @@ void Main::onUpdate() {
 }
 
 void Main::show(MenuType type) {
-    if (type == MenuType::Current) {
-        type = currentMenuType;
-    } else {
-        currentMenuType = type;
-    }
-
     if (player->getMpv()->isStopped() && player->isFullscreen()) {
         player->setFullscreen(false);
     }
