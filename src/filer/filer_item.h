@@ -30,6 +30,8 @@ private:
     c2d::C2DClock updateClock;
 
     c2d::Text *textTitle;
+    
+    bool lastFullscreen = false;
 };
 
 #endif //PPLAY_FILERITEM_H

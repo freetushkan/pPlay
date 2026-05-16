@@ -19,7 +19,7 @@ std::string toStreamUrl(const std::string &path);
 bool isFileViewed(const std::string &path);
 bool remFileViewed(const std::string &path);
 
-inline bool forceViewedRefresh = false; 
+inline bool forceViewedRefresh = false;
 }
 
 #endif // PPLAY_TORRSERVE_H

@@ -268,21 +268,18 @@ std::set<int> getViewedRemote(const std::string &root, const std::string &hash, 
             viewed.insert(item["file_index"].get<int>());
         }
     }
+    forceViewedRefresh = false;
     return viewed;
 }
 
 std::set<int> getViewedCached(const std::string &root, const std::string &hash) {
-    using Clock = std::chrono::steady_clock;
-
     struct CacheEntry {
         std::set<int> viewed;
-        Clock::time_point updated;
+        time_t updated;
     };
 
     static std::mutex cacheMutex;
     static std::unordered_map<std::string, CacheEntry> cache;
-
-    const auto now = Clock::now();
     const std::string key = root + "|" + hash;
 
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
@@ -291,17 +288,20 @@ std::set<int> getViewedCached(const std::string &root, const std::string &hash) 
     {
         std::lock_guard<std::mutex> lock(cacheMutex);
         auto it = cache.find(key);
-        if (it != cache.end()
-            && (now - it->second.updated < std::chrono::seconds(30)
-            && !forceViewedRefresh)) {
-            return it->second.viewed;
+        if (it != cache.end()) {
+            double age = difftime(time(nullptr), it->second.updated);
+            pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+                "TorrServe::getViewedCached got age=" + std::to_string((int)age));
+            if (age < 30 && !forceViewedRefresh) {
+                return it->second.viewed;
+            }
         }
     }
 
     std::set<int> viewed = getViewedRemote(root, hash, 5);
     {
         std::lock_guard<std::mutex> lock(cacheMutex);
-        cache[key] = CacheEntry{viewed, Clock::now()};
+        cache[key] = CacheEntry{viewed, time(nullptr)};
     }
     return viewed;
 }
@@ -466,7 +466,6 @@ bool remFileViewed(const std::string &path) {
         httpRequest(apiRoot(path) + "viewed", 5, request.dump());
         forceViewedRefresh = true;
         getViewed(apiRoot(path), hash);
-        forceViewedRefresh = false;
         return true;
     } catch (...) {
         return false;

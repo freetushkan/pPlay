@@ -38,14 +38,13 @@ void FilerItem::setFile(const MediaFile &f) {
         textTitle->setString(file.name);
     }
     uint8_t alpha = textTitle->getAlpha();
-    if (file.type == Io::Type::Directory) {
-        textTitle->setFillColor(COLOR_ACCENT);
+    if (file.type == Io::Type::File) {
+        const std::string streamUrl = pplay::TorrServe::toStreamUrl(file.path);
+        const bool isWatched = pplay::Utility::isWatchLaterExist(streamUrl) 
+                            || pplay::TorrServe::isFileViewed(file.path);
+        textTitle->setFillColor(isWatched ? COLOR_VIEWED : COLOR_FONT);
     } else {
-        if (main->getPlayer() == nullptr || !main->getPlayer()->isFullscreen()) {
-            bool wlExists = pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path));
-            bool tsViewed = pplay::TorrServe::isFileViewed(file.path);
-            textTitle->setFillColor((wlExists || tsViewed) ? COLOR_VIEWED : COLOR_FONT);
-        }
+        textTitle->setFillColor(COLOR_ACCENT);
     }
     textTitle->setAlpha(alpha);
 }
@@ -58,18 +57,16 @@ void FilerItem::setTitle(const std::string &title) {
 }
 
 void FilerItem::onUpdate() {
-
-    if (updateClock.getElapsedTime().asSeconds() > 30.0f) {
-        if (file.type != Io::Type::Directory
-            && (main->getPlayer() == nullptr || !main->getPlayer()->isFullscreen())
-        ) {
-            bool wlExists = pplay::Utility::isWatchLaterExist(
-                pplay::TorrServe::toStreamUrl(file.path));
-            bool tsViewed = pplay::TorrServe::isFileViewed(file.path);
-            Color targetColor = (wlExists || tsViewed) ? COLOR_VIEWED : COLOR_FONT;
-            if (textTitle->getFillColor() != targetColor) {
-                textTitle->setFillColor(targetColor);
-            }
+    const bool isFullscreen = main->getPlayer() && main->getPlayer()->isFullscreen();
+    const bool fullscreenExited = lastFullscreen && !isFullscreen;
+    lastFullscreen = isFullscreen;
+    if (updateClock.getElapsedTime().asSeconds() > 30.0f || fullscreenExited) {
+        if (file.type != Io::Type::Directory && !isFullscreen) {
+            const std::string streamUrl = pplay::TorrServe::toStreamUrl(file.path);
+            const bool isWatched = pplay::Utility::isWatchLaterExist(streamUrl) 
+                                || pplay::TorrServe::isFileViewed(file.path);
+            Color targetColor = isWatched ? COLOR_VIEWED : COLOR_FONT;
+            textTitle->setFillColor(targetColor);
         }
         updateClock.restart();
     }
