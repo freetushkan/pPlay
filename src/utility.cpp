@@ -26,6 +26,9 @@
 #include <mbedtls/md5.h>
 #include <cstdio>
 
+
+#include <chrono>
+
 using namespace pplay;
 static Utility::LogLevel g_logLevel = Utility::LogLevel::Info;
 
@@ -179,9 +182,19 @@ void Utility::log(Utility::LogLevel level, const std::string &message) {
         const unsigned char bom[] = {0xEF, 0xBB, 0xBF};
         out.write((const char *) bom, 3);
     }
-    std::time_t t = std::time(nullptr);
-    out << std::to_string((long long) t) << " | " << message << "\n";
+    auto now = std::chrono::system_clock::now();
+    auto now_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(now);
+    long long raw_ms = now_ms.time_since_epoch().count();
+    std::time_t t = std::chrono::system_clock::to_time_t(now);
+    std::tm tm_info;
+    gmtime_r(&t, &tm_info);
+    int ms = raw_ms % 1000;
+    std::ostringstream time_ss;
+    time_ss << std::put_time(&tm_info, "%Y.%m.%d %H:%M:%S UTC")
+            << "." << std::setfill('0') << std::setw(3) << ms;
+    out << time_ss.str() << " (" << raw_ms << ") | " << message << "\n";
 }
+
 
 std::string Utility::md5hash(const std::string &input) {
     unsigned char output[16];
