@@ -21,6 +21,12 @@ public:
 
     bool isMenuVisible();
 
+    void setSelection(int moduleId);
+
+    void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
+
+    Highlight *highlight_selection;
+
 private:
 
     bool onInput(c2d::Input::Player *players) override;

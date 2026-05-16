@@ -82,10 +82,7 @@ static std::string normalizeSmbPathSeparators(const std::string &path) {
 
 static int parseNetworkModule(const std::string &module) {
     if (module.rfind("NETWORK", 0) != 0) {
-        return 0;
-    }
-    if (module.size() == 7) {
-        return 1;
+        return -1;
     }
     int index = std::atoi(module.substr(7).c_str());
     return index >= 1 && index <= 5 ? index : 1;
@@ -223,18 +220,18 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     filer = new Filer(this, "/", filerRect);
     filer->setLayer(1);
     Main::add(filer);
-    // TODO: Switch usb module support.
-    currentNetworkIndex = parseNetworkModule(config->getOption(OPT_LAST_MODULE)->getString());
-    currentMenuType = currentNetworkIndex > 0 ? MenuType::Network : MenuType::Local;
+
+    setCurrentModuleIndex(
+        parseNetworkModule(config->getOption(OPT_LAST_MODULE)->getString()));
+    currentMenuType = currentModuleIndex > 0 ? MenuType::Network : MenuType::Local;
     if (currentMenuType == MenuType::Network) {
-        std::string network = config->getOption(PPLAYConfig::networkOption(currentNetworkIndex))->getString();
+        std::string network = config->getOption(PPLAYConfig::networkOption(currentModuleIndex))->getString();
         if (network.empty()) {
             currentMenuType = MenuType::Local;
-            currentNetworkIndex = 0;
         } else {
             std::string root = ensureTrailingSlash(network);
             std::string path = config->getOption(
-                PPLAYConfig::networkLastOption(currentNetworkIndex))->getString();
+                PPLAYConfig::networkLastOption(currentModuleIndex))->getString();
             if (pplayIo->getDeviceType(path) == pplay::Io::DeviceType::Local || path.empty()) {
                 path = root;
             }
@@ -249,6 +246,7 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
         }
     }
     if (currentMenuType == MenuType::Local) {
+        setCurrentModuleIndex(-1);
         std::string path = normalizePath(config->getOption(OPT_LAST_LOCAL_PATH)->getString());
         if (path.empty()) {
             path = config->getOption(OPT_HOME_PATH)->getString();
@@ -276,9 +274,9 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
 
     // main menu
     std::vector<MenuItem> items;
-    items.emplace_back("Local", "home.png", MenuItem::Position::Top);
+    items.emplace_back("Local", "home.png", MenuItem::Position::Top, -1);
 #ifdef __SWITCH__
-    items.emplace_back("Usb", "usb.png", MenuItem::Position::Top);
+    items.emplace_back("Usb", "usb.png", MenuItem::Position::Top, -2);
 #endif
     for (int i = 1; i <= 5; i++) {
         if (!config->getOption(PPLAYConfig::networkOption(i))->getString().empty()) {
@@ -398,23 +396,23 @@ void Main::show(MenuType type) {
             filer->selectByPath(path);
         }
 #ifdef __SWITCH__
-        } else if (type == MenuType::Usb) {
-            usbInit();
-            filer->getDir(config->getOption(OPT_UMS_DEVICE)->getString());
+    } else if (type == MenuType::Usb) {
+        usbInit();
+        filer->getDir(config->getOption(OPT_UMS_DEVICE)->getString());
 #endif
     } else {
 #ifdef __SWITCH__
         usbHsFsExit();
 #endif
         std::string network = config->getOption(
-            PPLAYConfig::networkOption(currentNetworkIndex))->getString();
+            PPLAYConfig::networkOption(currentModuleIndex))->getString();
         if (network.empty()) {
             show(MenuType::Local);
             return;
         }
         std::string root = ensureTrailingSlash(network);
         std::string path = config->getOption(
-            PPLAYConfig::networkLastOption(currentNetworkIndex))->getString();
+            PPLAYConfig::networkLastOption(currentModuleIndex))->getString();
         if (pplayIo->getDeviceType(path) == pplay::Io::DeviceType::Local
             || path.empty()) {
             path = root;
@@ -465,14 +463,14 @@ void Main::syncLastLocation() {
     }
     selectedPath = normalizePath(selectedPath);
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Main::syncLastLocation module="
-                        + std::string(currentMenuType == MenuType::Network ? networkModuleName(currentNetworkIndex) : "LOCAL")
-                        + " index=" + std::to_string(currentNetworkIndex)
+                        + std::string(currentMenuType == MenuType::Network ? networkModuleName(currentModuleIndex) : "LOCAL")
+                        + " index=" + std::to_string(currentModuleIndex)
                         + " selected=" + selectedPath
                         + " leaf=" + getLeafName(selectedPath));
     if (currentMenuType == MenuType::Network) {
-        config->getOption(OPT_LAST_MODULE)->setString(networkModuleName(currentNetworkIndex));
+        config->getOption(OPT_LAST_MODULE)->setString(networkModuleName(currentModuleIndex));
         if (pplayIo->getDeviceType(selectedPath) != pplay::Io::DeviceType::Local) {
-            const char *lastOption = PPLAYConfig::networkLastOption(currentNetworkIndex);
+            const char *lastOption = PPLAYConfig::networkLastOption(currentModuleIndex);
             if (getLeafName(selectedPath).empty()) {
                 config->getOption(lastOption)->setString(ensureTrailingSlash(selectedPath));
             } else {
@@ -490,10 +488,12 @@ void Main::syncLastLocation() {
     config->save();
 }
 
-void Main::setCurrentNetworkIndex(int index) {
-    if (index >= 1 && index <= 5) {
-        currentNetworkIndex = index;
-    }
+void Main::setCurrentModuleIndex(int index) {
+    currentModuleIndex = index;
+}
+
+int Main::getcurrentModuleIndex() {
+    return currentModuleIndex;
 }
 
 Player *Main::getPlayer() {

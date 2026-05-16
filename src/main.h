@@ -77,7 +77,9 @@ public:
 
     void show(MenuType type);
 
-    void setCurrentNetworkIndex(int index);
+    void setCurrentModuleIndex(int index);
+
+    int getcurrentModuleIndex();
 
     bool isExiting();
 
@@ -149,7 +151,7 @@ private:
     bool exit = false;
     bool running = true;
     MenuType currentMenuType = MenuType::Local;
-    int currentNetworkIndex = 1;
+    int currentModuleIndex = 1;
 };
 
 #endif //PPLAY_MAIN_H

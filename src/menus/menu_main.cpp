@@ -43,27 +43,58 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     menuMainOptionsUsb->setSelection(main->getConfig()->getOption(OPT_UMS_DEVICE)->getString());
     main->add(menuMainOptionsUsb);
 #endif
+
+    // highlight
+    highlight_selection = new Highlight({MenuMain::getSize().x, BUTTON_HEIGHT * main->getScaling().y},
+                                        Highlight::CursorPosition::Left);
+    highlight_selection->setFillColor(COLOR_ACCENT);
+    highlight_selection->setAlpha(60);
+    highlight_selection->setCursorColor(COLOR_ACCENT);
+    highlight_selection->setOrigin(Origin::Left);
+    highlight_selection->setPosition(0, 200 * main->getScaling().y);
+    highlight_selection->setLayer(-1);
+    MenuMain::add(highlight_selection);
+}
+
+void MenuMain::setSelection(int moduleId) {
+    for (auto &button: buttons) {
+        if (button->item.id == moduleId) {
+            if (isVisible()) {
+                highlight_selection->tweenTo(button->getPosition());
+            } else {
+                highlight_selection->setPosition(button->getPosition());
+            }
+            break;
+        }
+    }
 }
 
 void MenuMain::onOptionSelection(MenuItem *item) {
     if (item->name == "Local") {
         setVisibility(Visibility::Hidden, true);
+        main->setCurrentModuleIndex(item->id);
         main->show(Main::MenuType::Local);
-    } else if (item->icon == "network.png") {
-        setVisibility(Visibility::Hidden, true);
-        main->setCurrentNetworkIndex(item->id);
-        main->show(Main::MenuType::Network);
     } else if (item->name == "Options") {
         setVisibility(Visibility::Hidden, true);
         menuMainOptions->setVisibility(Visibility::Visible);
 #ifdef __SWITCH__
-        } else if (item->name == "Usb") {
-            setVisibility(Visibility::Hidden, true);
-            main->show(Main::MenuType::Usb);
+    } else if (item->name == "Usb") {
+        setVisibility(Visibility::Hidden, true);
+        main->setCurrentModuleIndex(item->id);
+        main->show(Main::MenuType::Usb);
 #endif
+    } else if (item->id > 0) {
+        setVisibility(Visibility::Hidden, true);
+        main->setCurrentModuleIndex(item->id);
+        main->show(Main::MenuType::Network);
     } else if (item->name == "Exit") {
         main->quit();
     }
+}
+
+void MenuMain::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
+    setSelection(main->getcurrentModuleIndex());
+    Menu::setVisibility(visibility, tweenPlay);
 }
 
 bool MenuMain::onInput(c2d::Input::Player *players) {
