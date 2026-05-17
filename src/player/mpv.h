@@ -12,6 +12,10 @@
 #include <mpv/render_gl.h>
 #include "media_info.h"
 
+#ifdef __SMB2__
+#include <mpv/stream_cb.h>
+#endif
+
 class Mpv {
 
 public:

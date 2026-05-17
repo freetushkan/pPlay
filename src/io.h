@@ -13,6 +13,8 @@
 #include "libsmb2.h"
 #include "libsmb2-raw.h"
 
+int register_smb_mpv(void *mpv_ctx);
+
 #endif
 
 class Browser;

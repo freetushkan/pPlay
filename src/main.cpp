@@ -114,6 +114,16 @@ static std::string normalizePath(const std::string &path) {
         prefix = normalizedInput.substr(0, firstSlash);
         rest = normalizedInput.substr(firstSlash);
     }
+    bool endsWithDotDot = (rest == "..") || 
+        (rest.size() >= 3 && rest.compare(rest.size() - 3, 3, "/..") == 0);
+    if (endsWithDotDot) {
+        if (rest == "..") {
+            rest = "";
+        } else {
+            rest = rest.substr(0, rest.size() - 3); // убираем "/.."
+        }
+    }
+    bool trailingSlash = !rest.empty() && rest.back() == '/';
     std::vector<std::string> segments;
     size_t start = 0, end = 0;
     while ((end = rest.find('/', start)) != std::string::npos) {
@@ -140,15 +150,24 @@ static std::string normalizePath(const std::string &path) {
         normalized += segments[i];
         if (i < segments.size() - 1) normalized += "/";
     }
-    if (rest.back() == '/' && normalized.back() != '/') {
+    if (trailingSlash && !segments.empty() && normalized.back() != '/') {
         normalized += "/";
+    }
+    if (endsWithDotDot) {
+        if (normalized.back() != '/') {
+            normalized += "/";
+        }
+        normalized += "..";
     }
     return normalized;
 }
 
-static std::string getParentPath(const std::string &path) {
+static std::string extractDirPath(const std::string &path) {
+    if (path.empty()) return "/";
+    if (path.back() == '/') {
+        return path;
+    }
     std::string p = normalizePath(path);
-    if (p.empty() || p == "/") return "/";
     size_t schemePos = p.find("://");
     size_t minPos = 0;
     if (schemePos != std::string::npos) {
@@ -157,9 +176,8 @@ static std::string getParentPath(const std::string &path) {
         minPos = afterHost + 1;
     }
     size_t pos = p.find_last_of('/');
-    if (pos == std::string::npos || pos < minPos) return p;
     if (pos == 0) return "/";
-    return p.substr(0, pos);
+    return p.substr(0, pos + 1);
 }
 
 static std::string getLeafName(const std::string &path) {
@@ -221,44 +239,6 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     filer->setLayer(1);
     Main::add(filer);
 
-    setCurrentModuleIndex(
-        parseNetworkModule(config->getOption(OPT_LAST_MODULE)->getString()));
-    currentMenuType = currentModuleIndex > 0 ? MenuType::Network : MenuType::Local;
-    if (currentMenuType == MenuType::Network) {
-        std::string network = config->getOption(PPLAYConfig::networkOption(currentModuleIndex))->getString();
-        if (network.empty()) {
-            currentMenuType = MenuType::Local;
-        } else {
-            std::string root = ensureTrailingSlash(network);
-            std::string path = config->getOption(
-                PPLAYConfig::networkLastOption(currentModuleIndex))->getString();
-            if (pplayIo->getDeviceType(path) == pplay::Io::DeviceType::Local || path.empty()) {
-                path = root;
-            }
-            std::string dirPath = getParentPath(path);
-            if (!filer->getDir(dirPath)) {
-                filer->getDir(root);
-            } else if (!filer->selectByPath(path)) {
-                filer->getDir(root);
-            } else {
-                filer->clearHistory();
-            }
-        }
-    }
-    if (currentMenuType == MenuType::Local) {
-        setCurrentModuleIndex(-1);
-        std::string path = normalizePath(config->getOption(OPT_LAST_LOCAL_PATH)->getString());
-        if (path.empty()) {
-            path = config->getOption(OPT_HOME_PATH)->getString();
-        }
-        std::string dirPath = getParentPath(path);
-        if (!filer->getDir(dirPath)) {
-            filer->getDir(config->getOption(OPT_HOME_PATH)->getString());
-        } else {
-            filer->selectByPath(path);
-        }
-    }
-
     // status bar
     statusBar = new StatusBar(this);
     statusBar->setLayer(10);
@@ -273,6 +253,8 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     Main::add(player);
 
     // main menu
+    setCurrentModuleIndex(
+        parseNetworkModule(config->getOption(OPT_LAST_MODULE)->getString()));
     std::vector<MenuItem> items;
     items.emplace_back("Local", "home.png", MenuItem::Position::Top, -1);
 #ifdef __SWITCH__
@@ -321,6 +303,9 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     Main::add(messageBox);
 
     scrapper = new Scrapper(this);
+
+    // open last
+    show(currentModuleIndex > 0 ? MenuType::Network : MenuType::Local);
 }
 
 Main::~Main() {
@@ -387,7 +372,7 @@ void Main::show(MenuType type) {
         if (path.empty()) {
             path = config->getOption(OPT_HOME_PATH)->getString();
         }
-        std::string dirPath = getParentPath(path);
+        std::string dirPath = extractDirPath(path);
         if (!filer->getDir(dirPath)) {
             if (filer->getDir(config->getOption(OPT_HOME_PATH)->getString())) {
                 filer->clearHistory();
@@ -413,21 +398,19 @@ void Main::show(MenuType type) {
         std::string root = ensureTrailingSlash(network);
         std::string path = config->getOption(
             PPLAYConfig::networkLastOption(currentModuleIndex))->getString();
-        if (pplayIo->getDeviceType(path) == pplay::Io::DeviceType::Local
-            || path.empty()) {
+        if (pplayIo->getDeviceType(path) == pplay::Io::DeviceType::Local || path.empty()) {
             path = root;
         }
-        std::string dirPath = getParentPath(path);
+        std::string dirPath = extractDirPath(path);
         if (!filer->getDir(dirPath)) {
             if (!filer->getDir(root)) {
                 messageBox->show("OOPS", filer->getError(), "OK");
                 show(MenuType::Local);
             }
-        } else if (!filer->selectByPath(path)) {
-            filer->getDir(root);
         } else {
-            filer->clearHistory();
+            filer->selectByPath(path);
         }
+        filer->clearHistory();
     }
 }
 
@@ -457,17 +440,14 @@ void Main::quit() {
 
 void Main::syncLastLocation() {
     MediaFile selected = filer->getSelection();
-    std::string selectedPath = selected.path.empty() ? filer->getPath() : selected.path;
-    if (selected.name == "..") {
-        selectedPath = filer->getPath() + "/..";
-    }
+    std::string selectedPath = selected.path.empty() ? filer->getPath() + "/.." : selected.path;
     selectedPath = normalizePath(selectedPath);
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Main::syncLastLocation module="
-                        + std::string(currentMenuType == MenuType::Network ? networkModuleName(currentModuleIndex) : "LOCAL")
-                        + " index=" + std::to_string(currentModuleIndex)
-                        + " selected=" + selectedPath
-                        + " leaf=" + getLeafName(selectedPath));
-    if (currentMenuType == MenuType::Network) {
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+        "Main::syncLastLocation module="
+        + std::string(currentModuleIndex > 0 ? networkModuleName(currentModuleIndex) : "LOCAL")
+        + " index=" + std::to_string(currentModuleIndex)
+        + " selected=" + selectedPath);
+    if (currentModuleIndex > 0) {
         config->getOption(OPT_LAST_MODULE)->setString(networkModuleName(currentModuleIndex));
         if (pplayIo->getDeviceType(selectedPath) != pplay::Io::DeviceType::Local) {
             const char *lastOption = PPLAYConfig::networkLastOption(currentModuleIndex);

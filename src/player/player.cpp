@@ -70,18 +70,17 @@ bool Player::load(const MediaFile &f, bool resetRetry) {
     lastProgressSave = 0;
     lastKnownDuration = 0;
     lastKnownPosition = 0;
-    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
         "Player::load path=" + file.path + " name=" + file.name
         + " type=" + std::to_string((int) file.type)
         + " resetRetry=" + std::to_string(resetRetry ? 1 : 0)
         + " retryCount=" + std::to_string(retryCount));
     std::string path = pplay::TorrServe::toStreamUrl(file.path);
 #ifdef __SMB2__
-#if 0
     if (Utility::startWith(path, "smb://")) {
         std::replace(path.begin(), path.end(), '\\', '/');
+        path.replace(0, strlen("smb://"), "smb2://");
     }
-#endif
 #endif
 
     // disable subtitles if slang option not set in "mpv.conf" (overridden by "watch_later")
@@ -91,6 +90,8 @@ bool Player::load(const MediaFile &f, bool resetRetry) {
         mpv_set_option_string(mpv->getHandle(), "sid", "no");
     }
 
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+        "Player::load effective_url=" + path);
     int res = mpv->load(path, Mpv::LoadType::Replace, "pause=yes,speed=1");
     if (res != 0) {
         pplay::Utility::log(pplay::Utility::LogLevel::Error,

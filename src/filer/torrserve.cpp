@@ -187,7 +187,7 @@ std::vector<Torrent> getTorrents(const std::string &root, int timeout) {
         return torrents;
     }
 
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "TorrServe::getTorrents response=" + response);
+    pplay::Utility::log(pplay::Utility::LogLevel::Trace, "TorrServe::getTorrents response=" + response);
     nlohmann::json json = nlohmann::json::parse(response, nullptr, false);
     if (!json.is_array()) {
         return torrents;
@@ -202,7 +202,7 @@ std::vector<Torrent> getTorrents(const std::string &root, int timeout) {
         Torrent torrent;
         torrent.title = item["title"].get<std::string>();
         torrent.hash = item["hash"].get<std::string>();
-        pplay::Utility::log(pplay::Utility::LogLevel::Info,
+        pplay::Utility::log(pplay::Utility::LogLevel::Trace,
             "TorrServe::getTorrents item=" + torrent.title + ", hash=" + torrent.hash);
 
         if (item.contains("data") && item["data"].is_string()) {

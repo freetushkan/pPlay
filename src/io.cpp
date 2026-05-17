@@ -14,6 +14,11 @@
 #include "pplay_config.h"
 #include "torrserve.h"
 
+#ifdef __SMB2__
+#include <mpv/client.h>
+#include <mpv/stream_cb.h>
+#endif
+
 using namespace pplay;
 
 
@@ -122,6 +127,249 @@ static SmbUrlParts parseSmbUrl(const std::string &input) {
 
     return parts;
 }
+
+// MPV STREAM CALLBACKS
+typedef struct {
+    struct smb2_context *smb2;
+    struct smb2fh *fh;
+    int64_t file_size;
+} Smb2MpvCtx;
+
+static std::string ptr_to_str(const void *p) {
+    std::ostringstream oss;
+    oss << p;
+    return oss.str();
+}
+
+static std::string safe_cstr(const char *s) {
+    return s ? s : "(null)";
+}
+
+static void smb2_dbg(const std::string &msg) {
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug, msg);
+}
+
+
+static int64_t smb2_mpv_read_cb(void *cookie, char *buf, uint64_t nbytes) {
+    Smb2MpvCtx *ctx = (Smb2MpvCtx *)cookie;
+
+    smb2_dbg("smb2_mpv_read_cb: cookie=" + ptr_to_str(cookie) +
+             " ctx=" + ptr_to_str(ctx) +
+             " fh=" + (ctx ? ptr_to_str(ctx->fh) : "(null)") +
+             " nbytes=" + std::to_string(nbytes));
+
+    if (!ctx || !ctx->fh) {
+        smb2_dbg("smb2_mpv_read_cb: invalid ctx/fh");
+        return -1;
+    }
+
+    int ret = smb2_read(ctx->smb2, ctx->fh, (uint8_t *)buf, nbytes);
+
+    smb2_dbg("smb2_mpv_read_cb: smb2_read ret=" + std::to_string(ret));
+
+    return ret >= 0 ? ret : -1;
+}
+
+static int64_t smb2_mpv_seek_cb(void *cookie, int64_t offset) {
+    Smb2MpvCtx *ctx = (Smb2MpvCtx *)cookie;
+
+    smb2_dbg("smb2_mpv_seek_cb: cookie=" + ptr_to_str(cookie) +
+             " ctx=" + ptr_to_str(ctx) +
+             " fh=" + (ctx ? ptr_to_str(ctx->fh) : "(null)") +
+             " offset=" + std::to_string(offset));
+
+    if (!ctx || !ctx->fh) {
+        smb2_dbg("smb2_mpv_seek_cb: invalid ctx/fh");
+        return -1;
+    }
+
+    uint64_t new_pos = 0;
+    int rc = smb2_lseek(ctx->smb2, ctx->fh, offset, SEEK_SET, &new_pos);
+
+    smb2_dbg("smb2_mpv_seek_cb: smb2_lseek rc=" + std::to_string(rc) +
+             " new_pos=" + std::to_string(new_pos));
+
+    if (rc == 0) {
+        return (int64_t)new_pos;
+    }
+    return -1;
+}
+
+static int64_t smb2_mpv_size_cb(void *cookie) {
+    Smb2MpvCtx *ctx = (Smb2MpvCtx *)cookie;
+
+    smb2_dbg("smb2_mpv_size_cb: cookie=" + ptr_to_str(cookie) +
+             " ctx=" + ptr_to_str(ctx) +
+             (ctx ? " file_size=" + std::to_string(ctx->file_size) : ""));
+
+    return ctx ? ctx->file_size : -1;
+}
+
+static void smb2_mpv_close_cb(void *cookie) {
+    Smb2MpvCtx *ctx = (Smb2MpvCtx *)cookie;
+
+    smb2_dbg("smb2_mpv_close_cb: cookie=" + ptr_to_str(cookie) +
+             " ctx=" + ptr_to_str(ctx) +
+             " fh=" + (ctx ? ptr_to_str(ctx->fh) : "(null)") +
+             " smb2=" + (ctx ? ptr_to_str(ctx->smb2) : "(null)"));
+
+    if (!ctx) {
+        return;
+    }
+
+    if (ctx->fh) {
+        smb2_dbg("smb2_mpv_close_cb: smb2_close begin");
+        smb2_close(ctx->smb2, ctx->fh);
+        smb2_dbg("smb2_mpv_close_cb: smb2_close done");
+    }
+
+    if (ctx->smb2) {
+        smb2_dbg("smb2_mpv_close_cb: smb2_disconnect_share begin");
+        smb2_disconnect_share(ctx->smb2);
+        smb2_dbg("smb2_mpv_close_cb: smb2_disconnect_share done");
+
+        smb2_dbg("smb2_mpv_close_cb: smb2_destroy_context begin");
+        smb2_destroy_context(ctx->smb2);
+        smb2_dbg("smb2_mpv_close_cb: smb2_destroy_context done");
+    }
+
+    free(ctx);
+    smb2_dbg("smb2_mpv_close_cb: ctx freed");
+}
+
+static int smb2_mpv_open_cb(void *user_data, char *uri, mpv_stream_cb_info *info)
+{
+    (void)user_data;
+
+    smb2_dbg("smb2_mpv_open_cb: enter uri=" + safe_cstr(uri) +
+             " info=" + ptr_to_str(info));
+
+    std::string full_uri = uri ? uri : "";
+    smb2_dbg("smb2_mpv_open_cb: full_uri(in)=" + full_uri);
+
+    if (c2d::Utility::startWith(full_uri, "smb2://")) {
+        full_uri.replace(0, std::strlen("smb2://"), "smb://");
+    } else if (!c2d::Utility::startWith(full_uri, "smb://")) {
+        smb2_dbg("smb2_mpv_open_cb: unsupported scheme, uri=" + full_uri);
+        return MPV_ERROR_UNSUPPORTED;
+    }
+
+    smb2_dbg("smb2_mpv_open_cb: full_uri(normalized)=" + full_uri);
+
+    SmbUrlParts parts = parseSmbUrl(full_uri);
+
+    Smb2MpvCtx *ctx = (Smb2MpvCtx *)calloc(1, sizeof(Smb2MpvCtx));
+    smb2_dbg("smb2_mpv_open_cb: ctx alloc=" + ptr_to_str(ctx));
+    if (!ctx) {
+        return MPV_ERROR_NOMEM;
+    }
+
+    ctx->smb2 = smb2_init_context();
+    smb2_dbg("smb2_mpv_open_cb: smb2_init_context=" + ptr_to_str(ctx->smb2));
+    if (!ctx->smb2) {
+        free(ctx);
+        smb2_dbg("smb2_mpv_open_cb: init_context failed");
+        return MPV_ERROR_NOMEM;
+    }
+
+    smb2_set_security_mode(ctx->smb2, SMB2_NEGOTIATE_SIGNING_ENABLED);
+    smb2_set_timeout(ctx->smb2, 60);  // TODO: config value
+
+    if (!parts.domain.empty()) {
+        smb2_dbg("smb2_mpv_open_cb: set_domain=" + parts.domain);
+        smb2_set_domain(ctx->smb2, parts.domain.c_str());
+    }
+    if (!parts.user.empty()) {
+        smb2_dbg("smb2_mpv_open_cb: set_user=" + parts.user);
+        smb2_set_user(ctx->smb2, parts.user.c_str());
+    }
+    if (!parts.password.empty()) {
+        smb2_dbg("smb2_mpv_open_cb: set_password=(set)");
+        smb2_set_password(ctx->smb2, parts.password.c_str());
+    }
+
+    std::string path = parts.path;
+    path.erase(path.find_last_not_of('/') + 1);
+    std::string libsmb_url = "smb://" 
+        + (parts.domain.empty() ? "" : parts.domain + ";")
+        + parts.user + "@" + parts.server + ":" + std::to_string(parts.port) + path;
+    smb2_dbg("smb2_mpv_open_cb: libsmb_url=" + libsmb_url);
+
+    smb2_url *url = smb2_parse_url(ctx->smb2, libsmb_url.c_str());
+    smb2_dbg("smb2_mpv_open_cb: smb2_parse_url=" + ptr_to_str(url));
+    if (!url) {
+        smb2_dbg("smb2_mpv_open_cb: parse_url failed: " + std::string(smb2_get_error(ctx->smb2)));
+        smb2_destroy_context(ctx->smb2);
+        free(ctx);
+        return MPV_ERROR_LOADING_FAILED;
+    }
+    smb2_dbg("smb2_mpv_open_cb: connect_share begin server=" + safe_cstr(url->server) +
+             " share=" + safe_cstr(url->share));
+
+    if (smb2_connect_share(ctx->smb2, url->server, url->share, url->user) < 0) {
+        smb2_dbg("smb2_mpv_open_cb: connect_share failed: " + std::string(smb2_get_error(ctx->smb2)));
+        smb2_destroy_url(url);
+        smb2_destroy_context(ctx->smb2);
+        free(ctx);
+        return MPV_ERROR_LOADING_FAILED;
+    }
+    smb2_dbg("smb2_mpv_open_cb: connect_share OK");
+
+    const char *open_path = (url->path && url->path[0]) ? url->path : "/";
+    ctx->fh = smb2_open(ctx->smb2, open_path, O_RDONLY);
+    smb2_dbg("smb2_mpv_open_cb: smb2_open fh=" + ptr_to_str(ctx->fh));
+
+    smb2_destroy_url(url);
+
+    if (!ctx->fh) {
+        smb2_dbg("smb2_mpv_open_cb: open failed: " + std::string(smb2_get_error(ctx->smb2)));
+        smb2_disconnect_share(ctx->smb2);
+        smb2_destroy_context(ctx->smb2);
+        free(ctx);
+        return MPV_ERROR_LOADING_FAILED;
+    }
+
+    struct smb2_stat_64 st;
+    if (smb2_fstat(ctx->smb2, ctx->fh, &st) == 0) {
+        ctx->file_size = st.smb2_size;
+        smb2_dbg("smb2_mpv_open_cb: file_size=" + std::to_string(ctx->file_size));
+    } else {
+        ctx->file_size = -1;
+        smb2_dbg("smb2_mpv_open_cb: file_size unknown");
+    }
+
+    info->cookie    = ctx;
+    info->read_fn   = smb2_mpv_read_cb;
+    info->seek_fn   = smb2_mpv_seek_cb;
+    info->size_fn   = smb2_mpv_size_cb;
+    info->close_fn  = smb2_mpv_close_cb;
+    info->cancel_fn = nullptr;
+
+    smb2_dbg("smb2_mpv_open_cb: SUCCESS");
+    return 0;
+}
+
+int register_smb_mpv(void *mpv_ctx) {
+    pplay::Utility::log(
+        pplay::Utility::LogLevel::Debug,
+        std::string("register_smb_mpv: ctx=") + (mpv_ctx ? "non-null" : "null")
+    );
+
+    if (!mpv_ctx) {
+        return -1;
+    }
+
+    int res = mpv_stream_cb_add_ro((mpv_handle *)mpv_ctx, "smb2", nullptr, smb2_mpv_open_cb);
+
+    pplay::Utility::log(
+        pplay::Utility::LogLevel::Debug,
+        std::string("register_smb_mpv: mpv_stream_cb_add_ro(smb2) = ") +
+            std::to_string(res) +
+            (res < 0 ? std::string(" (") + mpv_error_string(res) + ")" : "")
+    );
+
+    return res;
+}
 #endif
 
 static size_t find_Nth(const std::string &str, unsigned int n, const std::string &find) {
@@ -184,7 +432,7 @@ std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, con
         }
 
         // add up/back ("..")
-        files.emplace_back("..", "..", Io::Type::Directory, 0);
+        files.emplace_back("..", http_path + "..", Io::Type::Directory, 0);
 
         for (int i = 0; i < browser->links.size(); i++) {
             // skip apache2 stuff
@@ -257,9 +505,7 @@ std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, con
         std::vector<Io::File> _files = FtpDirList(new_path.c_str(), ftp_con);
         _files.insert(_files.begin(), Io::File("..", "..", Io::Type::Directory, 0));
         for (auto &file: _files) {
-            if (file.path != "..") {
-                file.path = ftp_path + file.name;
-            }
+            file.path = ftp_path + file.name;
             files.push_back(file);
         }
 

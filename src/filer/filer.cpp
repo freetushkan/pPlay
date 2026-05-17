@@ -357,7 +357,7 @@ bool Filer::getDir(const std::string &p) {
     std::sort(files.begin(), files.end(), compare);
 
     if (files.empty() || files.at(0).name != "..") {
-        Io::File file("..", "..", Io::Type::Directory, 0);
+        Io::File file("..", p + "/..", Io::Type::Directory, 0);
         files.insert(files.begin(), MediaFile{file, MediaInfo(file)});
     }
 
@@ -381,7 +381,7 @@ void Filer::enter(int index) {
         return;
     }
 
-    if (!file.path.empty() && file.path != "..") {
+    if (!file.path.empty() && file.name != "..") {
         success = getDir(file.path);
     } else if (path == "/") {
         success = getDir(path + file.name);

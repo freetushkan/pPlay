@@ -150,7 +150,6 @@ private:
 
     bool exit = false;
     bool running = true;
-    MenuType currentMenuType = MenuType::Local;
     int currentModuleIndex = 1;
 };
 
