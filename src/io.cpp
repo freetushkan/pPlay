@@ -3,6 +3,8 @@
 //
 
 #include <algorithm>
+#include <cstdint>
+#include <limits>
 #include <regex>
 #include "io.h"
 #include "main.h"
@@ -133,6 +135,8 @@ typedef struct {
     struct smb2_context *smb2;
     struct smb2fh *fh;
     int64_t file_size;
+    uint64_t pos;
+    uint32_t max_read_size;
 } Smb2MpvCtx;
 
 static std::string ptr_to_str(const void *p) {
@@ -156,6 +160,7 @@ static int64_t smb2_mpv_read_cb(void *cookie, char *buf, uint64_t nbytes) {
     smb2_dbg("smb2_mpv_read_cb: cookie=" + ptr_to_str(cookie) +
              " ctx=" + ptr_to_str(ctx) +
              " fh=" + (ctx ? ptr_to_str(ctx->fh) : "(null)") +
+             " pos=" + (ctx ? std::to_string(ctx->pos) : "(null)") +
              " nbytes=" + std::to_string(nbytes));
 
     if (!ctx || !ctx->fh) {
@@ -163,11 +168,37 @@ static int64_t smb2_mpv_read_cb(void *cookie, char *buf, uint64_t nbytes) {
         return -1;
     }
 
-    int ret = smb2_read(ctx->smb2, ctx->fh, (uint8_t *)buf, nbytes);
+    if (nbytes == 0) {
+        return 0;
+    }
 
-    smb2_dbg("smb2_mpv_read_cb: smb2_read ret=" + std::to_string(ret));
+    // Use positional reads and maintain mpv's stream cursor ourselves.  Some
+    // libsmb2 builds return the new absolute offset from smb2_lseek(), while
+    // mpv expects the seek callback to return a non-negative position on
+    // success.  If that return value is interpreted as an error, libsmb2 has
+    // already moved the shared file cursor (often to EOF for MP4 probing), so
+    // subsequent reads drain the end of the file and playback stops.
+    uint32_t count = (uint32_t)std::min<uint64_t>(
+        nbytes,
+        std::numeric_limits<uint32_t>::max()
+    );
+    if (ctx->max_read_size > 0) {
+        count = std::min(count, ctx->max_read_size);
+    }
 
-    return ret >= 0 ? ret : -1;
+    int ret = smb2_pread(ctx->smb2, ctx->fh, (uint8_t *)buf, count, ctx->pos);
+
+    smb2_dbg("smb2_mpv_read_cb: smb2_pread offset=" + std::to_string(ctx->pos) +
+             " count=" + std::to_string(count) +
+             " ret=" + std::to_string(ret));
+
+    if (ret < 0) {
+        smb2_dbg("smb2_mpv_read_cb: read failed: " + std::string(smb2_get_error(ctx->smb2)));
+        return -1;
+    }
+
+    ctx->pos += (uint64_t)ret;
+    return ret;
 }
 
 static int64_t smb2_mpv_seek_cb(void *cookie, int64_t offset) {
@@ -183,16 +214,17 @@ static int64_t smb2_mpv_seek_cb(void *cookie, int64_t offset) {
         return -1;
     }
 
-    uint64_t new_pos = 0;
-    int rc = smb2_lseek(ctx->smb2, ctx->fh, offset, SEEK_SET, &new_pos);
-
-    smb2_dbg("smb2_mpv_seek_cb: smb2_lseek rc=" + std::to_string(rc) +
-             " new_pos=" + std::to_string(new_pos));
-
-    if (rc == 0) {
-        return (int64_t)new_pos;
+    if (offset < 0) {
+        smb2_dbg("smb2_mpv_seek_cb: negative offset rejected");
+        return -1;
     }
-    return -1;
+
+    // Do not call smb2_lseek() here: read_cb uses smb2_pread() with this
+    // cached offset, so seeks cannot leave libsmb2's implicit cursor at EOF.
+    ctx->pos = (uint64_t)offset;
+    smb2_dbg("smb2_mpv_seek_cb: new_pos=" + std::to_string(ctx->pos));
+
+    return (int64_t)ctx->pos;
 }
 
 static int64_t smb2_mpv_size_cb(void *cookie) {
@@ -328,6 +360,10 @@ static int smb2_mpv_open_cb(void *user_data, char *uri, mpv_stream_cb_info *info
         free(ctx);
         return MPV_ERROR_LOADING_FAILED;
     }
+
+    ctx->pos = 0;
+    ctx->max_read_size = smb2_get_max_read_size(ctx->smb2);
+    smb2_dbg("smb2_mpv_open_cb: max_read_size=" + std::to_string(ctx->max_read_size));
 
     struct smb2_stat_64 st;
     if (smb2_fstat(ctx->smb2, ctx->fh, &st) == 0) {
