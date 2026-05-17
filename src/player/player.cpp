@@ -28,6 +28,13 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
 
     Player::setVisibility(Visibility::Hidden);
 
+#ifdef __SMB2__
+    configure_smb_mpv(
+        main->getConfig()->getOption(OPT_SMB_READ_BUFFER_KIB)->getInteger(),
+        main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger()
+    );
+#endif
+
     mpv = new Mpv(main->getIo()->getDataPath() + "mpv", true);
     mpv_command_string(mpv->getHandle(), ("set network-timeout " +
             std::to_string(main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger())).c_str());

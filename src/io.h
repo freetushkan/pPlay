@@ -13,6 +13,7 @@
 #include "libsmb2.h"
 #include "libsmb2-raw.h"
 
+void configure_smb_mpv(int readBufferKiB, int timeoutSeconds);
 int register_smb_mpv(void *mpv_ctx);
 
 #endif

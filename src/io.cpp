@@ -4,8 +4,12 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <limits>
+#include <new>
 #include <regex>
+#include <sstream>
+#include <vector>
 #include "io.h"
 #include "main.h"
 #include "media_info.h"
@@ -137,7 +141,37 @@ typedef struct {
     int64_t file_size;
     uint64_t pos;
     uint32_t max_read_size;
+    uint32_t read_buffer_size;
+    std::vector<uint8_t> read_buffer;
+    uint64_t buffer_start;
+    size_t buffer_len;
 } Smb2MpvCtx;
+
+struct Smb2MpvSettings {
+    uint32_t read_buffer_size;
+    int timeout_seconds;
+};
+
+static Smb2MpvSettings smb2_mpv_settings = {1024 * 1024, 60};
+
+static uint32_t clamp_smb_read_buffer_kib(int readBufferKiB) {
+    if (readBufferKiB <= 0) {
+        return 0;
+    }
+    constexpr int maxReadBufferKiB = 64 * 1024;
+    return (uint32_t)std::min(readBufferKiB, maxReadBufferKiB) * 1024;
+}
+
+void configure_smb_mpv(int readBufferKiB, int timeoutSeconds) {
+    smb2_mpv_settings.read_buffer_size = clamp_smb_read_buffer_kib(readBufferKiB);
+    smb2_mpv_settings.timeout_seconds = timeoutSeconds > 0 ? timeoutSeconds : 60;
+
+    pplay::Utility::log(
+        pplay::Utility::LogLevel::Info,
+        "configure_smb_mpv: read_buffer_size=" + std::to_string(smb2_mpv_settings.read_buffer_size) +
+        " timeout_seconds=" + std::to_string(smb2_mpv_settings.timeout_seconds)
+    );
+}
 
 static std::string ptr_to_str(const void *p) {
     std::ostringstream oss;
@@ -153,6 +187,56 @@ static void smb2_dbg(const std::string &msg) {
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, msg);
 }
 
+
+static int64_t smb2_read_at(Smb2MpvCtx *ctx, uint8_t *dst, uint64_t requested, uint64_t offset) {
+    uint64_t total = 0;
+
+    while (total < requested) {
+        uint64_t chunk = std::min<uint64_t>(requested - total, std::numeric_limits<uint32_t>::max());
+        if (ctx->max_read_size > 0) {
+            chunk = std::min<uint64_t>(chunk, ctx->max_read_size);
+        }
+
+        int ret = smb2_pread(ctx->smb2, ctx->fh, dst + total, (uint32_t)chunk, offset + total);
+        smb2_dbg("smb2_read_at: offset=" + std::to_string(offset + total) +
+                 " count=" + std::to_string(chunk) +
+                 " ret=" + std::to_string(ret));
+
+        if (ret < 0) {
+            return total > 0 ? (int64_t)total : -1;
+        }
+        if (ret == 0) {
+            break;
+        }
+
+        total += (uint64_t)ret;
+    }
+
+    return (int64_t)total;
+}
+
+static bool smb2_try_read_from_buffer(Smb2MpvCtx *ctx, char *buf, uint64_t nbytes, int64_t *result) {
+    if (ctx->buffer_len == 0 || ctx->pos < ctx->buffer_start) {
+        return false;
+    }
+
+    uint64_t buffer_offset = ctx->pos - ctx->buffer_start;
+    if (buffer_offset >= ctx->buffer_len) {
+        return false;
+    }
+
+    uint64_t available = ctx->buffer_len - buffer_offset;
+    size_t copied = (size_t)std::min<uint64_t>(nbytes, available);
+    std::memcpy(buf, ctx->read_buffer.data() + buffer_offset, copied);
+    ctx->pos += copied;
+    *result = (int64_t)copied;
+
+    smb2_dbg("smb2_mpv_read_cb: served from buffer offset=" + std::to_string(buffer_offset) +
+             " copied=" + std::to_string(copied) +
+             " remaining=" + std::to_string(ctx->buffer_len - (buffer_offset + copied)));
+
+    return true;
+}
 
 static int64_t smb2_mpv_read_cb(void *cookie, char *buf, uint64_t nbytes) {
     Smb2MpvCtx *ctx = (Smb2MpvCtx *)cookie;
@@ -172,26 +256,45 @@ static int64_t smb2_mpv_read_cb(void *cookie, char *buf, uint64_t nbytes) {
         return 0;
     }
 
-    // Use positional reads and maintain mpv's stream cursor ourselves.  Some
-    // libsmb2 builds return the new absolute offset from smb2_lseek(), while
-    // mpv expects the seek callback to return a non-negative position on
-    // success.  If that return value is interpreted as an error, libsmb2 has
-    // already moved the shared file cursor (often to EOF for MP4 probing), so
-    // subsequent reads drain the end of the file and playback stops.
-    uint32_t count = (uint32_t)std::min<uint64_t>(
-        nbytes,
-        std::numeric_limits<uint32_t>::max()
-    );
-    if (ctx->max_read_size > 0) {
-        count = std::min(count, ctx->max_read_size);
+    int64_t buffered = 0;
+    if (smb2_try_read_from_buffer(ctx, buf, nbytes, &buffered)) {
+        return buffered;
     }
 
-    int ret = smb2_pread(ctx->smb2, ctx->fh, (uint8_t *)buf, count, ctx->pos);
+    uint64_t request_size = nbytes;
+    if (ctx->read_buffer_size > 0) {
+        request_size = std::max<uint64_t>(request_size, ctx->read_buffer_size);
+    }
 
-    smb2_dbg("smb2_mpv_read_cb: smb2_pread offset=" + std::to_string(ctx->pos) +
-             " count=" + std::to_string(count) +
-             " ret=" + std::to_string(ret));
+    if (ctx->file_size >= 0 && ctx->pos < (uint64_t)ctx->file_size) {
+        request_size = std::min<uint64_t>(request_size, (uint64_t)ctx->file_size - ctx->pos);
+    }
 
+    if (ctx->read_buffer_size > 0 && request_size > nbytes) {
+        ctx->read_buffer.resize((size_t)request_size);
+        int64_t ret = smb2_read_at(ctx, ctx->read_buffer.data(), request_size, ctx->pos);
+        if (ret < 0) {
+            smb2_dbg("smb2_mpv_read_cb: buffered read failed: " + std::string(smb2_get_error(ctx->smb2)));
+            return -1;
+        }
+
+        ctx->buffer_start = ctx->pos;
+        ctx->buffer_len = (size_t)ret;
+        if (ctx->buffer_len == 0) {
+            return 0;
+        }
+
+        size_t copied = (size_t)std::min<uint64_t>(nbytes, ctx->buffer_len);
+        std::memcpy(buf, ctx->read_buffer.data(), copied);
+        ctx->pos += copied;
+
+        smb2_dbg("smb2_mpv_read_cb: filled buffer size=" + std::to_string(ctx->buffer_len) +
+                 " copied=" + std::to_string(copied));
+
+        return (int64_t)copied;
+    }
+
+    int64_t ret = smb2_read_at(ctx, (uint8_t *)buf, nbytes, ctx->pos);
     if (ret < 0) {
         smb2_dbg("smb2_mpv_read_cb: read failed: " + std::string(smb2_get_error(ctx->smb2)));
         return -1;
@@ -219,8 +322,6 @@ static int64_t smb2_mpv_seek_cb(void *cookie, int64_t offset) {
         return -1;
     }
 
-    // Do not call smb2_lseek() here: read_cb uses smb2_pread() with this
-    // cached offset, so seeks cannot leave libsmb2's implicit cursor at EOF.
     ctx->pos = (uint64_t)offset;
     smb2_dbg("smb2_mpv_seek_cb: new_pos=" + std::to_string(ctx->pos));
 
@@ -265,13 +366,13 @@ static void smb2_mpv_close_cb(void *cookie) {
         smb2_dbg("smb2_mpv_close_cb: smb2_destroy_context done");
     }
 
-    free(ctx);
+    delete ctx;
     smb2_dbg("smb2_mpv_close_cb: ctx freed");
 }
 
 static int smb2_mpv_open_cb(void *user_data, char *uri, mpv_stream_cb_info *info)
 {
-    (void)user_data;
+    Smb2MpvSettings settings = user_data ? *(Smb2MpvSettings *)user_data : smb2_mpv_settings;
 
     smb2_dbg("smb2_mpv_open_cb: enter uri=" + safe_cstr(uri) +
              " info=" + ptr_to_str(info));
@@ -290,7 +391,7 @@ static int smb2_mpv_open_cb(void *user_data, char *uri, mpv_stream_cb_info *info
 
     SmbUrlParts parts = parseSmbUrl(full_uri);
 
-    Smb2MpvCtx *ctx = (Smb2MpvCtx *)calloc(1, sizeof(Smb2MpvCtx));
+    Smb2MpvCtx *ctx = new (std::nothrow) Smb2MpvCtx{};
     smb2_dbg("smb2_mpv_open_cb: ctx alloc=" + ptr_to_str(ctx));
     if (!ctx) {
         return MPV_ERROR_NOMEM;
@@ -299,13 +400,13 @@ static int smb2_mpv_open_cb(void *user_data, char *uri, mpv_stream_cb_info *info
     ctx->smb2 = smb2_init_context();
     smb2_dbg("smb2_mpv_open_cb: smb2_init_context=" + ptr_to_str(ctx->smb2));
     if (!ctx->smb2) {
-        free(ctx);
+        delete ctx;
         smb2_dbg("smb2_mpv_open_cb: init_context failed");
         return MPV_ERROR_NOMEM;
     }
 
     smb2_set_security_mode(ctx->smb2, SMB2_NEGOTIATE_SIGNING_ENABLED);
-    smb2_set_timeout(ctx->smb2, 60);  // TODO: config value
+    smb2_set_timeout(ctx->smb2, settings.timeout_seconds);
 
     if (!parts.domain.empty()) {
         smb2_dbg("smb2_mpv_open_cb: set_domain=" + parts.domain);
@@ -332,7 +433,7 @@ static int smb2_mpv_open_cb(void *user_data, char *uri, mpv_stream_cb_info *info
     if (!url) {
         smb2_dbg("smb2_mpv_open_cb: parse_url failed: " + std::string(smb2_get_error(ctx->smb2)));
         smb2_destroy_context(ctx->smb2);
-        free(ctx);
+        delete ctx;
         return MPV_ERROR_LOADING_FAILED;
     }
     smb2_dbg("smb2_mpv_open_cb: connect_share begin server=" + safe_cstr(url->server) +
@@ -342,7 +443,7 @@ static int smb2_mpv_open_cb(void *user_data, char *uri, mpv_stream_cb_info *info
         smb2_dbg("smb2_mpv_open_cb: connect_share failed: " + std::string(smb2_get_error(ctx->smb2)));
         smb2_destroy_url(url);
         smb2_destroy_context(ctx->smb2);
-        free(ctx);
+        delete ctx;
         return MPV_ERROR_LOADING_FAILED;
     }
     smb2_dbg("smb2_mpv_open_cb: connect_share OK");
@@ -357,13 +458,15 @@ static int smb2_mpv_open_cb(void *user_data, char *uri, mpv_stream_cb_info *info
         smb2_dbg("smb2_mpv_open_cb: open failed: " + std::string(smb2_get_error(ctx->smb2)));
         smb2_disconnect_share(ctx->smb2);
         smb2_destroy_context(ctx->smb2);
-        free(ctx);
+        delete ctx;
         return MPV_ERROR_LOADING_FAILED;
     }
 
     ctx->pos = 0;
     ctx->max_read_size = smb2_get_max_read_size(ctx->smb2);
-    smb2_dbg("smb2_mpv_open_cb: max_read_size=" + std::to_string(ctx->max_read_size));
+    ctx->read_buffer_size = settings.read_buffer_size;
+    smb2_dbg("smb2_mpv_open_cb: max_read_size=" + std::to_string(ctx->max_read_size) +
+             " read_buffer_size=" + std::to_string(ctx->read_buffer_size));
 
     struct smb2_stat_64 st;
     if (smb2_fstat(ctx->smb2, ctx->fh, &st) == 0) {
@@ -395,7 +498,7 @@ int register_smb_mpv(void *mpv_ctx) {
         return -1;
     }
 
-    int res = mpv_stream_cb_add_ro((mpv_handle *)mpv_ctx, "smb2", nullptr, smb2_mpv_open_cb);
+    int res = mpv_stream_cb_add_ro((mpv_handle *)mpv_ctx, "smb2", &smb2_mpv_settings, smb2_mpv_open_cb);
 
     pplay::Utility::log(
         pplay::Utility::LogLevel::Debug,
