@@ -190,9 +190,9 @@ void Utility::log(Utility::LogLevel level, const std::string &message) {
     gmtime_r(&t, &tm_info);
     int ms = raw_ms % 1000;
     std::ostringstream time_ss;
-    time_ss << std::put_time(&tm_info, "%Y.%m.%d %H:%M:%S UTC")
+    time_ss << std::put_time(&tm_info, "%Y.%m.%d %H:%M:%S")
             << "." << std::setfill('0') << std::setw(3) << ms;
-    out << time_ss.str() << " (" << raw_ms << ") | " << message << "\n";
+    out << time_ss.str() << " UTC (" << raw_ms << ") | " << message << "\n";
 }
 
 
