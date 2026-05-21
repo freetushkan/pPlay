@@ -199,7 +199,13 @@ void Player::onStopEvent(int reason) {
                         + " playbackCompleted=" + std::to_string(playbackCompleted ? 1 : 0)
                         + " retries=" + std::to_string(retryCount));
 
-    if (reason == MPV_END_FILE_REASON_ERROR) {
+    if (main->isExiting()) {
+        main->getStatus()->hide();
+        main->getMenuVideo()->reset();
+        osd->reset();
+        main->setRunningStop();
+        return;
+    } else if (reason == MPV_END_FILE_REASON_ERROR) {
         int retries = main->getConfig()->getOption(OPT_NETWORK_RETRIES)->getInteger();
         if (retries == 0 || retryCount < retries) {
             retryCount++;
@@ -213,8 +219,7 @@ void Player::onStopEvent(int reason) {
         main->getStatus()->show("Error...", "Could not load file");
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent could not load file");
         printf("Player::load: could not load file\n");
-    }
-    else if (reason == MPV_END_FILE_REASON_EOF && playbackCompleted) {
+    } else if (reason == MPV_END_FILE_REASON_EOF && playbackCompleted) {
         const int autoplayMode = main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger();
         if (autoplayMode == 2) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent loopFile current=" + file.path);
