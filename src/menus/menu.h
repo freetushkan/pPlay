@@ -21,17 +21,22 @@ public:
 
     MenuItem() = default;
 
-    MenuItem(const std::string &name, const std::string &icon, const Position &position, int id = 0) {
+    MenuItem(const std::string &name, const std::string &icon, const Position &position, int id = 0,
+             bool selectable = true, const std::string &data_str = "") {
         this->name = name;
         this->icon = icon;
         this->position = position;
         this->id = id;
+        this->selectable = selectable;
+        this->data_str = data_str;
     }
 
     int id = 0;
     std::string name;
     std::string icon;
     Position position = Position::Top;
+    bool selectable = true;
+    std::string data_str;
 };
 
 class MenuButton : public c2d::Rectangle {
@@ -56,9 +61,13 @@ public:
 
     void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
 
+    void onUpdate() override;
+
     virtual void onOptionSelection(MenuItem *item) {};
 
     virtual MenuItem *getSelection();
+
+    bool isButtonSelectable(int buttonIndex) const;
 
     virtual std::vector<MenuButton *> getButtons() {
         return buttons;
@@ -68,12 +77,23 @@ protected:
 
     bool onInput(c2d::Input::Player *players) override;
 
+    int findFirstSelectableIndex() const;
+
+    void moveSelection(int direction);
+
+    virtual void updateScroll();
+
+    virtual void updateSelectionHighlight() {}
+
+    void ensureSelectionVisible();
+
     Main *main;
     c2d::Text *title;
     std::vector<MenuButton *> buttons;
     c2d::RectangleShape *menuButton;
     Highlight *highlight;
     c2d::TweenPosition *tween;
+    float scrollOffset = 0.0f;
     int index = 0;
 };
 

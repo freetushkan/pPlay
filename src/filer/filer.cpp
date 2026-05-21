@@ -6,7 +6,9 @@
 #include "main.h"
 #include "filer.h"
 #include "utility.h"
+#ifdef PPLAY_ENABLE_SCRAPPING
 #include "p_search.h"
+#endif
 #include "torrserve.h"
 
 #define ITEM_HEIGHT 30
@@ -22,7 +24,8 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) :
 
     Filer::setSize(main->getSize().x, main->getScaling().y);
     Vector2f size;
-    const bool scrapping_enabled = main->getConfig()->getOption(OPT_ENABLE_SCRAPPING)->getInteger() == 1;
+#ifdef PPLAY_ENABLE_SCRAPPING
+    scrapping_enabled = main->getConfig()->getOption(OPT_ENABLE_SCRAPPING)->getInteger() == 1;
     if (scrapping_enabled) {
         // force scrap view width to scrapped backdrop width
         scrapView = new ScrapView(main, {rect.width - (780 * m->getScaling().x), 0,
@@ -34,6 +37,9 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) :
     } else {
         size = {rect.width, rect.height - (64 * m->getScaling().y)};
     }
+#else
+    size = {rect.width, rect.height - (64 * m->getScaling().y)};
+#endif
 
     // highlight
     highlight = new Highlight({size.x, (float) ITEM_HEIGHT * m->getScaling().y}, Highlight::CursorPosition::Left);
@@ -68,6 +74,7 @@ void Filer::setMediaInfo(const MediaFile &target, const MediaInfo &mediaInfo) {
     mutex->unlock();
 }
 
+#ifdef PPLAY_ENABLE_SCRAPPING
 void Filer::setScrapInfo(const Io::File &target, const std::vector<pscrap::Movie> &movies) {
     mutex->lock();
     for (size_t i = 0; i < files.size(); i++) {
@@ -79,6 +86,7 @@ void Filer::setScrapInfo(const Io::File &target, const std::vector<pscrap::Movie
     }
     mutex->unlock();
 }
+#endif
 
 void Filer::setSelection(int index) {
     item_index = index;
@@ -102,12 +110,15 @@ void Filer::setSelection(int index) {
                 + " path=" + file.path + " type=" + std::to_string((int) file.type));
             items[i]->setFile(file);
             items[i]->setVisibility(Visibility::Visible);
+#ifdef PPLAY_ENABLE_SCRAPPING
             if (!file.movies.empty()) {
                 items[i]->setTitle(file.movies[0].title);
             }
+#endif
             // set highlight position
             if (index_start + i == (unsigned int) item_index) {
                 highlight->tweenTo(items[i]->getPosition());
+#ifdef PPLAY_ENABLE_SCRAPPING
                 if (scrapping_enabled) {
                     if (file.type == Io::Type::File) {
                         if (!scrapView->isVisible()) {
@@ -118,6 +129,7 @@ void Filer::setSelection(int index) {
                         scrapView->setVisibility(Visibility::Hidden);
                     }
                 }
+#endif
             }
         }
     }
@@ -218,6 +230,8 @@ bool Filer::onInput(c2d::Input::Player *players) {
     mutex->unlock();
 
     unsigned int keys = players[0].buttons;
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+        "Filer::onInput keys=" + pplay::Utility::getKeysString(keys));
 
     if (keys & c2d::Input::LB || keys & c2d::Input::RB) {
         main->getMenuMain()->setVisibility(Visibility::Visible, true);
@@ -226,14 +240,18 @@ bool Filer::onInput(c2d::Input::Player *players) {
         if (item_index < 0)
             item_index = (int) (filesSize - 1);
         setSelection(item_index);
+#ifdef PPLAY_ENABLE_SCRAPPING
         if (scrapping_enabled) scrapView->unload();
+#endif
     } else if (keys & Input::Down) {
         item_index++;
         if (item_index >= (int) filesSize) {
             item_index = 0;
         }
         setSelection(item_index);
+#ifdef PPLAY_ENABLE_SCRAPPING
         if (scrapping_enabled) scrapView->unload();
+#endif
     } else if (keys & Input::Left) {
         main->getMenuMain()->setVisibility(Visibility::Visible, true);
     } else if (keys & Input::Right) {
@@ -243,18 +261,24 @@ bool Filer::onInput(c2d::Input::Player *players) {
         }
     } else if (keys & Input::A) {
         if (getSelection().type == Io::Type::Directory) {
+#ifdef PPLAY_ENABLE_SCRAPPING
             if (scrapping_enabled) scrapView->unload();
+#endif
             enter(item_index);
         } else if (pplay::Utility::isMedia(getSelection())) {
             main->getPlayer()->load(files[item_index]);
         }
     } else if (keys & Input::B) {
+#ifdef PPLAY_ENABLE_SCRAPPING
         if (scrapping_enabled) scrapView->unload();
+#endif
         exit();
     } else if (keys & Input::X) {
+#ifdef PPLAY_ENABLE_SCRAPPING
         if (scrapping_enabled) {
             main->getScrapper()->scrap(path);
         }
+#endif
     } else if (keys & Input::Y) {
         if (pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(files[item_index].path))) {
             main->getStatus()->show("Info...", "Removing local watch later data...");
@@ -275,6 +299,8 @@ void Filer::onUpdate() {
         setSelection(item_index);
         dirty = false;
     }
+    highlight->setFillColor(COLOR_HIGHLIGHT);
+    highlight->setCursorColor(COLOR_ACCENT);
 
     C2DObject::onUpdate();
 }
@@ -315,8 +341,13 @@ static bool compare(const MediaFile &a, const MediaFile &b) {
         return false;
     }
 
+#ifdef PPLAY_ENABLE_SCRAPPING
     std::string aa = a.movies.empty() ? a.name : a.movies[0].title;
     std::string bb = b.movies.empty() ? b.name : b.movies[0].title;
+#else
+    std::string aa = a.name;
+    std::string bb = b.name;
+#endif
 
     return Utility::toLower(aa) < Utility::toLower(bb);
 }
@@ -340,6 +371,7 @@ bool Filer::getDir(const std::string &p) {
 
     for (auto &file: _files) {
         MediaFile mf(file, MediaInfo(file));
+#ifdef PPLAY_ENABLE_SCRAPPING
         if (file.type == Io::Type::File) {
             pscrap::Search search;
             std::string scrapPath = pplay::Utility::getMediaScrapPath(file);
@@ -350,6 +382,7 @@ bool Filer::getDir(const std::string &p) {
                 }
             }
         }
+#endif
         files.emplace_back(mf);
     }
 

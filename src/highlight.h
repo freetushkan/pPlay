@@ -29,6 +29,7 @@ private:
     c2d::GradientRectangle *gradientRectangle;
     c2d::RectangleShape *cursor;
     c2d::TweenPosition *tween;
+    c2d::Color hlFillColor;
 
 };
 

@@ -24,12 +24,16 @@ public:
 
     void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
 
+    void onUpdate() override;
+
     int type;
     Highlight *highlight_selection;
 
 private:
 
     void onOptionSelection(MenuItem *item) override;
+
+    void updateSelectionHighlight() override;
 };
 
 #endif //PPLAY_MENU_VIDEO_SUBMENU_H

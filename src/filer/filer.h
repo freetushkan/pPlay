@@ -10,7 +10,9 @@
 #include "filer_item.h"
 #include "media_file.h"
 #include "highlight.h"
+#ifdef PPLAY_ENABLE_SCRAPPING
 #include "scrap_view.h"
+#endif
 
 class Main;
 
@@ -24,7 +26,9 @@ public:
 
     void setMediaInfo(const MediaFile &target, const MediaInfo &mediaInfo);
 
+#ifdef PPLAY_ENABLE_SCRAPPING
     void setScrapInfo(const c2d::Io::File &target, const std::vector<pscrap::Movie> &movies);
+#endif
 
     virtual bool getDir(const std::string &path);
 
@@ -57,7 +61,9 @@ private:
     std::vector<FilerItem *> items;
     std::vector<MediaFile> files;
     Highlight *highlight;
-    ScrapView *scrapView;
+#ifdef PPLAY_ENABLE_SCRAPPING
+    ScrapView *scrapView = nullptr;
+#endif
     float item_height;
     int item_max;
     int item_index = 0;
@@ -65,7 +71,9 @@ private:
     c2d::C2DMutex *mutex;
 
     bool dirty = false;
+#ifdef PPLAY_ENABLE_SCRAPPING
     bool scrapping_enabled = false;
+#endif
 };
 
 #endif //NXFILER_FILER_H

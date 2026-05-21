@@ -5,7 +5,11 @@
 #ifndef PPLAY_MEDIAFILE_H
 #define PPLAY_MEDIAFILE_H
 
+#include <vector>
+
+#ifdef PPLAY_ENABLE_SCRAPPING
 #include "p_movie.h"
+#endif
 #include "cross2d/skeleton/io.h"
 #include "media_info.h"
 
@@ -24,7 +28,9 @@ public:
     }
 
     MediaInfo mediaInfo;
+#ifdef PPLAY_ENABLE_SCRAPPING
     std::vector<pscrap::Movie> movies;
+#endif
 };
 
 #endif //PPLAY_MEDIAFILE_H

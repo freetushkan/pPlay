@@ -14,9 +14,12 @@
 #include "menu_video.h"
 #include "status_box.h"
 #include "status_bar.h"
+#ifdef PPLAY_ENABLE_SCRAPPING
 #include "scrapper.h"
+#endif
 #include "io.h"
 #include "usbfs.h"
+#include "utility.h"
 
 //#define FULL_TEXTURE_TEST 1
 
@@ -28,7 +31,7 @@
 #define COLOR_BG_ALPHA      Color(20, 22, 24, 128)
 #define COLOR_FONT          Color(230, 230, 230, 255)
 #define COLOR_HIGHLIGHT     Color(255, 255, 255, 60)
-#define COLOR_ACCENT        Color(16, 120, 200, 255)
+inline c2d::Color& COLOR_ACCENT = pplay::Utility::getAccentColor();
 
 #define COLOR_BLACK         Color(0x000000FF)
 #define COLOR_WHITE         Color(0xFFFFFFFF)
@@ -106,7 +109,9 @@ public:
 
     StatusBar *getStatusBar();
 
+#ifdef PPLAY_ENABLE_SCRAPPING
     pplay::Scrapper *getScrapper();
+#endif
 
     c2d::Vector2f getScaling();
 
@@ -144,7 +149,9 @@ private:
     Player *player;
     MenuMain *menu_main;
     MenuVideo *menu_video;
+#ifdef PPLAY_ENABLE_SCRAPPING
     pplay::Scrapper *scrapper;
+#endif
     unsigned int oldKeys = 0;
     c2d::Vector2f scaling = {1, 1};
 

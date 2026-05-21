@@ -9,7 +9,9 @@
 #include "filer.h"
 #include "menu_main.h"
 #include "menu_video.h"
+#ifdef PPLAY_ENABLE_SCRAPPING
 #include "scrapper.h"
+#endif
 #include "utility.h"
 
 #ifdef __SWITCH__
@@ -266,9 +268,7 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
                 "network.png", MenuItem::Position::Top, i);
         }
     }
-#ifdef __SWITCH__
-    items.emplace_back("Options", "options.png", MenuItem::Position::Top);
-#endif
+    items.emplace_back("Settings", "options.png", MenuItem::Position::Top);
     items.emplace_back("Exit", "exit.png", MenuItem::Position::Bottom);
     menu_main = new MenuMain(this, {-250 * scaling.x, 0, 250 * scaling.x, Main::getSize().y}, items);
     menu_main->setVisibility(Visibility::Hidden, false);
@@ -302,14 +302,18 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     messageBox->getButton(1)->setOutlineThickness(3);
     Main::add(messageBox);
 
+#ifdef PPLAY_ENABLE_SCRAPPING
     scrapper = new Scrapper(this);
+#endif
 
     // open last
     show(currentModuleIndex > 0 ? MenuType::Network : MenuType::Local);
 }
 
 Main::~Main() {
+#ifdef PPLAY_ENABLE_SCRAPPING
     delete (scrapper);
+#endif
     delete (config);
     delete (timer);
     delete (font);
@@ -323,6 +327,8 @@ bool Main::onInput(c2d::Input::Player *players) {
     }
 
     unsigned int keys = players[0].buttons;
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+        "Main::onInput keys=" + pplay::Utility::getKeysString(keys));
 
     if (keys & Input::Quit) {
         if (player->isFullscreen()) {
@@ -354,6 +360,7 @@ void Main::onUpdate() {
             timer->restart();
         }
     }
+    messageBox->setOutlineColor(COLOR_ACCENT);
 
     C2DRenderer::onUpdate();
 }
@@ -520,9 +527,11 @@ StatusBar *Main::getStatusBar() {
     return statusBar;
 }
 
+#ifdef PPLAY_ENABLE_SCRAPPING
 pplay::Scrapper *Main::getScrapper() {
     return scrapper;
 }
+#endif
 
 int main() {
 

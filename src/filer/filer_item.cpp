@@ -43,7 +43,7 @@ void FilerItem::setFile(const MediaFile &f) {
         const bool isWatched = pplay::Utility::isWatchLaterExist(streamUrl) 
                             || pplay::TorrServe::isFileViewed(file.path);
         textTitle->setFillColor(isWatched ? COLOR_VIEWED : COLOR_FONT);
-    } else {
+    } else if (file.type == Io::Type::Directory) {
         textTitle->setFillColor(COLOR_ACCENT);
     }
     textTitle->setAlpha(alpha);
@@ -61,7 +61,7 @@ void FilerItem::onUpdate() {
     const bool fullscreenExited = lastFullscreen && !isFullscreen;
     lastFullscreen = isFullscreen;
     if (updateClock.getElapsedTime().asSeconds() > 30.0f || fullscreenExited) {
-        if (file.type != Io::Type::Directory && !isFullscreen) {
+        if (file.type == Io::Type::File && !isFullscreen) {
             const std::string streamUrl = pplay::TorrServe::toStreamUrl(file.path);
             const bool isWatched = pplay::Utility::isWatchLaterExist(streamUrl) 
                                 || pplay::TorrServe::isFileViewed(file.path);
@@ -69,6 +69,9 @@ void FilerItem::onUpdate() {
             textTitle->setFillColor(targetColor);
         }
         updateClock.restart();
+    }
+    if (file.type == Io::Type::Directory) {
+        textTitle->setFillColor(COLOR_ACCENT);
     }
     Rectangle::onUpdate();
 }

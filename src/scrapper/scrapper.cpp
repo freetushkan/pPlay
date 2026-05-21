@@ -1,6 +1,7 @@
 //
 // Created by cpasjuste on 29/03/19.
 //
+#ifdef PPLAY_ENABLE_SCRAPPING
 
 #include <utility.h>
 #include "main.h"
@@ -177,3 +178,4 @@ Scrapper::~Scrapper() {
 
     printf("Scrapper::~Scrapper\n");
 }
+#endif

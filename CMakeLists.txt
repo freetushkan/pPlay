@@ -15,12 +15,12 @@ set(PLATFORM_VITA OFF CACHE BOOL "Sony PS Vita platform target")
 # BUILD OPTIONS
 ####################
 set(OPTION_SMB2 OFF CACHE BOOL "Build with smb2 support")
+set(OPTION_SCRAPPING OFF CACHE BOOL "Build with TMDB scraping support")
 
 ###################
 # MODULES
 ###################
 add_subdirectory(libcross2d)
-add_subdirectory(pscrap)
 
 ##############
 # pplay
@@ -33,7 +33,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # pplay version
 set(VERSION_MAJOR "4")
-set(VERSION_MINOR "3")
+set(VERSION_MINOR "4")
 set(PROJECT_AUTHOR "Cpasjuste")
 set(TITLE_ID "PPLAY0001")
 set(APP_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
@@ -44,6 +44,7 @@ find_package(BZip2 REQUIRED)
 find_package(MPV REQUIRED)
 find_package(ffmpeg COMPONENTS avfilter avcodec avformat avutil swscale swresample)
 find_package(ass REQUIRED)
+find_package(CURL REQUIRED)
 
 # sources
 file(GLOB PPLAY_SRC
@@ -53,7 +54,6 @@ file(GLOB PPLAY_SRC
         src/filer/ftplib/*.c*
         src/menus/*.c*
         src/player/*.c*
-        src/scrapper/*.c*
         )
 
 # includes
@@ -64,11 +64,11 @@ set(PPLAY_INC
         src/filer/ftplib
         src/menus
         src/player
-        src/scrapper
         ${MPV_INCLUDE_DIRS}
         ${ASS_INCLUDE_DIRS}
         ${FFMPEG_INCLUDE_DIRS}
         ${BZIP2_INCLUDE_DIR}
+        ${CURL_INCLUDE_DIRS}
         )
 
 # cflags
@@ -86,7 +86,22 @@ set(PPLAY_LDFLAGS
         ${ASS_LIBRARIES}
         ${FFMPEG_LIBRARIES}
         ${BZIP2_LIBRARIES}
+        ${CURL_LIBRARIES}
         )
+
+
+if (NOT OPTION_SCRAPPING)
+    list(REMOVE_ITEM PPLAY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/filer/scrap_view.cpp)
+endif ()
+
+if (OPTION_SCRAPPING)
+    add_subdirectory(pscrap)
+    file(GLOB PPLAY_SCRAPPER_SRC src/scrapper/*.c*)
+    list(APPEND PPLAY_SRC ${PPLAY_SCRAPPER_SRC})
+    list(APPEND PPLAY_INC src/scrapper)
+    list(APPEND PPLAY_CFLAGS -DPPLAY_ENABLE_SCRAPPING)
+    list(APPEND PPLAY_LDFLAGS pscrap)
+endif ()
 
 if (OPTION_SMB2)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -129,7 +144,13 @@ add_executable(${CMAKE_PROJECT_NAME} ${PPLAY_SRC})
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${PPLAY_INC})
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE ${PPLAY_CFLAGS})
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
-target_link_libraries(${CMAKE_PROJECT_NAME} cross2d pscrap ${PPLAY_LDFLAGS})
+set(PLATFORM_LIBS)
+if (PLATFORM_SWITCH)
+    list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509 nx)
+elseif (PLATFORM_PS4)
+    list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509 SceNet)
+endif ()
+target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS})
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
     APP_VERSION="${APP_VERSION}"
 )

@@ -6,6 +6,8 @@
 #define PPLAY_UTILITY_H
 
 #include <string>
+#include <vector>
+#include "cross2d/c2d.h"
 #include "cross2d/skeleton/io.h"
 
 namespace pplay {
@@ -28,11 +30,13 @@ namespace pplay {
 
         static std::string getMediaInfoPath(const c2d::Io::File &file);
 
+#ifdef PPLAY_ENABLE_SCRAPPING
         static std::string getMediaScrapPath(const c2d::Io::File &file);
 
         static std::string getMediaPosterPath(const c2d::Io::File &file);
 
         static std::string getMediaBackdropPath(const c2d::Io::File &file);
+#endif
 
         static std::vector<std::string> getMediaExtensions();
 
@@ -49,6 +53,16 @@ namespace pplay {
         static void log(LogLevel level, const std::string &message);
         
         static std::string md5hash(const std::string &input);
+
+        static int hexValue(char c);
+
+        static bool isValidHexColor(const std::string &hex);
+
+        static c2d::Color hexToColor(const std::string &hex);
+
+        static void setAccentColor(const std::string &hex);
+
+        static c2d::Color& getAccentColor();
 
         static bool deleteFile(const std::string &path);
 

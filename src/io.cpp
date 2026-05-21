@@ -154,16 +154,16 @@ struct Smb2MpvSettings {
 
 static Smb2MpvSettings smb2_mpv_settings = {1024 * 1024, 60};
 
-static uint32_t clamp_smb_read_buffer_kib(int readBufferKiB) {
-    if (readBufferKiB <= 0) {
+static uint32_t clamp_smb_read_buffer_mb(int readBufferMB) {
+    if (readBufferMB <= 0) {
         return 0;
     }
-    constexpr int maxReadBufferKiB = 64 * 1024;
-    return (uint32_t)std::min(readBufferKiB, maxReadBufferKiB) * 1024;
+    constexpr int maxReadBufferMB = 100;
+    return (uint32_t)std::min(readBufferMB, maxReadBufferMB) * 1024 * 1024;
 }
 
-void configure_smb_mpv(int readBufferKiB, int timeoutSeconds) {
-    smb2_mpv_settings.read_buffer_size = clamp_smb_read_buffer_kib(readBufferKiB);
+void configure_smb_mpv(int readBufferMB, int timeoutSeconds) {
+    smb2_mpv_settings.read_buffer_size = clamp_smb_read_buffer_mb(readBufferMB);
     smb2_mpv_settings.timeout_seconds = timeoutSeconds > 0 ? timeoutSeconds : 60;
 
     pplay::Utility::log(

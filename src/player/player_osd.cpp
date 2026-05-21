@@ -148,8 +148,11 @@ void PlayerOSD::onDraw(c2d::Transform &transform, bool draw) {
     position = (float) mpv->getPosition();
     duration = (float) mpv->getDuration();
     progress->setProgress(position / duration);
+    progress->setFgColor(COLOR_ACCENT);
     progress_text->setString(pplay::Utility::formatTime(position));
     duration_text->setString(pplay::Utility::formatTime(duration));
+    highlight->setFillColor(COLOR_HIGHLIGHT);
+    highlight->setCursorColor(COLOR_ACCENT);
 
     GradientRectangle::onDraw(transform, draw);
 }
@@ -169,10 +172,10 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
         return true;
     }
 
-    // unsigned int keys = players[0].buttons;
-    unsigned int keys = main->getInput()->getButtons(0); 
+    unsigned int keys = players[0].buttons;
+    // unsigned int keys = main->getInput()->getButtons(0);
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "Player::onInput keys=" + pplay::Utility::getKeysString(keys));
+        "PlayerOSD::onInput keys=" + pplay::Utility::getKeysString(keys));
     if (!keys) return true;
 
     if (keys & (Input::Up | Input::Down)) {
@@ -197,8 +200,8 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
 
     else if (keys & Input::A) {
         auto cfg = main->getConfig();
-        float s_short = cfg->getOption(OPT_SEEK_SHORT)->getFloat() * 60.0f;
-        float s_long = cfg->getOption(OPT_SEEK_LONG)->getFloat() * 60.0f;
+        float s_short = cfg->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
+        float s_long = cfg->getOption(OPT_SEEK_LONG_SEC)->getFloat();
 
         switch ((ButtonID)index) {
             case ButtonID::Pause: {

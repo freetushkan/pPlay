@@ -4,6 +4,7 @@
 
 #include "main.h"
 #include "pplay_config.h"
+#include "utility.h"
 
 using namespace c2d;
 
@@ -49,20 +50,24 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
     addOption({OPT_LAST_MODULE, "LOCAL"});
     addOption({OPT_NETWORK_TIMEOUT, (int) 15});
     addOption({OPT_NETWORK_RETRIES, (int) 3});
-    addOption({OPT_SMB_READ_BUFFER_KIB, (int) 1024});
-    addOption({OPT_AUTOPLAY_NEXT, (int) 1});
-    addOption({OPT_AUTOPLAY_LOOP, (int) 0});
+    addOption({OPT_SMB_READ_BUFFER_MB, (int) 10});
+    addOption({OPT_AUTOPLAY_MODE, (int) 1});
+#ifdef PPLAY_ENABLE_SCRAPPING
     addOption({OPT_ENABLE_SCRAPPING, (int) 0});
-    addOption({OPT_LOG_LEVEL, (int) 0}); // 0 OFF, 1 ERROR, 2 INFO, 3 DEBUG, 4 TRACE
+    addOption({OPT_TMDB_LANGUAGE, "en-US"});
     addOption({OPT_CACHE_MEDIA_INFO, (int) 1});
+#endif
+    addOption({OPT_LOG_LEVEL, (int) 0}); // 0 OFF, 1 ERROR, 2 INFO, 3 DEBUG, 4 TRACE
     addOption({OPT_SWAP_CONTROLS, (int) 0});
+#ifdef __PS4__
     addOption({OPT_UTC_OFFSET, (float) 0.0});
-    addOption({OPT_SEEK_SHORT, (float) 0.5});
-    addOption({OPT_SEEK_LONG, (float) 5.0});
+#endif
+    addOption({OPT_SEEK_SHORT_SEC, (float) 30.0});
+    addOption({OPT_SEEK_LONG_SEC, (float) 300.0});
 #ifdef __SWITCH__
     addOption({OPT_CPU_BOOST, "Disabled"}); // Disabled, Enabled
 #endif
-    addOption({OPT_TMDB_LANGUAGE, "en-US"});
+    addOption({OPT_ACCENT_COLOR, "#1078C8"});
 
     // load the configuration from file, overwriting default values
     load();
@@ -86,9 +91,22 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
         getOption(OPT_LAST_MODULE)->setString("LOCAL");
     }
 
+    if (getOption(OPT_SMB_READ_BUFFER_MB)->getInteger() < 1) {
+        getOption(OPT_SMB_READ_BUFFER_MB)->setString("1");
+    } else if (getOption(OPT_SMB_READ_BUFFER_MB)->getInteger() > 100) {
+        getOption(OPT_SMB_READ_BUFFER_MB)->setString("100");
+    }
+
+#ifdef PPLAY_ENABLE_SCRAPPING
     if (getOption(OPT_TMDB_LANGUAGE)->getString().empty()) {
         getOption(OPT_TMDB_LANGUAGE)->setString("en-US");
     }
+#endif
+
+    if (!pplay::Utility::isValidHexColor(getOption(OPT_ACCENT_COLOR)->getString())) {
+        getOption(OPT_ACCENT_COLOR)->setString("#1078C8");
+    }
+    pplay::Utility::setAccentColor(getOption(OPT_ACCENT_COLOR)->getString());
 
     // save configuration, in case new options needs to be added
     save();

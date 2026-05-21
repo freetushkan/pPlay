@@ -29,6 +29,7 @@ MenuVideoSubmenu::MenuVideoSubmenu(
 void MenuVideoSubmenu::setSelection(int streamId) {
     for (auto &button: buttons) {
         if (button->item.id == streamId) {
+            highlight_selection->setVisibility(button->isVisible() ? Visibility::Visible : Visibility::Hidden);
             if (isVisible()) {
                 highlight_selection->tweenTo(button->getPosition());
             } else {
@@ -36,6 +37,16 @@ void MenuVideoSubmenu::setSelection(int streamId) {
             }
             break;
         }
+    }
+}
+
+void MenuVideoSubmenu::updateSelectionHighlight() {
+    if (type == MENU_VIDEO_TYPE_VID) {
+        setSelection(main->getPlayer()->getVideoStream());
+    } else if (type == MENU_VIDEO_TYPE_AUD) {
+        setSelection(main->getPlayer()->getAudioStream());
+    } else if (type == MENU_VIDEO_TYPE_SUB) {
+        setSelection(main->getPlayer()->getSubtitleStream());
     }
 }
 
@@ -63,6 +74,7 @@ void MenuVideoSubmenu::onOptionSelection(MenuItem *item) {
 }
 
 void MenuVideoSubmenu::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
+    Menu::setVisibility(visibility, tweenPlay);
     if (type == MENU_VIDEO_TYPE_VID) {
         setSelection(main->getPlayer()->getVideoStream());
     } else if (type == MENU_VIDEO_TYPE_AUD) {
@@ -70,7 +82,6 @@ void MenuVideoSubmenu::setVisibility(c2d::Visibility visibility, bool tweenPlay)
     } else if (type == MENU_VIDEO_TYPE_SUB) {
         setSelection(main->getPlayer()->getSubtitleStream());
     }
-    Menu::setVisibility(visibility, tweenPlay);
 }
 
 bool MenuVideoSubmenu::onInput(c2d::Input::Player *players) {
@@ -81,4 +92,11 @@ bool MenuVideoSubmenu::onInput(c2d::Input::Player *players) {
     }
 
     return Menu::onInput(players);
+}
+
+void MenuVideoSubmenu::onUpdate() {
+    highlight_selection->setFillColor(COLOR_ACCENT);
+    highlight_selection->setAlpha(60);
+    highlight_selection->setCursorColor(COLOR_ACCENT);
+    Menu::onUpdate();
 }

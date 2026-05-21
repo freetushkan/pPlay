@@ -30,7 +30,7 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
 
 #ifdef __SMB2__
     configure_smb_mpv(
-        main->getConfig()->getOption(OPT_SMB_READ_BUFFER_KIB)->getInteger(),
+        main->getConfig()->getOption(OPT_SMB_READ_BUFFER_MB)->getInteger(),
         main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger()
     );
 #endif
@@ -211,21 +211,17 @@ void Player::onStopEvent(int reason) {
             }
         }
         main->getStatus()->show("Error...", "Could not load file");
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent could not load file");
         printf("Player::load: could not load file\n");
     }
-
-    if (main->isExiting()) {
-        main->getStatus()->hide();
-        main->getMenuVideo()->reset();
-        osd->reset();
-        main->setRunningStop();
-        return;
-    }
-
-    if (reason == MPV_END_FILE_REASON_EOF && playbackCompleted
-        && main->getConfig()->getOption(OPT_AUTOPLAY_NEXT)->getInteger() == 1) {
-        MediaFile next;
-        if (!autoplayFiles.empty()) {
+    else if (reason == MPV_END_FILE_REASON_EOF && playbackCompleted) {
+        const int autoplayMode = main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger();
+        if (autoplayMode == 2) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent loopFile current=" + file.path);
+            load(file);
+            return;
+        }
+        if ((autoplayMode == 1 || autoplayMode == 3) && !autoplayFiles.empty()) {
             int currentIndex = -1;
             for (size_t i = 0; i < autoplayFiles.size(); i++) {
                 if (autoplayFiles[i].path == file.path) {
@@ -234,10 +230,10 @@ void Player::onStopEvent(int reason) {
                 }
             }
             if (currentIndex >= 0) {
-                const bool loopEnabled = main->getConfig()->getOption(OPT_AUTOPLAY_LOOP)->getInteger() == 1;
+                const bool loopEnabled = autoplayMode == 3;
                 for (size_t idx = (size_t) currentIndex + 1; idx < autoplayFiles.size(); idx++) {
                     if (pplay::Utility::isMedia(autoplayFiles[idx])) {
-                        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::autoplayNext current=" + file.path
+                        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent autoplayNext current=" + file.path
                                             + " next=" + autoplayFiles[idx].path);
                         load(autoplayFiles[idx]);
                         return;
@@ -246,7 +242,7 @@ void Player::onStopEvent(int reason) {
                 if (loopEnabled) {
                     for (size_t idx = 0; idx < (size_t) currentIndex; idx++) {
                         if (pplay::Utility::isMedia(autoplayFiles[idx])) {
-                            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::autoplayLoop current=" + file.path
+                            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent autoplayLoop current=" + file.path
                                                 + " next=" + autoplayFiles[idx].path);
                             load(autoplayFiles[idx]);
                             return;
@@ -255,6 +251,20 @@ void Player::onStopEvent(int reason) {
                 }
             }
         }
+    } else if (reason == MPV_END_FILE_REASON_EOF) {
+        int retries = main->getConfig()->getOption(OPT_NETWORK_RETRIES)->getInteger();
+        if (retries == 0 || retryCount < retries) {
+            retryCount++;
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent earlyEOF retryCount="
+                + std::to_string(retryCount) + " max=" + std::to_string(retries));
+            main->getStatus()->show("Warning...", "Load failed, retry " + std::to_string(retryCount), true);
+            if (load(file, false)) {
+                retryCount = 0;
+                return;
+            }
+        }
+        main->getStatus()->show("Error...", "Unexpected end of file");
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent Unexpected end of file");
     }
 
     main->getStatus()->hide();
@@ -294,7 +304,7 @@ void Player::onUpdate() {
             lastKnownPosition = position;
         }
         if (position > 0 && duration > 300
-            && (position - lastProgressSave) >= 30
+            && (position - lastProgressSave) >= 10
             && (duration - position) >= 60) {
             mpv->save();
             pplay::Utility::log(pplay::Utility::LogLevel::Debug,
@@ -325,16 +335,16 @@ void Player::onUpdate() {
     }
 
     if (isVisible()) {
+        texture->setOutlineColor(COLOR_ACCENT);
         Rectangle::onUpdate();
     }
 }
 
 bool Player::onInput(c2d::Input::Player *players) {
-    // unsigned int keys = players[0].buttons;
-    unsigned int keys = main->getInput()->getButtons(0);
+    unsigned int keys = players[0].buttons;
+    // unsigned int keys = main->getInput()->getButtons(0);
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
         "Player::onInput keys=" + pplay::Utility::getKeysString(keys));
-
 
     if (mpv->isStopped()
         || main->getFiler()->isVisible()
@@ -351,7 +361,7 @@ bool Player::onInput(c2d::Input::Player *players) {
     int btnSeekBack = swap ? c2d::Input::LB : c2d::Input::LT;
     int btnSeekForward = swap ? c2d::Input::RB : c2d::Input::RT;
 
-    float seek = main->getConfig()->getOption(OPT_SEEK_SHORT)->getFloat();
+    float seek = main->getConfig()->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
     if (keys & btnSpeedReset) {
         setSpeed(1);
     } else if (keys & btnSpeedUp) {
@@ -359,7 +369,7 @@ bool Player::onInput(c2d::Input::Player *players) {
         if (new_speed <= 100) setSpeed(new_speed);
     } else if (keys & (btnSeekBack | btnSeekForward)) {
         osd->setVisibility(c2d::Visibility::Visible);
-        getMpv()->seek(((keys & btnSeekBack) ? -seek : seek) * 60.0);
+        getMpv()->seek(((keys & btnSeekBack) ? -seek : seek));
     }
 
     if (osd->isVisible()) {
@@ -432,7 +442,8 @@ void Player::pause() {
         && (lastKnownDuration - lastKnownPosition) >= 60) {
         mpv->save();
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
-            "Player::pause::saveProgress lastKnownPosition=" + std::to_string(lastKnownPosition));
+            "Player::pause::saveProgress lastKnownPosition=" + std::to_string(lastKnownPosition)
+            + " lastKnownDuration=" + std::to_string(lastKnownDuration));
     }
     pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Min);
 #ifdef __SWITCH__

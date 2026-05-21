@@ -95,6 +95,7 @@ void StatusBox::onDraw(c2d::Transform &transform, bool draw) {
         setPosition(bounds.left + bounds.width + pos.x,
             main->getSize().y - (16 * main->getScaling().x));
     }
+    titleText->setFillColor(COLOR_ACCENT);
 
     SDL_LockMutex(mutex);
     C2DObject::onDraw(transform, draw);

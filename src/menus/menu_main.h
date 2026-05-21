@@ -5,6 +5,8 @@
 #ifndef PPLAY_MENU_MAIN_H
 #define PPLAY_MENU_MAIN_H
 
+#include <map>
+
 #include "menu.h"
 #include "menu_main_options.h"
 #include "menu_main_options_submenu.h"
@@ -25,6 +27,8 @@ public:
 
     void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
 
+    void onUpdate() override;
+
     Highlight *highlight_selection;
 
 private:
@@ -33,11 +37,10 @@ private:
 
     void onOptionSelection(MenuItem *item) override;
 
+    void updateSelectionHighlight() override;
+
     MenuMainOptions *menuMainOptions;
-#ifdef __SWITCH__
-    MenuMainOptionsSubmenu *menuMainOptionsCpu;
-    MenuMainOptionsSubmenu *menuMainOptionsUsb;
-#endif
+    std::map<std::string, MenuMainOptionsSubmenu *> menuMainOptionsSubmenus;
 };
 
 

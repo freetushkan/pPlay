@@ -16,6 +16,7 @@ Highlight::Highlight(const c2d::Vector2f &size, const CursorPosition &pos) : Rec
                                 pos == CursorPosition::Left ? GradientRectangle::Direction::Right
                                                             : GradientRectangle::Direction::Left);
     Highlight::add(gradientRectangle);
+    hlFillColor = COLOR_HIGHLIGHT;
 
     cursor = new RectangleShape(Vector2f{6, size.y});
     cursor->setFillColor(COLOR_ACCENT);
@@ -38,7 +39,10 @@ void Highlight::setAlpha(uint8_t alpha, bool  /*recursive*/) {
 }
 
 void Highlight::setFillColor(const c2d::Color &color) {
-    gradientRectangle->setColor(color, Color::Transparent);
+    if (hlFillColor != color) {
+        hlFillColor = color;
+        gradientRectangle->setColor(color, Color::Transparent);
+    }
 }
 
 void Highlight::setCursorColor(const c2d::Color &color) {

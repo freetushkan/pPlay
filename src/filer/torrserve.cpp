@@ -90,19 +90,12 @@ std::string escapeSegment(const std::string &value) {
     return out;
 }
 
-int hexValue(char c) {
-    if (c >= '0' && c <= '9') return c - '0';
-    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-    return -1;
-}
-
 std::string unescapeSegment(const std::string &value) {
     std::string out;
     for (size_t i = 0; i < value.size(); i++) {
         if (value[i] == '%' && i + 2 < value.size()) {
-            int hi = hexValue(value[i + 1]);
-            int lo = hexValue(value[i + 2]);
+            int hi = pplay::Utility::hexValue(value[i + 1]);
+            int lo = pplay::Utility::hexValue(value[i + 2]);
             if (hi >= 0 && lo >= 0) {
                 out += (char) ((hi << 4) | lo);
                 i += 2;

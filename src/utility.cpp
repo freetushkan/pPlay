@@ -26,17 +26,23 @@
 #include <mbedtls/md5.h>
 #include <cstdio>
 
+#include <algorithm>
+#include <cstring>
+#include <cstdint>
+
 
 #include <chrono>
 
 using namespace pplay;
 static Utility::LogLevel g_logLevel = Utility::LogLevel::Info;
+static c2d::Color g_accentColor = c2d::Color(16, 120, 200, 255);
 
 std::string Utility::getMediaInfoPath(const c2d::Io::File &file) {
     std::string hash = std::to_string(std::hash<std::string>()(file.path));
     return c2d_renderer->getIo()->getDataPath() + "cache/" + hash + ".info";
 }
 
+#ifdef PPLAY_ENABLE_SCRAPPING
 std::string Utility::getMediaScrapPath(const c2d::Io::File &file) {
     std::string hash = std::to_string(std::hash<std::string>()(file.path));
     return c2d_renderer->getIo()->getDataPath() + "cache/" + hash + ".scrap";
@@ -51,6 +57,7 @@ std::string Utility::getMediaBackdropPath(const c2d::Io::File &file) {
     std::string hash = std::to_string(std::hash<std::string>()(file.path));
     return c2d_renderer->getIo()->getDataPath() + "cache/" + hash + "-backdrop.jpg";
 }
+#endif
 
 std::vector<std::string> Utility::getMediaExtensions() {
     return {
@@ -97,6 +104,45 @@ bool Utility::isMedia(const c2d::Io::File &file) {
     }
 
     return false;
+}
+
+int Utility::hexValue(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
+bool Utility::isValidHexColor(const std::string &hex) {
+    const size_t offset = !hex.empty() && hex[0] == '#' ? 1 : 0;
+    if (hex.size() - offset != 6) {
+        return false;
+    }
+    for (size_t i = offset; i < hex.size(); i++) {
+        if (hexValue(hex[i]) < 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+c2d::Color Utility::hexToColor(const std::string &hex) {
+    if (!isValidHexColor(hex)) {
+        return c2d::Color(16, 120, 200, 255);
+    }
+    const size_t offset = hex[0] == '#' ? 1 : 0;
+    auto byteAt = [&](size_t i) -> uint8_t {
+        return (uint8_t)((hexValue(hex[offset + i]) << 4) | hexValue(hex[offset + i + 1]));
+    };
+    return c2d::Color(byteAt(0), byteAt(2), byteAt(4), 255);
+}
+
+void Utility::setAccentColor(const std::string &hex) {
+    g_accentColor = hexToColor(hex);
+}
+
+c2d::Color& Utility::getAccentColor() {
+    return g_accentColor;
 }
 
 std::string Utility::formatTime(double seconds) {
@@ -229,10 +275,17 @@ bool Utility::fileExists(const std::string &path) {
 }
 
 std::string Utility::getWatchLater(const std::string &video_path) {
-    std::string hash = pplay::Utility::md5hash(video_path);
+    std::string mpvPath = video_path;
+#ifdef __SMB2__
+    if (c2d::Utility::startWith(mpvPath, "smb://")) {
+        std::replace(mpvPath.begin(), mpvPath.end(), '\\', '/');
+        mpvPath.replace(0, strlen("smb://"), "smb2://");
+    }
+#endif
+    std::string hash = pplay::Utility::md5hash(mpvPath);
     std::transform(hash.begin(), hash.end(), hash.begin(), ::toupper);
     std::string path = c2d_renderer->getIo()->getDataPath() + "mpv/watch_later/" + hash;
-    log(LogLevel::Debug, "Utility::getWatchLater video_path=" + video_path + " wl_path=" + path);
+    log(LogLevel::Debug, "Utility::getWatchLater video_path=" + video_path + " mpv_path=" + mpvPath + " wl_path=" + path);
     return path;
 }
 
@@ -246,6 +299,7 @@ bool Utility::deleteWatchLater(const std::string &video_path) {
     if (fileExists(path)) {
         return deleteFile(path);
     }
+    return false;
 }
 
 #ifdef __PS4__

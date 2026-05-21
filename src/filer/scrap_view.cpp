@@ -1,6 +1,7 @@
 //
 // Created by cpasjuste on 01/04/19.
 //
+#ifdef PPLAY_ENABLE_SCRAPPING
 
 #include "cross2d/c2d.h"
 #include "main.h"
@@ -213,3 +214,4 @@ ScrapView::~ScrapView() {
 
     delete (clock);
 }
+#endif
