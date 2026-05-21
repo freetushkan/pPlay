@@ -99,7 +99,7 @@ bool Player::load(const MediaFile &f, bool resetRetry) {
 
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
         "Player::load effective_url=" + path);
-    int res = mpv->load(path, Mpv::LoadType::Replace, "pause=yes,speed=1");
+    int res = mpv->load(path, Mpv::LoadType::Replace, "pause=yes");
     if (res != 0) {
         pplay::Utility::log(pplay::Utility::LogLevel::Error,
             "Player::load error code=" + std::to_string(res)
