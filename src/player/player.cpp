@@ -58,7 +58,7 @@ Player::~Player() {
     delete (mpv);
 }
 
-bool Player::load(const MediaFile &f, bool resetRetry) {
+bool Player::load(const MediaFile &f, bool resetRetry, const std::string &options) {
     bool existsInAutoplay = false;
     for (auto &autoplayFile: autoplayFiles) {
         if (autoplayFile.path == f.path) {
@@ -99,11 +99,12 @@ bool Player::load(const MediaFile &f, bool resetRetry) {
 
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
         "Player::load effective_url=" + path);
-    int res = mpv->load(path, Mpv::LoadType::Replace, "pause=yes");
+    int res = mpv->load(path, Mpv::LoadType::Replace, options);
     if (res != 0) {
         pplay::Utility::log(pplay::Utility::LogLevel::Error,
             "Player::load error code=" + std::to_string(res)
-            + " msg=" + std::string(mpv_error_string(res)));
+            + " msg=" + std::string(mpv_error_string(res))
+            + " try=" + std::to_string(retryCount));
         main->getStatus()->show("Error...", "Could not play file:\n"
             + std::string(mpv_error_string(res)));
         printf("Player::load: could not play file: %s\n", mpv_error_string(res));
@@ -192,12 +193,13 @@ void Player::onStopEvent(int reason) {
         position = lastKnownPosition;
     }
     bool playbackCompleted = duration > 0 && ((double)position / duration) >= 0.98;
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent reason=" + std::to_string(reason)
-                        + " duration=" + std::to_string(duration)
-                        + " position=" + std::to_string(position)
-                        + " delta=" + std::to_string(duration - position)
-                        + " playbackCompleted=" + std::to_string(playbackCompleted ? 1 : 0)
-                        + " retries=" + std::to_string(retryCount));
+    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+        "Player::onStopEvent reason=" + std::to_string(reason)
+        + " duration=" + std::to_string(duration)
+        + " position=" + std::to_string(position)
+        + " delta=" + std::to_string(duration - position)
+        + " playbackCompleted=" + std::to_string(playbackCompleted ? 1 : 0)
+        + " retries=" + std::to_string(retryCount));
 
     if (main->isExiting()) {
         main->getStatus()->hide();
@@ -209,20 +211,19 @@ void Player::onStopEvent(int reason) {
         int retries = main->getConfig()->getOption(OPT_NETWORK_RETRIES)->getInteger();
         if (retries == 0 || retryCount < retries) {
             retryCount++;
-            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::retry retryCount=" + std::to_string(retryCount)
-                                + " max=" + std::to_string(retries));
-            main->getStatus()->show("Warning...", "Load failed, retry " + std::to_string(retryCount), true);
             if (load(file, false)) {
                 return;
             }
         }
         main->getStatus()->show("Error...", "Could not load file");
-        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent could not load file");
+        pplay::Utility::log(pplay::Utility::LogLevel::Info,
+            "Player::onStopEvent could not load file");
         printf("Player::load: could not load file\n");
     } else if (reason == MPV_END_FILE_REASON_EOF && playbackCompleted) {
         const int autoplayMode = main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger();
         if (autoplayMode == 2) {
-            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent loopFile current=" + file.path);
+            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                "Player::onStopEvent loopFile current=" + file.path);
             load(file);
             return;
         }
@@ -238,8 +239,9 @@ void Player::onStopEvent(int reason) {
                 const bool loopEnabled = autoplayMode == 3;
                 for (size_t idx = (size_t) currentIndex + 1; idx < autoplayFiles.size(); idx++) {
                     if (pplay::Utility::isMedia(autoplayFiles[idx])) {
-                        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent autoplayNext current=" + file.path
-                                            + " next=" + autoplayFiles[idx].path);
+                        pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                            "Player::onStopEvent autoplayNext current=" + file.path
+                            + " next=" + autoplayFiles[idx].path);
                         load(autoplayFiles[idx]);
                         return;
                     }
@@ -260,16 +262,22 @@ void Player::onStopEvent(int reason) {
         int retries = main->getConfig()->getOption(OPT_NETWORK_RETRIES)->getInteger();
         if (retries == 0 || retryCount < retries) {
             retryCount++;
-            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent earlyEOF retryCount="
-                + std::to_string(retryCount) + " max=" + std::to_string(retries));
-            main->getStatus()->show("Warning...", "Load failed, retry " + std::to_string(retryCount), true);
-            if (load(file, false)) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                "Player::onStopEvent earlyEOF");
+            main->getStatus()->show("Warning...",
+                "Playback interrupted, retry..", true);
+            std::string opts = "pause=yes";
+            if (lastKnownPosition > 0) {
+                opts += ",start=" + std::to_string(lastKnownPosition);
+            }
+            if (load(file, false, opts)) {
                 retryCount = 0;
                 return;
             }
         }
         main->getStatus()->show("Error...", "Unexpected end of file");
-        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent Unexpected end of file");
+        pplay::Utility::log(pplay::Utility::LogLevel::Info,
+            "Player::onStopEvent Unexpected end of file");
     }
 
     main->getStatus()->hide();

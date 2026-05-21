@@ -23,7 +23,7 @@ public:
 
     ~Player() override;
 
-    bool load(const MediaFile &file, bool resetRetry = true);
+    bool load(const MediaFile &file, bool resetRetry = true, const std::string &options = "pause=yes");
 
     void pause();
 
