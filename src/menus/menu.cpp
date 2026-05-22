@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <unordered_map>
 
 #include "cross2d/c2d.h"
 #include "main.h"
@@ -10,6 +11,83 @@
 #include "utility.h"
 
 using namespace c2d;
+
+namespace {
+    struct ScrollState {
+        int direction = 0;
+        bool wrapped = false;
+        bool skipEnsure = false;
+    };
+
+    std::unordered_map<Menu *, ScrollState> g_scrollStates;
+
+    inline float menuTop(Main *main) {
+        return 200.0f * main->getScaling().y;
+    }
+
+    inline float menuBottom(Menu *menu, Main *main) {
+        return menu->getSize().y - (32.0f * main->getScaling().y);
+    }
+
+    inline float menuSpacing(Main *main) {
+        return 64.0f * main->getScaling().y;
+    }
+
+    inline float menuButtonHeight(Main *main) {
+        return BUTTON_HEIGHT * main->getScaling().y;
+    }
+
+    inline int visibleSlots(Main *main, float top, float bottom) {
+        const float spacing = menuSpacing(main);
+        const float buttonHeight = menuButtonHeight(main);
+        if (spacing <= 0.0f) {
+            return 1;
+        }
+
+        const float usable = bottom - top - buttonHeight;
+        if (usable <= 0.0f) {
+            return 1;
+        }
+
+        return std::max(1, static_cast<int>(usable / spacing) + 1);
+    }
+
+    inline int topButtonCount(const std::vector<MenuButton *> &buttons) {
+        int count = 0;
+        for (auto *button: buttons) {
+            if (button->item.position == MenuItem::Position::Top) {
+                ++count;
+            }
+        }
+        return count;
+    }
+
+    inline int topIndexOfButton(const std::vector<MenuButton *> &buttons, int index) {
+        int topIndex = 0;
+        for (int i = 0; i < static_cast<int>(buttons.size()); ++i) {
+            if (buttons[i]->item.position != MenuItem::Position::Top) {
+                continue;
+            }
+            if (i == index) {
+                return topIndex;
+            }
+            ++topIndex;
+        }
+        return 0;
+    }
+
+    inline ScrollState currentScrollState(Menu *menu) {
+        const auto it = g_scrollStates.find(menu);
+        if (it == g_scrollStates.end()) {
+            return {};
+        }
+        return it->second;
+    }
+
+    inline int clampInt(int value, int minValue, int maxValue) {
+        return std::max(minValue, std::min(value, maxValue));
+    }
+}
 
 MenuButton::MenuButton(Main *main, const MenuItem &item, const FloatRect &rect) : Rectangle(rect) {
 
@@ -32,13 +110,15 @@ MenuButton::MenuButton(Main *main, const MenuItem &item, const FloatRect &rect) 
     } else {
         name->setFillColor(COLOR_FONT);
     }
-    if (!item.icon.empty()) {
-        name->setPosition((ICON_SIZE + 32) * main->getScaling().x, MenuButton::getSize().y / 2);
-        name->setSizeMax((MenuButton::getSize().x - ICON_SIZE + 32) * main->getScaling().x, 0);
-    } else {
-        name->setPosition(16 * main->getScaling().x, MenuButton::getSize().y / 2);
-        name->setSizeMax((MenuButton::getSize().x - (16 * main->getScaling().x)) * main->getScaling().x, 0);
-    }
+
+    float textX = !item.icon.empty()
+                  ? (ICON_SIZE + 32.0f) * main->getScaling().x
+                  : 16.0f * main->getScaling().x;
+    float rightPadding = 16.0f * main->getScaling().x;
+    float maxWidth = std::max(0.0f, MenuButton::getSize().x - textX - rightPadding);
+
+    name->setPosition(textX, MenuButton::getSize().y / 2);
+    name->setSizeMax(maxWidth, MenuButton::getSize().y);
     MenuButton::add(name);
 }
 
@@ -54,7 +134,7 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title,
     // highlight
     highlight = new Highlight({Menu::getSize().x, BUTTON_HEIGHT * main->getScaling().y});
     highlight->setOrigin(Origin::Left);
-    highlight->setPosition(0, 200 * main->getScaling().y);
+    highlight->setPosition(0, menuTop(main));
     Menu::add(highlight);
 
     // title
@@ -64,7 +144,7 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title,
     Menu::add(title);
 
     // options
-    FloatRect top = {0, 200 * main->getScaling().y,
+    FloatRect top = {0, menuTop(main),
                      Menu::getSize().x, BUTTON_HEIGHT * main->getScaling().y};
     FloatRect bottom = {0, Menu::getSize().y - (32 * main->getScaling().y),
                         Menu::getSize().x, BUTTON_HEIGHT * main->getScaling().y};
@@ -74,18 +154,21 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title,
             auto *option = new MenuButton(main, item, top);
             add(option);
             buttons.push_back(option);
-            top.top += 64 * main->getScaling().y;
+            top.top += menuSpacing(main);
         } else {
             auto *option = new MenuButton(main, item, bottom);
             Menu::add(option);
             buttons.push_back(option);
-            bottom.top -= 64 * main->getScaling().y;
+            bottom.top -= menuSpacing(main);
         }
     }
 
     index = findFirstSelectableIndex();
+    g_scrollStates[this] = {};
     updateScroll();
-    highlight->setPosition(0, buttons.empty() ? 0 : buttons[index]->getPosition().y);
+    if (!buttons.empty()) {
+        highlight->setPosition(0, buttons[index]->getPosition().y);
+    }
 
     // tween!
     if (left) {
@@ -104,6 +187,7 @@ bool Menu::onInput(c2d::Input::Player *players) {
     }
 
     if (keys & Input::Touch) {
+        g_scrollStates[this] = {};
         Vector2f touch = players[0].touch;
         if (!getGlobalBounds().contains(touch)) {
             setVisibility(Visibility::Hidden, true);
@@ -129,7 +213,10 @@ bool Menu::onInput(c2d::Input::Player *players) {
         }
     }
 
-    ensureSelectionVisible();
+    if (!g_scrollStates[this].skipEnsure) {
+        ensureSelectionVisible();
+    }
+    g_scrollStates[this].skipEnsure = false;
     highlight->tweenTo({0, buttons[index]->getPosition().y});
 
     return true;
@@ -138,7 +225,10 @@ bool Menu::onInput(c2d::Input::Player *players) {
 void Menu::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
     C2DObject::setVisibility(visibility, true);
     if (visibility == Visibility::Visible) {
-        ensureSelectionVisible();
+        if (!g_scrollStates[this].skipEnsure) {
+            ensureSelectionVisible();
+        }
+        g_scrollStates[this].skipEnsure = false;
         updateScroll();
     }
 }
@@ -167,34 +257,60 @@ void Menu::moveSelection(int direction) {
         return;
     }
 
+    {
+        auto &state = g_scrollStates[this];
+        state.direction = direction;
+        state.wrapped = false;
+        state.skipEnsure = false;
+    }
+
     int next = index;
     do {
         next += direction;
         if (next < 0) {
             next = (int) buttons.size() - 1;
+            auto &state = g_scrollStates[this];
+            state.wrapped = true;
+            state.skipEnsure = true;
+            scrollOffset = (float) std::max(0, topButtonCount(buttons) - visibleSlots(main, menuTop(main), menuBottom(this, main))) * menuSpacing(main);
+            updateScroll();
         } else if (next >= (int) buttons.size()) {
             next = 0;
+            auto &state = g_scrollStates[this];
+            state.wrapped = true;
+            state.skipEnsure = true;
+            scrollOffset = 0.0f;
+            updateScroll();
         }
     } while (!isButtonSelectable(next) && next != index);
 
     if (isButtonSelectable(next)) {
+        const int previous = index;
         index = next;
+        auto &state = g_scrollStates[this];
+        state.direction = direction;
+        state.wrapped = (direction > 0 && next < previous) || (direction < 0 && next > previous);
     }
 }
 
 void Menu::updateScroll() {
-    const float top = 200 * main->getScaling().y;
-    const float bottom = Menu::getSize().y - (32 * main->getScaling().y);
-    const float buttonHeight = BUTTON_HEIGHT * main->getScaling().y;
-    const float spacing = 64 * main->getScaling().y;
+    const float top = menuTop(main);
+    const float bottom = menuBottom(this, main);
+    const float buttonHeight = menuButtonHeight(main);
+    const float spacing = menuSpacing(main);
+
+    const int startSlot = (spacing > 0.0f)
+        ? std::max(0, static_cast<int>(scrollOffset / spacing + 0.5f))
+        : 0;
 
     int topIndex = 0;
     for (auto &button: buttons) {
         if (button->item.position == MenuItem::Position::Top) {
-            const float y = top + ((float) topIndex * spacing) - scrollOffset;
+            const float y = top + ((float) (topIndex - startSlot) * spacing);
             button->setPosition(0, y);
-            button->setVisibility(y >= top && y + buttonHeight <= bottom
-                                  ? Visibility::Visible : Visibility::Hidden);
+
+            const bool visible = (y + buttonHeight > top) && (y < bottom);
+            button->setVisibility(visible ? Visibility::Visible : Visibility::Hidden);
             topIndex++;
         }
     }
@@ -205,37 +321,55 @@ void Menu::ensureSelectionVisible() {
         return;
     }
 
-    const float top = 200 * main->getScaling().y;
-    const float bottom = Menu::getSize().y - (32 * main->getScaling().y);
-    const float buttonHeight = BUTTON_HEIGHT * main->getScaling().y;
-    const float spacing = 64 * main->getScaling().y;
+    const float top = menuTop(main);
+    const float bottom = menuBottom(this, main);
+    const float spacing = menuSpacing(main);
+    const int totalTopButtons = topButtonCount(buttons);
+    const int selectedTop = topIndexOfButton(buttons, index);
+    const int slotCount = visibleSlots(main, top, bottom);
+    const int maxStart = std::max(0, totalTopButtons - slotCount);
+    const int currentStart = (spacing > 0.0f)
+        ? clampInt(static_cast<int>(scrollOffset / spacing + 0.5f), 0, maxStart)
+        : 0;
+    const ScrollState state = currentScrollState(this);
 
-    int selectedTopIndex = 0;
-    int topButtonCount = 0;
-    for (int i = 0; i < (int) buttons.size(); i++) {
-        if (buttons[i]->item.position != MenuItem::Position::Top) {
-            continue;
+    int desiredStart = currentStart;
+
+    if (totalTopButtons <= slotCount || spacing <= 0.0f) {
+        desiredStart = 0;
+    } else if (state.wrapped) {
+        desiredStart = (state.direction > 0) ? 0 : maxStart;
+    } else if (state.direction > 0) {
+        const int keepSlot = std::max(0, slotCount - 2);
+        const int scrollThreshold = currentStart + std::max(0, slotCount - 1);
+        if (selectedTop >= scrollThreshold) {
+            desiredStart = selectedTop - keepSlot;
         }
-        if (i == index) {
-            selectedTopIndex = topButtonCount;
+
+        if (selectedTop >= totalTopButtons - 1) {
+            desiredStart = maxStart;
         }
-        topButtonCount++;
+    } else if (state.direction < 0) {
+        if (selectedTop <= currentStart) {
+            desiredStart = std::max(0, selectedTop - 1);
+        }
+
+        if (selectedTop <= 0) {
+            desiredStart = 0;
+        }
+    } else {
+        if (selectedTop < currentStart) {
+            desiredStart = selectedTop;
+        } else if (selectedTop >= currentStart + slotCount) {
+            desiredStart = selectedTop - slotCount + 1;
+        }
     }
 
-    const float contentBottom = top + ((float) std::max(topButtonCount - 1, 0) * spacing) + buttonHeight;
-    const float maxScrollOffset = std::max(0.0f, contentBottom - bottom);
-    const float selectedTop = top + ((float) selectedTopIndex * spacing) - scrollOffset;
+    desiredStart = clampInt(desiredStart, 0, maxStart);
+    scrollOffset = (float) desiredStart * spacing;
 
-    if (selectedTop < top) {
-        scrollOffset = (float) selectedTopIndex * spacing;
-    } else if (selectedTop + buttonHeight > bottom) {
-        scrollOffset = top + ((float) selectedTopIndex * spacing) + buttonHeight - bottom;
-    }
-
-    scrollOffset = std::max(0.0f, std::min(scrollOffset, maxScrollOffset));
     updateScroll();
 }
-
 void Menu::onUpdate() {
     highlight->setFillColor(COLOR_HIGHLIGHT);
     highlight->setCursorColor(COLOR_ACCENT);
@@ -245,6 +379,7 @@ void Menu::onUpdate() {
 void Menu::reset() {
     index = findFirstSelectableIndex();
     scrollOffset = 0.0f;
+    g_scrollStates[this] = {};
     updateScroll();
     if (!buttons.empty()) {
         highlight->tweenTo({0, buttons[index]->getPosition().y});
