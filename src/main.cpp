@@ -361,8 +361,7 @@ void Main::onUpdate() {
         }
     }
     messageBox->setOutlineColor(COLOR_ACCENT);
-
-    C2DRenderer::onUpdate();
+    Renderer::onUpdate();
 }
 
 void Main::show(MenuType type) {
@@ -577,3 +576,15 @@ int main() {
 
     return 0;
 }
+
+#ifdef __PS4__
+#include <chrono>
+#include <cross2d/platforms/ps4/ps4_clock.h>
+
+c2d::Time c2d::PS4Clock::getCurrentTime() const {
+    static const auto start_app = std::chrono::system_clock::now();
+    auto now = std::chrono::system_clock::now();
+    auto micros = std::chrono::duration_cast<std::chrono::microseconds>(now - start_app).count();
+    return c2d::microseconds(static_cast<long>(micros));
+}
+#endif

@@ -45,9 +45,14 @@ public:
 
     MenuButton(Main *main, const MenuItem &item, const c2d::FloatRect &rect);
 
+    void onUpdate() override;
+
+    virtual ~MenuButton();
+
     MenuItem item;
     c2d::Texture *icon = nullptr;
     c2d::Text *name = nullptr;
+    bool selected = false;
 };
 
 class Menu : public c2d::RectangleShape {
@@ -62,6 +67,8 @@ public:
     void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
 
     void onUpdate() override;
+
+    void updateSelectionState();
 
     virtual void onOptionSelection(MenuItem *item) {};
 

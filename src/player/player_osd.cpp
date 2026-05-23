@@ -136,10 +136,6 @@ void PlayerOSD::onDraw(c2d::Transform &transform, bool draw) {
         return;
     }
 
-    if (mpv->getSpeed() != 1) {
-        clock.restart();
-    }
-
     if (!mpv->isPaused() && clock.getElapsedTime().asSeconds() >= OSD_HIDE_TIME) {
         setVisibility(Visibility::Hidden, true);
         main->getStatusBar()->setVisibility(Visibility::Hidden, true);
