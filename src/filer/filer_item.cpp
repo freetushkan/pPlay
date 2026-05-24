@@ -9,6 +9,7 @@
 #include "filer_item.h"
 #include "utility.h"
 #include "torrserve.h"
+#include "encodings.h"
 
 using namespace c2d;
 
@@ -35,7 +36,7 @@ void FilerItem::setFile(const MediaFile &f) {
     if (file.name == "..") {
         textTitle->setString("◀ BACK");
     } else {
-        textTitle->setString(file.name);
+        textTitle->setString(encoding::fix(file.name));
     }
     uint8_t alpha = textTitle->getAlpha();
     if (file.type == Io::Type::File) {

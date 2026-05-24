@@ -10,6 +10,7 @@
 #include "video_texture.h"
 #include "utility.h"
 #include "pplay_config.h"
+#include "encodings.h"
 
 using namespace c2d;
 
@@ -78,7 +79,8 @@ bool Player::load(const MediaFile &f, bool resetRetry, const std::string &option
     lastKnownDuration = 0;
     lastKnownPosition = 0;
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "Player::load path=" + file.path + " name=" + file.name
+        "Player::load path=" + encoding::fix(file.path)
+        + " name=" + encoding::fix(file.name)
         + " type=" + std::to_string((int) file.type)
         + " resetRetry=" + std::to_string(resetRetry ? 1 : 0)
         + " retryCount=" + std::to_string(retryCount));
@@ -330,7 +332,8 @@ void Player::onUpdate() {
             switch (event->event_id) {
                 case MPV_EVENT_START_FILE:
                     printf("MPV_EVENT_START_FILE\n");
-                    main->getStatus()->show("Please Wait...", "Loading... " + file.name, true);
+                    main->getStatus()->show("Please Wait...",
+                        "Loading... " + encoding::fix(file.name), true);
                     break;
                 case MPV_EVENT_FILE_LOADED:
                     printf("MPV_EVENT_FILE_LOADED\n");

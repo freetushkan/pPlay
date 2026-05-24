@@ -5,6 +5,7 @@
 #include "main.h"
 #include "utility.h"
 #include "player_osd.h"
+#include "encodings.h"
 
 using namespace c2d;
 
@@ -118,7 +119,7 @@ void PlayerOSD::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
         index = 0;
         highlight->tweenTo({buttons.at((size_t) index)->getPosition().x, 0});
         if (main->getPlayer() != nullptr) {
-            title->setString(main->getPlayer()->getTitle());
+            title->setString(encoding::fix(main->getPlayer()->getTitle()));
         }
     }
 
