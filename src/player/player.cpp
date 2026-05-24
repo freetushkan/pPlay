@@ -138,6 +138,9 @@ void Player::onLoadEvent() {
         menuVideoStreams->setVisibility(Visibility::Hidden, false);
         menuVideoStreams->setLayer(3);
         add(menuVideoStreams);
+    } else {
+        osd->setVisibility(Visibility::Visible, true);
+        main->getStatusBar()->setVisibility(Visibility::Visible, true);
     }
 
     // build audio track selection menu
@@ -542,6 +545,10 @@ MenuVideoSubmenu *Player::getMenuSubtitlesStreams() {
 
 const std::string &Player::getTitle() const {
     return file.name;
+}
+
+bool Player::hasVideo() const {
+    return !file.mediaInfo.videos.empty();
 }
 
 PlayerOSD *Player::getOSD() {

@@ -60,6 +60,7 @@ public:
     MenuVideoSubmenu *getMenuSubtitlesStreams();
 
     const std::string &getTitle() const;
+    bool hasVideo() const;
 
     bool onInput(c2d::Input::Player *players) override;
 
