@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include <orbis/libkernel.h>
 
@@ -62,6 +63,12 @@ backtrace(const char* reason) {
   buf[MAX_MESSAGE_SIZE+2] = '\0';
   
   sceKernelDebugOutText(0, buf);
+
+  int fd = open("/data/pplay/crash.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
+  if (fd >= 0) {
+    write(fd, buf, strnlen(buf, sizeof(buf)));
+    close(fd);
+  }
 }
 
 /**
