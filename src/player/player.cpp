@@ -303,6 +303,7 @@ void Player::onStopEvent(int reason) {
 #endif
 
     if (mpv->isStopped()) {
+        texture->clearFrame();
         setFullscreen(false, true);
     }
 }
@@ -332,6 +333,7 @@ void Player::onUpdate() {
             switch (event->event_id) {
                 case MPV_EVENT_START_FILE:
                     printf("MPV_EVENT_START_FILE\n");
+                    texture->clearFrame();
                     main->getStatus()->show("Please Wait...",
                         "Loading... " + encoding::fix(file.name), true);
                     break;

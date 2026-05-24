@@ -33,6 +33,14 @@ void VideoTexture::showFade() {
     fadeTween->play(TweenDirection::Forward);
 }
 
+void VideoTexture::clearFrame() {
+    glBindFramebuffer(GL_FRAMEBUFFER, (GLuint) fbo);
+    glViewport(0, 0, (GLsizei) getSize().x, (GLsizei) getSize().y);
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 void VideoTexture::onDraw(c2d::Transform &transform, bool draw) {
     bool update = mpv_render_context_update(main->getPlayer()->getMpv()->getContext()) & MPV_RENDER_UPDATE_FRAME;
     if (draw && update) {

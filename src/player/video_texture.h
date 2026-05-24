@@ -19,6 +19,8 @@ public:
 
     void hideFade();
 
+    void clearFrame();
+
 private:
 
     void onDraw(c2d::Transform &transform, bool draw = true) override;
