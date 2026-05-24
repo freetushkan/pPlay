@@ -276,8 +276,14 @@ bool Utility::fileExists(const std::string &path) {
 
 std::string Utility::getWatchLater(const std::string &video_path) {
     std::string mpvPath = video_path;
+    if (!mpvPath.empty() && mpvPath[0] == '/') {
+        size_t last_slash = mpvPath.find_last_of('/');
+        if (last_slash != std::string::npos) {
+            mpvPath = mpvPath.substr(last_slash + 1);
+        }
+    }
 #ifdef __SMB2__
-    if (c2d::Utility::startWith(mpvPath, "smb://")) {
+    else if (c2d::Utility::startWith(mpvPath, "smb://")) {
         std::replace(mpvPath.begin(), mpvPath.end(), '\\', '/');
         mpvPath.replace(0, strlen("smb://"), "smb2://");
     }
