@@ -22,53 +22,48 @@ typedef struct  {
 
 
 /**
- * Log a backtrace to /dev/klog
+ * Log a backtrace to /data/pplay/crash.log
  **/
+static void 
+ulong_to_hex(unsigned long num, char* out) {
+    char buf[16] = "0123456789abcdef";
+    for (int i = 15; i >= 0; i--) {
+        out[i] = buf[num & 0xF];
+        num >>= 4;
+    }
+    out[16] = '\0';
+}
+
 static void
-backtrace(const char* reason) {
-  char addr2line[MAX_STACK_FRAMES * 20];
+backtrace(int sig) {
   callframe_t frames[MAX_STACK_FRAMES];
-  OrbisKernelVirtualQueryInfo info;
-  char buf[MAX_MESSAGE_SIZE + 3];
   unsigned int nb_frames = 0;
-  char temp[80];
-
-  memset(addr2line, 0, sizeof addr2line);
-  memset(frames, 0, sizeof frames);
-  memset(buf, 0, sizeof buf);
-
-  snprintf(buf, sizeof buf, "<118>[Crashlog]: %s\n", reason);
-  
-  strncat(buf, "<118>[Crashlog]: Backtrace:\n", MAX_MESSAGE_SIZE);
-  sceKernelBacktraceSelf(frames, sizeof frames, &nb_frames, 0);
-  for(unsigned int i=0; i<nb_frames; i++) {
-    memset(&info, 0, sizeof info);
-    sceKernelVirtualQuery(frames[i].pc, 0, &info, sizeof info);
-
-    snprintf(temp, sizeof temp,
-	     "<118>[Crashlog]:   #%02d %32s: 0x%lx\n",
-	     i + 1, info.name, frames[i].pc - info.unk01 - 1);
-    strncat(buf, temp, MAX_MESSAGE_SIZE);
-    
-    snprintf(temp, sizeof temp,
-	     "0x%lx ", frames[i].pc - info.unk01 - 1);
-    strncat(addr2line, temp, sizeof addr2line - 1);
-  }
-
-  strncat(buf, "<118>[Crashlog]: addr2line: ", MAX_MESSAGE_SIZE);
-  strncat(buf, addr2line, MAX_MESSAGE_SIZE);
-  strncat(buf, "\n", MAX_MESSAGE_SIZE);
-
-  buf[MAX_MESSAGE_SIZE+1] = '\n';
-  buf[MAX_MESSAGE_SIZE+2] = '\0';
-  
-  sceKernelDebugOutText(0, buf);
-
   int fd = open("/data/pplay/crash.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
-  if (fd >= 0) {
-    write(fd, buf, strnlen(buf, sizeof(buf)));
-    close(fd);
+  if (fd < 0) {
+      _exit(1);
   }
+  write(fd, "[Crashlog]: Fatal signal received: ", 35);
+  char sig_str[3];
+  if (sig >= 10) {
+      sig_str[0] = '0' + (sig / 10);
+      sig_str[1] = '0' + (sig % 10);
+      sig_str[2] = '\n';
+      write(fd, sig_str, 3);
+  } else {
+      sig_str[0] = '0' + sig;
+      sig_str[1] = '\n';
+      write(fd, sig_str, 2);
+  }
+  write(fd, "[Crashlog]: Backtrace:\n", 23);
+  sceKernelBacktraceSelf(frames, sizeof frames, &nb_frames, 0);
+  char hex_buf[17];
+  for(unsigned int i = 0; i < nb_frames; i++) {
+    ulong_to_hex((unsigned long)frames[i].pc, hex_buf);
+    write(fd, "  # ", 4);
+    write(fd, hex_buf, 16);
+    write(fd, "\n", 1);
+  }
+  close(fd);
 }
 
 /**
@@ -76,10 +71,7 @@ backtrace(const char* reason) {
  **/
 static void
 fatal_signal(int sig) {
-  char reason[64];
-
-  sprintf(reason, "Received the fatal POSIX signal %d", sig);
-  backtrace(reason);
+  backtrace(sig);
   _exit(1);
 }
 
