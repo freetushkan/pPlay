@@ -78,8 +78,8 @@ jobs:
           echo '  cd ffmpeg-$pkgver' >> PKGBUILD
           echo '  source /opt/pacbrew/ps4/openorbis/ps4vars.sh' >> PKGBUILD
           echo '' >> PKGBUILD
-          echo '  sed -i "s/SSL_library_init/SSL_CTX_new/g" configure' >> PKGBUILD
-          echo '  sed -i "s/check_lib openssl openssl\/ssl.h SSL_library_init/check_lib openssl openssl\/ssl.h SSL_CTX_new/g" configure' >> PKGBUILD
+          echo '  sed -i "s/SSL_library_init/SSL_CTX_new/g" configure || true' >> PKGBUILD
+          echo '  sed -i "s/check_lib openssl openssl\/ssl.h SSL_library_init/check_lib openssl openssl\/ssl.h SSL_CTX_new/g" configure || true' >> PKGBUILD
           echo '  ./configure --prefix="${OPENORBIS}/usr" \' >> PKGBUILD
           echo '    --enable-cross-compile --cross-prefix=${OPENORBIS}/bin/ \' >> PKGBUILD
           echo '    --arch=x86_64 --target-os=freebsd \' >> PKGBUILD
@@ -94,6 +94,7 @@ jobs:
           echo '    --enable-version3 \' >> PKGBUILD
           echo '    --extra-cflags="-I${OPENSSL_PREFIX}/include" \' >> PKGBUILD
           echo '    --extra-ldflags="-L${OPENSSL_PREFIX}/lib -lssl -lcrypto" \' >> PKGBUILD
+          echo '    --openssl-libs="-lssl -lcrypto" \' >> PKGBUILD
           echo '    --cc=$CC --cxx=$CXX --nm=$NM --strip=$STRIP --ar=$AR --ranlib=$RANLIB' >> PKGBUILD
           echo '' >> PKGBUILD
           echo '  make --quiet -j$(nproc)' >> PKGBUILD
