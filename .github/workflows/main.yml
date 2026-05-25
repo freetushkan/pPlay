@@ -62,6 +62,7 @@ jobs:
           ./Configure --prefix=/opt/pacbrew/ps4/openorbis/usr ps4-cross
           make -j"$(nproc)"
           sudo make install
+          find /opt -name openssl.pc
 
       - name: Rebuild curl with OpenSSL
         if: steps.cache-libs.outputs.cache-hit != 'true'
