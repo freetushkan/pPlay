@@ -58,9 +58,12 @@ public:
     MenuVideoSubmenu *getMenuAudioStreams();
 
     MenuVideoSubmenu *getMenuSubtitlesStreams();
+    MenuVideoSubmenu *getMenuPlaylist();
 
     const std::string &getTitle() const;
     bool hasVideo() const;
+    bool isPlaylistFile() const;
+    const std::vector<MediaFile> &getAutoplayFiles() const;
 
     bool onInput(c2d::Input::Player *players) override;
 
@@ -80,6 +83,7 @@ private:
     MenuVideoSubmenu *menuVideoStreams = nullptr;
     MenuVideoSubmenu *menuAudioStreams = nullptr;
     MenuVideoSubmenu *menuSubtitlesStreams = nullptr;
+    MenuVideoSubmenu *menuPlaylist = nullptr;
     MediaFile file;
     std::vector<MediaFile> autoplayFiles;
     int retryCount = 0;
@@ -92,6 +96,7 @@ private:
     Mpv *mpv;
 
     bool fullscreen = false;
+    mutable std::string displayTitle;
 };
 
 #endif //PPLAY_PLAYER_H

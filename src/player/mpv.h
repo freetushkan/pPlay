@@ -62,7 +62,13 @@ public:
 
     int setSid(int id);
 
+    int setPlaylistPos(int id);
+
     int getSid();
+    int getPlaylistPos();
+    int getPlaylistCount();
+    std::string getPlaylistCurrentTitle();
+    std::vector<std::pair<int, std::string>> getPlaylistItems();
 
     int getVideoBitrate();
 

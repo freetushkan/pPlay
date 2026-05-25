@@ -376,6 +376,11 @@ int Mpv::setSid(int id) {
     return logged_mpv_command_string(handle, cmd.c_str());
 }
 
+int Mpv::setPlaylistPos(int id) {
+    int64_t pos = id;
+    return mpv_set_property(handle, "playlist-pos", MPV_FORMAT_INT64, &pos);
+}
+
 int Mpv::getVid() {
     int64_t vid = -1;
     logged_mpv_get_property(handle, "vid", MPV_FORMAT_INT64, &vid);
@@ -392,6 +397,52 @@ int Mpv::getSid() {
     int64_t sid = -1;
     logged_mpv_get_property(handle, "sid", MPV_FORMAT_INT64, &sid);
     return (int) sid;
+}
+
+int Mpv::getPlaylistPos() {
+    int64_t pos = -1;
+    logged_mpv_get_property(handle, "playlist-pos", MPV_FORMAT_INT64, &pos);
+    return (int) pos;
+}
+
+int Mpv::getPlaylistCount() {
+    int64_t count = 0;
+    logged_mpv_get_property(handle, "playlist-count", MPV_FORMAT_INT64, &count);
+    return (int) count;
+}
+
+std::string Mpv::getPlaylistCurrentTitle() {
+    char *title = logged_mpv_get_property_string(handle, "media-title");
+    std::string res = title ? title : "";
+    if (title) mpv_free(title);
+    return res;
+}
+
+std::vector<std::pair<int, std::string>> Mpv::getPlaylistItems() {
+    std::vector<std::pair<int, std::string>> items;
+    mpv_node node;
+    if (logged_mpv_get_property(handle, "playlist", MPV_FORMAT_NODE, &node) < 0) {
+        return items;
+    }
+    if (node.format == MPV_FORMAT_NODE_ARRAY && node.u.list) {
+        for (int i = 0; i < node.u.list->num; i++) {
+            const mpv_node &entry = node.u.list->values[i];
+            if (entry.format != MPV_FORMAT_NODE_MAP || !entry.u.list) continue;
+            std::string title;
+            for (int n = 0; n < entry.u.list->num; n++) {
+                std::string key = entry.u.list->keys[n];
+                const mpv_node &value = entry.u.list->values[n];
+                if (key == "title" && value.format == MPV_FORMAT_STRING && value.u.string) {
+                    title = value.u.string;
+                } else if (key == "filename" && title.empty() && value.format == MPV_FORMAT_STRING && value.u.string) {
+                    title = value.u.string;
+                }
+            }
+            items.emplace_back(i, title.empty() ? ("Item " + std::to_string(i + 1)) : title);
+        }
+    }
+    mpv_free_node_contents(&node);
+    return items;
 }
 
 int Mpv::getVideoBitrate() {

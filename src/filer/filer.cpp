@@ -198,7 +198,13 @@ bool Filer::getNextMediaFile(const MediaFile &current, MediaFile &next) {
 
 std::vector<MediaFile> Filer::getFilesSnapshot() const {
     mutex->lock();
-    std::vector<MediaFile> snapshot = files;
+    std::vector<MediaFile> _files = files;
+    std::vector<MediaFile> snapshot;
+    for (auto &file: _files) {
+        if (file.type == Io::Type::File) {
+            snapshot.emplace_back(file);
+        }
+    }
     mutex->unlock();
     return snapshot;
 }

@@ -34,6 +34,13 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
         } else {
             main->getStatus()->show("Information...", "No subtitles streams found in media", false, false);
         }
+    } else if (item->name == "Playlist") {
+        if (main->getPlayer()->getMenuPlaylist()) {
+            main->getPlayer()->getMenuPlaylist()->setVisibility(Visibility::Visible, true);
+            setVisibility(Visibility::Hidden, true);
+        } else {
+            main->getStatus()->show("Information...", "Playlist is empty", false, false);
+        }
     } else if (item->name == "Stop") {
         main->getPlayer()->stop();
         setVisibility(Visibility::Hidden, true);

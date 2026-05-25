@@ -328,16 +328,15 @@ bool Menu::onInput(c2d::Input::Player *players) {
 
 void Menu::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
     C2DObject::setVisibility(visibility, true);
+    for (auto &button: buttons) {
+        button->setVisibility(visibility, false);
+    }
     if (visibility == Visibility::Visible) {
         if (!g_scrollStates[this].skipEnsure) {
             ensureSelectionVisible();
         }
         g_scrollStates[this].skipEnsure = false;
         updateScroll();
-    } else {
-        for (auto &button: buttons) {
-            button->setVisibility(Visibility::Hidden);
-        }
     }
 }
 

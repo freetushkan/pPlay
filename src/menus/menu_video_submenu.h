@@ -10,6 +10,7 @@
 #define MENU_VIDEO_TYPE_VID 0
 #define MENU_VIDEO_TYPE_AUD 1
 #define MENU_VIDEO_TYPE_SUB 2
+#define MENU_VIDEO_TYPE_PL 3
 
 class MenuVideoSubmenu : public Menu {
 

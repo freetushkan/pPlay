@@ -60,13 +60,12 @@ Player::~Player() {
 }
 
 bool Player::load(const MediaFile &f, bool resetRetry, const std::string &options) {
-    bool isPlaylist = f.path.size() >= 4 && 
-        (f.path.compare(f.path.size() - 4, 4, ".m3u") == 0 || 
-        f.path.compare(f.path.size() - 5, 5, ".m3u8") == 0);
-    if (!isPlaylist) {
+    texture->clearFrame();
+    file = f;
+    if (!isPlaylistFile()) {
         bool existsInAutoplay = false;
         for (auto &autoplayFile: autoplayFiles) {
-            if (autoplayFile.path == f.path) {
+            if (autoplayFile.path == file.path) {
                 existsInAutoplay = true;
                 break;
             }
@@ -76,7 +75,6 @@ bool Player::load(const MediaFile &f, bool resetRetry, const std::string &option
         }
     }
 
-    file = f;
     if (resetRetry) {
         retryCount = 0;
     }
@@ -180,6 +178,28 @@ void Player::onLoadEvent() {
         add(menuSubtitlesStreams);
     }
 
+    std::vector<MenuItem> playlistItems;
+    if (isPlaylistFile()) {
+        for (auto &entry: mpv->getPlaylistItems()) {
+            std::string name = std::to_string(entry.first + 1) + ". " + entry.second;
+            playlistItems.emplace_back(name, "", MenuItem::Position::Top, entry.first);
+        }
+    } else {
+        for (size_t i = 0; i < autoplayFiles.size(); i++) {
+            auto &item = autoplayFiles[i];
+            if (!pplay::Utility::isMedia(item)) continue;
+            std::string name = std::to_string(i + 1) + ". " + encoding::fix(item.name);
+            playlistItems.emplace_back(name, "", MenuItem::Position::Top, (int)i, true, item.name);
+        }
+    }
+    if (!playlistItems.empty()) {
+        menuPlaylist = new MenuVideoSubmenu(
+            main, main->getMenuVideo()->getGlobalBounds(), "Playlist", playlistItems, MENU_VIDEO_TYPE_PL);
+        menuPlaylist->setVisibility(Visibility::Hidden, false);
+        menuPlaylist->setLayer(3);
+        add(menuPlaylist);
+    }
+
 #ifdef FULL_TEXTURE_TEST
     texture->resize({file.mediaInfo.videos.at(0).width,
                      file.mediaInfo.videos.at(0).height});
@@ -210,6 +230,10 @@ void Player::onStopEvent(int reason) {
         delete (menuSubtitlesStreams);
         menuSubtitlesStreams = nullptr;
     }
+    if (menuPlaylist != nullptr) {
+        delete (menuPlaylist);
+        menuPlaylist = nullptr;
+    }
 
 
     if (main->isExiting()) {
@@ -226,16 +250,13 @@ void Player::onStopEvent(int reason) {
         position = lastKnownPosition;
     }
     bool playbackCompleted = duration > 0 && ((double)position / duration) >= 0.98;
-    bool isPlaylist = file.path.size() >= 4 && 
-        (file.path.compare(file.path.size() - 4, 4, ".m3u") == 0 || 
-        file.path.compare(file.path.size() - 5, 5, ".m3u8") == 0);
     pplay::Utility::log(pplay::Utility::LogLevel::Info,
         "Player::onStopEvent reason=" + std::to_string(reason)
         + " duration=" + std::to_string(duration)
         + " position=" + std::to_string(position)
         + " delta=" + std::to_string(duration - position)
         + " playbackCompleted=" + std::to_string(playbackCompleted ? 1 : 0)
-        + " isPlaylist=" + std::to_string(isPlaylist ? 1 : 0)
+        + " isPlaylist=" + std::to_string(isPlaylistFile() ? 1 : 0)
         + " retries=" + std::to_string(retryCount));
 
     if (reason == MPV_END_FILE_REASON_ERROR) {
@@ -250,7 +271,7 @@ void Player::onStopEvent(int reason) {
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
             "Player::onStopEvent could not load file");
         printf("Player::load: could not load file\n");
-    } else if (reason == MPV_END_FILE_REASON_EOF && playbackCompleted && !isPlaylist) {
+    } else if (reason == MPV_END_FILE_REASON_EOF && playbackCompleted && !isPlaylistFile()) {
         const int autoplayMode = main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger();
         if (autoplayMode == 2) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
@@ -290,7 +311,7 @@ void Player::onStopEvent(int reason) {
                 }
             }
         }
-    } else if (reason == MPV_END_FILE_REASON_EOF && !isPlaylist) {
+    } else if (reason == MPV_END_FILE_REASON_EOF && !isPlaylistFile()) {
         int retries = main->getConfig()->getOption(OPT_NETWORK_RETRIES)->getInteger();
         if (retries == 0 || retryCount < retries) {
             retryCount++;
@@ -391,7 +412,8 @@ bool Player::onInput(c2d::Input::Player *players) {
         || main->getMenuVideo()->isVisible()
         || (getMenuVideoStreams() != nullptr && getMenuVideoStreams()->isVisible())
         || (getMenuAudioStreams() != nullptr && getMenuAudioStreams()->isVisible())
-        || (getMenuSubtitlesStreams() != nullptr && getMenuSubtitlesStreams()->isVisible())) {
+        || (getMenuSubtitlesStreams() != nullptr && getMenuSubtitlesStreams()->isVisible())
+        || (getMenuPlaylist() != nullptr && getMenuPlaylist()->isVisible())) {
         return C2DObject::onInput(players);
     }
 
@@ -538,6 +560,9 @@ void Player::setFullscreen(bool fs, bool hide) {
         if (menuSubtitlesStreams != nullptr) {
             menuSubtitlesStreams->setVisibility(Visibility::Hidden, true);
         }
+        if (menuPlaylist != nullptr) {
+            menuPlaylist->setVisibility(Visibility::Hidden, true);
+        }
         main->getFiler()->setVisibility(Visibility::Visible, true);
         main->getStatusBar()->setVisibility(Visibility::Visible, true);
     } else {
@@ -562,12 +587,36 @@ MenuVideoSubmenu *Player::getMenuSubtitlesStreams() {
     return menuSubtitlesStreams;
 }
 
+MenuVideoSubmenu *Player::getMenuPlaylist() {
+    return menuPlaylist;
+}
+
 const std::string &Player::getTitle() const {
-    return file.name;
+    if (isPlaylistFile()) {
+        displayTitle = mpv->getPlaylistCurrentTitle();
+        if (displayTitle.empty()) {
+            displayTitle = file.name;
+        }
+        displayTitle = "#" + std::to_string(mpv->getPlaylistPos() + 1)
+            + ". " + displayTitle;
+    } else {
+        displayTitle = file.name;
+    }
+    return displayTitle;
 }
 
 bool Player::hasVideo() const {
     return !file.mediaInfo.videos.empty();
+}
+
+bool Player::isPlaylistFile() const {
+    return file.name.size() >= 4 &&
+        (file.name.compare(file.name.size() - 4, 4, ".m3u") == 0 ||
+         file.name.compare(file.name.size() - 5, 5, ".m3u8") == 0);
+}
+
+const std::vector<MediaFile> &Player::getAutoplayFiles() const {
+    return autoplayFiles;
 }
 
 PlayerOSD *Player::getOSD() {
