@@ -94,6 +94,7 @@ jobs:
           grep -q 'PACBREW_PKG_CONFIG_PATH' PKGBUILD
           grep -q 'enable-openssl' PKGBUILD
           grep -q 'udp,rtmp,https' PKGBUILD
+          cat PKGBUILD
           makepkg --noconfirm --syncdeps
           find ./ -name "*.pkg.tar.*" -exec cp -v {} /opt/compiled_libs/ffmpeg/ \;
           find ./ -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
