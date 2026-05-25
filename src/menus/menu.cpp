@@ -172,7 +172,7 @@ MenuButton::MenuButton(Main *main, const MenuItem &item, const FloatRect &rect) 
 void MenuButton::onUpdate() {
     Rectangle::onUpdate();
     auto it = g_btnScrolls.find(this);
-    if (it == g_btnScrolls.end()) {
+    if (!this->isVisible() || it == g_btnScrolls.end()) {
         return;
     }
     TextScroll &s = it->second;
@@ -334,6 +334,10 @@ void Menu::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
         }
         g_scrollStates[this].skipEnsure = false;
         updateScroll();
+    } else {
+        for (auto &button: buttons) {
+            button->setVisibility(Visibility::Hidden);
+        }
     }
 }
 
