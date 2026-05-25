@@ -87,11 +87,9 @@ jobs:
           source /opt/pacbrew/ps4/openorbis/ps4vars.sh
           export PKG_CONFIG_PATH="/opt/pacbrew/ps4/openorbis/usr/lib/pkgconfig:$PKG_CONFIG_PATH"
           export OPENSSL_DIR="/opt/pacbrew/ps4/openorbis/usr"
-          sed -i "s/'ps4-openorbis-mbedtls'//g" PKGBUILD
-          sed -i 's/--enable-libfribidi/--enable-libfribidi --enable-version3 --enable-openssl/' PKGBUILD
+          sed -i 's/--enable-static/--enable-static --enable-nonfree/' PKGBUILD
+          sed -i 's/--enable-libfribidi/--enable-libfribidi --enable-version3 --enable-openssl --extra-cflags="-I\/opt\/pacbrew\/ps4\/openorbis\/usr\/include" --extra-ldflags="-L\/opt\/pacbrew\/ps4\/openorbis\/usr\/lib -lssl -lcrypto"/' PKGBUILD
           sed -i 's/--enable-protocol=file,http,ftp,tcp,udp,rtmp/--enable-protocol=file,http,ftp,tcp,udp,rtmp,https/' PKGBUILD
-          sed -i '/build() {/a \  export PACBREW_PKG_CONFIG_PATH="/opt/pacbrew/ps4/openorbis/usr/lib/pkgconfig:$PACBREW_PKG_CONFIG_PATH"' PKGBUILD
-          grep -q 'PACBREW_PKG_CONFIG_PATH' PKGBUILD
           grep -q 'enable-openssl' PKGBUILD
           grep -q 'udp,rtmp,https' PKGBUILD
           cat PKGBUILD
