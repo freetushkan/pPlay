@@ -204,9 +204,6 @@ jobs:
       - name: Build pplay
         run: |
           set -euxo pipefail
-          sed -i 's/list(APPEND PLATFORM_LIBS ssl crypto SceNet)/list(APPEND PLATFORM_LIBS "-Wl,--start-group" ssl crypto SceNet "-Wl,--end-group")/' CMakeLists.txt
-          sed -i '/add_executable(${CMAKE_PROJECT_NAME}/i \target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE "/opt/pacbrew/ps4/openorbis/usr/lib")' CMakeLists.txt
-
           cd cmake-build
           source /opt/pacbrew/ps4/openorbis/ps4vars.sh
           make pplay_pkg -j"$(nproc)" VERBOSE=1 2>&1 | tee build.log
