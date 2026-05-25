@@ -60,15 +60,20 @@ Player::~Player() {
 }
 
 bool Player::load(const MediaFile &f, bool resetRetry, const std::string &options) {
-    bool existsInAutoplay = false;
-    for (auto &autoplayFile: autoplayFiles) {
-        if (autoplayFile.path == f.path) {
-            existsInAutoplay = true;
-            break;
+    bool isPlaylist = f.path.size() >= 4 && 
+        (f.path.compare(f.path.size() - 4, 4, ".m3u") == 0 || 
+        f.path.compare(f.path.size() - 5, 5, ".m3u8") == 0);
+    if (!isPlaylist) {
+        bool existsInAutoplay = false;
+        for (auto &autoplayFile: autoplayFiles) {
+            if (autoplayFile.path == f.path) {
+                existsInAutoplay = true;
+                break;
+            }
         }
-    }
-    if (!existsInAutoplay) {
-        autoplayFiles = main->getFiler()->getFilesSnapshot();
+        if (!existsInAutoplay) {
+            autoplayFiles = main->getFiler()->getFilesSnapshot();
+        }
     }
 
     file = f;
@@ -189,6 +194,29 @@ void Player::onLoadEvent() {
 }
 
 void Player::onStopEvent(int reason) {
+    main->getStatus()->hide();
+    main->getMenuVideo()->reset();
+    osd->reset();
+
+    if (menuAudioStreams != nullptr) {
+        delete (menuAudioStreams);
+        menuAudioStreams = nullptr;
+    }
+    if (menuVideoStreams != nullptr) {
+        delete (menuVideoStreams);
+        menuVideoStreams = nullptr;
+    }
+    if (menuSubtitlesStreams != nullptr) {
+        delete (menuSubtitlesStreams);
+        menuSubtitlesStreams = nullptr;
+    }
+
+
+    if (main->isExiting()) {
+        main->setRunningStop();
+        return;
+    }
+
     long duration = mpv->getDuration();
     long position = mpv->getPosition();
     if (duration <= 0) {
@@ -198,21 +226,19 @@ void Player::onStopEvent(int reason) {
         position = lastKnownPosition;
     }
     bool playbackCompleted = duration > 0 && ((double)position / duration) >= 0.98;
+    bool isPlaylist = file.path.size() >= 4 && 
+        (file.path.compare(file.path.size() - 4, 4, ".m3u") == 0 || 
+        file.path.compare(file.path.size() - 5, 5, ".m3u8") == 0);
     pplay::Utility::log(pplay::Utility::LogLevel::Info,
         "Player::onStopEvent reason=" + std::to_string(reason)
         + " duration=" + std::to_string(duration)
         + " position=" + std::to_string(position)
         + " delta=" + std::to_string(duration - position)
         + " playbackCompleted=" + std::to_string(playbackCompleted ? 1 : 0)
+        + " isPlaylist=" + std::to_string(isPlaylist ? 1 : 0)
         + " retries=" + std::to_string(retryCount));
 
-    if (main->isExiting()) {
-        main->getStatus()->hide();
-        main->getMenuVideo()->reset();
-        osd->reset();
-        main->setRunningStop();
-        return;
-    } else if (reason == MPV_END_FILE_REASON_ERROR) {
+    if (reason == MPV_END_FILE_REASON_ERROR) {
         int retries = main->getConfig()->getOption(OPT_NETWORK_RETRIES)->getInteger();
         if (retries == 0 || retryCount < retries) {
             retryCount++;
@@ -224,7 +250,7 @@ void Player::onStopEvent(int reason) {
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
             "Player::onStopEvent could not load file");
         printf("Player::load: could not load file\n");
-    } else if (reason == MPV_END_FILE_REASON_EOF && playbackCompleted) {
+    } else if (reason == MPV_END_FILE_REASON_EOF && playbackCompleted && !isPlaylist) {
         const int autoplayMode = main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger();
         if (autoplayMode == 2) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
@@ -241,7 +267,6 @@ void Player::onStopEvent(int reason) {
                 }
             }
             if (currentIndex >= 0) {
-                const bool loopEnabled = autoplayMode == 3;
                 for (size_t idx = (size_t) currentIndex + 1; idx < autoplayFiles.size(); idx++) {
                     if (pplay::Utility::isMedia(autoplayFiles[idx])) {
                         pplay::Utility::log(pplay::Utility::LogLevel::Info,
@@ -251,11 +276,12 @@ void Player::onStopEvent(int reason) {
                         return;
                     }
                 }
-                if (loopEnabled) {
+                if (autoplayMode == 3) {
                     for (size_t idx = 0; idx < (size_t) currentIndex; idx++) {
                         if (pplay::Utility::isMedia(autoplayFiles[idx])) {
-                            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent autoplayLoop current=" + file.path
-                                                + " next=" + autoplayFiles[idx].path);
+                            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                                "Player::onStopEvent autoplayLoop current=" + file.path
+                                + " next=" + autoplayFiles[idx].path);
                             load(autoplayFiles[idx]);
                             return;
                         }
@@ -263,7 +289,7 @@ void Player::onStopEvent(int reason) {
                 }
             }
         }
-    } else if (reason == MPV_END_FILE_REASON_EOF) {
+    } else if (reason == MPV_END_FILE_REASON_EOF && !isPlaylist) {
         int retries = main->getConfig()->getOption(OPT_NETWORK_RETRIES)->getInteger();
         if (retries == 0 || retryCount < retries) {
             retryCount++;
@@ -285,29 +311,13 @@ void Player::onStopEvent(int reason) {
             "Player::onStopEvent Unexpected end of file");
     }
 
-    main->getStatus()->hide();
-    main->getMenuVideo()->reset();
-    osd->reset();
-    if (menuAudioStreams != nullptr) {
-        delete (menuAudioStreams);
-        menuAudioStreams = nullptr;
-    }
-    if (menuVideoStreams != nullptr) {
-        delete (menuVideoStreams);
-        menuVideoStreams = nullptr;
-    }
-    if (menuSubtitlesStreams != nullptr) {
-        delete (menuSubtitlesStreams);
-        menuSubtitlesStreams = nullptr;
-    }
-    pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Min);
-#ifdef __SWITCH__
-    appletSetMediaPlaybackState(false);
-#endif
-
     if (mpv->isStopped()) {
         texture->clearFrame();
         setFullscreen(false, true);
+#ifdef __SWITCH__
+        pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Min);
+        appletSetMediaPlaybackState(false);
+#endif
     }
 }
 
@@ -466,8 +476,8 @@ void Player::pause() {
             "Player::pause::saveProgress lastKnownPosition=" + std::to_string(lastKnownPosition)
             + " lastKnownDuration=" + std::to_string(lastKnownDuration));
     }
-    pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Min);
 #ifdef __SWITCH__
+    pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Min);
     appletSetMediaPlaybackState(false);
 #endif
 }
