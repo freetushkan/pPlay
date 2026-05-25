@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include <orbis/libkernel.h>
 
@@ -21,65 +22,20 @@ typedef struct  {
 
 
 /**
- * Log a backtrace to /data/pplay/crash.log
+ * Log a backtrace to /dev/klog and /data/pplay/crash.log
  **/
 
-// #include <fcntl.h>
-// static void 
-// ulong_to_hex(unsigned long num, char* out) {
-//     char buf[16] = "0123456789abcdef";
-//     for (int i = 15; i >= 0; i--) {
-//         out[i] = buf[num & 0xF];
-//         num >>= 4;
-//     }
-//     out[16] = '\0';
-// }
+static void append_file_log(const char *text) {
+  int fd = open("/data/pplay/crash.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
+  if (fd < 0) {
+    return;
+  }
+  if (text) {
+    write(fd, text, strlen(text));
+  }
+  close(fd);
+}
 
-// static void
-// backtrace(int sig) {
-//   callframe_t frames[MAX_STACK_FRAMES];
-//   unsigned int nb_frames = 0;
-//   int fd = open("/data/pplay/crash.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
-//   if (fd < 0) {
-//       _exit(1);
-//   }
-//   write(fd, "[Crashlog]: Fatal signal received: ", 35);
-//   char sig_str[3];
-//   if (sig >= 10) {
-//       sig_str[0] = '0' + (sig / 10);
-//       sig_str[1] = '0' + (sig % 10);
-//       sig_str[2] = '\n';
-//       write(fd, sig_str, 3);
-//   } else {
-//       sig_str[0] = '0' + sig;
-//       sig_str[1] = '\n';
-//       write(fd, sig_str, 2);
-//   }
-//   write(fd, "[Crashlog]: Backtrace:\n", 23);
-//   sceKernelBacktraceSelf(frames, sizeof frames, &nb_frames, 0);
-//   char hex_buf[17];
-//   for(unsigned int i = 0; i < nb_frames; i++) {
-//     ulong_to_hex((unsigned long)frames[i].pc, hex_buf);
-//     write(fd, "  # ", 4);
-//     write(fd, hex_buf, 16);
-//     write(fd, "\n", 1);
-//   }
-//   close(fd);
-// }
-
-// /**
-//  * Log fatal signals to kernel log.
-//  **/
-// static void
-// fatal_signal(int sig) {
-//   backtrace(sig);
-//   _exit(1);
-// }
-
-
-/**
- * Log a backtrace to /dev/klog
- **/
 static void
 backtrace(const char* reason) {
   char addr2line[MAX_STACK_FRAMES * 20];
@@ -119,7 +75,9 @@ backtrace(const char* reason) {
   buf[MAX_MESSAGE_SIZE+2] = '\0';
   
   sceKernelDebugOutText(0, buf);
+  append_file_log(buf);
 }
+
 
 /**
  * Log fatal signals to kernel log.
@@ -128,7 +86,7 @@ static void
 fatal_signal(int sig) {
   char reason[64];
 
-  sprintf(reason, "Received the fatal POSIX signal %d", sig);
+  snprintf(reason, sizeof(reason), "Received the fatal POSIX signal %d", sig);
   backtrace(reason);
   _exit(1);
 }
