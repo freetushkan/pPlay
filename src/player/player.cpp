@@ -62,6 +62,7 @@ Player::~Player() {
 bool Player::load(const MediaFile &f, bool resetRetry, const std::string &options) {
     texture->clearFrame();
     file = f;
+    std::string opts = options;
     if (!isPlaylistFile()) {
         bool existsInAutoplay = false;
         for (auto &autoplayFile: autoplayFiles) {
@@ -92,6 +93,7 @@ bool Player::load(const MediaFile &f, bool resetRetry, const std::string &option
     if (Utility::startWith(path, "smb://")) {
         std::replace(path.begin(), path.end(), '\\', '/');
         path.replace(0, strlen("smb://"), "smb2://");
+        opts += ",hr-seek=no";
     }
 #endif
 
@@ -104,7 +106,7 @@ bool Player::load(const MediaFile &f, bool resetRetry, const std::string &option
 
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
         "Player::load effective_url=" + path);
-    int res = mpv->load(path, Mpv::LoadType::Replace, options);
+    int res = mpv->load(path, Mpv::LoadType::Replace, opts);
     if (res != 0) {
         pplay::Utility::log(pplay::Utility::LogLevel::Error,
             "Player::load error code=" + std::to_string(res)
