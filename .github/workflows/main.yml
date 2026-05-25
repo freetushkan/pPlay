@@ -194,7 +194,6 @@ jobs:
           cmake -G "Unix Makefiles" \
             -DPLATFORM_PS4=ON \
             -DOPTION_SMB2=ON \
-            -DCMAKE_EXE_LINKER_FLAGS="-L/opt/pacbrew/ps4/openorbis/usr/lib" \
             -DCMAKE_BUILD_TYPE=Release ..
 
       - name: Build pplay

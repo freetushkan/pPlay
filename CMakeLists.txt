@@ -38,6 +38,11 @@ set(PROJECT_AUTHOR "Cpasjuste")
 set(TITLE_ID "PPLAY0001")
 set(APP_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
 
+if (PLATFORM_PS4)
+    set(OPENSSL_ROOT_DIR "/opt/pacbrew/ps4/openorbis/usr" CACHE PATH "" FORCE)
+    set(OPENSSL_INCLUDE_DIR "/opt/pacbrew/ps4/openorbis/usr/include" CACHE PATH "" FORCE)
+endif ()
+
 # deps
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 find_package(BZip2 REQUIRED)
@@ -130,8 +135,6 @@ elseif (PLATFORM_PS4)
     set(PS4_PKG_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
     list(APPEND PPLAY_INC)
     list(APPEND PPLAY_LDFLAGS opus freetype fribidi png bz2)
-    set(OPENSSL_ROOT_DIR "/opt/pacbrew/ps4/openorbis/usr" CACHE PATH "" FORCE)
-    set(OPENSSL_INCLUDE_DIR "/opt/pacbrew/ps4/openorbis/usr/include" CACHE PATH "" FORCE)
 elseif (PLATFORM_LINUX)
     #####################
     # LINUX PLATORM
