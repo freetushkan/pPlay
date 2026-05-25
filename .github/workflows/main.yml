@@ -96,10 +96,9 @@ jobs:
           echo '    --enable-openssl \' >> PKGBUILD
           echo '    --enable-version3 \' >> PKGBUILD
           echo '    --extra-cflags="-I${OPENSSL_PREFIX}/include" \' >> PKGBUILD
-          echo '    --extra-ldflags="-L${OPENSSL_PREFIX}/lib -lssl -lcrypto" \' >> PKGBUILD
+          echo '    --extra-ldflags="-L${OPENSSL_PREFIX}/lib -lssl -lcrypto -lSceNet" \' >> PKGBUILD
           echo '    --cc=$CC --cxx=$CXX --nm=$NM --strip=$STRIP --ar=$AR --ranlib=$RANLIB' >> PKGBUILD
           echo '' >> PKGBUILD
-          echo '  # PS4 fix' >> PKGBUILD
           echo '  sed -i '\''s|#define HAVE_SYSCTL 1|//#define HAVE_SYSCTL 1|g'\'' config.h' >> PKGBUILD
           echo '' >> PKGBUILD
           echo '  make --quiet -j$(nproc)' >> PKGBUILD
@@ -109,7 +108,7 @@ jobs:
           makepkg --noconfirm --syncdeps --cleanbuild --log || {
             echo "=== Build failed ==="
             find . -name "*.log" -exec tail -n 300 {} +
-            [ -f ffmpeg-*/ffbuild/config.log ] && tail -n 800 ffmpeg-*/ffbuild/config.log
+            [ -f ffmpeg-*/ffbuild/config.log ] && tail -n 1000 ffmpeg-*/ffbuild/config.log | tail -n 400
             exit 1
           }
           find ./ -name "*.pkg.tar.*" -exec cp -v {} /opt/compiled_libs/ffmpeg/ \;
