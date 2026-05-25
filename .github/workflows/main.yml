@@ -59,7 +59,9 @@ jobs:
           set -eux
           source /opt/pacbrew/ps4/openorbis/ps4vars.sh
           cd ps4-openssl
-          ./Configure --prefix=/opt/pacbrew/ps4/openorbis/usr ps4-cross
+          ./Configure --prefix=/opt/pacbrew/ps4/openorbis/usr ps4-cross \ \
+            -DOPENSSL_NO_GETENTROPY \
+            -DOPENSSL_NO_RAND_GETENTROPY
           make -j"$(nproc)"
           sudo make install
           find /opt -name openssl.pc
