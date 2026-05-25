@@ -87,27 +87,31 @@ jobs:
           source /opt/pacbrew/ps4/openorbis/ps4vars.sh
           export PKG_CONFIG_PATH="/opt/pacbrew/ps4/openorbis/usr/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
           export OPENSSL_PREFIX="/opt/pacbrew/ps4/openorbis/usr"
-          sed -i '/^build() {$/,/^}$/c\build() {
-            cd ffmpeg-$pkgver
-            source /opt/pacbrew/ps4/openorbis/ps4vars.sh
-            ./configure --prefix="${OPENORBIS}/usr" \
-              --enable-cross-compile --cross-prefix=${OPENORBIS}/bin/ \
-              --arch=x86_64 --target-os=freebsd \
-              --disable-shared --enable-static --enable-nonfree \
-              --pkg-config=openorbis-pkg-config \
-              --disable-programs --disable-debug --disable-doc \
-              --disable-avdevice --disable-hwaccels --disable-encoders --disable-muxers \
-              --enable-swscale --enable-swresample --enable-network \
-              --disable-protocols --enable-protocol=file,http,ftp,tcp,udp,rtmp,https \
-              --enable-zlib --enable-bzlib --enable-libass --enable-libfreetype --enable-libfribidi \
-              --enable-openssl \
-              --enable-version3 \
-              --extra-cflags="-I${OPENSSL_PREFIX}/include" \
-              --extra-ldflags="-L${OPENSSL_PREFIX}/lib -lssl -lcrypto" \
-              --cc=$CC --cxx=$CXX --nm=$NM --strip=$STRIP --ar=$AR --ranlib=$RANLIB
-            sed -i '\''s|#define HAVE_SYSCTL 1|//#define HAVE_SYSCTL 1|g'\'' config.h
-            make --quiet -j$(nproc)
-          }' PKGBUILD
+          sed -i '/^build() {/,/^}/d' PKGBUILD
+          echo 'build() {' >> PKGBUILD
+          echo '  cd ffmpeg-$pkgver' >> PKGBUILD
+          echo '  source /opt/pacbrew/ps4/openorbis/ps4vars.sh' >> PKGBUILD
+          echo '' >> PKGBUILD
+          echo '  ./configure --prefix="${OPENORBIS}/usr" \' >> PKGBUILD
+          echo '    --enable-cross-compile --cross-prefix=${OPENORBIS}/bin/ \' >> PKGBUILD
+          echo '    --arch=x86_64 --target-os=freebsd \' >> PKGBUILD
+          echo '    --disable-shared --enable-static --enable-nonfree \' >> PKGBUILD
+          echo '    --pkg-config=openorbis-pkg-config \' >> PKGBUILD
+          echo '    --disable-programs --disable-debug --disable-doc \' >> PKGBUILD
+          echo '    --disable-avdevice --disable-hwaccels --disable-encoders --disable-muxers \' >> PKGBUILD
+          echo '    --enable-swscale --enable-swresample --enable-network \' >> PKGBUILD
+          echo '    --disable-protocols --enable-protocol=file,http,ftp,tcp,udp,rtmp,https \' >> PKGBUILD
+          echo '    --enable-zlib --enable-bzlib --enable-libass --enable-libfreetype --enable-libfribidi \' >> PKGBUILD
+          echo '    --enable-openssl \' >> PKGBUILD
+          echo '    --enable-version3 \' >> PKGBUILD
+          echo '    --extra-cflags="-I${OPENSSL_PREFIX}/include" \' >> PKGBUILD
+          echo '    --extra-ldflags="-L${OPENSSL_PREFIX}/lib -lssl -lcrypto" \' >> PKGBUILD
+          echo '    --cc=$CC --cxx=$CXX --nm=$NM --strip=$STRIP --ar=$AR --ranlib=$RANLIB' >> PKGBUILD
+          echo '' >> PKGBUILD
+          echo '  sed -i '\''s|#define HAVE_SYSCTL 1|//#define HAVE_SYSCTL 1|g'\'' config.h' >> PKGBUILD
+          echo '' >> PKGBUILD
+          echo '  make --quiet -j$(nproc)' >> PKGBUILD
+          echo '}' >> PKGBUILD
           echo "=== Patched PKGBUILD ==="
           cat PKGBUILD
           makepkg --noconfirm --syncdeps --cleanbuild --log || {
