@@ -90,6 +90,7 @@ jobs:
           sed -i "s/'ps4-openorbis-mbedtls'//g" PKGBUILD
           sed -i 's/--enable-libfribidi/--enable-libfribidi --enable-version3 --enable-openssl/' PKGBUILD
           sed -i 's/--enable-protocol=file,http,ftp,tcp,udp,rtmp/--enable-protocol=file,http,ftp,tcp,udp,rtmp,https/' PKGBUILD
+          sed -i '/build()/a \  export PKG_CONFIG_PATH="/opt/pacbrew/ps4/openorbis/usr/lib/pkgconfig:$PKG_CONFIG_PATH"' PKGBUILD
           grep -q 'enable-openssl' PKGBUILD
           grep -q 'udp,rtmp,https' PKGBUILD
           makepkg --noconfirm --syncdeps
