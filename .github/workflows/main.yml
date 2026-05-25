@@ -124,6 +124,8 @@ jobs:
           sed -i "s/'ps4-openorbis-mbedtls'//g" PKGBUILD
           sed -i 's/--with-mbedtls/--with-openssl/g' PKGBUILD
           grep -q -- "--with-openssl" PKGBUILD
+          export CPPFLAGS="${CPPFLAGS:-} -DOPENSSL_NO_UI_CONSOLE"
+          export CFLAGS="${CFLAGS:-} -DOPENSSL_NO_UI_CONSOLE"
           makepkg --noconfirm --syncdeps --cleanbuild
           find ./ -name "*.pkg.tar.*" -exec cp -v {} /opt/compiled_libs/curl/ \;
           find ./ -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
@@ -198,11 +200,7 @@ jobs:
         run: |
           set -euxo pipefail
           cd cmake-build
-
-          # Verbose build logs to surface the actual linker error in CI output.
           make pplay_pkg -j"$(nproc)" VERBOSE=1 2>&1 | tee build.log
-
-          # If build succeeded, move package artifact as before.
           mv *.pkg ../
 
       - name: Upload Artifact
