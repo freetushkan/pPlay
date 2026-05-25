@@ -105,8 +105,6 @@ endif ()
 
 if (OPTION_SMB2)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-    set(OPENSSL_ROOT_DIR "/opt/pacbrew/ps4/openorbis/usr" CACHE PATH "" FORCE)
-    set(OPENSSL_INCLUDE_DIR "/opt/pacbrew/ps4/openorbis/usr/include" CACHE PATH "" FORCE)
     add_subdirectory(libsmb2)
     list(APPEND PPLAY_CFLAGS -D__SMB2__)
     list(APPEND PPLAY_INC libsmb2/include libsmb2/include/smb2)
@@ -132,6 +130,8 @@ elseif (PLATFORM_PS4)
     set(PS4_PKG_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
     list(APPEND PPLAY_INC)
     list(APPEND PPLAY_LDFLAGS opus freetype fribidi png bz2)
+    set(OPENSSL_ROOT_DIR "/opt/pacbrew/ps4/openorbis/usr" CACHE PATH "" FORCE)
+    set(OPENSSL_INCLUDE_DIR "/opt/pacbrew/ps4/openorbis/usr/include" CACHE PATH "" FORCE)
 elseif (PLATFORM_LINUX)
     #####################
     # LINUX PLATORM
