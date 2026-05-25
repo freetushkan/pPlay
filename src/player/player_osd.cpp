@@ -138,7 +138,9 @@ void PlayerOSD::onDraw(c2d::Transform &transform, bool draw) {
     }
 
     bool hasVideo = player->hasVideo();
-    if (hasVideo && !mpv->isPaused() && clock.getElapsedTime().asSeconds() >= OSD_HIDE_TIME) {
+    if (hasVideo
+        && !mpv->isPaused()
+        && clock.getElapsedTime().asSeconds() >= OSD_HIDE_TIME) {
         setVisibility(Visibility::Hidden, true);
         main->getStatusBar()->setVisibility(Visibility::Hidden, true);
     }
@@ -165,13 +167,7 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
         main->getStatusBar()->setVisibility(Visibility::Hidden, true);
     };
 
-    if (mpv->isStopped() || !player->isFullscreen()) {
-        hideOSD();
-        return true;
-    }
-
     unsigned int keys = players[0].buttons;
-    // unsigned int keys = main->getInput()->getButtons(0);
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
         "PlayerOSD::onInput keys=" + pplay::Utility::getKeysString(keys));
     if (!keys) return true;
