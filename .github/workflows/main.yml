@@ -71,9 +71,7 @@ jobs:
           cd /tmp/portlibs/libcurl
           source /opt/pacbrew/ps4/openorbis/ps4vars.sh
           sed -i "s/'ps4-openorbis-mbedtls'//g" PKGBUILD
-          sed -i "s/'ps4-openorbis-zlib'/'ps4-openorbis-zlib' 'ps4-openorbis-openssl'/g" PKGBUILD
           sed -i 's/--with-mbedtls/--with-openssl/g' PKGBUILD
-          grep -q "ps4-openorbis-openssl" PKGBUILD
           grep -q -- "--with-openssl" PKGBUILD
           makepkg --noconfirm --syncdeps --cleanbuild
           find ./ -name "*.pkg.tar.*" -exec cp -v {} /opt/compiled_libs/curl/ \;
