@@ -8,3 +8,7 @@
 	path = libsmb2
 	url = https://github.com/cy33hc/libsmb2.git
 	branch = ps4-new
+[submodule "ps4-openssl"]
+	path = ps4-openssl
+	url = https://github.com/cy33hc/ps4-openssl
+	branch = OpenSSL_1_1_1-ps4
