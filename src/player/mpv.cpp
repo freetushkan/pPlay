@@ -193,6 +193,9 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
 #endif
     logged_mpv_set_option_string(handle, "audio-channels", "stereo");
     logged_mpv_set_option_string(handle, "audio-normalize-downmix", "yes");
+    logged_mpv_set_option_string(handle, "cache-pause", "yes");
+    logged_mpv_set_option_string(handle, "cache-secs", "60");
+    logged_mpv_set_option_string(handle, "demuxer-lavf-o", "reconnect=1:reconnect_at_eof=1:reconnect_streamed=1:reconnect_delay_max=5");
 #ifdef __PS4__
     logged_mpv_set_option_string(handle, "ignore-path-in-watch-later-config", "yes");
 #endif
@@ -452,7 +455,7 @@ int Mpv::getVideoBitrate() {
 }
 
 int Mpv::getAudioBitrate() {
-    double bitrate = 0;
+    int64_t bitrate = 0;
     logged_mpv_get_property(handle, "audio-bitrate", MPV_FORMAT_INT64, &bitrate);
     return (int) bitrate;
 }
