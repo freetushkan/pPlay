@@ -196,8 +196,13 @@ jobs:
 
       - name: Build pplay
         run: |
+          set -euxo pipefail
           cd cmake-build
-          make pplay_pkg -j$(nproc)
+
+          # Verbose build logs to surface the actual linker error in CI output.
+          make pplay_pkg -j"$(nproc)" VERBOSE=1 2>&1 | tee build.log
+
+          # If build succeeded, move package artifact as before.
           mv *.pkg ../
 
       - name: Upload Artifact
