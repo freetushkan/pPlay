@@ -51,19 +51,45 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/compiled_libs
-          key: ${{ runner.os }}-ps4-libs-v1
+          key: ${{ runner.os }}-ps4-libs-openssl-v1
 
-      - name: Rebuild ffmpeg with mbedTLS and https
+      - name: Rebuild OpenSSL for PS4
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        run: |
+          set -eux
+          source /opt/pacbrew/ps4/openorbis/ps4vars.sh
+          cd ps4-openssl
+          ./Configure --prefix=/opt/pacbrew/ps4/openorbis/usr ps4-cross
+          make -j"$(nproc)"
+          sudo make install
+
+      - name: Rebuild curl with OpenSSL
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        run: |
+          set -eux
+          mkdir -p /opt/compiled_libs/curl
+          cd /tmp/portlibs/libcurl
+          sed -i "s/'ps4-openorbis-mbedtls'//g" PKGBUILD
+          sed -i "s/'ps4-openorbis-zlib'/'ps4-openorbis-zlib' 'ps4-openorbis-openssl'/g" PKGBUILD
+          sed -i 's/--with-mbedtls/--with-openssl/g' PKGBUILD
+          grep -q "ps4-openorbis-openssl" PKGBUILD
+          grep -q -- "--with-openssl" PKGBUILD
+          makepkg --noconfirm --syncdeps --cleanbuild
+          find ./ -name "*.pkg.tar.*" -exec cp -v {} /opt/compiled_libs/curl/ \;
+          find ./ -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
+
+      - name: Rebuild ffmpeg with OpenSSL and https
         if: steps.cache-libs.outputs.cache-hit != 'true'
         run: |
           set -eux
           mkdir -p /opt/compiled_libs/ffmpeg
           cd /tmp/portlibs/ffmpeg
-          sed -i "s/'ps4-openorbis-libfribidi' 'ps4-openorbis-freetype'/'ps4-openorbis-libfribidi' 'ps4-openorbis-freetype' 'ps4-openorbis-mbedtls'/" PKGBUILD
-          sed -i 's/--enable-libfribidi/--enable-libfribidi --enable-version3 --enable-mbedtls/' PKGBUILD
+          sed -i "s/'ps4-openorbis-mbedtls'//g" PKGBUILD
+          sed -i "s/'ps4-openorbis-libfribidi' 'ps4-openorbis-freetype'/'ps4-openorbis-libfribidi' 'ps4-openorbis-freetype' 'ps4-openorbis-openssl'/" PKGBUILD
+          sed -i 's/--enable-libfribidi/--enable-libfribidi --enable-version3 --enable-openssl/' PKGBUILD
           sed -i 's/--enable-protocol=file,http,ftp,tcp,udp,rtmp/--enable-protocol=file,http,ftp,tcp,udp,rtmp,https/' PKGBUILD
-          grep -q 'ps4-openorbis-mbedtls' PKGBUILD
-          grep -q 'enable-mbedtls' PKGBUILD
+          grep -q 'ps4-openorbis-openssl' PKGBUILD
+          grep -q 'enable-openssl' PKGBUILD
           grep -q 'udp,rtmp,https' PKGBUILD
           makepkg --noconfirm --syncdeps
           ls -l ./
@@ -86,6 +112,11 @@ jobs:
         if: steps.cache-libs.outputs.cache-hit == 'true'
         run: |
           find /opt/compiled_libs/ffmpeg -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
+
+      - name: Install cached curl
+        if: steps.cache-libs.outputs.cache-hit == 'true'
+        run: |
+          find /opt/compiled_libs/curl -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
 
       - name: Install cached libmpv
         if: steps.cache-libs.outputs.cache-hit == 'true'
