@@ -69,6 +69,7 @@ jobs:
           set -eux
           mkdir -p /opt/compiled_libs/curl
           cd /tmp/portlibs/libcurl
+          source /opt/pacbrew/ps4/openorbis/ps4vars.sh
           sed -i "s/'ps4-openorbis-mbedtls'//g" PKGBUILD
           sed -i "s/'ps4-openorbis-zlib'/'ps4-openorbis-zlib' 'ps4-openorbis-openssl'/g" PKGBUILD
           sed -i 's/--with-mbedtls/--with-openssl/g' PKGBUILD
@@ -84,6 +85,7 @@ jobs:
           set -eux
           mkdir -p /opt/compiled_libs/ffmpeg
           cd /tmp/portlibs/ffmpeg
+          source /opt/pacbrew/ps4/openorbis/ps4vars.sh
           sed -i "s/'ps4-openorbis-mbedtls'//g" PKGBUILD
           sed -i "s/'ps4-openorbis-libfribidi' 'ps4-openorbis-freetype'/'ps4-openorbis-libfribidi' 'ps4-openorbis-freetype' 'ps4-openorbis-openssl'/" PKGBUILD
           sed -i 's/--enable-libfribidi/--enable-libfribidi --enable-version3 --enable-openssl/' PKGBUILD
