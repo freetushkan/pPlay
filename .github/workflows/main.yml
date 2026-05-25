@@ -106,11 +106,10 @@ jobs:
           echo '    --enable-version3 \' >> PKGBUILD
           echo '    --extra-cflags="-I${OPENSSL_PREFIX}/include" \' >> PKGBUILD
           echo '    --extra-ldflags="-L${OPENSSL_PREFIX}/lib -lssl -lcrypto" \' >> PKGBUILD
-          echo '    --openssl-ldflags="-lssl -lcrypto" \' >> PKGBUILD
           echo '    --cc=$CC --cxx=$CXX --nm=$NM --strip=$STRIP --ar=$AR --ranlib=$RANLIB' >> PKGBUILD
           echo '' >> PKGBUILD
-          echo '  sed -i '\''s|#define HAVE_SYSCTL 1|//#define HAVE_SYSCTL 1|g'\'' config.h' >> PKGBUILD
-          echo '  sed -i "s/HAVE_SSL_LIBRARY_INIT 1/HAVE_SSL_LIBRARY_INIT 0/g" config.h' >> PKGBUILD
+          echo '  sed -i "s/HAVE_SSL_LIBRARY_INIT 1/HAVE_SSL_LIBRARY_INIT 0/g" config.h || true' >> PKGBUILD
+          echo '  sed -i "s/#define HAVE_OPENSSL 0/#define HAVE_OPENSSL 1/g" config.h || true' >> PKGBUILD
           echo '' >> PKGBUILD
           echo '  make --quiet -j$(nproc)' >> PKGBUILD
           echo '}' >> PKGBUILD
