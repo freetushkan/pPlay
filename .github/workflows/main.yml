@@ -78,8 +78,11 @@ jobs:
           echo '  cd ffmpeg-$pkgver' >> PKGBUILD
           echo '  source /opt/pacbrew/ps4/openorbis/ps4vars.sh' >> PKGBUILD
           echo '' >> PKGBUILD
+          echo '  # Fix OpenSSL detection' >> PKGBUILD
           echo '  sed -i "s/SSL_library_init/SSL_CTX_new/g" configure || true' >> PKGBUILD
           echo '  sed -i "s/check_lib openssl openssl\/ssl.h SSL_library_init/check_lib openssl openssl\/ssl.h SSL_CTX_new/g" configure || true' >> PKGBUILD
+          echo '  sed -i "s/-lws2_32 -lgdi32//g" configure || true' >> PKGBUILD
+          echo '' >> PKGBUILD
           echo '  ./configure --prefix="${OPENORBIS}/usr" \' >> PKGBUILD
           echo '    --enable-cross-compile --cross-prefix=${OPENORBIS}/bin/ \' >> PKGBUILD
           echo '    --arch=x86_64 --target-os=freebsd \' >> PKGBUILD
@@ -94,8 +97,10 @@ jobs:
           echo '    --enable-version3 \' >> PKGBUILD
           echo '    --extra-cflags="-I${OPENSSL_PREFIX}/include" \' >> PKGBUILD
           echo '    --extra-ldflags="-L${OPENSSL_PREFIX}/lib -lssl -lcrypto" \' >> PKGBUILD
-          echo '    --openssl-libs="-lssl -lcrypto" \' >> PKGBUILD
           echo '    --cc=$CC --cxx=$CXX --nm=$NM --strip=$STRIP --ar=$AR --ranlib=$RANLIB' >> PKGBUILD
+          echo '' >> PKGBUILD
+          echo '  # PS4 fix' >> PKGBUILD
+          echo '  sed -i '\''s|#define HAVE_SYSCTL 1|//#define HAVE_SYSCTL 1|g'\'' config.h' >> PKGBUILD
           echo '' >> PKGBUILD
           echo '  make --quiet -j$(nproc)' >> PKGBUILD
           echo '}' >> PKGBUILD
@@ -103,8 +108,8 @@ jobs:
           cat PKGBUILD
           makepkg --noconfirm --syncdeps --cleanbuild --log || {
             echo "=== Build failed ==="
-            find . -name "*.log" -exec tail -n 200 {} +
-            [ -f ffmpeg-*/ffbuild/config.log ] && tail -n 600 ffmpeg-*/ffbuild/config.log
+            find . -name "*.log" -exec tail -n 300 {} +
+            [ -f ffmpeg-*/ffbuild/config.log ] && tail -n 800 ffmpeg-*/ffbuild/config.log
             exit 1
           }
           find ./ -name "*.pkg.tar.*" -exec cp -v {} /opt/compiled_libs/ffmpeg/ \;
