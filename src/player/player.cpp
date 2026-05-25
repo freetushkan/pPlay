@@ -259,6 +259,7 @@ void Player::onStopEvent(int reason) {
             return;
         }
         if ((autoplayMode == 1 || autoplayMode == 3) && !autoplayFiles.empty()) {
+            texture->clearFrame();
             int currentIndex = -1;
             for (size_t i = 0; i < autoplayFiles.size(); i++) {
                 if (autoplayFiles[i].path == file.path) {
@@ -343,20 +344,28 @@ void Player::onUpdate() {
         }
         mpv_event *event = mpv->getEvent();
         if (event != nullptr) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+                "Player::onUpdate::event event_id=" + std::to_string(event->event_id));
             switch (event->event_id) {
                 case MPV_EVENT_START_FILE:
                     printf("MPV_EVENT_START_FILE\n");
+                    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+                        "Player::onUpdate::event MPV_EVENT_START_FILE");
                     texture->clearFrame();
                     main->getStatus()->show("Please Wait...",
                         "Loading... " + encoding::fix(file.name), true);
                     break;
                 case MPV_EVENT_FILE_LOADED:
                     printf("MPV_EVENT_FILE_LOADED\n");
+                    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+                        "Player::onUpdate::event MPV_EVENT_FILE_LOADED");
                     onLoadEvent();
                     main->getStatus()->hide();
                     break;
                 case MPV_EVENT_END_FILE:
                     printf("MPV_EVENT_END_FILE\n");
+                    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+                        "Player::onUpdate::event MPV_EVENT_END_FILE");
                     onStopEvent(((mpv_event_end_file *) event->data)->reason);
                     break;
                 default:
