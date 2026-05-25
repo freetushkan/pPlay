@@ -23,7 +23,7 @@
 #include "io.h"
 #include <string>
 #include <vector>
-#include <mbedtls/md5.h>
+#include <openssl/md5.h>
 #include <cstdio>
 
 #include <algorithm>
@@ -241,21 +241,14 @@ void Utility::log(Utility::LogLevel level, const std::string &message) {
     out << time_ss.str() << " UTC (" << raw_ms << ") | " << message << "\n";
 }
 
-
-std::string Utility::md5hash(const std::string &input) {
-    unsigned char output[16];
-    mbedtls_md5_context ctx;
-    mbedtls_md5_init(&ctx);
-    mbedtls_md5_starts_ret(&ctx);
-    mbedtls_md5_update_ret(&ctx, (const unsigned char*)input.c_str(), input.length());
-    mbedtls_md5_finish_ret(&ctx, output);
-    mbedtls_md5_free(&ctx);
-
-    std::stringstream ss;
-    for(int i = 0; i < 16; i++) {
-        ss << std::hex << std::setw(2) << std::setfill('0') << (int)output[i];
-    }
-    return ss.str();
+std::string pplay::Utility::md5hash(const std::string& input) {
+    unsigned char digest[MD5_DIGEST_LENGTH];
+    MD5((const unsigned char*)input.c_str(), input.length(), digest);
+    char buf[33];
+    for(int i = 0; i < 16; i++)
+        sprintf(buf + (i*2), "%02x", digest[i]);
+    buf[32] = 0;
+    return std::string(buf);
 }
 
 bool Utility::deleteFile(const std::string &path) {
