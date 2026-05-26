@@ -536,6 +536,7 @@ void Player::resume() {
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
             "Player::resume reopenAfterLongPause elapsed="
             + std::to_string((long)pauseClock.getElapsedTime().asSeconds())
+            + " isPlaylistFile=" + (isPlaylistFile() ? "true" : "false")
             + " lastKnownPosition=" + std::to_string(lastKnownPosition));
         pausedHttpsStream = false;
         load(file, false, opts);
