@@ -421,6 +421,13 @@ std::string Mpv::getPlaylistCurrentTitle() {
     return res;
 }
 
+std::string Mpv::getCurrentPath() {
+    char *path = logged_mpv_get_property_string(handle, "path");
+    std::string res = path ? path : "";
+    if (path) mpv_free(path);
+    return res;
+}
+
 std::vector<std::pair<int, std::string>> Mpv::getPlaylistItems() {
     std::vector<std::pair<int, std::string>> items;
     mpv_node node;

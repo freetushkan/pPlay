@@ -90,6 +90,8 @@ private:
     long lastProgressSave = 0;
     long lastKnownDuration = 0;
     long lastKnownPosition = 0;
+    bool pausedHttpsStream = false;
+    c2d::C2DClock pauseClock;
 
     // player
     VideoTexture *texture = nullptr;

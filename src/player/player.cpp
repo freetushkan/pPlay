@@ -60,7 +60,7 @@ Player::~Player() {
 }
 
 bool Player::load(const MediaFile &f, bool resetRetry, const std::string &options) {
-    texture->clearFrame();
+    pausedHttpsStream = false;
     file = f;
     std::string opts = options;
     if (!isPlaylistFile()) {
@@ -505,6 +505,14 @@ void Player::setSpeed(double speed) {
 }
 
 void Player::pause() {
+    std::string streamUrl = pplay::TorrServe::toStreamUrl(mpv->getCurrentPath());
+    pausedHttpsStream = Utility::startWith(streamUrl, "https://");
+    if (pausedHttpsStream) {
+        pauseClock.restart();
+        pplay::Utility::log(pplay::Utility::LogLevel::Info,
+            "Player::pause https stream detected, pause timer started");
+    }
+
     mpv->pause();
     if (lastKnownPosition > 0 && lastKnownDuration > 300
         && (lastKnownDuration - lastKnownPosition) >= 60) {
@@ -520,6 +528,20 @@ void Player::pause() {
 }
 
 void Player::resume() {
+    if (pausedHttpsStream && pauseClock.getElapsedTime().asSeconds() >= 300) {
+        std::string opts = "pause=yes";
+        if (lastKnownPosition > 0) {
+            opts += ",start=" + std::to_string(lastKnownPosition);
+        }
+        pplay::Utility::log(pplay::Utility::LogLevel::Info,
+            "Player::resume reopenAfterLongPause elapsed="
+            + std::to_string((long)pauseClock.getElapsedTime().asSeconds())
+            + " lastKnownPosition=" + std::to_string(lastKnownPosition));
+        pausedHttpsStream = false;
+        load(file, false, opts);
+        return;
+    }
+    pausedHttpsStream = false;
     mpv->resume();
 #ifdef __SWITCH__
     if (main->getConfig()->getOption(OPT_CPU_BOOST)->getString() == "Enabled") {

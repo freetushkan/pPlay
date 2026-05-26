@@ -68,6 +68,7 @@ public:
     int getPlaylistPos();
     int getPlaylistCount();
     std::string getPlaylistCurrentTitle();
+    std::string getCurrentPath();
     std::vector<std::pair<int, std::string>> getPlaylistItems();
 
     int getVideoBitrate();
