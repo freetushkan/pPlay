@@ -530,7 +530,7 @@ void Player::pause() {
 void Player::resume() {
     if (pausedHttpsStream && pauseClock.getElapsedTime().asSeconds() >= 300) {
         std::string opts = "pause=yes";
-        if (lastKnownPosition > 0) {
+        if (!isPlaylistFile() && lastKnownPosition > 0) {
             opts += ",start=" + std::to_string(lastKnownPosition);
         }
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
