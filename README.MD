@@ -8,7 +8,7 @@ pPlay
 |:-----------------------------------------------------------------:|:------------------------------------------------------------------:|
 | ![](https://github.com/freetushkan/pPlay/raw/master/screenshot.jpg) | ![](https://github.com/freetushkan/pPlay/raw/master/screenshot2.jpg) |
 
-pPlay is a video player, built around **MPV/FFmpeg**.
+pPlay is a video player, built around **MPV/FFmpeg**, that supports most popular video format, subtitles, network streaming and more
 
 Supported features:
 - local media playback;
@@ -22,7 +22,7 @@ pPlay uses the [MPV](https://mpv.io/) interface to handle FFmpeg interoperabilit
 Installation
 ----
 
-- **PS4:** install the `.pkg` file.
+- **PS4:** just install the `.pkg` file from latest release.
 - **Switch:** currently there is no build.
 
 Usage
@@ -43,11 +43,10 @@ Fork additions
 Below are the main practical improvements and modernizations included in this fork:
 
 1. **Multi-network profiles**: up to 5 independent network sources (`NETWORK1..NETWORK5`) with custom labels (`NETWORKx_NAME`) and remembered last directories (`NETWORKx_LAST`).
-2. **TorrServer integration**: virtual torrent browsing, directory-like file navigation, automatic conversion to stream URLs for playback, watched-state support.
-3. **Samba/SMB support**: native `smb://` support, automatic `smb2://` conversion for MPV backend, configurable SMB read buffer.
+2. **TorrServer integration**: torrent browsing, files playback and watched-state support.
+3. **Samba/SMB support**: custom `smb://` mpv handler, configurable SMB read buffer.
 4. **Flexible network retry/timeouts**: separate playback retry count and connection timeout settings.
-5. **UX/player options**: configurable seek intervals, autoplay-after-finish behavior, swapped controls mode, UI accent color, logging.
-6. **Configuration stabilization**: validation of configuration values (for example SMB buffer range and HEX color validation).
+5. **UX/player options**: settings menu with configurable seek intervals, autoplay-after-finish behavior, swapped controls mode, UI accent color, logging and more.
 
 TorrServer support
 ----
@@ -73,7 +72,7 @@ NETWORK2_NAME = "TorrServer HTTPS"
 Important notes:
 
 * pPlay retrieves torrent lists using the TorrServer API;
-* displays torrent file structures as virtual directories;
+* displays torrent file structures as directories;
 * streams selected files directly;
 * uses/resets watched marks on the TorrServer side.
 
@@ -91,6 +90,11 @@ Recommendations:
 * Start with `SMB_READ_BUFFER_MB = 10` (default).
 * For unstable networks, increase the buffer size (`1..100` valid range).
 * Increase `NETWORK_TIMEOUT` and `NETWORK_RETRIES` if playback interruptions occur.
+
+## Known issues
+
+* Long playback start time when resuming from a saved position (SMB).
+* Playlist position resets to the first item when resuming after a long pause (M3U with HTTPS links).
 
 ## Current `pplay.cfg` parameters
 
@@ -173,7 +177,7 @@ CPU_BOOST = "Enabled"
 
 ## MPV configuration
 
-As before, you can place an `mpv.conf` file inside the `mpv` directory and use native MPV options directly.
+As pPlay use [MPV](https://mpv.io/), you can place an `mpv.conf` file inside the `/data/pplay/mpv` directory and use native MPV options directly.
 
 See:
 
