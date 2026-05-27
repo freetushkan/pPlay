@@ -8,7 +8,7 @@ pPlay
 |:-----------------------------------------------------------------:|:------------------------------------------------------------------:|
 | ![](https://github.com/freetushkan/pPlay/raw/master/screenshot.jpg) | ![](https://github.com/freetushkan/pPlay/raw/master/screenshot2.jpg) |
 
-pPlay is a video player for the Nintendo Switch (with ports to other platforms), built around **MPV/FFmpeg**.
+pPlay is a video player, built around **MPV/FFmpeg**.
 
 Supported features:
 - local media playback;
@@ -129,11 +129,11 @@ Below is the list of currently supported and maintained configuration parameters
 * `CPU_BOOST` (Switch) — `Disabled` / `Enabled` for heavy media playback.
 * `UTC_OFFSET` (PS4) — timezone offset.
 
-### Scraping (if enabled at build time)
+### Scraping (currently disabled at build time)
 
-* `ENABLE_SCRAPPING` (`0/1`) — enable metadata scraping.
-* `TMDB_LANGUAGE` (e.g. `en-US`, `ru-RU`) — TMDB language.
-* `CACHE_MEDIA_INFO` (`0/1`) — cache media information.
+~~* `ENABLE_SCRAPPING` (`0/1`) — enable metadata scraping.~~
+~~* `TMDB_LANGUAGE` (e.g. `en-US`, `ru-RU`) — TMDB language.~~
+~~* `CACHE_MEDIA_INFO` (`0/1`) — cache media information.~~
 
 ## Example `pplay.cfg`
 
@@ -155,8 +155,8 @@ NETWORK5 = "tss://user:password@192.168.1.10:8091/"
 NETWORK5_NAME = "TorrServer HTTPS Auth"
 
 # Paths/state
-HOME_PATH = "/switch/pplay/"
-LAST_LOCAL_PATH = "/switch/pplay/"
+HOME_PATH = "/data/pplay/"
+LAST_LOCAL_PATH = "/data/pplay/"
 LAST_MODULE = "LOCAL"
 
 # Network/player
