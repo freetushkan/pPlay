@@ -129,12 +129,6 @@ Below is the list of currently supported and maintained configuration parameters
 * `CPU_BOOST` (Switch) — `Disabled` / `Enabled` for heavy media playback.
 * `UTC_OFFSET` (PS4) — timezone offset.
 
-### Scraping (currently disabled at build time)
-
-~~* `ENABLE_SCRAPPING` (`0/1`) — enable metadata scraping.~~
-~~* `TMDB_LANGUAGE` (e.g. `en-US`, `ru-RU`) — TMDB language.~~
-~~* `CACHE_MEDIA_INFO` (`0/1`) — cache media information.~~
-
 ## Example `pplay.cfg`
 
 ```ini
