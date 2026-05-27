@@ -6,7 +6,7 @@ pPlay
 
 |                            Filer view                             |                            Player view                             |
 |:-----------------------------------------------------------------:|:------------------------------------------------------------------:|
-| ![](https://github.com/freetushkan/pPlay/raw/master/screenshot.png) | ![](https://github.com/freetushkan/pPlay/raw/master/screenshot2.png) |
+| ![](https://github.com/freetushkan/pPlay/raw/master/screenshot.jpg) | ![](https://github.com/freetushkan/pPlay/raw/master/screenshot2.jpg) |
 
 pPlay is a video player for the Nintendo Switch (with ports to other platforms), built around **MPV/FFmpeg**.
 
@@ -185,10 +185,3 @@ See:
 
 * [MPV configuration files](https://mpv.io/manual/master/#configuration-files)
 * [MPV options](https://mpv.io/manual/master/#options)
-
-## Notes
-
-* The project intentionally remains a fork of the original **pPlay** while preserving the original name.
-* README screenshots can be updated separately later if needed.
-* Most 720p and 1080p media should work fine. For heavier media playback on Switch, enable `CPU_BOOST` in settings.
-
