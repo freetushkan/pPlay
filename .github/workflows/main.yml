@@ -166,6 +166,7 @@ jobs:
           echo '  template<typename... Args>' >> $EXPORT_DIR/include/format
           echo '  std::string format(std::string_view f, Args&&...) { return std::string(f); }' >> $EXPORT_DIR/include/format
           echo '}' >> $EXPORT_DIR/include/format
+          cp -a $EXPORT_DIR/include/format $GITHUB_WORKSPACE/openscreen/format
 
       - name: Configure pPlay
         run: |
