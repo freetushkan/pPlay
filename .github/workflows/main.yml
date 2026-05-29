@@ -131,6 +131,23 @@ jobs:
           cd "$GITHUB_WORKSPACE/openscreen"
           mkdir -p openscreen/openssl
           echo '#include <openssl/crypto.h>' > "$GITHUB_WORKSPACE/openscreen/openscreen/openssl/base.h"
+          mkdir -p openscreen/std
+          cat << 'EOF' > "$GITHUB_WORKSPACE/openscreen/openscreen/std/format"
+          #pragma once
+          #include <string>
+          #include <string_view>
+          #include <memory>
+          #include <vector>
+          #include <stdexcept>
+          namespace std {
+              template<typename... Args>
+              std::string format(std::string_view fmt, Args&&... args) {
+                  return std::string(fmt);
+              }
+          }
+          EOF
+          mkdir -p build/config
+          touch build/config/gclient_args.gni
 
       - name: Configure pPlay
         run: |
