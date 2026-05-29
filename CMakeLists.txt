@@ -45,6 +45,15 @@ find_package(MPV REQUIRED)
 find_package(ffmpeg COMPONENTS avfilter avcodec avformat avutil swscale swresample)
 find_package(ass REQUIRED)
 find_package(CURL REQUIRED)
+find_package(Threads REQUIRED)
+
+# openscreen
+set(OPENSCREEN_ROOT "${CMAKE_SOURCE_DIR}/openscreen")
+set(OPENSCREEN_GEN "${OPENSCREEN_ROOT}/out/Default/gen")
+include_directories(
+    ${OPENSCREEN_ROOT}
+    ${OPENSCREEN_GEN}
+)
 
 # sources
 file(GLOB PPLAY_SRC
@@ -87,6 +96,7 @@ set(PPLAY_LDFLAGS
         ${FFMPEG_LIBRARIES}
         ${BZIP2_LIBRARIES}
         ${CURL_LIBRARIES}
+        Threads::Threads
         )
 
 
@@ -150,7 +160,7 @@ if (PLATFORM_SWITCH)
 elseif (PLATFORM_PS4)
     list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509 SceNet)
 endif ()
-target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS})
+target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS} ssl)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
     APP_VERSION="${APP_VERSION}"
 )

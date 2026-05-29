@@ -51,7 +51,26 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/compiled_libs
-          key: ${{ runner.os }}-ps4-libs-v1
+          key: ${{ runner.os }}-ps4-libs-v2
+
+      - name: Build OpenSSL for PS4
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        run: |
+          set -eux
+          source /opt/pacbrew/ps4/openorbis/ps4vars.sh
+          cd ps4-openssl
+          ./Configure --prefix=/opt/pacbrew/ps4/openorbis/usr ps4-cross no-tests no-shared
+          find . -name "*.h" -exec sed -i 's/#define HAVE_GETENTROPY 1//g' {} +
+          find . -name "*.h" -exec sed -i 's/#define HAVE_GETRANDOM 1//g' {} +
+          sed -i 's/-DHAVE_GETENTROPY//g' Makefile
+          sed -i 's/-DHAVE_GETRANDOM//g' Makefile
+          make -j"$(nproc)"
+          sudo make install
+          find /opt -name openssl.pc
+          mkdir -p /opt/compiled_libs/openssl
+          cp -a /opt/pacbrew/ps4/openorbis/usr/include/openssl /opt/compiled_libs/openssl/ 2>/dev/null || true
+          cp -a /opt/pacbrew/ps4/openorbis/usr/lib/libcrypto* /opt/compiled_libs/openssl/ 2>/dev/null || true
+          cp -a /opt/pacbrew/ps4/openorbis/usr/lib/libssl* /opt/compiled_libs/openssl/ 2>/dev/null || true
 
       - name: Rebuild ffmpeg with mbedTLS and https
         if: steps.cache-libs.outputs.cache-hit != 'true'
@@ -82,6 +101,20 @@ jobs:
           find ./ -name "*.pkg.tar.*" -exec cp -v {} /opt/compiled_libs/libmpv/ \;
           find ./ -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
 
+      - name: Install cached OpenSSL
+        if: steps.cache-libs.outputs.cache-hit == 'true'
+        run: |
+          echo "Restoring OpenSSL from cache..."
+          sudo cp -a /opt/compiled_libs/openssl/include/openssl /opt/pacbrew/ps4/openorbis/usr/include/ 2>/dev/null || true
+          sudo cp -a /opt/compiled_libs/openssl/lib* /opt/pacbrew/ps4/openorbis/usr/lib/ 2>/dev/null || true
+
+      - name: Install cached OpenScreen
+        if: steps.cache-libs.outputs.cache-hit == 'true'
+        run: |
+          echo "Restoring OpenScreen from cache..."
+          mkdir -p openscreen/out/Default
+          cp -a /opt/compiled_libs/openscreen/Default/* openscreen/out/Default/ 2>/dev/null || true
+
       - name: Install cached ffmpeg
         if: steps.cache-libs.outputs.cache-hit == 'true'
         run: |
@@ -91,6 +124,13 @@ jobs:
         if: steps.cache-libs.outputs.cache-hit == 'true'
         run: |
           find /opt/compiled_libs/libmpv -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
+
+      - name: Prepare OpenScreen Submodule For PS4
+        run: |
+          set -eux
+          cd "$GITHUB_WORKSPACE/openscreen"
+          mkdir -p openscreen/openssl
+          echo '#include <openssl/crypto.h>' > "$GITHUB_WORKSPACE/openscreen/openscreen/openssl/base.h"
 
       - name: Configure pPlay
         run: |
@@ -129,6 +169,8 @@ jobs:
           cmake -G "Unix Makefiles" \
             -DPLATFORM_PS4=ON \
             -DOPTION_SMB2=ON \
+            -DOPENSCREEN_ROOT="${GITHUB_WORKSPACE}/openscreen" \
+            -DOPENSCREEN_GEN_DIR="${GITHUB_WORKSPACE}/openscreen/out/Default/gen" \
             -DCMAKE_BUILD_TYPE=Release ..
 
       - name: Build pplay
