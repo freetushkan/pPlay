@@ -151,6 +151,7 @@ endif ()
 # openscreen
 #####################
 set(OPENSCREEN_ROOT "${CMAKE_SOURCE_DIR}/openscreen")
+include_directories(BEFORE ${OPENSCREEN_ROOT})
 list(APPEND PPLAY_INC 
     ${OPENSCREEN_ROOT}
     ${OPENSCREEN_ROOT}/openscreen
@@ -166,12 +167,15 @@ set(OPENSCREEN_SRC
     ${OPENSCREEN_ROOT}/platform/impl/network_interface_linux.cc
     ${OPENSCREEN_ROOT}/platform/impl/task_runner.cc
     ${OPENSCREEN_ROOT}/platform/impl/time.cc
+    # ${OPENSCREEN_ROOT}/platform/impl/platform_client_posix.cc
     ${OPENSCREEN_ROOT}/cast/standalone_receiver/cast_service.cc
+    # ${OPENSCREEN_ROOT}/discovery/dnssd/public/dns_sd_instance.cc
+    # ${OPENSCREEN_ROOT}/discovery/dnssd/public/dns_sd_txt_record.cc
+    # ${OPENSCREEN_ROOT}/discovery/public/dns_sd_service_watcher.cc
+    # ${OPENSCREEN_ROOT}/discovery/public/dns_sd_service_publisher.cc
 )
 list(APPEND PPLAY_SRC ${OPENSCREEN_SRC})
-list(APPEND PPLAY_CFLAGS 
-    -DOPENSCREEN_IMPLEMENTATION
-)
+list(APPEND PPLAY_CFLAGS -DOPENSCREEN_IMPLEMENTATION)
 
 #####################
 # pplay executable
