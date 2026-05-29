@@ -143,6 +143,8 @@ jobs:
           gclient sync --no-history --shallow --force
           cd openscreen
           cp -r "$GITHUB_WORKSPACE/ps4-openssl/boringssl/"* third_party/boringssl/
+          mkdir -p build/config
+          echo "build_with_chromium = false" > build/config/gclient_args.gni
           sudo ./build/install-build-deps.py --no-prompt
           gn gen out/Default --args="
             is_debug=false 
@@ -156,6 +158,12 @@ jobs:
             extra_ldflags=\"-L/opt/pacbrew/ps4/openorbis/usr/lib -lssl -lcrypto\"
           "
           autoninja -C out/Default cast_receiver platform util
+          sudo bash -c "echo '#pragma once' > $EXPORT_DIR/include/format"
+          sudo bash -c "echo '#include <string>' >> $EXPORT_DIR/include/format"
+          sudo bash -c "echo 'namespace std {' >> $EXPORT_DIR/include/format"
+          sudo bash -c "echo '  template<typename... Args>' >> $EXPORT_DIR/include/format"
+          sudo bash -c "echo '  std::string format(std::string_view f, Args&&...) { return std::string(f); }' >> $EXPORT_DIR/include/format"
+          sudo bash -c "echo '}' >> $EXPORT_DIR/include/format"
 
       - name: Configure pPlay
         run: |
