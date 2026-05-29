@@ -142,10 +142,7 @@ jobs:
           ]'
           gclient sync --no-history --shallow --force
           cd openscreen
-          mkdir -p "$GITHUB_WORKSPACE/ps4-openssl/boringssl/src/gen"
-          cp -r third_party/boringssl/src/gen/. "$GITHUB_WORKSPACE/ps4-openssl/boringssl/src/gen/"
-          rm -rf third_party/boringssl/src
-          ln -s "$GITHUB_WORKSPACE/ps4-openssl/boringssl/src" third_party/boringssl/src
+          cp -r "$GITHUB_WORKSPACE/ps4-openssl/boringssl/"* third_party/boringssl/
           sudo ./build/install-build-deps.py --no-prompt
           gn gen out/Default --args="
             is_debug=false 
