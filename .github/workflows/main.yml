@@ -159,12 +159,13 @@ jobs:
           "
           autoninja -C out/Default cast_receiver platform util
           EXPORT_DIR="/opt/compiled_libs/openscreen"
-          sudo bash -c "echo '#pragma once' > $EXPORT_DIR/include/format"
-          sudo bash -c "echo '#include <string>' >> $EXPORT_DIR/include/format"
-          sudo bash -c "echo 'namespace std {' >> $EXPORT_DIR/include/format"
-          sudo bash -c "echo '  template<typename... Args>' >> $EXPORT_DIR/include/format"
-          sudo bash -c "echo '  std::string format(std::string_view f, Args&&...) { return std::string(f); }' >> $EXPORT_DIR/include/format"
-          sudo bash -c "echo '}' >> $EXPORT_DIR/include/format"
+          mkdir -p $EXPORT_DIR/include
+          echo '#pragma once' > $EXPORT_DIR/include/format
+          echo '#include <string>' >> $EXPORT_DIR/include/format
+          echo 'namespace std {' >> $EXPORT_DIR/include/format
+          echo '  template<typename... Args>' >> $EXPORT_DIR/include/format
+          echo '  std::string format(std::string_view f, Args&&...) { return std::string(f); }' >> $EXPORT_DIR/include/format
+          echo '}' >> $EXPORT_DIR/include/format
 
       - name: Configure pPlay
         run: |
