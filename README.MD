@@ -15,7 +15,8 @@ Supported features:
 - network sources (`http://`, `https://`, `ftp://`);
 - SMB/Samba (`smb://`);
 - TorrServer (`ts://` and `tss://`);
-- subtitles and standard playback navigation.
+- subtitles and standard playback navigation;
+- LAN DLNA/UPnP Media Renderer control (play/pause, seek, volume, and remote URI playback when a controller provides an HTTP media URL).
 
 pPlay uses the [MPV](https://mpv.io/) interface to handle FFmpeg interoperability, providing a fast, stable and powerful playback experience.
 
@@ -47,6 +48,7 @@ Below are the main practical improvements and modernizations included in this fo
 3. **Samba/SMB support**: custom `smb://` mpv handler, configurable SMB read buffer.
 4. **Flexible network retry/timeouts**: separate playback retry count and connection timeout settings.
 5. **UX/player options**: settings menu with configurable seek intervals, autoplay-after-finish behavior, swapped controls mode, UI accent color, logging and more.
+6. **DLNA/UPnP renderer**: pPlay advertises itself on the local network through SSDP as a MediaRenderer. Compatible Android/system controllers can control play/pause, seek, and volume from the device output panel or any built-in DLNA controller. If the controller sends `SetAVTransportURI` with a direct HTTP(S) media URL, pPlay starts that stream as a lightweight cast path.
 
 TorrServer support
 ----
@@ -126,6 +128,8 @@ Below is the list of currently supported and maintained configuration parameters
 * `SWAP_CONTROLS` (`0/1`, default `0`) — swap seek/control button mapping.
 * `ACCENT_COLOR` (HEX string, default `#1078C8`) — UI accent color.
 * `LOG_LEVEL` (`0..4`, default `0`) — log verbosity: OFF/ERROR/INFO/DEBUG/TRACE.
+* `DLNA_RENDERER` (`0/1`, default `1`) — enable SSDP/UPnP MediaRenderer advertising and remote control.
+* `DLNA_HTTP_PORT` (int, default `0`) — HTTP control port for DLNA descriptions/SOAP; `0` lets the OS choose a free port.
 
 ### Platform-specific
 
@@ -169,6 +173,8 @@ SEEK_LONG_SEC = 120
 SWAP_CONTROLS = 0
 ACCENT_COLOR = "#1078C8"
 LOG_LEVEL = 2
+DLNA_RENDERER = 1
+DLNA_HTTP_PORT = 0
 
 # Platform-specific
 UMS_DEVICE = "ums0:/"

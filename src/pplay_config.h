@@ -46,6 +46,8 @@
 #define OPT_SEEK_LONG_SEC       "SEEK_LONG_SEC"
 #define OPT_CPU_BOOST           "CPU_BOOST"
 #define OPT_ACCENT_COLOR        "ACCENT_COLOR"
+#define OPT_DLNA_RENDERER       "DLNA_RENDERER"
+#define OPT_DLNA_HTTP_PORT      "DLNA_HTTP_PORT"
 
 class Main;
 

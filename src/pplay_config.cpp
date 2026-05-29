@@ -68,6 +68,8 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
     addOption({OPT_CPU_BOOST, "Disabled"}); // Disabled, Enabled
 #endif
     addOption({OPT_ACCENT_COLOR, "#1078C8"});
+    addOption({OPT_DLNA_RENDERER, (int) 1});
+    addOption({OPT_DLNA_HTTP_PORT, (int) 0});
 
     // load the configuration from file, overwriting default values
     load();
@@ -105,6 +107,15 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
 
     if (!pplay::Utility::isValidHexColor(getOption(OPT_ACCENT_COLOR)->getString())) {
         getOption(OPT_ACCENT_COLOR)->setString("#1078C8");
+    }
+    if (getOption(OPT_DLNA_RENDERER)->getInteger() < 0) {
+        getOption(OPT_DLNA_RENDERER)->setString("0");
+    } else if (getOption(OPT_DLNA_RENDERER)->getInteger() > 1) {
+        getOption(OPT_DLNA_RENDERER)->setString("1");
+    }
+    if (getOption(OPT_DLNA_HTTP_PORT)->getInteger() < 0 ||
+        getOption(OPT_DLNA_HTTP_PORT)->getInteger() > 65535) {
+        getOption(OPT_DLNA_HTTP_PORT)->setString("0");
     }
     pplay::Utility::setAccentColor(getOption(OPT_ACCENT_COLOR)->getString());
 

@@ -44,9 +44,15 @@ public:
 
     int changeVolume(double delta);
 
+    int setVolume(double volume);
+
+    int getVolume();
+
     int showText(std::string delta);
 
     int seek(double position);
+
+    int seekAbsolute(double position);
 
     int setSpeed(double speed);
 

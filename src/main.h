@@ -20,6 +20,7 @@
 #include "io.h"
 #include "usbfs.h"
 #include "utility.h"
+#include "dlna_renderer.h"
 
 //#define FULL_TEXTURE_TEST 1
 
@@ -149,6 +150,7 @@ private:
     Player *player;
     MenuMain *menu_main;
     MenuVideo *menu_video;
+    pplay::DlnaRenderer *dlnaRenderer = nullptr;
 #ifdef PPLAY_ENABLE_SCRAPPING
     pplay::Scrapper *scrapper;
 #endif

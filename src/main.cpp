@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <sstream>
+#include <cstdint>
 #include "main.h"
 #include "io.h"
 #include "filer.h"
@@ -254,6 +255,17 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     player->setLayer(2);
     Main::add(player);
 
+
+    if (config->getOption(OPT_DLNA_RENDERER)->getInteger() != 0) {
+        uint16_t dlnaPort = (uint16_t) config->getOption(OPT_DLNA_HTTP_PORT)->getInteger();
+        dlnaRenderer = new pplay::DlnaRenderer("pPlay", dlnaPort);
+        if (!dlnaRenderer->start()) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Error, "Main::Main failed to start DLNA renderer");
+            delete dlnaRenderer;
+            dlnaRenderer = nullptr;
+        }
+    }
+
     // main menu
     setCurrentModuleIndex(
         parseNetworkModule(config->getOption(OPT_LAST_MODULE)->getString()));
@@ -312,6 +324,7 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
 }
 
 Main::~Main() {
+    delete (dlnaRenderer);
 #ifdef PPLAY_ENABLE_SCRAPPING
     delete (scrapper);
 #endif
@@ -344,6 +357,54 @@ bool Main::onInput(c2d::Input::Player *players) {
 }
 
 void Main::onUpdate() {
+    if (dlnaRenderer != nullptr) {
+        pplay::DlnaRenderer::Command command;
+        while (dlnaRenderer->popCommand(command)) {
+            switch (command.type) {
+                case pplay::DlnaRenderer::CommandType::Play:
+                    player->resume();
+                    break;
+                case pplay::DlnaRenderer::CommandType::Pause:
+                    player->pause();
+                    break;
+                case pplay::DlnaRenderer::CommandType::Stop:
+                    player->stop();
+                    break;
+                case pplay::DlnaRenderer::CommandType::SeekRelative:
+                    player->getMpv()->seek(command.value);
+                    break;
+                case pplay::DlnaRenderer::CommandType::SeekAbsolute:
+                    player->getMpv()->seekAbsolute(command.value);
+                    break;
+                case pplay::DlnaRenderer::CommandType::SetVolume:
+                    player->getMpv()->setVolume(command.value);
+                    break;
+                case pplay::DlnaRenderer::CommandType::LoadUri: {
+                    MediaFile media;
+                    media.path = command.text;
+                    size_t slash = command.text.find_last_of('/');
+                    media.name = slash == std::string::npos ? command.text : command.text.substr(slash + 1);
+                    if (media.name.empty()) {
+                        media.name = "DLNA stream";
+                    }
+                    player->load(media, true, "pause=no");
+                    player->setFullscreen(true);
+                    break;
+                }
+            }
+        }
+
+        pplay::DlnaRenderer::State state;
+        state.stopped = player->getMpv()->isStopped();
+        state.paused = player->getMpv()->isPaused();
+        state.position = player->getMpv()->getPosition();
+        state.duration = player->getMpv()->getDuration();
+        state.volume = player->getMpv()->getVolume();
+        state.title = player->getTitle();
+        state.uri = player->getMpv()->getCurrentPath();
+        dlnaRenderer->updateState(state);
+    }
+
     unsigned int keys = getInput()->getButtons();
     if (keys != Input::Delay) {
         bool changed = (oldKeys ^ keys) != 0;

@@ -4,6 +4,7 @@
 
 #include <SDL_video.h>
 #include <cmath>
+#include <cstdlib>
 #include "mpv.h"
 #include "utility.h"
 #include "io.h"
@@ -340,6 +341,20 @@ int Mpv::changeVolume(double delta) {
     return logged_mpv_command_string(handle, cmd.c_str());
 }
 
+int Mpv::setVolume(double volume) {
+    if (volume < 0) volume = 0;
+    if (volume > 100) volume = 100;
+    std::string cmd = "no-osd set volume " + std::to_string(volume)
+                    + "; show-text \"Volume: ${volume}%\"";
+    return logged_mpv_command_string(handle, cmd.c_str());
+}
+
+int Mpv::getVolume() {
+    double volume = 100;
+    logged_mpv_get_property(handle, "volume", MPV_FORMAT_DOUBLE, &volume);
+    return (int) std::lround(volume);
+}
+
 int Mpv::showText(std::string message) {
     std::string cmd = "show-text \"" + message + "\"";
     return logged_mpv_command_string(handle, cmd.c_str());
@@ -347,6 +362,12 @@ int Mpv::showText(std::string message) {
 
 int Mpv::seek(double position) {
     std::string cmd = "no-osd seek " + std::to_string(position);
+    return logged_mpv_command_string(handle, cmd.c_str());
+}
+
+int Mpv::seekAbsolute(double position) {
+    if (position < 0) position = 0;
+    std::string cmd = "no-osd seek " + std::to_string(position) + " absolute";
     return logged_mpv_command_string(handle, cmd.c_str());
 }
 
