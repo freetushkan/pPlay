@@ -158,6 +158,7 @@ jobs:
             extra_ldflags=\"-L/opt/pacbrew/ps4/openorbis/usr/lib -lssl -lcrypto\"
           "
           autoninja -C out/Default cast_receiver platform util
+          EXPORT_DIR="/opt/compiled_libs/openscreen"
           sudo bash -c "echo '#pragma once' > $EXPORT_DIR/include/format"
           sudo bash -c "echo '#include <string>' >> $EXPORT_DIR/include/format"
           sudo bash -c "echo 'namespace std {' >> $EXPORT_DIR/include/format"

@@ -152,6 +152,7 @@ endif ()
 #####################
 set(OPENSCREEN_ROOT "${CMAKE_SOURCE_DIR}/openscreen")
 set(OPENSCREEN_GEN "${OPENSCREEN_ROOT}/out/Default/gen")
+include_directories(BEFORE ${OPENSCREEN_ROOT}/include)
 list(APPEND PPLAY_INC 
     ${OPENSCREEN_ROOT}
     ${OPENSCREEN_ROOT}/openscreen
