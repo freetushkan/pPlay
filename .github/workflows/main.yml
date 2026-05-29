@@ -125,18 +125,38 @@ jobs:
         run: |
           find /opt/compiled_libs/libmpv -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
 
-      - name: Prepare OpenScreen Submodule For PS4
+      - name: Build OpenScreen via GN for PS4
         run: |
           set -eux
+          if [ ! -d "/opt/depot_tools" ]; then
+            sudo mkdir -p /opt/depot_tools
+            sudo chown -R $USER:$USER /opt/depot_tools
+            git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git /opt/depot_tools
+          fi
+          export PATH="/opt/depot_tools:$PATH"
+          echo "/opt/depot_tools" >> $GITHUB_PATH
+          cd /opt/depot_tools && ./update_depot_tools
+          source /opt/pacbrew/ps4/openorbis/ps4vars.sh
           cd "$GITHUB_WORKSPACE/openscreen"
+          mkdir -p build/config
+          echo "build_with_chromium = false" > build/config/gclient_args.gni
           mkdir -p openscreen/openssl
-          echo '#include <openssl/crypto.h>' > "$GITHUB_WORKSPACE/openscreen/openscreen/openssl/base.h"
-          echo '#pragma once' > format
-          echo '#include <string>' >> format
-          echo 'namespace std {' >> format
-          echo '  template<typename... Args>' >> format
-          echo '  std::string format(std::string_view f, Args&&...) { return std::string(f); }' >> format
-          echo '}' >> format
+          echo '#include <openssl/crypto.h>' > openscreen/openssl/base.h
+          gn gen out/Default --args="
+            is_debug=false 
+            target_os=\"linux\" 
+            treat_warnings_as_errors=false 
+            is_component_build=false
+            ar=\"$AR\"
+            cc=\"$CC\"
+            cxx=\"$CXX\"
+            extra_cflags=\"-I/opt/pacbrew/ps4/openorbis/usr/include\"
+            extra_ldflags=\"-L/opt/pacbrew/ps4/openorbis/usr/lib -lssl -lcrypto\"
+          "
+          autoninja -C out/Default cast_receiver platform util
+          sudo mkdir -p /opt/compiled_libs/openscreen
+          sudo cp -a out/Default/. /opt/compiled_libs/openscreen/
+          echo "OpenScreen built and copied to cache"
 
       - name: Configure pPlay
         run: |

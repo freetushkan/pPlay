@@ -151,31 +151,19 @@ endif ()
 # openscreen
 #####################
 set(OPENSCREEN_ROOT "${CMAKE_SOURCE_DIR}/openscreen")
-include_directories(BEFORE ${OPENSCREEN_ROOT})
+set(OPENSCREEN_GEN "${OPENSCREEN_ROOT}/out/Default/gen")
 list(APPEND PPLAY_INC 
     ${OPENSCREEN_ROOT}
     ${OPENSCREEN_ROOT}/openscreen
+    ${OPENSCREEN_GEN}
     /opt/pacbrew/ps4/openorbis/usr/include/
 )
-set(OPENSCREEN_SRC
-    ${OPENSCREEN_ROOT}/util/string_util.cc
-    ${OPENSCREEN_ROOT}/util/stringprintf.cc
-    ${OPENSCREEN_ROOT}/util/uuid.cc
-    ${OPENSCREEN_ROOT}/platform/base/error.cc
-    ${OPENSCREEN_ROOT}/platform/base/ip_address.cc
-    ${OPENSCREEN_ROOT}/platform/impl/logging_posix.cc
-    ${OPENSCREEN_ROOT}/platform/impl/network_interface_linux.cc
-    ${OPENSCREEN_ROOT}/platform/impl/task_runner.cc
-    ${OPENSCREEN_ROOT}/platform/impl/time.cc
-    # ${OPENSCREEN_ROOT}/platform/impl/platform_client_posix.cc
-    ${OPENSCREEN_ROOT}/cast/standalone_receiver/cast_service.cc
-    # ${OPENSCREEN_ROOT}/discovery/dnssd/public/dns_sd_instance.cc
-    # ${OPENSCREEN_ROOT}/discovery/dnssd/public/dns_sd_txt_record.cc
-    # ${OPENSCREEN_ROOT}/discovery/public/dns_sd_service_watcher.cc
-    # ${OPENSCREEN_ROOT}/discovery/public/dns_sd_service_publisher.cc
+list(APPEND PPLAY_LDFLAGS 
+    ${OPENSCREEN_ROOT}/out/Default/obj/cast/receiver/libcast_receiver.a
+    ${OPENSCREEN_ROOT}/out/Default/obj/platform/libplatform.a
+    ${OPENSCREEN_ROOT}/out/Default/obj/util/libutil.a
+    ${OPENSCREEN_ROOT}/out/Default/obj/third_party/protobuf/libprotobuf_lite.a
 )
-list(APPEND PPLAY_SRC ${OPENSCREEN_SRC})
-list(APPEND PPLAY_CFLAGS -DOPENSCREEN_IMPLEMENTATION)
 
 #####################
 # pplay executable
