@@ -108,13 +108,6 @@ jobs:
           sudo cp -a /opt/compiled_libs/openssl/include/openssl /opt/pacbrew/ps4/openorbis/usr/include/ 2>/dev/null || true
           sudo cp -a /opt/compiled_libs/openssl/lib* /opt/pacbrew/ps4/openorbis/usr/lib/ 2>/dev/null || true
 
-      - name: Install cached OpenScreen
-        if: steps.cache-libs.outputs.cache-hit == 'true'
-        run: |
-          echo "Restoring OpenScreen from cache..."
-          mkdir -p openscreen/out/Default
-          cp -a /opt/compiled_libs/openscreen/Default/* openscreen/out/Default/ 2>/dev/null || true
-
       - name: Install cached ffmpeg
         if: steps.cache-libs.outputs.cache-hit == 'true'
         run: |
@@ -125,7 +118,7 @@ jobs:
         run: |
           find /opt/compiled_libs/libmpv -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
 
-      - name: Build OpenScreen via GN for PS4
+      - name: Build OpenScreen via GN
         run: |
           set -eux
           if [ ! -d "/opt/depot_tools" ]; then
@@ -137,11 +130,21 @@ jobs:
           echo "/opt/depot_tools" >> $GITHUB_PATH
           cd /opt/depot_tools && ./update_depot_tools
           source /opt/pacbrew/ps4/openorbis/ps4vars.sh
-          cd "$GITHUB_WORKSPACE/openscreen"
-          mkdir -p build/config
-          echo "build_with_chromium = false" > build/config/gclient_args.gni
-          mkdir -p openscreen/openssl
-          echo '#include <openssl/crypto.h>' > openscreen/openssl/base.h
+          cd "$GITHUB_WORKSPACE" && cd .. && rm -rf openscreen
+          gclient config --spec='
+          solutions = [
+            {
+              "name": "openscreen",
+              "url": "https://chromium.googlesource.com/openscreen",
+              "deps_file": "DEPS",
+              "managed": False,
+            },
+          ]'
+          gclient sync --no-history --shallow --force
+          cd openscreen
+          rm -rf third_party/boringssl/src
+          ln -s "$GITHUB_WORKSPACE/ps4-openssl/boringssl/src" third_party/boringssl/src
+          sudo ./build/install-build-deps.py --no-prompt
           gn gen out/Default --args="
             is_debug=false 
             target_os=\"linux\" 
@@ -154,9 +157,19 @@ jobs:
             extra_ldflags=\"-L/opt/pacbrew/ps4/openorbis/usr/lib -lssl -lcrypto\"
           "
           autoninja -C out/Default cast_receiver platform util
-          sudo mkdir -p /opt/compiled_libs/openscreen
-          sudo cp -a out/Default/. /opt/compiled_libs/openscreen/
-          echo "OpenScreen built and copied to cache"
+          EXPORT_DIR="/opt/compiled_libs/openscreen"
+          sudo mkdir -p "$EXPORT_DIR/lib"
+          sudo mkdir -p "$EXPORT_DIR/include"
+          find out/Default/obj/ -name "*.a" -exec sudo cp {} "$EXPORT_DIR/lib/" \;
+          find . -name "*.h" ! -path "./third_party/*" ! -path "./out/*" | while read -r header; do
+            sudo mkdir -p "$EXPORT_DIR/include/$(dirname "$header")"
+            sudo cp "$header" "$EXPORT_DIR/include/$header"
+          done
+          find out/Default/gen/ -name "*.h" | while read -r gen_header; do
+            rel_path=${gen_header#out/Default/gen/}
+            sudo mkdir -p "$EXPORT_DIR/include/$(dirname "$rel_path")"
+            sudo cp "$gen_header" "$EXPORT_DIR/include/$rel_path"
+          done
 
       - name: Configure pPlay
         run: |
