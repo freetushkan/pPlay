@@ -148,6 +148,32 @@ elseif (PLATFORM_LINUX)
 endif ()
 
 #####################
+# openscreen
+#####################
+set(OPENSCREEN_ROOT "${CMAKE_SOURCE_DIR}/openscreen")
+list(APPEND PPLAY_INC 
+    ${OPENSCREEN_ROOT}
+    ${OPENSCREEN_ROOT}/openscreen
+    /opt/pacbrew/ps4/openorbis/usr/include/
+)
+set(OPENSCREEN_SRC
+    ${OPENSCREEN_ROOT}/util/string_util.cc
+    ${OPENSCREEN_ROOT}/util/stringprintf.cc
+    ${OPENSCREEN_ROOT}/util/uuid.cc
+    ${OPENSCREEN_ROOT}/platform/base/error.cc
+    ${OPENSCREEN_ROOT}/platform/base/ip_address.cc
+    ${OPENSCREEN_ROOT}/platform/impl/logging_posix.cc
+    ${OPENSCREEN_ROOT}/platform/impl/network_interface_linux.cc
+    ${OPENSCREEN_ROOT}/platform/impl/task_runner.cc
+    ${OPENSCREEN_ROOT}/platform/impl/time.cc
+    ${OPENSCREEN_ROOT}/cast/standalone_receiver/cast_service.cc
+)
+list(APPEND PPLAY_SRC ${OPENSCREEN_SRC})
+list(APPEND PPLAY_CFLAGS 
+    -DOPENSCREEN_IMPLEMENTATION
+)
+
+#####################
 # pplay executable
 #####################
 add_executable(${CMAKE_PROJECT_NAME} ${PPLAY_SRC})

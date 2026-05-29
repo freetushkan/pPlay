@@ -68,6 +68,8 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
     addOption({OPT_CPU_BOOST, "Disabled"}); // Disabled, Enabled
 #endif
     addOption({OPT_ACCENT_COLOR, "#1078C8"});
+    addOption({OPT_CAST_ENABLED, (int) 0});
+    addOption({OPT_CAST_RECEIVER_NAME, "pPlay"});
 
     // load the configuration from file, overwriting default values
     load();
@@ -105,6 +107,10 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
 
     if (!pplay::Utility::isValidHexColor(getOption(OPT_ACCENT_COLOR)->getString())) {
         getOption(OPT_ACCENT_COLOR)->setString("#1078C8");
+    }
+
+    if (getOption(OPT_CAST_RECEIVER_NAME)->getString().empty()) {
+        getOption(OPT_CAST_RECEIVER_NAME)->setString("pPlay");
     }
     pplay::Utility::setAccentColor(getOption(OPT_ACCENT_COLOR)->getString());
 

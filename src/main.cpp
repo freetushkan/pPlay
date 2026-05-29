@@ -254,6 +254,8 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     player->setLayer(2);
     Main::add(player);
 
+    chromecastService = new pplay::ChromecastService(this);
+
     // main menu
     setCurrentModuleIndex(
         parseNetworkModule(config->getOption(OPT_LAST_MODULE)->getString()));
@@ -307,11 +309,14 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     scrapper = new Scrapper(this);
 #endif
 
+    chromecastService->start();
+
     // open last
     show(currentModuleIndex > 0 ? MenuType::Network : MenuType::Local);
 }
 
 Main::~Main() {
+    delete (chromecastService);
 #ifdef PPLAY_ENABLE_SCRAPPING
     delete (scrapper);
 #endif
@@ -344,6 +349,44 @@ bool Main::onInput(c2d::Input::Player *players) {
 }
 
 void Main::onUpdate() {
+    if (chromecastService != nullptr) {
+        auto commands = chromecastService->popCommands();
+        for (const auto &command: commands) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                "Main::onUpdate Chromecast command=" + std::to_string((int) command.type));
+            switch (command.type) {
+                case pplay::ChromecastService::CommandType::Play:
+                    player->resume();
+                    break;
+                case pplay::ChromecastService::CommandType::Pause:
+                    player->pause();
+                    break;
+                case pplay::ChromecastService::CommandType::TogglePause:
+                    player->getMpv()->isPaused() ? player->resume() : player->pause();
+                    break;
+                case pplay::ChromecastService::CommandType::Stop:
+                    player->stop();
+                    break;
+                case pplay::ChromecastService::CommandType::SeekRelative:
+                    player->getMpv()->seek(command.value);
+                    break;
+                case pplay::ChromecastService::CommandType::VolumeRelative:
+                    player->getMpv()->changeVolume(command.value);
+                    break;
+                case pplay::ChromecastService::CommandType::LoadUrl: {
+                    MediaFile castFile;
+                    castFile.path = command.text;
+                    size_t slash = command.text.find_last_of('/');
+                    castFile.name = slash == std::string::npos ? command.text : command.text.substr(slash + 1);
+                    if (castFile.name.empty()) castFile.name = "Cast media";
+                    castFile.type = c2d::Io::Type::File;
+                    player->load(castFile, true, "pause=no");
+                    player->setFullscreen(true);
+                    break;
+                }
+            }
+        }
+    }
     unsigned int keys = getInput()->getButtons();
     if (keys != Input::Delay) {
         bool changed = (oldKeys ^ keys) != 0;
@@ -525,6 +568,10 @@ unsigned int Main::getFontSize(FontSize fontSize) {
 
 StatusBar *Main::getStatusBar() {
     return statusBar;
+}
+
+pplay::ChromecastService *Main::getChromecastService() {
+    return chromecastService;
 }
 
 #ifdef PPLAY_ENABLE_SCRAPPING

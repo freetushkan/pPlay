@@ -52,6 +52,7 @@ namespace {
         return oss.str();
     }
 
+#ifdef __PS4__
     std::string formatUTCOffset(float hours) {
         bool isNegative = hours < 0.0f;
         float absHours = std::abs(hours);
@@ -67,14 +68,17 @@ namespace {
             << std::setfill('0') << std::setw(2) << m;
         return oss.str();
     }
+#endif
 }
 
 std::string MenuMainOptionsSubmenu::formatValue(float value) const {
     std::ostringstream oss;
 
+#ifdef __PS4__
     if (option_name == OPT_UTC_OFFSET) {
         return formatUTCOffset(value);
     }
+#endif
     if (option_name == OPT_SEEK_SHORT_SEC
         || option_name == OPT_SEEK_LONG_SEC
         || option_name == OPT_NETWORK_TIMEOUT) {
@@ -186,6 +190,9 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
                                 "Options: " + option_name + " changed from " + oldValue
                                 + " to " + formatValue(getCurrentValue()));
+            if (option_name == OPT_CAST_ENABLED) {
+                main->getChromecastService()->reloadFromConfig();
+            }
             refresh();
         }
         return;
@@ -212,6 +219,9 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
                                 "Options: " + option_name + " changed from " + oldValue
                                 + " to " + option->getString());
         }
+        if (option_name == OPT_CAST_ENABLED) {
+            main->getChromecastService()->reloadFromConfig();
+        }
         refresh();
         return;
     }
@@ -237,6 +247,9 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
     main->getConfig()->save();
     pplay::Utility::log(pplay::Utility::LogLevel::Info,
         "Options: " + option_name + " changed from " + oldValue + " to " + newValue);
+    if (option_name == OPT_CAST_RECEIVER_NAME) {
+        main->getChromecastService()->reloadFromConfig();
+    }
     setSelection(item->name);
 }
 

@@ -46,6 +46,8 @@
 #define OPT_SEEK_LONG_SEC       "SEEK_LONG_SEC"
 #define OPT_CPU_BOOST           "CPU_BOOST"
 #define OPT_ACCENT_COLOR        "ACCENT_COLOR"
+#define OPT_CAST_ENABLED        "CAST_ENABLED"
+#define OPT_CAST_RECEIVER_NAME  "CAST_RECEIVER_NAME"
 
 class Main;
 
