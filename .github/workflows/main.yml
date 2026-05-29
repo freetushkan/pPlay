@@ -156,19 +156,6 @@ jobs:
             extra_ldflags=\"-L/opt/pacbrew/ps4/openorbis/usr/lib -lssl -lcrypto\"
           "
           autoninja -C out/Default cast_receiver platform util
-          EXPORT_DIR="/opt/compiled_libs/openscreen"
-          sudo mkdir -p "$EXPORT_DIR/lib"
-          sudo mkdir -p "$EXPORT_DIR/include"
-          find out/Default/obj/ -name "*.a" -exec sudo cp {} "$EXPORT_DIR/lib/" \;
-          find . -name "*.h" ! -path "./third_party/*" ! -path "./out/*" | while read -r header; do
-            sudo mkdir -p "$EXPORT_DIR/include/$(dirname "$header")"
-            sudo cp "$header" "$EXPORT_DIR/include/$header"
-          done
-          find out/Default/gen/ -name "*.h" | while read -r gen_header; do
-            rel_path=${gen_header#out/Default/gen/}
-            sudo mkdir -p "$EXPORT_DIR/include/$(dirname "$rel_path")"
-            sudo cp "$gen_header" "$EXPORT_DIR/include/$rel_path"
-          done
 
       - name: Configure pPlay
         run: |
