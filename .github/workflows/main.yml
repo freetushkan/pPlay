@@ -142,9 +142,9 @@ jobs:
           ]'
           gclient sync --no-history --shallow --force
           cd openscreen
-          #cp -r "$GITHUB_WORKSPACE/ps4-openssl/boringssl/"* third_party/boringssl/
+          cp -r "$GITHUB_WORKSPACE/ps4-openssl/boringssl/"* third_party/boringssl/
           mkdir -p build/config
-          #echo "build_with_chromium = false" > build/config/gclient_args.gni
+          echo "build_with_chromium = false" > build/config/gclient_args.gni
           sudo ./build/install-build-deps.py --no-prompt
           gn gen out/Default --args="
             is_debug=false 
@@ -157,7 +157,7 @@ jobs:
             extra_cflags=\"-I/opt/pacbrew/ps4/openorbis/usr/include\"
             extra_ldflags=\"-L/opt/pacbrew/ps4/openorbis/usr/lib -lssl -lcrypto\"
           "
-          autoninja -C out/Default gn_all
+          autoninja -C out/Default cast_receiver platform util
           find out/Default/gen/ -name "cast_channel.pb.h"
           find out/Default/gen/ -name "runtime_version.h"
           EXPORT_DIR="/opt/compiled_libs/openscreen"
@@ -172,6 +172,8 @@ jobs:
           echo '}' >> $EXPORT_DIR/include/format
           cp -a $EXPORT_DIR/include/format $GITHUB_WORKSPACE/openscreen/format
           cp -r out/Default/gen/* "$GITHUB_WORKSPACE/openscreen/"
+          mkdir -p "$GITHUB_WORKSPACE/openscreen/google/protobuf"
+          echo '#pragma once' > "$GITHUB_WORKSPACE/openscreen/google/protobuf/runtime_version.h"
 
       - name: Configure pPlay
         run: |
