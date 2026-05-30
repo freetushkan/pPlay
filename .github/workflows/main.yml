@@ -142,9 +142,9 @@ jobs:
           ]'
           gclient sync --no-history --shallow --force
           cd openscreen
-          cp -r "$GITHUB_WORKSPACE/ps4-openssl/boringssl/"* third_party/boringssl/
+          #cp -r "$GITHUB_WORKSPACE/ps4-openssl/boringssl/"* third_party/boringssl/
           mkdir -p build/config
-          echo "build_with_chromium = false" > build/config/gclient_args.gni
+          #echo "build_with_chromium = false" > build/config/gclient_args.gni
           sudo ./build/install-build-deps.py --no-prompt
           gn gen out/Default --args="
             is_debug=false 
