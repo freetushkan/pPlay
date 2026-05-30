@@ -178,29 +178,19 @@ jobs:
           POLYFILL
           
           # Patch stringprintf.h to use polyfill on PS4
-          cat > "util/stringprintf.h.patch" <<'PATCH'
-          --- a/util/stringprintf.h
-          +++ b/util/stringprintf.h
-          @@ -1,10 +1,20 @@
-           #ifndef OPENSCREEN_UTIL_STRING_PRINTF_H_
-           #define OPENSCREEN_UTIL_STRING_PRINTF_H_
-           
-          +#ifdef __PS4__
-          +#include "format_polyfill/format"
-          +#else
-           #include <format>
-          +#endif
-           #include <string>
-           #include <string_view>
-           
-           #endif  // OPENSCREEN_UTIL_STRING_PRINTF_H_
-          PATCH
-          
-          # Apply fix more directly - patch the include path
-          if grep -q '#include <format>' util/stringprintf.h; then
-            sed -i '/#include <format>/c\
-          #ifdef __PS4__\n#include "../../../third_party/boringssl/include/format_polyfill/format"\n#else\n#include <format>\n#endif' util/stringprintf.h
-          fi
+          cat > "util/stringprintf.h" <<'EOF'
+          #ifndef OPENSCREEN_UTIL_STRING_PRINTF_H_
+          #define OPENSCREEN_UTIL_STRING_PRINTF_H_
+          #ifdef __PS4__
+          #include "../third_party/boringssl/include/format_polyfill/format"
+          #else
+          #include <format>
+          #endif
+          #include <string>
+          #include <string_view>
+
+          #endif  // OPENSCREEN_UTIL_STRING_PRINTF_H_
+          EOF
           
           mkdir -p build/config
           echo "build_with_chromium = false" > build/config/gclient_args.gni
