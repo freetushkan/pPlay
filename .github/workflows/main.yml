@@ -170,7 +170,7 @@ jobs:
           echo '  template<typename... Args> std::string format(format_string<Args...> f, Args&&...) { return std::string(f.str); }' >> $EXPORT_DIR/include/format
           echo '}' >> $EXPORT_DIR/include/format
           cp -a $EXPORT_DIR/include/format $GITHUB_WORKSPACE/openscreen/format
-          cp -r out/Default/gen/cast "$GITHUB_WORKSPACE/openscreen/"
+          cp -r out/Default/gen/* "$GITHUB_WORKSPACE/openscreen/"
 
       - name: Configure pPlay
         run: |
