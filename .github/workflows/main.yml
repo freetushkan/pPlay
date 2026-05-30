@@ -151,11 +151,13 @@ jobs:
             target_os=\"linux\" 
             treat_warnings_as_errors=false 
             is_component_build=false
+            use_sysroot=false
             ar=\"$AR\"
             cc=\"$CC\"
             cxx=\"$CXX\"
-            extra_cflags=\"-I/opt/pacbrew/ps4/openorbis/usr/include\"
-            extra_ldflags=\"-L/opt/pacbrew/ps4/openorbis/usr/lib -lssl -lcrypto\"
+            extra_cflags=\"-I/opt/pacbrew/ps4/openorbis/usr/include -I/opt/pacbrew/ps4/openorbis/include\"
+            extra_ldflags=\"-L/opt/pacbrew/ps4/openorbis/usr/lib -L/opt/pacbrew/ps4/openorbis/lib -lssl -lcrypto\"
+          
           "
           autoninja -C out/Default cast_receiver platform util
           find out/Default/gen/ -name "cast_channel.pb.h"
