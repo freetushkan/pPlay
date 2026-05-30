@@ -188,7 +188,9 @@ jobs:
           #endif
           #include <string>
           #include <string_view>
-
+          namespace openscreen {
+          std::string StringPrintf(const char* format, ...);
+          }  // namespace openscreen
           #endif  // OPENSCREEN_UTIL_STRING_PRINTF_H_
           EOF
           

@@ -146,6 +146,8 @@ set(OPENSCREEN_ROOT "${CMAKE_SOURCE_DIR}/openscreen" CACHE STRING "OpenScreen ro
 set(OPENSCREEN_GEN "${OPENSCREEN_ROOT}/out/Default/gen")
 
 if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
+    add_compile_definitions(__PS4__)
+
     include_directories(BEFORE 
         ${OPENSCREEN_ROOT}
         ${OPENSCREEN_ROOT}/openscreen
