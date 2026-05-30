@@ -160,6 +160,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/openscreen
         ${OPENSCREEN_GEN}
         ${OPENSCREEN_GEN}/cast/common/channel/proto
+        ${OPENSCREEN_ROOT}/out/Default/obj/third_party/boringssl/include/format_polyfill
     )
     
     # Link OpenScreen libraries
@@ -167,6 +168,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/out/Default/obj/cast/libcast_receiver.a
         ${OPENSCREEN_ROOT}/out/Default/obj/platform/libplatform.a
         ${OPENSCREEN_ROOT}/out/Default/obj/util/libutil.a
+        ${OPENSCREEN_ROOT}/out/Default/obj/third_party/protobuf/libprotobuf_lite.a
         ${OPENSCREEN_ROOT}/out/Default/obj/third_party/protobuf/libprotobuf_lite.a
     )
     
