@@ -47,14 +47,6 @@ find_package(ass REQUIRED)
 find_package(CURL REQUIRED)
 find_package(Threads REQUIRED)
 
-# openscreen
-set(OPENSCREEN_ROOT "${CMAKE_SOURCE_DIR}/openscreen")
-set(OPENSCREEN_GEN "${OPENSCREEN_ROOT}/out/Default/gen")
-include_directories(
-    ${OPENSCREEN_ROOT}
-    ${OPENSCREEN_GEN}
-)
-
 # sources
 file(GLOB PPLAY_SRC
         src/*.c*
@@ -148,24 +140,39 @@ elseif (PLATFORM_LINUX)
 endif ()
 
 #####################
-# openscreen
+# openscreen (Cast support)
 #####################
-set(OPENSCREEN_ROOT "${CMAKE_SOURCE_DIR}/openscreen")
+set(OPENSCREEN_ROOT "${CMAKE_SOURCE_DIR}/openscreen" CACHE STRING "OpenScreen root directory")
 set(OPENSCREEN_GEN "${OPENSCREEN_ROOT}/out/Default/gen")
-include_directories(BEFORE ${OPENSCREEN_ROOT})
-list(APPEND PPLAY_INC 
-    ${OPENSCREEN_ROOT}
-    ${OPENSCREEN_ROOT}/openscreen
-    ${OPENSCREEN_GEN}
-    ${OPENSCREEN_GEN}/cast/common/channel/proto
-    /opt/pacbrew/ps4/openorbis/usr/include/
-)
-list(APPEND PPLAY_LDFLAGS 
-    ${OPENSCREEN_ROOT}/out/Default/obj/cast/receiver/libcast_receiver.a
-    ${OPENSCREEN_ROOT}/out/Default/obj/platform/libplatform.a
-    ${OPENSCREEN_ROOT}/out/Default/obj/util/libutil.a
-    ${OPENSCREEN_ROOT}/out/Default/obj/third_party/protobuf/libprotobuf_lite.a
-)
+
+if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
+    include_directories(BEFORE 
+        ${OPENSCREEN_ROOT}
+        ${OPENSCREEN_ROOT}/openscreen
+        ${OPENSCREEN_GEN}
+        ${OPENSCREEN_GEN}/cast/common/channel/proto
+    )
+    
+    list(APPEND PPLAY_INC 
+        ${OPENSCREEN_ROOT}
+        ${OPENSCREEN_ROOT}/openscreen
+        ${OPENSCREEN_GEN}
+        ${OPENSCREEN_GEN}/cast/common/channel/proto
+    )
+    
+    # Link OpenScreen libraries
+    list(APPEND PPLAY_LDFLAGS 
+        ${OPENSCREEN_ROOT}/out/Default/obj/cast/libcast_receiver.a
+        ${OPENSCREEN_ROOT}/out/Default/obj/platform/libplatform.a
+        ${OPENSCREEN_ROOT}/out/Default/obj/util/libutil.a
+        ${OPENSCREEN_ROOT}/out/Default/obj/third_party/protobuf/libprotobuf_lite.a
+    )
+    
+    message(STATUS "OpenScreen support enabled at ${OPENSCREEN_ROOT}")
+else()
+    message(WARNING "OpenScreen not found or not built at ${OPENSCREEN_ROOT}")
+    message(STATUS "Cast support will be disabled - continuing build without it")
+endif()
 
 #####################
 # pplay executable

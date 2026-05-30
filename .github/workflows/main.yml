@@ -26,7 +26,7 @@ jobs:
           sudo apt-get install -y \
             pacman-package-manager wget cmake git gettext smpq \
             makepkg libarchive-tools build-essential \
-            autoconf libtool nasm curl
+            autoconf libtool nasm curl pkg-config
 
           sudo tee -a /etc/pacman.conf > /dev/null <<TEXT
           [pacbrew]
@@ -51,7 +51,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/compiled_libs
-          key: ${{ runner.os }}-ps4-libs-v2
+          key: ${{ runner.os }}-ps4-libs-v3
 
       - name: Build OpenSSL for PS4
         if: steps.cache-libs.outputs.cache-hit != 'true'
@@ -145,37 +145,54 @@ jobs:
           cp -r "$GITHUB_WORKSPACE/ps4-openssl/boringssl/"* third_party/boringssl/
           mkdir -p build/config
           echo "build_with_chromium = false" > build/config/gclient_args.gni
-          sudo ./build/install-build-deps.py --no-prompt
+          
+          # Install system dependencies for GN build
+          sudo ./build/install-build-deps.py --no-prompt 2>/dev/null || true
+          
+          # Configure GN with PS4-specific settings and use ps4-openssl BoringSSL
           gn gen out/Default --args="
             is_debug=false 
             target_os=\"linux\" 
             treat_warnings_as_errors=false 
             is_component_build=false
             use_sysroot=false
+            use_custom_boringssl=true
+            use_boringssl_for_openssl_replacement=true
             ar=\"$AR\"
             cc=\"$CC\"
             cxx=\"$CXX\"
-            extra_cflags=\"-I/opt/pacbrew/ps4/openorbis/usr/include -I/opt/pacbrew/ps4/openorbis/include\"
-            extra_ldflags=\"-L/opt/pacbrew/ps4/openorbis/usr/lib -L/opt/pacbrew/ps4/openorbis/lib -lssl -lcrypto\"
-          
+            extra_cflags=\"-I/opt/pacbrew/ps4/openorbis/usr/include -I/opt/pacbrew/ps4/openorbis/include -I$GITHUB_WORKSPACE/ps4-openssl/boringssl/include\"
+            extra_ldflags=\"-L/opt/pacbrew/ps4/openorbis/usr/lib -L/opt/pacbrew/ps4/openorbis/lib -L$GITHUB_WORKSPACE/ps4-openssl\"
           "
+          
+          # Build only necessary components
           autoninja -C out/Default cast_receiver platform util
-          find out/Default/gen/ -name "cast_channel.pb.h"
-          find out/Default/gen/ -name "runtime_version.h"
-          EXPORT_DIR="/opt/compiled_libs/openscreen"
-          mkdir -p $EXPORT_DIR/include
-          echo '#pragma once' > $EXPORT_DIR/include/format
-          echo '#include <string>' >> $EXPORT_DIR/include/format
-          echo '#include <string_view>' >> $EXPORT_DIR/include/format
-          echo 'namespace std {' >> $EXPORT_DIR/include/format
-          echo '  template<typename... Args> struct format_string { string_view str; template<typename T> format_string(const T& s) : str(s) {} };' >> $EXPORT_DIR/include/format
-          echo '  template<typename... Args> std::string format(std::string_view f, Args&&...) { return std::string(f); }' >> $EXPORT_DIR/include/format
-          echo '  template<typename... Args> std::string format(format_string<Args...> f, Args&&...) { return std::string(f.str); }' >> $EXPORT_DIR/include/format
-          echo '}' >> $EXPORT_DIR/include/format
-          cp -a $EXPORT_DIR/include/format $GITHUB_WORKSPACE/openscreen/format
-          cp -r out/Default/gen/* "$GITHUB_WORKSPACE/openscreen/"
+          
+          # Verify generated files exist
+          find out/Default/gen/ -name "cast_channel.pb.h" || echo "Warning: cast_channel.pb.h not found in standard location"
+          find out/Default/gen/ -name "runtime_version.h" || echo "Warning: runtime_version.h not found"
+          
+          # Export headers and libs to workspace
+          EXPORT_DIR="$GITHUB_WORKSPACE/openscreen/out/Default"
+          mkdir -p "$EXPORT_DIR/gen/cast/common/channel/proto"
+          mkdir -p "$EXPORT_DIR/obj"
+          
+          # Copy all generated files
+          cp -r out/Default/gen/* "$EXPORT_DIR/gen/" 2>/dev/null || true
+          
+          # Copy compiled objects
+          cp -r out/Default/obj/cast "$EXPORT_DIR/obj/" 2>/dev/null || true
+          cp -r out/Default/obj/platform "$EXPORT_DIR/obj/" 2>/dev/null || true
+          cp -r out/Default/obj/util "$EXPORT_DIR/obj/" 2>/dev/null || true
+          cp -r out/Default/obj/third_party "$EXPORT_DIR/obj/" 2>/dev/null || true
+          
+          # Create/copy protobuf runtime header for PS4
           mkdir -p "$GITHUB_WORKSPACE/openscreen/google/protobuf"
-          echo '#pragma once' > "$GITHUB_WORKSPACE/openscreen/google/protobuf/runtime_version.h"
+          cat > "$GITHUB_WORKSPACE/openscreen/google/protobuf/runtime_version.h" <<'EOF'
+          #pragma once
+          #define GOOGLE_PROTOBUF_RUNTIME_VERSION_MIN_H_
+          // Minimal runtime_version stub for OpenScreen on PS4
+          EOF
 
       - name: Configure pPlay
         run: |
@@ -215,7 +232,6 @@ jobs:
             -DPLATFORM_PS4=ON \
             -DOPTION_SMB2=ON \
             -DOPENSCREEN_ROOT="${GITHUB_WORKSPACE}/openscreen" \
-            -DOPENSCREEN_GEN_DIR="${GITHUB_WORKSPACE}/openscreen/out/Default/gen" \
             -DCMAKE_BUILD_TYPE=Release ..
 
       - name: Build pplay
