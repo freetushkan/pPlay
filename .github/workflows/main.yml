@@ -162,9 +162,11 @@ jobs:
           mkdir -p $EXPORT_DIR/include
           echo '#pragma once' > $EXPORT_DIR/include/format
           echo '#include <string>' >> $EXPORT_DIR/include/format
+          echo '#include <string_view>' >> $EXPORT_DIR/include/format
           echo 'namespace std {' >> $EXPORT_DIR/include/format
-          echo '  template<typename... Args>' >> $EXPORT_DIR/include/format
-          echo '  std::string format(std::string_view f, Args&&...) { return std::string(f); }' >> $EXPORT_DIR/include/format
+          echo '  template<typename... Args> struct format_string { string_view str; template<typename T> format_string(const T& s) : str(s) {} };' >> $EXPORT_DIR/include/format
+          echo '  template<typename... Args> std::string format(std::string_view f, Args&&...) { return std::string(f); }' >> $EXPORT_DIR/include/format
+          echo '  template<typename... Args> std::string format(format_string<Args...> f, Args&&...) { return std::string(f.str); }' >> $EXPORT_DIR/include/format
           echo '}' >> $EXPORT_DIR/include/format
           cp -a $EXPORT_DIR/include/format $GITHUB_WORKSPACE/openscreen/format
 
