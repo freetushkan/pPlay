@@ -157,6 +157,7 @@ list(APPEND PPLAY_INC
     ${OPENSCREEN_ROOT}
     ${OPENSCREEN_ROOT}/openscreen
     ${OPENSCREEN_GEN}
+    ${OPENSCREEN_GEN}/cast/common/channel/proto
     /opt/pacbrew/ps4/openorbis/usr/include/
 )
 list(APPEND PPLAY_LDFLAGS 
