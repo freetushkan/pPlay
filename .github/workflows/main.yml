@@ -159,6 +159,7 @@ jobs:
           "
           autoninja -C out/Default cast_receiver platform util
           find out/Default/gen/ -name "cast_channel.pb.h"
+          find out/Default/gen/ -name "runtime_version.h"
           EXPORT_DIR="/opt/compiled_libs/openscreen"
           mkdir -p $EXPORT_DIR/include
           echo '#pragma once' > $EXPORT_DIR/include/format
