@@ -157,7 +157,7 @@ jobs:
             extra_cflags=\"-I/opt/pacbrew/ps4/openorbis/usr/include\"
             extra_ldflags=\"-L/opt/pacbrew/ps4/openorbis/usr/lib -lssl -lcrypto\"
           "
-          autoninja -C out/Default cast_receiver platform util
+          autoninja -C out/Default gn_all
           find out/Default/gen/ -name "cast_channel.pb.h"
           find out/Default/gen/ -name "runtime_version.h"
           EXPORT_DIR="/opt/compiled_libs/openscreen"
@@ -172,7 +172,6 @@ jobs:
           echo '}' >> $EXPORT_DIR/include/format
           cp -a $EXPORT_DIR/include/format $GITHUB_WORKSPACE/openscreen/format
           cp -r out/Default/gen/* "$GITHUB_WORKSPACE/openscreen/"
-          cp -r out/Default/gen/third_party/protobuf/src/* "$GITHUB_WORKSPACE/openscreen/"
 
       - name: Configure pPlay
         run: |
