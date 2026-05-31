@@ -51,7 +51,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/compiled_libs
-          key: ${{ runner.os }}-ps4-libs-v3
+          key: ${{ runner.os }}-ps4-libs-v2
 
       - name: Build OpenSSL for PS4
         if: steps.cache-libs.outputs.cache-hit != 'true'

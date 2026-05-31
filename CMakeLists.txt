@@ -152,7 +152,7 @@ set(OPENSCREEN_GEN "${OPENSCREEN_ROOT}/out/Default/gen")
 # list(FILTER OPENSCREEN_THIRD_PARTY_SRC INCLUDE REGEX ".*/src$")
 set(OPENSCREEN_PROTOBUF_SRC "${OPENSCREEN_ROOT}/third_party/protobuf/src")
 set(OPENSCREEN_ABSEIL_SRC "${OPENSCREEN_ROOT}/third_party/abseil/src")
-set(OPENSCREEN_JSON_SRC "${OPENSCREEN_ROOT}/third_party/jsoncpp/src")
+set(OPENSCREEN_JSON_SRC "${OPENSCREEN_ROOT}/third_party/jsoncpp/src/include")
 
 set(OPENSCREEN_BORINGSSL_INCLUDE "${OPENSCREEN_ROOT}/third_party/boringssl/include")
 set(OPENSCREEN_BORINGSSL_FORMAT_POLYFILL "${OPENSCREEN_BORINGSSL_INCLUDE}/format_polyfill")
