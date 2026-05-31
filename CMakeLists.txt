@@ -38,24 +38,6 @@ set(PROJECT_AUTHOR "Cpasjuste")
 set(TITLE_ID "PPLAY0001")
 set(APP_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
 
-# OpenOrbis / OpenSSL (PS4)
-#####################
-if (PLATFORM_PS4)
-    if (NOT DEFINED OPENORBIS_ROOT)
-        set(OPENORBIS_ROOT "/opt/pacbrew/ps4/openorbis" CACHE PATH "OpenOrbis root directory")
-    endif ()
-
-    set(OPENSSL_ROOT_DIR "${OPENORBIS_ROOT}/usr" CACHE PATH "OpenSSL root directory" FORCE)
-    set(OPENSSL_INCLUDE_DIR "${OPENORBIS_ROOT}/usr/include" CACHE PATH "OpenSSL include directory" FORCE)
-    set(OPENSSL_SSL_LIBRARY "${OPENORBIS_ROOT}/usr/lib/libssl.a" CACHE FILEPATH "OpenSSL SSL library" FORCE)
-    set(OPENSSL_CRYPTO_LIBRARY "${OPENORBIS_ROOT}/usr/lib/libcrypto.a" CACHE FILEPATH "OpenSSL crypto library" FORCE)
-
-    include_directories(BEFORE
-        ${OPENORBIS_ROOT}/usr/include
-        ${OPENORBIS_ROOT}/include
-    )
-endif ()
-
 # deps
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 find_package(BZip2 REQUIRED)
@@ -162,6 +144,9 @@ endif ()
 #####################
 set(OPENSCREEN_ROOT "${CMAKE_SOURCE_DIR}/openscreen" CACHE STRING "OpenScreen root directory")
 set(OPENSCREEN_GEN "${OPENSCREEN_ROOT}/out/Default/gen")
+set(OPENSCREEN_PROTOBUF_SRC "${OPENSCREEN_ROOT}/third_party/protobuf/src")
+set(OPENSCREEN_BORINGSSL_INCLUDE "${OPENSCREEN_ROOT}/third_party/boringssl/include")
+set(OPENSCREEN_BORINGSSL_FORMAT_POLYFILL "${OPENSCREEN_BORINGSSL_INCLUDE}/format_polyfill")
 
 if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
     add_compile_definitions(__PS4__)
@@ -171,17 +156,21 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/openscreen
         ${OPENSCREEN_GEN}
         ${OPENSCREEN_GEN}/cast/common/channel/proto
-        ${OPENSCREEN_ROOT}/third_party/boringssl/include/format_polyfill
+        ${OPENSCREEN_PROTOBUF_SRC}
+        ${OPENSCREEN_BORINGSSL_INCLUDE}
+        ${OPENSCREEN_BORINGSSL_FORMAT_POLYFILL}
     )
-    
+
     list(APPEND PPLAY_INC 
         ${OPENSCREEN_ROOT}
         ${OPENSCREEN_ROOT}/openscreen
         ${OPENSCREEN_GEN}
         ${OPENSCREEN_GEN}/cast/common/channel/proto
-        ${OPENSCREEN_ROOT}/third_party/boringssl/include/format_polyfill
+        ${OPENSCREEN_PROTOBUF_SRC}
+        ${OPENSCREEN_BORINGSSL_INCLUDE}
+        ${OPENSCREEN_BORINGSSL_FORMAT_POLYFILL}
     )
-    
+
     # Link OpenScreen libraries
     list(APPEND PPLAY_LDFLAGS 
         ${OPENSCREEN_ROOT}/out/Default/obj/cast/libcast_receiver.a
@@ -189,7 +178,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/out/Default/obj/util/libutil.a
         ${OPENSCREEN_ROOT}/out/Default/obj/third_party/protobuf/libprotobuf_lite.a
     )
-    
+
     message(STATUS "OpenScreen support enabled at ${OPENSCREEN_ROOT}")
 else()
     message(WARNING "OpenScreen not found or not built at ${OPENSCREEN_ROOT}")
@@ -200,7 +189,7 @@ endif()
 # pplay executable
 #####################
 add_executable(${CMAKE_PROJECT_NAME} ${PPLAY_SRC})
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${PPLAY_INC})
+target_include_directories(${CMAKE_PROJECT_NAME} BEFORE PRIVATE ${PPLAY_INC})
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE ${PPLAY_CFLAGS})
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
 set(PLATFORM_LIBS)
@@ -209,7 +198,7 @@ if (PLATFORM_SWITCH)
 elseif (PLATFORM_PS4)
     list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509 SceNet)
 endif ()
-target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS} ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY})
+target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS} ssl)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
     APP_VERSION="${APP_VERSION}"
 )
