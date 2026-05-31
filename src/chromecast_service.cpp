@@ -409,7 +409,7 @@ std::string pickInterfaceName() {
 
 InterfaceInfo findInterfaceInfo(const std::string &name) {
     if (name.empty()) {
-       log_info("Missing interface name");
+       ChromecastService::log_info("Missing interface name");
         return InterfaceInfo{};
     }
     std::vector<InterfaceInfo> interfaces = GetNetworkInterfaces();
@@ -418,9 +418,9 @@ InterfaceInfo findInterfaceInfo(const std::string &name) {
             return iface;
         }
     }
-   log_info("Invalid interface '" + name + "' specified. Available interfaces: ");
+   ChromecastService::log_info("Invalid interface '" + name + "' specified. Available interfaces: ");
     for (auto &iface : interfaces) {
-       log_info("  - " + iface.name);
+       ChromecastService::log_info("  - " + iface.name);
     }
     return InterfaceInfo{};
 }
@@ -442,6 +442,7 @@ std::string chooseCredentialId(const std::string &receiverName, int httpPort) {
 struct ReceiverRuntime {
     std::mutex mutex;
     TaskRunnerImpl* runner = nullptr;
+    bool serviceCreated = false;
     bool stopRequested = false;
 };
 
@@ -459,7 +460,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
 
     InterfaceInfo interface = findInterfaceInfo(interfaceName);
     if (!(interface.GetIpAddressV4() || interface.GetIpAddressV6())) {
-       log_info("ERROR: No IP address on interface " + interfaceName);
+       ChromecastService::log_info("ERROR: No IP address on interface " + interfaceName);
         return;
     }
     std::string privateKey(reinterpret_cast<const char*>(peer_key_der), peer_key_der_len);
@@ -467,7 +468,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
 
     ErrorOr<GeneratedCredentials> creds = GenerateCredentials(deviceId, privateKey, certificate);
     if (!creds.is_value()) {
-       log_info("Failed to load hardcoded credentials: " + creds.error().ToString());
+       ChromecastService::log_info("Failed to load hardcoded credentials: " + creds.error().ToString());
         return;
     }
     auto *task_runner = new TaskRunnerImpl(&Clock::now);
@@ -491,7 +492,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
         g_receiverRuntime.serviceCreated = true;
         g_receiverRuntime.stopRequested = false;
     }
-   log_info("CastService is running on interface " + interfaceName);
+   ChromecastService::log_info("CastService is running on interface " + interfaceName);
     task_runner->RunUntilStopped();
     task_runner->PostTask([&] {
         service.reset();
@@ -504,7 +505,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
         g_receiverRuntime.runner = nullptr;
         g_receiverRuntime.serviceCreated = false;
     }
-   log_info("CastService stopped");
+   ChromecastService::log_info("CastService stopped");
 }
 
 void requestCastServiceStop() {
@@ -536,7 +537,7 @@ void ChromecastService::start() {
     castPort = 8010;
 
     running = true;
-   log_info("Starting receiver='" + receiverName() + "' http=" + std::to_string(httpPort));
+    log_info("Starting receiver='" + receiverName() + "' http=" + std::to_string(httpPort));
 
     httpThread = std::thread(&ChromecastService::workerLoop, this);
 
@@ -553,7 +554,7 @@ void ChromecastService::start() {
         bool enableDiscovery = true;
 
         try {
-            runCastServiceOnThread(interfaceName, friendlyName, modelName, enableDiscovery, deviceId);
+            ::runCastServiceOnThread(interfaceName, friendlyName, modelName, enableDiscovery, deviceId);
         } catch (...) {
            log_info("Cast service thread crashed");
         }
@@ -628,16 +629,13 @@ std::string ChromecastService::buildDeviceDescription() const {
 
 std::string ChromecastService::buildStatusJson() const {
     auto *mpv = main->getPlayer()->getMpv();
-
     std::ostringstream ss;
     ss << "{\"name\":\"" << jsonEscape(receiverName()) << "\","
        << "\"running\":" << (running ? "true" : "false") << ","
        << "\"paused\":" << (mpv->isPaused() ? "true" : "false") << ","
        << "\"position\":" << mpv->getPosition() << ","
        << "\"duration\":" << mpv->getDuration() << ","
-       << "\"path\":\"" << jsonEscape(mpv->getCurrentPath()) << "\","
-       << "\"receiver_process_running\":" << (receiverProcessRunning() ? "true" : "false") << "}";
-
+       << "\"path\":\"" << jsonEscape(mpv->getCurrentPath()) << "\"}";
     return ss.str();
 }
 

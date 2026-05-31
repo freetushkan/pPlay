@@ -192,7 +192,9 @@ jobs:
             sed -i 's/template <std::ranges::input_range R>/template <typename R>/g' "$SED_FILE"
             sed -i 's/std::ranges::empty/std::empty/g' "$SED_FILE"
             sed -i 's/return Join(std::ranges::subrange{begin, end}, delimeter);/return Join<Iterator>(begin, end, delimeter);/g' "$SED_FILE"
-          fi          
+            sed -i 's/ss << range.front();/std::string_view sep = "";/g' "$SED_FILE"
+            sed -i 's/for (auto element : range | std::views::drop(1)) {/for (auto\&\& element : range) { ss << sep << element; sep = delimeter; } if (false) {/g' "$SED_FILE"
+          fi
           
           # Patch stringprintf.h to use polyfill on PS4
           cat > "util/stringprintf.h" <<'EOF'
