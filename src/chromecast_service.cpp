@@ -556,9 +556,10 @@ void ChromecastService::start() {
         std::string modelName = "pPlay Chromecast Receiver";
         std::string deviceId = chooseCredentialId(friendlyName, httpPort);
         bool enableDiscovery = true;
+        bool enableDscp = true;
 
         try {
-            ::runCastServiceOnThread(interfaceName, friendlyName, modelName, enableDiscovery, deviceId);
+            ::runCastServiceOnThread(interfaceName, friendlyName, modelName, enableDiscovery, enableDscp, deviceId);
         } catch (...) {
             ::log_info("Cast service thread crashed");
         }
