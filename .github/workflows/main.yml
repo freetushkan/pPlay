@@ -221,21 +221,12 @@ jobs:
           cat out/Default/args.gn
           
           echo "=== Building OpenScreen components ==="
-          
-          # Build only necessary components
           autoninja -C out/Default cast_receiver platform util 2>&1 | tee build.log
-          
-          echo "=== Verifying build artifacts ==="
-          
-          # List all generated protobuf files
-          echo "Generated protobuf files:"
-          find out/Default/gen -name "*.pb.*" -type f | head -20 || echo "No protobuf files found"
-          
-          # List compiler flags used in build
+
           echo "=== Checking build flags ==="
           grep -r "__PS4__" out/Default/obj 2>/dev/null | head -5 || echo "Warning: __PS4__ not found in build artifacts"
-          
-          # Verify generated files exist
+
+          echo "=== Verify generated files exist ==="
           find -name "cast_channel.pb.h" || echo "Warning: cast_channel.pb.h not found"
           find -name "runtime_version.h" || echo "Warning: runtime_version.h not found"
           find -name "optimization.h" || echo "Warning: optimization.h not found"
