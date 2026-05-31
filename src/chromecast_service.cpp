@@ -252,6 +252,10 @@ unsigned int peer_key_der_len = 1190;
 
 // ==================== HELPER FUNCTIONS ====================
 
+void log_info(const std::string &message) {
+    Utility::log(Utility::LogLevel::Info, "ChromecastService: " + message);
+}
+
 void closeSocket(int fd) {
     if (fd >= 0) close(fd);
 }
@@ -409,7 +413,7 @@ std::string pickInterfaceName() {
 
 InterfaceInfo findInterfaceInfo(const std::string &name) {
     if (name.empty()) {
-       ChromecastService::log_info("Missing interface name");
+        log_info("Missing interface name");
         return InterfaceInfo{};
     }
     std::vector<InterfaceInfo> interfaces = GetNetworkInterfaces();
@@ -418,9 +422,9 @@ InterfaceInfo findInterfaceInfo(const std::string &name) {
             return iface;
         }
     }
-   ChromecastService::log_info("Invalid interface '" + name + "' specified. Available interfaces: ");
+    log_info("Invalid interface '" + name + "' specified. Available interfaces: ");
     for (auto &iface : interfaces) {
-       ChromecastService::log_info("  - " + iface.name);
+        log_info("  - " + iface.name);
     }
     return InterfaceInfo{};
 }
@@ -460,7 +464,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
 
     InterfaceInfo interface = findInterfaceInfo(interfaceName);
     if (!(interface.GetIpAddressV4() || interface.GetIpAddressV6())) {
-       ChromecastService::log_info("ERROR: No IP address on interface " + interfaceName);
+        log_info("ERROR: No IP address on interface " + interfaceName);
         return;
     }
     std::string privateKey(reinterpret_cast<const char*>(peer_key_der), peer_key_der_len);
@@ -468,7 +472,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
 
     ErrorOr<GeneratedCredentials> creds = GenerateCredentials(deviceId, privateKey, certificate);
     if (!creds.is_value()) {
-       ChromecastService::log_info("Failed to load hardcoded credentials: " + creds.error().ToString());
+        log_info("Failed to load hardcoded credentials: " + creds.error().ToString());
         return;
     }
     auto *task_runner = new TaskRunnerImpl(&Clock::now);
@@ -492,7 +496,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
         g_receiverRuntime.serviceCreated = true;
         g_receiverRuntime.stopRequested = false;
     }
-   ChromecastService::log_info("CastService is running on interface " + interfaceName);
+    log_info("CastService is running on interface " + interfaceName);
     task_runner->RunUntilStopped();
     task_runner->PostTask([&] {
         service.reset();
@@ -505,7 +509,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
         g_receiverRuntime.runner = nullptr;
         g_receiverRuntime.serviceCreated = false;
     }
-   ChromecastService::log_info("CastService stopped");
+    log_info("CastService stopped");
 }
 
 void requestCastServiceStop() {
@@ -544,7 +548,7 @@ void ChromecastService::start() {
     castThread = std::thread([this] {
         std::string interfaceName = pickInterfaceName();
         if (interfaceName.empty()) {
-           log_info("No suitable network interface found");
+            ::log_info("No suitable network interface found");
             return;
         }
 
@@ -556,7 +560,7 @@ void ChromecastService::start() {
         try {
             ::runCastServiceOnThread(interfaceName, friendlyName, modelName, enableDiscovery, deviceId);
         } catch (...) {
-           log_info("Cast service thread crashed");
+            ::log_info("Cast service thread crashed");
         }
     });
 }
@@ -594,10 +598,6 @@ std::vector<ChromecastService::Command> ChromecastService::popCommands() {
         pendingCommands.pop();
     }
     return commands;
-}
-
-void ChromecastService::log_info(const std::string &message) const {
-    Utility::log(Utility::LogLevel::Info, "ChromecastService: " + message);
 }
 
 std::string ChromecastService::receiverName() const {

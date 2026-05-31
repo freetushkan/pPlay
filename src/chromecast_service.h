@@ -42,7 +42,6 @@ public:
 private:
     void workerLoop();
     void enqueue(const Command &command);
-    void log_info(const std::string &message) const;
 
     std::string buildDeviceDescription() const;
     std::string buildStatusJson() const;

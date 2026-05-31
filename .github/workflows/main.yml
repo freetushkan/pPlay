@@ -161,12 +161,10 @@ jobs:
                 template<typename T>
                 format_string(const T& s) : str(s) {}
               };
-              
               template<typename... Args>
               inline std::string format(std::string_view fmt, Args&&...) {
                 return std::string(fmt);
               }
-              
               template<typename... Args>
               inline std::string format(const format_string<Args...>& fmt, Args&&...) {
                 return std::string(fmt.str);
@@ -192,8 +190,8 @@ jobs:
             sed -i 's/template <std::ranges::input_range R>/template <typename R>/g' "$SED_FILE"
             sed -i 's/std::ranges::empty/std::empty/g' "$SED_FILE"
             sed -i 's/return Join(std::ranges::subrange{begin, end}, delimeter);/return Join<Iterator>(begin, end, delimeter);/g' "$SED_FILE"
-            sed -i 's/ss << range.front();/std::string_view sep = "";/g' "$SED_FILE"
-            sed -i 's/for (auto element : range | std::views::drop(1)) {/for (auto\&\& element : range) { ss << sep << element; sep = delimeter; } if (false) {/g' "$SED_FILE"
+            sed -i 's/ss << range.front();/if(std::empty(range))return {}; ss << *std::begin(range);/g' "$SED_FILE"
+            sed -i 's/for (auto element : range | std::views::drop(1))/for (auto it = std::next(std::begin(range)); it != std::end(range); ++it) for (auto element = *it; first_pass_dummy_variable_unique == 0; first_pass_dummy_variable_unique++)/g' "$SED_FILE"
           fi
           
           # Patch stringprintf.h to use polyfill on PS4
