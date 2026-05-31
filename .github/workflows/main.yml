@@ -121,15 +121,22 @@ jobs:
       - name: Build OpenScreen via GN
         run: |
           set -eux
+          GN_WORKSPACE="$GITHUB_WORKSPACE/../openscreen"
+          REPO_OPENSCREEN="$GITHUB_WORKSPACE/openscreen"
+
           if [ ! -d "/opt/depot_tools" ]; then
             sudo mkdir -p /opt/depot_tools
             sudo chown -R $USER:$USER /opt/depot_tools
             git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git /opt/depot_tools
           fi
+
           export PATH="/opt/depot_tools:$PATH"
           echo "/opt/depot_tools" >> $GITHUB_PATH
           cd /opt/depot_tools && ./update_depot_tools
           source /opt/pacbrew/ps4/openorbis/ps4vars.sh
+
+          rm -rf "$GN_WORKSPACE"
+          mkdir -p "$GN_WORKSPACE"
           cd "$GITHUB_WORKSPACE" && cd .. && rm -rf openscreen
           gclient config --spec='
           solutions = [
@@ -141,43 +148,34 @@ jobs:
             },
           ]'
           gclient sync --no-history --shallow --force
-          cd openscreen
+          cd "$GN_WORKSPACE"
 
           # Copy ps4-openssl BoringSSL
           cp -r "$GITHUB_WORKSPACE/ps4-openssl/boringssl/"* third_party/boringssl/
-          
+
           # Create C++20 <format> polyfill for PS4 cross-compiler
           mkdir -p "third_party/boringssl/include/format_polyfill"
           cat > "third_party/boringssl/include/format_polyfill/format" <<'POLYFILL'
           #pragma once
           #ifndef __FORMAT_POLYFILL_H__
           #define __FORMAT_POLYFILL_H__
-          #include <string>
+
           #include <sstream>
-          
+          #include <string>
+          #include <string_view>
+          #include <utility>
+
           namespace std {
-            template<typename... Args>
-            struct format_string {
-              std::string_view str;
-              template<typename T>
-              format_string(const T& s) : str(s) {}
-            };
-            
-            template<typename... Args>
-            inline std::string format(std::string_view fmt, Args&&...) {
-              return std::string(fmt);
-            }
-            
-            template<typename... Args>
-            inline std::string format(const format_string<Args...>& fmt, Args&&...) {
-              return std::string(fmt.str);
-            }
+          template <typename... Args>
+          inline std::string format(std::string_view fmt, Args&&...) {
+            return std::string(fmt);
           }
-          
-          #endif
+          }  // namespace std
+
+          #endif  // __FORMAT_POLYFILL_H__
           POLYFILL
-          
-          # Patch stringprintf.h so PS4 never requires a host <format> header
+
+          # Patch stringprintf.h to use polyfill on PS4
           cat > "util/stringprintf.h" <<'EOF'
           #ifndef OPENSCREEN_UTIL_STRING_PRINTF_H_
           #define OPENSCREEN_UTIL_STRING_PRINTF_H_
@@ -185,29 +183,40 @@ jobs:
           #include <string>
           #include <string_view>
 
-          #if defined(__PS4__) && !__has_include(<format>)
-          #  include "../third_party/boringssl/include/format_polyfill/format"
+          #if defined(__has_include)
+          #  if __has_include(<format>)
+          #    include <format>
+          #  else
+          #    include "../third_party/boringssl/include/format_polyfill/format"
+          #  endif
           #else
-          #  include <format>
+          #  include "../third_party/boringssl/include/format_polyfill/format"
           #endif
 
           namespace openscreen {
           std::string StringPrintf(const char* format, ...);
           }  // namespace openscreen
+
           #endif  // OPENSCREEN_UTIL_STRING_PRINTF_H_
           EOF
-          
+
+          # Mirror the patched sources into the repository tree used by pPlay
+          mkdir -p "$REPO_OPENSCREEN/util"
+          mkdir -p "$REPO_OPENSCREEN/third_party/boringssl/include/format_polyfill"
+          cp util/stringprintf.h "$REPO_OPENSCREEN/util/stringprintf.h"
+          cp third_party/boringssl/include/format_polyfill/format "$REPO_OPENSCREEN/third_party/boringssl/include/format_polyfill/format"
+
           mkdir -p build/config
           echo "build_with_chromium = false" > build/config/gclient_args.gni
-          
+
           # Install system dependencies for GN build
           sudo ./build/install-build-deps.py --no-prompt 2>/dev/null || true
-          
+
           # Configure GN with PS4-specific settings and use ps4-openssl BoringSSL
           gn gen out/Default --args="
-            is_debug=false 
-            target_os=\"linux\" 
-            treat_warnings_as_errors=false 
+            is_debug=false
+            target_os=\"linux\"
+            treat_warnings_as_errors=false
             is_component_build=false
             use_sysroot=false
             use_custom_boringssl=true
@@ -218,38 +227,38 @@ jobs:
             extra_cflags=\"-D__PS4__ -I/opt/pacbrew/ps4/openorbis/usr/include -I/opt/pacbrew/ps4/openorbis/include -I$GITHUB_WORKSPACE/ps4-openssl/boringssl/include\"
             extra_ldflags=\"-L/opt/pacbrew/ps4/openorbis/usr/lib -L/opt/pacbrew/ps4/openorbis/lib -L$GITHUB_WORKSPACE/ps4-openssl\"
           " 2>&1 | tee gn_config.log
-          
+
           echo "=== Verifying GN configuration ==="
           grep -E "^(cc|cxx|ar) =" out/Default/args.gn || echo "Note: args.gn not in expected format"
           cat out/Default/args.gn
-          
+
           echo "=== Building OpenScreen components ==="
-          
+
           # Build only necessary components
           autoninja -C out/Default cast_receiver platform util 2>&1 | tee build.log
-          
+
           echo "=== Verifying build artifacts ==="
-          
+
           # List all generated protobuf files
           echo "Generated protobuf files:"
           find out/Default/gen -name "*.pb.*" -type f | head -20 || echo "No protobuf files found"
-          
+
           # List compiler flags used in build
           echo "=== Checking build flags ==="
           grep -r "__PS4__" out/Default/obj 2>/dev/null | head -5 || echo "Warning: __PS4__ not found in build artifacts"
-          
+
           # Verify generated files exist
           find out/Default/gen/ -name "cast_channel.pb.h" || echo "Warning: cast_channel.pb.h not found"
           find out/Default/gen/ -name "runtime_version.h" || echo "Warning: runtime_version.h not found"
-          
+
           # Export headers and libs to workspace
           EXPORT_DIR="$GITHUB_WORKSPACE/openscreen/out/Default"
           mkdir -p "$EXPORT_DIR/gen/cast/common/channel/proto"
           mkdir -p "$EXPORT_DIR/obj"
-          
+
           # Copy all generated files
           cp -r out/Default/gen/* "$EXPORT_DIR/gen/" 2>/dev/null || true
-          
+
           # Copy compiled objects with verification
           for dir in cast platform util third_party; do
             if [ -d "out/Default/obj/$dir" ]; then
@@ -257,7 +266,7 @@ jobs:
               cp -r "out/Default/obj/$dir" "$EXPORT_DIR/obj/"
             fi
           done
-          
+
           # Create/copy protobuf runtime header for PS4
           mkdir -p "$GITHUB_WORKSPACE/openscreen/google/protobuf"
           cat > "$GITHUB_WORKSPACE/openscreen/google/protobuf/runtime_version.h" <<'EOF'
@@ -265,6 +274,8 @@ jobs:
           #define GOOGLE_PROTOBUF_RUNTIME_VERSION_MIN_H_
           // Minimal runtime_version stub for OpenScreen on PS4
           EOF
+
+          # Make sure the checked-out pPlay tree has the patched OpenScreen header/stub.
           ls -lah "$EXPORT_DIR/obj/" 2>/dev/null || echo "No obj directory"
 
       - name: Configure pPlay

@@ -38,6 +38,24 @@ set(PROJECT_AUTHOR "Cpasjuste")
 set(TITLE_ID "PPLAY0001")
 set(APP_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
 
+# OpenOrbis / OpenSSL (PS4)
+#####################
+if (PLATFORM_PS4)
+    if (NOT DEFINED OPENORBIS_ROOT)
+        set(OPENORBIS_ROOT "/opt/pacbrew/ps4/openorbis" CACHE PATH "OpenOrbis root directory")
+    endif ()
+
+    set(OPENSSL_ROOT_DIR "${OPENORBIS_ROOT}/usr" CACHE PATH "OpenSSL root directory" FORCE)
+    set(OPENSSL_INCLUDE_DIR "${OPENORBIS_ROOT}/usr/include" CACHE PATH "OpenSSL include directory" FORCE)
+    set(OPENSSL_SSL_LIBRARY "${OPENORBIS_ROOT}/usr/lib/libssl.a" CACHE FILEPATH "OpenSSL SSL library" FORCE)
+    set(OPENSSL_CRYPTO_LIBRARY "${OPENORBIS_ROOT}/usr/lib/libcrypto.a" CACHE FILEPATH "OpenSSL crypto library" FORCE)
+
+    include_directories(BEFORE
+        ${OPENORBIS_ROOT}/usr/include
+        ${OPENORBIS_ROOT}/include
+    )
+endif ()
+
 # deps
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 find_package(BZip2 REQUIRED)
@@ -140,25 +158,6 @@ elseif (PLATFORM_LINUX)
 endif ()
 
 #####################
-# OpenOrbis / OpenSSL (PS4)
-#####################
-if (PLATFORM_PS4)
-    if (NOT DEFINED OPENORBIS_ROOT)
-        set(OPENORBIS_ROOT "/opt/pacbrew/ps4/openorbis" CACHE PATH "OpenOrbis root directory")
-    endif ()
-
-    set(OPENSSL_ROOT_DIR "${OPENORBIS_ROOT}/usr" CACHE PATH "OpenSSL root directory" FORCE)
-    set(OPENSSL_INCLUDE_DIR "${OPENORBIS_ROOT}/usr/include" CACHE PATH "OpenSSL include directory" FORCE)
-    set(OPENSSL_SSL_LIBRARY "${OPENORBIS_ROOT}/usr/lib/libssl.a" CACHE FILEPATH "OpenSSL SSL library" FORCE)
-    set(OPENSSL_CRYPTO_LIBRARY "${OPENORBIS_ROOT}/usr/lib/libcrypto.a" CACHE FILEPATH "OpenSSL crypto library" FORCE)
-
-    include_directories(BEFORE
-        ${OPENORBIS_ROOT}/usr/include
-        ${OPENORBIS_ROOT}/include
-    )
-endif ()
-
-#####################
 # openscreen (Cast support)
 #####################
 set(OPENSCREEN_ROOT "${CMAKE_SOURCE_DIR}/openscreen" CACHE STRING "OpenScreen root directory")
@@ -172,6 +171,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/openscreen
         ${OPENSCREEN_GEN}
         ${OPENSCREEN_GEN}/cast/common/channel/proto
+        ${OPENSCREEN_ROOT}/third_party/boringssl/include/format_polyfill
     )
     
     list(APPEND PPLAY_INC 
