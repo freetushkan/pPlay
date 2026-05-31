@@ -145,7 +145,7 @@ jobs:
 
           # Copy ps4-openssl BoringSSL
           cp -r "$GITHUB_WORKSPACE/ps4-openssl/boringssl/"* third_party/boringssl/
-          
+
           # Create C++20 polyfills for PS4 cross-compiler
           mkdir -p "CXX20_polyfills"
           cat > "CXX20_polyfills/format" <<'POLYFILL'
@@ -200,13 +200,13 @@ jobs:
             sed -i 's/std::format_string<Args...> fmt/const std::string\& fmt/g' "$PRINTF_FILE"
             sed -i 's/return std::format(fmt, std::forward<Args>(args)...);/int sz = std::snprintf(nullptr, 0, fmt.c_str(), args...) + 1; std::unique_ptr<char[]> buf(new char[sz]); std::snprintf(buf.get(), sz, fmt.c_str(), args...); return std::string(buf.get(), buf.get() + sz - 1);/g' "$PRINTF_FILE"
           fi
-          
+
           mkdir -p build/config
           echo "build_with_chromium = false" > build/config/gclient_args.gni
-          
+
           # Install system dependencies for GN build
           sudo ./build/install-build-deps.py --no-prompt 2>/dev/null || true
-          
+
           # Configure GN with PS4-specific settings and use ps4-openssl BoringSSL
           gn gen out/Default --args="
             is_debug=false 
@@ -222,11 +222,11 @@ jobs:
             extra_cflags=\"-D__PS4__ -I/opt/pacbrew/ps4/openorbis/usr/include -I/opt/pacbrew/ps4/openorbis/include -I$GITHUB_WORKSPACE/ps4-openssl/boringssl/include\"
             extra_ldflags=\"-L/opt/pacbrew/ps4/openorbis/usr/lib -L/opt/pacbrew/ps4/openorbis/lib -L$GITHUB_WORKSPACE/ps4-openssl\"
           " 2>&1 | tee gn_config.log
-          
+
           echo "=== Verifying GN configuration ==="
           grep -E "^(cc|cxx|ar) =" out/Default/args.gn || echo "Note: args.gn not in expected format"
           cat out/Default/args.gn
-          
+
           echo "=== Building OpenScreen components ==="
           autoninja -C out/Default cast_receiver platform util
 
