@@ -52,13 +52,13 @@ namespace {
 
 using openscreen::cast::CastService;
 using openscreen::cast::GeneratedCredentials;
-using openscreen::cast::InterfaceInfo;
+using openscreen::InterfaceInfo;
 using openscreen::cast::StaticCredentialsProvider;
 using openscreen::cast::GenerateCredentials;
 using openscreen::cast::GenerateCredentialsForTesting;
-using openscreen::cast::GetNetworkInterfaces;
-using openscreen::cast::TaskRunnerImpl;
-using openscreen::cast::PlatformClientPosix;
+using openscreen::GetNetworkInterfaces;
+using openscreen::TaskRunnerImpl;
+using openscreen::PlatformClientPosix;
 
 
 static unsigned char auth_crt[] = {
@@ -409,7 +409,7 @@ std::string pickInterfaceName() {
 
 InterfaceInfo findInterfaceInfo(const std::string &name) {
     if (name.empty()) {
-        log("Missing interface name");
+       log_info("Missing interface name");
         return InterfaceInfo{};
     }
     std::vector<InterfaceInfo> interfaces = GetNetworkInterfaces();
@@ -418,9 +418,9 @@ InterfaceInfo findInterfaceInfo(const std::string &name) {
             return iface;
         }
     }
-    log("Invalid interface '" + name + "' specified. Available interfaces: ");
+   log_info("Invalid interface '" + name + "' specified. Available interfaces: ");
     for (auto &iface : interfaces) {
-        log("  - " + iface.name);
+       log_info("  - " + iface.name);
     }
     return InterfaceInfo{};
 }
@@ -459,7 +459,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
 
     InterfaceInfo interface = findInterfaceInfo(interfaceName);
     if (!(interface.GetIpAddressV4() || interface.GetIpAddressV6())) {
-        log("ERROR: No IP address on interface " + interfaceName);
+       log_info("ERROR: No IP address on interface " + interfaceName);
         return;
     }
     std::string privateKey(reinterpret_cast<const char*>(peer_key_der), peer_key_der_len);
@@ -467,7 +467,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
 
     ErrorOr<GeneratedCredentials> creds = GenerateCredentials(deviceId, privateKey, certificate);
     if (!creds.is_value()) {
-        log("Failed to load hardcoded credentials: " + creds.error());
+       log_info("Failed to load hardcoded credentials: " + creds.error());
         return;
     }
     auto *task_runner = new TaskRunnerImpl(&Clock::now);
@@ -491,7 +491,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
         g_receiverRuntime.serviceCreated = true;
         g_receiverRuntime.stopRequested = false;
     }
-    log("CastService is running on interface " + interfaceName);
+   log_info("CastService is running on interface " + interfaceName);
     task_runner->RunUntilStopped();
     task_runner->PostTask([&] {
         service.reset();
@@ -504,7 +504,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
         g_receiverRuntime.runner = nullptr;
         g_receiverRuntime.serviceCreated = false;
     }
-    log("CastService stopped");
+   log_info("CastService stopped");
 }
 
 void requestCastServiceStop() {
@@ -528,7 +528,7 @@ void ChromecastService::start() {
     if (running || !main) return;
 
     if (main->getConfig()->getOption(OPT_CAST_ENABLED)->getInteger() == 0) {
-        log("ChromecastService disabled by config");
+       log_info("ChromecastService disabled by config");
         return;
     }
 
@@ -536,14 +536,14 @@ void ChromecastService::start() {
     castPort = 8010;
 
     running = true;
-    log("Starting receiver='" + receiverName() + "' http=" + std::to_string(httpPort));
+   log_info("Starting receiver='" + receiverName() + "' http=" + std::to_string(httpPort));
 
     httpThread = std::thread(&ChromecastService::workerLoop, this);
 
     castThread = std::thread([this] {
         std::string interfaceName = pickInterfaceName();
         if (interfaceName.empty()) {
-            log("No suitable network interface found");
+           log_info("No suitable network interface found");
             return;
         }
 
@@ -555,7 +555,7 @@ void ChromecastService::start() {
         try {
             runCastServiceOnThread(interfaceName, friendlyName, modelName, enableDiscovery, deviceId);
         } catch (...) {
-            log("Cast service thread crashed");
+           log_info("Cast service thread crashed");
         }
     });
 }
@@ -563,7 +563,7 @@ void ChromecastService::start() {
 void ChromecastService::stop() {
     if (!running) return;
     running = false;
-    log("stopping");
+   log_info("stopping");
     requestCastServiceStop();
 
     if (httpThread.joinable()) httpThread.join();
@@ -595,7 +595,7 @@ std::vector<ChromecastService::Command> ChromecastService::popCommands() {
     return commands;
 }
 
-void ChromecastService::log(const std::string &message) const {
+void ChromecastService::log_info(const std::string &message) const {
     Utility::log(Utility::LogLevel::Info, "ChromecastService: " + message);
 }
 
@@ -654,7 +654,7 @@ std::string ChromecastService::buildDialResponse(const std::string &appName) con
 void ChromecastService::workerLoop() {
     int server = socket(AF_INET, SOCK_STREAM, 0);
     if (server < 0) {
-        log("http socket() failed");
+       log_info("http socket() failed");
         return;
     }
 
@@ -664,13 +664,13 @@ void ChromecastService::workerLoop() {
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(static_cast<uint16_t>(httpPort));
     if (bind(server, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) != 0 || listen(server, 8) != 0) {
-        log("http bind/listen failed on port " + std::to_string(httpPort));
+       log_info("http bind/listen failed on port " + std::to_string(httpPort));
         closeSocket(server);
         return;
     }
 
     setNonBlocking(server);
-    log("http listener ready");
+   log_info("http listener ready");
 
     while (running) {
         fd_set readSet;
@@ -693,7 +693,7 @@ void ChromecastService::workerLoop() {
             auto parts = splitRequestLine(request);
             std::string method = parts.size() > 0 ? parts[0] : "";
             std::string target = parts.size() > 1 ? parts[1] : "/";
-            log("http " + method + " " + target);
+           log_info("http " + method + " " + target);
 
             if (target == "/" || target == "/ssdp/device-desc.xml" || target == "/setup/eureka_info") {
                 std::string host = headerValue(request, "Host");

@@ -149,45 +149,49 @@ jobs:
           # Create C++20 polyfills for PS4 cross-compiler
           mkdir -p "CXX20_polyfills"
           cat > "CXX20_polyfills/format" <<'POLYFILL'
-          #pragma once
-          #ifndef __FORMAT_POLYFILL_H__
-          #define __FORMAT_POLYFILL_H__
-          #include <string>
-          #include <sstream>
-          namespace std {
-            template<typename... Args>
-            struct format_string {
-              std::string_view str;
-              template<typename T>
-              format_string(const T& s) : str(s) {}
-            };
-            
-            template<typename... Args>
-            inline std::string format(std::string_view fmt, Args&&...) {
-              return std::string(fmt);
+            #pragma once
+            #ifndef __FORMAT_POLYFILL_H__
+            #define __FORMAT_POLYFILL_H__
+            #include <string>
+            #include <sstream>
+            namespace std {
+              template<typename... Args>
+              struct format_string {
+                std::string_view str;
+                template<typename T>
+                format_string(const T& s) : str(s) {}
+              };
+              
+              template<typename... Args>
+              inline std::string format(std::string_view fmt, Args&&...) {
+                return std::string(fmt);
+              }
+              
+              template<typename... Args>
+              inline std::string format(const format_string<Args...>& fmt, Args&&...) {
+                return std::string(fmt.str);
+              }
             }
-            
-            template<typename... Args>
-            inline std::string format(const format_string<Args...>& fmt, Args&&...) {
-              return std::string(fmt.str);
-            }
-          }
-          #endif
+            #endif
           POLYFILL
           cat > "CXX20_polyfills/ranges" <<'POLYFILL'
-          #pragma once
-          #ifndef __RANGES_POLYFILL_H__
-          #define __RANGES_POLYFILL_H__
-          #include <vector>
-          #include <iterator>
-          #include <algorithm>
-          namespace std {
-            namespace ranges {
-              // functions
-            }
-          }
-          #endif
+            #pragma once
+            #ifndef __RANGES_POLYFILL_H__
+            #define __RANGES_POLYFILL_H__
+            #include <vector>
+            #include <iterator>
+            #define constexpr_string_hack
+            namespace std { namespace ranges { } }
+            #endif
           POLYFILL
+
+          # Clean string_util.h from CXX20 stuff
+          SED_FILE="util/string_util.h"
+          if [ -f "$SED_FILE" ]; then
+            sed -i 's/constexpr std::string/std::string/g' "$SED_FILE"
+            sed -i 's/template <std::ranges::input_range R>/template <typename R>/g' "$SED_FILE"
+            sed -i 's/return Join(std::ranges::subrange{begin, end}, delimeter);/return Join<Iterator>(begin, end, delimeter);/g' "$SED_FILE"
+          fi          
           
           # Patch stringprintf.h to use polyfill on PS4
           cat > "util/stringprintf.h" <<'EOF'
