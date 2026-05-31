@@ -228,7 +228,7 @@ jobs:
           cat out/Default/args.gn
 
           echo "=== Building OpenScreen components ==="
-          autoninja -C out/Default cast_receiver platform util -k 0 || true
+          autoninja -C out/Default gn_all -k 0 || true
 
           echo "=== Building OpenScreen libs ==="
           ALL_OBJ_FILES=$(find out/Default/obj -name "*.o")
