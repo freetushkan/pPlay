@@ -236,8 +236,9 @@ jobs:
           grep -r "__PS4__" out/Default/obj 2>/dev/null | head -5 || echo "Warning: __PS4__ not found in build artifacts"
           
           # Verify generated files exist
-          find out/Default/gen/ -name "cast_channel.pb.h" || echo "Warning: cast_channel.pb.h not found"
-          find out/Default/gen/ -name "runtime_version.h" || echo "Warning: runtime_version.h not found"
+          find out/ -name "cast_channel.pb.h" || echo "Warning: cast_channel.pb.h not found"
+          find out/ -name "runtime_version.h" || echo "Warning: runtime_version.h not found"
+          find out/ -name "optimization.h" || echo "Warning: optimization.h not found"
 
       - name: Configure pPlay
         run: |
