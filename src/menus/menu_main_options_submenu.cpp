@@ -55,7 +55,7 @@ namespace {
 #ifdef __PS4__
     std::string formatUTCOffset(float hours) {
         bool isNegative = hours < 0.0f;
-        float absHours = std::abs(hours);
+        float absHours = std::fabs(hours);
         int h = static_cast<int>(absHours);
         int m = static_cast<int>(std::round((absHours - h) * 60.0f));
         if (m == 60) {
@@ -64,7 +64,7 @@ namespace {
         }
         std::ostringstream oss;
         oss << (isNegative ? "-" : "+")
-            << h << ":"
+            << std::setfill('0') << std::setw(2) << h << ":"
             << std::setfill('0') << std::setw(2) << m;
         return oss.str();
     }
