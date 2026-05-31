@@ -184,33 +184,22 @@ jobs:
           POLYFILL
 
           # Clean string_util.h from CXX20 stuff
-          SED_FILE="util/string_util.h"
-          if [ -f "$SED_FILE" ]; then
-            sed -i 's/constexpr std::string/std::string/g' "$SED_FILE"
-            sed -i 's/template <std::ranges::input_range R>/template <typename R>/g' "$SED_FILE"
-            sed -i 's/std::ranges::empty/std::empty/g' "$SED_FILE"
-            sed -i 's/return Join(std::ranges::subrange{begin, end}, delimeter);/return Join<Iterator>(begin, end, delimeter);/g' "$SED_FILE"
-            sed -i 's/ss << range.front();/bool is_first = true;/g' "$SED_FILE"
-            sed -i 's/for (auto element : range | std::views::drop(1))/for (auto\&\& element : range) if (is_first) is_first = false; else/g' "$SED_FILE"
-            sed -i 's/ss << delimeter << element;/ss << (is_first ? "" : delimeter) << element; is_first = false;/g' "$SED_FILE"
+          UTIL_FILE="util/string_util.h"
+          if [ -f "$UTIL_FILE" ]; then
+            sed -i 's/constexpr std::string/std::string/g' "$UTIL_FILE"
+            sed -i 's/template <std::ranges::input_range R>/template <typename R>/g' "$UTIL_FILE"
+            sed -i 's/std::ranges::empty/std::empty/g' "$UTIL_FILE"
+            sed -i 's/return Join(std::ranges::subrange{begin, end}, delimeter);/return Join<Iterator>(begin, end, delimeter);/g' "$UTIL_FILE"
+            sed -i 's/ss << range.front();/bool is_first = true;/g' "$UTIL_FILE"
+            sed -i 's/for (auto element : range | std::views::drop(1))/for (auto\&\& element : range) if (is_first) is_first = false; else/g' "$UTIL_FILE"
+            sed -i 's/ss << delimeter << element;/ss << (is_first ? "" : delimeter) << element; is_first = false;/g' "$UTIL_FILE"
           fi
-          
-          # Patch stringprintf.h to use polyfill on PS4
-          cat > "util/stringprintf.h" <<'EOF'
-          #ifndef OPENSCREEN_UTIL_STRING_PRINTF_H_
-          #define OPENSCREEN_UTIL_STRING_PRINTF_H_
-          #ifdef __PS4__
-          #include "../CXX20_polyfills/format"
-          #else
-          #include <format>
-          #endif
-          #include <string>
-          #include <string_view>
-          namespace openscreen {
-          std::string StringPrintf(const char* format, ...);
-          }  // namespace openscreen
-          #endif  // OPENSCREEN_UTIL_STRING_PRINTF_H_
-          EOF
+          PRINTF_FILE="util/string_printf.h"
+          if [ -f "$PRINTF_FILE" ]; then
+            sed -i 's/#include <format>/#include <cstdio>\n#include <memory>/g' "$PRINTF_FILE"
+            sed -i 's/std::format_string<Args...> fmt/const std::string\& fmt/g' "$PRINTF_FILE"
+            sed -i 's/return std::format(fmt, std::forward<Args>(args)...);/int sz = std::snprintf(nullptr, 0, fmt.c_str(), args...) + 1; std::unique_ptr<char[]> buf(new char[sz]); std::snprintf(buf.get(), sz, fmt.c_str(), args...); return std::string(buf.get(), buf.get() + sz - 1);/g' "$PRINTF_FILE"
+          fi
           
           mkdir -p build/config
           echo "build_with_chromium = false" > build/config/gclient_args.gni
