@@ -231,9 +231,10 @@ jobs:
           autoninja -C out/Default cast_receiver platform util -k 0 || true
 
           echo "=== Building OpenScreen libs ==="
-          "$AR" rcs out/Default/obj/cast/libcast_receiver.a $(find out/Default/obj/cast -name "*.o")
-          "$AR" rcs out/Default/obj/platform/libplatform.a $(find out/Default/obj/platform -name "*.o")
-          "$AR" rcs out/Default/obj/util/libutil.a $(find out/Default/obj/util -name "*.o")
+          ALL_OBJ_FILES=$(find out/Default/obj -name "*.o")
+          "$AR" rcs out/Default/obj/cast/libcast_receiver.a $ALL_OBJ_FILES
+          "$AR" rcs out/Default/obj/platform/libplatform.a $ALL_OBJ_FILES
+          "$AR" rcs out/Default/obj/util/libutil.a $ALL_OBJ_FILES
           "$RANLIB" out/Default/obj/cast/libcast_receiver.a
           "$RANLIB" out/Default/obj/platform/libplatform.a
           "$RANLIB" out/Default/obj/util/libutil.a
