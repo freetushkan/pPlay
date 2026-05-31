@@ -18,6 +18,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include <memory>
 
 #include "cross2d/c2d.h"
 #include "pplay_config.h"
@@ -45,6 +46,42 @@
 #include "util/string_util.h"
 #include "util/stringprintf.h"
 #include "util/uuid.h"
+
+
+namespace openscreen {
+    class Error {
+    public:
+        enum class Code { kUnknownError = 1 };
+        Error(Code code) {}
+    };
+
+    template <typename T>
+    class ErrorOr {
+        int placeholder;
+    public:
+        ErrorOr(Error error) : placeholder(0) {}
+    };
+}
+
+namespace openscreen::cast {
+    class StaticCredentialsProvider;
+    struct TlsCredentials {};
+    struct GeneratedCredentials {
+        std::unique_ptr<StaticCredentialsProvider> provider;
+        TlsCredentials tls_credentials;
+        std::vector<uint8_t> root_cert_der;
+    };
+    openscreen::ErrorOr<GeneratedCredentials> GenerateCredentials(
+        const std::string& device_certificate_id,
+        const std::string& private_key_path,
+        const std::string& server_certificate_path) 
+    {
+        return openscreen::ErrorOr<GeneratedCredentials>(
+            openscreen::Error(openscreen::Error::Code::kUnknownError)
+        );
+    }
+}
+
 
 using namespace pplay;
 

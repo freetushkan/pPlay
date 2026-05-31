@@ -214,6 +214,7 @@ jobs:
             treat_warnings_as_errors=false 
             is_component_build=false
             use_sysroot=false
+            use_custom_libcxx=false
             cc=\"$CC\"
             cxx=\"$CXX\"
             ld=\"$LD\"
