@@ -285,6 +285,8 @@ jobs:
 
       - name: Build pplay
         run: |
+          source /opt/pacbrew/ps4/openorbis/ps4vars.sh
+          export OPENORBIS=/opt/pacbrew/ps4/openorbis
           cd cmake-build
           make pplay_pkg -j$(nproc)
           mv *.pkg ../

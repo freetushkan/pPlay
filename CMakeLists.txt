@@ -20,6 +20,10 @@ set(OPTION_SCRAPPING OFF CACHE BOOL "Build with TMDB scraping support")
 ###################
 # MODULES
 ###################
+if (PLATFORM_PS4)
+    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-include> $<$<COMPILE_LANGUAGE:CXX>:cstdlib>)
+endif ()
+
 add_subdirectory(libcross2d)
 
 ##############
