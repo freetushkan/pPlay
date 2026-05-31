@@ -230,6 +230,7 @@ jobs:
           find -name "cast_channel.pb.h" || echo "Warning: cast_channel.pb.h not found"
           find -name "runtime_version.h" || echo "Warning: runtime_version.h not found"
           find -name "optimization.h" || echo "Warning: optimization.h not found"
+          find -name "value.h" || echo "Warning: value.h not found"
 
       - name: Configure pPlay
         run: |
