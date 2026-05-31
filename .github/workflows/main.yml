@@ -214,14 +214,14 @@ jobs:
             treat_warnings_as_errors=false 
             is_component_build=false
             use_sysroot=false
-            use_custom_boringssl=true
-            use_boringssl_for_openssl_replacement=true
-            ar=\"$AR\"
             cc=\"$CC\"
             cxx=\"$CXX\"
+            ld=\"$LD\"
+            ar=\"$AR\"
+            ranlib=\"$RANLIB\"
             extra_cflags=\"-D__PS4__ -I/opt/pacbrew/ps4/openorbis/usr/include -I/opt/pacbrew/ps4/openorbis/include -I$GITHUB_WORKSPACE/ps4-openssl/boringssl/include\"
             extra_ldflags=\"-L/opt/pacbrew/ps4/openorbis/usr/lib -L/opt/pacbrew/ps4/openorbis/lib -L$GITHUB_WORKSPACE/ps4-openssl\"
-          " 2>&1 | tee gn_config.log
+          "
 
           echo "=== Verifying GN configuration ==="
           grep -E "^(cc|cxx|ar) =" out/Default/args.gn || echo "Note: args.gn not in expected format"
@@ -234,11 +234,10 @@ jobs:
           "$AR" rcs out/Default/obj/cast/libcast_receiver.a $(find out/Default/obj/cast -name "*.o")
           "$AR" rcs out/Default/obj/platform/libplatform.a $(find out/Default/obj/platform -name "*.o")
           "$AR" rcs out/Default/obj/util/libutil.a $(find out/Default/obj/util -name "*.o")
-          RANLIB_CMD=${RANLIB:-llvm-ranlib}
-          $RANLIB_CMD out/Default/obj/cast/libcast_receiver.a
-          $RANLIB_CMD out/Default/obj/platform/libplatform.a
-          $RANLIB_CMD out/Default/obj/util/libutil.a
-          $RANLIB_CMD out/Default/obj/third_party/protobuf/libprotobuf_lite.a 
+          "$RANLIB" out/Default/obj/cast/libcast_receiver.a
+          "$RANLIB" out/Default/obj/platform/libplatform.a
+          "$RANLIB" out/Default/obj/util/libutil.a
+          "$RANLIB" out/Default/obj/third_party/protobuf/libprotobuf_lite.a 
 
           echo "=== Checking build flags ==="
           grep -r "__PS4__" out/Default/obj 2>/dev/null | head -5 || echo "Warning: __PS4__ not found in build artifacts"
