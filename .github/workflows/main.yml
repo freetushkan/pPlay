@@ -239,7 +239,7 @@ jobs:
           cat out/Default/args.gn
           
           echo "=== Building OpenScreen components ==="
-          autoninja -C out/Default cast_receiver platform util 2>&1 | tee build.log
+          autoninja -C out/Default gn_all 2>&1 | tee build.log
 
           echo "=== Checking build flags ==="
           grep -r "__PS4__" out/Default/obj 2>/dev/null | head -5 || echo "Warning: __PS4__ not found in build artifacts"
