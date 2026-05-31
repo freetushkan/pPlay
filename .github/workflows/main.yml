@@ -146,9 +146,9 @@ jobs:
           # Copy ps4-openssl BoringSSL
           cp -r "$GITHUB_WORKSPACE/ps4-openssl/boringssl/"* third_party/boringssl/
           
-          # Create C++20 <format> polyfill for PS4 cross-compiler
-          mkdir -p "third_party/boringssl/include/format_polyfill"
-          cat > "third_party/boringssl/include/format_polyfill/format" <<'POLYFILL'
+          # Create C++20 polyfills for PS4 cross-compiler
+          mkdir -p "CXX20_polyfills"
+          cat > "CXX20_polyfills/format" <<'POLYFILL'
           #pragma once
           #ifndef __FORMAT_POLYFILL_H__
           #define __FORMAT_POLYFILL_H__
@@ -174,6 +174,20 @@ jobs:
             }
           }
           
+          #endif
+          POLYFILL
+          cat > "CXX20_polyfills/ranges" <<'POLYFILL'
+          #pragma once
+          #ifndef __RANGES_POLYFILL_H__
+          #define __RANGES_POLYFILL_H__
+          #include <vector>
+          #include <iterator>
+          #include <algorithm>
+          namespace std {
+            namespace ranges {
+              // functions
+            }
+          }
           #endif
           POLYFILL
           
