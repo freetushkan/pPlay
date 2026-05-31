@@ -201,10 +201,6 @@ jobs:
             sed -i 's/return std::format(fmt, std::forward<Args>(args)...);/int sz = std::snprintf(nullptr, 0, fmt.c_str(), args...) + 1; std::unique_ptr<char[]> buf(new char[sz]); std::snprintf(buf.get(), sz, fmt.c_str(), args...); return std::string(buf.get(), buf.get() + sz - 1);/g' "$PRINTF_FILE"
           fi
 
-          echo "=== Remove OpenScreen anonymous namespace from static_credentials.cc ==="
-          sed -i '/namespace openscreen::cast {/,/ErrorOr<GeneratedCredentials>/ { /namespace {/d }' cast/receiver/channel/static_credentials.cc
-          sed -i '/ErrorOr<GeneratedCredentials>/,/StaticCredentialsProvider::/ { /^[[:space:]]*}[[:space:]]*\/\/ namespace[[:space:]]*$/d }' cast/receiver/channel/static_credentials.cc
-
           mkdir -p build/config
           echo "build_with_chromium = false" > build/config/gclient_args.gni
 
