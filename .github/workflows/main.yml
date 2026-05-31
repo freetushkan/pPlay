@@ -238,24 +238,6 @@ jobs:
           # Verify generated files exist
           find out/Default/gen/ -name "cast_channel.pb.h" || echo "Warning: cast_channel.pb.h not found"
           find out/Default/gen/ -name "runtime_version.h" || echo "Warning: runtime_version.h not found"
-          
-          # Export headers and libs to workspace
-          EXPORT_DIR="$GITHUB_WORKSPACE/openscreen/out/Default"
-          mkdir -p "$EXPORT_DIR/gen/cast/common/channel/proto"
-          mkdir -p "$EXPORT_DIR/obj"
-          
-          # Copy all generated files
-          cp -r out/Default/gen/* "$EXPORT_DIR/gen/" 2>/dev/null || true
-          
-          # Copy compiled objects with verification
-          for dir in cast platform util third_party; do
-            if [ -d "out/Default/obj/$dir" ]; then
-              echo "Copying obj/$dir..."
-              cp -r "out/Default/obj/$dir" "$EXPORT_DIR/obj/"
-            fi
-          done
-          
-          ls -lah "$EXPORT_DIR/obj/" 2>/dev/null || echo "No obj directory"
 
       - name: Configure pPlay
         run: |
