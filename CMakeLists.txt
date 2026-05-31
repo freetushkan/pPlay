@@ -40,6 +40,7 @@ set(APP_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
 
 # deps
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+set(OPENORBIS_ROOT "" CACHE PATH "OpenOrbis SDK root directory")
 find_package(BZip2 REQUIRED)
 find_package(MPV REQUIRED)
 find_package(ffmpeg COMPONENTS avfilter avcodec avformat avutil swscale swresample)
@@ -144,6 +145,7 @@ endif ()
 #####################
 set(OPENSCREEN_ROOT "${CMAKE_SOURCE_DIR}/openscreen" CACHE STRING "OpenScreen root directory")
 set(OPENSCREEN_GEN "${OPENSCREEN_ROOT}/out/Default/gen")
+set(OPENSCREEN_FORMAT_POLYFILL_DIR "${OPENSCREEN_ROOT}/third_party/boringssl/include/format_polyfill")
 
 if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
     add_compile_definitions(__PS4__)
@@ -153,6 +155,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/openscreen
         ${OPENSCREEN_GEN}
         ${OPENSCREEN_GEN}/cast/common/channel/proto
+        ${OPENSCREEN_FORMAT_POLYFILL_DIR}
     )
     
     list(APPEND PPLAY_INC 
@@ -160,7 +163,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/openscreen
         ${OPENSCREEN_GEN}
         ${OPENSCREEN_GEN}/cast/common/channel/proto
-        ${OPENSCREEN_ROOT}/out/Default/obj/third_party/boringssl/include/format_polyfill
+        ${OPENSCREEN_FORMAT_POLYFILL_DIR}
     )
     
     # Link OpenScreen libraries
@@ -168,7 +171,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/out/Default/obj/cast/libcast_receiver.a
         ${OPENSCREEN_ROOT}/out/Default/obj/platform/libplatform.a
         ${OPENSCREEN_ROOT}/out/Default/obj/util/libutil.a
-        ${OPENSCREEN_ROOT}/out/Default/obj/third_party/protobuf/libprotobuf_lite.a
         ${OPENSCREEN_ROOT}/out/Default/obj/third_party/protobuf/libprotobuf_lite.a
     )
     
@@ -182,7 +184,7 @@ endif()
 # pplay executable
 #####################
 add_executable(${CMAKE_PROJECT_NAME} ${PPLAY_SRC})
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${PPLAY_INC})
+target_include_directories(${CMAKE_PROJECT_NAME} BEFORE PRIVATE ${PPLAY_INC})
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE ${PPLAY_CFLAGS})
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
 set(PLATFORM_LIBS)
@@ -191,7 +193,15 @@ if (PLATFORM_SWITCH)
 elseif (PLATFORM_PS4)
     list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509 SceNet)
 endif ()
-target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS} ssl)
+set(PPLAY_SSL_LIBS ssl)
+if(OPENORBIS_ROOT)
+    set(PPLAY_SSL_LIBS
+        ${OPENORBIS_ROOT}/usr/lib/libssl.a
+        ${OPENORBIS_ROOT}/usr/lib/libcrypto.a
+    )
+endif()
+
+target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS} ${PPLAY_SSL_LIBS})
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
     APP_VERSION="${APP_VERSION}"
 )

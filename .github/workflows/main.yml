@@ -146,54 +146,25 @@ jobs:
           # Copy ps4-openssl BoringSSL
           cp -r "$GITHUB_WORKSPACE/ps4-openssl/boringssl/"* third_party/boringssl/
           
-          # Create C++20 <format> polyfill for PS4 cross-compiler
+          # Create a tiny <format> polyfill for the PS4 toolchain.
+          # It is only used when the compiler/stdlib does not provide <format>.
           mkdir -p "third_party/boringssl/include/format_polyfill"
           cat > "third_party/boringssl/include/format_polyfill/format" <<'POLYFILL'
           #pragma once
-          #ifndef __FORMAT_POLYFILL_H__
-          #define __FORMAT_POLYFILL_H__
           #include <string>
-          #include <sstream>
-          
+          #include <string_view>
           namespace std {
-            template<typename... Args>
-            struct format_string {
-              std::string_view str;
-              template<typename T>
-              format_string(const T& s) : str(s) {}
-            };
-            
             template<typename... Args>
             inline std::string format(std::string_view fmt, Args&&...) {
               return std::string(fmt);
             }
-            
-            template<typename... Args>
-            inline std::string format(const format_string<Args...>& fmt, Args&&...) {
-              return std::string(fmt.str);
-            }
           }
-          
-          #endif
           POLYFILL
-          
-          # Patch stringprintf.h to use polyfill on PS4
-          cat > "util/stringprintf.h" <<'EOF'
-          #ifndef OPENSCREEN_UTIL_STRING_PRINTF_H_
-          #define OPENSCREEN_UTIL_STRING_PRINTF_H_
-          #ifdef __PS4__
-          #include "../third_party/boringssl/include/format_polyfill/format"
-          #else
-          #include <format>
-          #endif
-          #include <string>
-          #include <string_view>
-          namespace openscreen {
-          std::string StringPrintf(const char* format, ...);
-          }  // namespace openscreen
-          #endif  // OPENSCREEN_UTIL_STRING_PRINTF_H_
-          EOF
-          
+
+          # Patch stringprintf.h in-place so the real header stays intact,
+          # but <format> gracefully falls back to the polyfill on PS4.
+          perl -0pi -e 's|#include <format>|#if defined(__has_include)\n#  if __has_include(<format>)\n#    include <format>\n#  else\n#    include "../third_party/boringssl/include/format_polyfill/format"\n#  endif\n#else\n#  include "../third_party/boringssl/include/format_polyfill/format"\n#endif|g' util/stringprintf.h
+
           mkdir -p build/config
           echo "build_with_chromium = false" > build/config/gclient_args.gni
           
@@ -302,6 +273,7 @@ jobs:
             -DPLATFORM_PS4=ON \
             -DOPTION_SMB2=ON \
             -DOPENSCREEN_ROOT="${GITHUB_WORKSPACE}/openscreen" \
+            -DOPENORBIS_ROOT="${OPENORBIS}" \
             -DCMAKE_BUILD_TYPE=Release ..
 
       - name: Build pplay
