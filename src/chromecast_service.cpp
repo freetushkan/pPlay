@@ -467,7 +467,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
 
     ErrorOr<GeneratedCredentials> creds = GenerateCredentials(deviceId, privateKey, certificate);
     if (!creds.is_value()) {
-       log_info("Failed to load hardcoded credentials: " + creds.error());
+       log_info("Failed to load hardcoded credentials: " + creds.error().ToString());
         return;
     }
     auto *task_runner = new TaskRunnerImpl(&Clock::now);

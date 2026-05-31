@@ -190,6 +190,7 @@ jobs:
           if [ -f "$SED_FILE" ]; then
             sed -i 's/constexpr std::string/std::string/g' "$SED_FILE"
             sed -i 's/template <std::ranges::input_range R>/template <typename R>/g' "$SED_FILE"
+            sed -i 's/std::ranges::empty/std::empty/g' "$SED_FILE"
             sed -i 's/return Join(std::ranges::subrange{begin, end}, delimeter);/return Join<Iterator>(begin, end, delimeter);/g' "$SED_FILE"
           fi          
           
