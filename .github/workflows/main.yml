@@ -154,7 +154,6 @@ jobs:
           #define __FORMAT_POLYFILL_H__
           #include <string>
           #include <sstream>
-          
           namespace std {
             template<typename... Args>
             struct format_string {
@@ -173,7 +172,6 @@ jobs:
               return std::string(fmt.str);
             }
           }
-          
           #endif
           POLYFILL
           cat > "CXX20_polyfills/ranges" <<'POLYFILL'
@@ -196,7 +194,7 @@ jobs:
           #ifndef OPENSCREEN_UTIL_STRING_PRINTF_H_
           #define OPENSCREEN_UTIL_STRING_PRINTF_H_
           #ifdef __PS4__
-          #include "../third_party/boringssl/include/format_polyfill/format"
+          #include "../CXX20_polyfills/format"
           #else
           #include <format>
           #endif
