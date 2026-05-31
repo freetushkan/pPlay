@@ -245,10 +245,13 @@ jobs:
           grep -r "__PS4__" out/Default/obj 2>/dev/null | head -5 || echo "Warning: __PS4__ not found in build artifacts"
 
           echo "=== Verify generated files exist ==="
-          find -name "cast_channel.pb.h" || echo "Warning: cast_channel.pb.h not found"
-          find -name "runtime_version.h" || echo "Warning: runtime_version.h not found"
-          find -name "optimization.h" || echo "Warning: optimization.h not found"
-          find -name "value.h" || echo "Warning: value.h not found"
+          for f in \
+            cast_channel.pb.h runtime_version.h optimization.h value.h \
+            libcast_receiver.a libplatform.a libutil.a libprotobuf_lite.a
+          do 
+            res=$(find . -name "$f")
+            [ -n "$res" ] && echo "$res" || echo "Warning: $f not found"
+          done
 
       - name: Configure pPlay
         run: |
