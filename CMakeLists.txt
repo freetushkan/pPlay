@@ -21,7 +21,10 @@ set(OPTION_SCRAPPING OFF CACHE BOOL "Build with TMDB scraping support")
 # MODULES
 ###################
 if (PLATFORM_PS4)
+    # OpenOrbis libc++ needs global ::abs visible before <cmath> on some TU paths.
+    # Include cstdlib first for all C++ sources in the PS4 build.
     add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-include> $<$<COMPILE_LANGUAGE:CXX>:cstdlib>)
+    set(OPENORBIS_ROOT "/opt/pacbrew/ps4/openorbis" CACHE PATH "OpenOrbis root directory")
 endif ()
 
 add_subdirectory(libcross2d)
@@ -149,9 +152,18 @@ endif ()
 set(OPENSCREEN_ROOT "${CMAKE_SOURCE_DIR}/openscreen" CACHE STRING "OpenScreen root directory")
 set(OPENSCREEN_GEN "${OPENSCREEN_ROOT}/out/Default/gen")
 set(OPENSCREEN_PROTOBUF_SRC "${OPENSCREEN_ROOT}/third_party/protobuf/src")
-set(OPENSCREEN_ABSEIL_SRC "${OPENSCREEN_ROOT}/third_party/abseil-cpp")
 set(OPENSCREEN_BORINGSSL_INCLUDE "${OPENSCREEN_ROOT}/third_party/boringssl/include")
 set(OPENSCREEN_BORINGSSL_FORMAT_POLYFILL "${OPENSCREEN_BORINGSSL_INCLUDE}/format_polyfill")
+set(OPENSCREEN_ABSL_ROOT "")
+foreach(_absl_candidate
+        "${OPENSCREEN_ROOT}/third_party/abseil-cpp"
+        "${OPENSCREEN_ROOT}/third_party/abseil-cpp/src"
+        "${OPENSCREEN_ROOT}/third_party/absl")
+    if(EXISTS "${_absl_candidate}/absl/base/optimization.h")
+        set(OPENSCREEN_ABSL_ROOT "${_absl_candidate}")
+        break()
+    endif()
+endforeach()
 
 if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
     add_compile_definitions(__PS4__)
@@ -162,10 +174,12 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_GEN}
         ${OPENSCREEN_GEN}/cast/common/channel/proto
         ${OPENSCREEN_PROTOBUF_SRC}
-        ${OPENSCREEN_ABSEIL_SRC}
         ${OPENSCREEN_BORINGSSL_INCLUDE}
         ${OPENSCREEN_BORINGSSL_FORMAT_POLYFILL}
     )
+    if(OPENSCREEN_ABSL_ROOT)
+        include_directories(BEFORE ${OPENSCREEN_ABSL_ROOT})
+    endif()
 
     list(APPEND PPLAY_INC 
         ${OPENSCREEN_ROOT}
@@ -173,10 +187,12 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_GEN}
         ${OPENSCREEN_GEN}/cast/common/channel/proto
         ${OPENSCREEN_PROTOBUF_SRC}
-        ${OPENSCREEN_ABSEIL_SRC}
         ${OPENSCREEN_BORINGSSL_INCLUDE}
         ${OPENSCREEN_BORINGSSL_FORMAT_POLYFILL}
     )
+    if(OPENSCREEN_ABSL_ROOT)
+        list(APPEND PPLAY_INC ${OPENSCREEN_ABSL_ROOT})
+    endif()
 
     # Link OpenScreen libraries
     list(APPEND PPLAY_LDFLAGS 
@@ -187,6 +203,9 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
     )
 
     message(STATUS "OpenScreen support enabled at ${OPENSCREEN_ROOT}")
+    if(OPENSCREEN_ABSL_ROOT)
+        message(STATUS "OpenScreen abseil headers found at ${OPENSCREEN_ABSL_ROOT}")
+    endif()
 else()
     message(WARNING "OpenScreen not found or not built at ${OPENSCREEN_ROOT}")
     message(STATUS "Cast support will be disabled - continuing build without it")
@@ -205,7 +224,15 @@ if (PLATFORM_SWITCH)
 elseif (PLATFORM_PS4)
     list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509 SceNet)
 endif ()
-target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS} ssl)
+if (PLATFORM_PS4)
+    target_link_libraries(${CMAKE_PROJECT_NAME}
+        cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS}
+        ${OPENORBIS_ROOT}/usr/lib/libssl.a
+        ${OPENORBIS_ROOT}/usr/lib/libcrypto.a
+    )
+else()
+    target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS} ssl)
+endif()
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
     APP_VERSION="${APP_VERSION}"
 )

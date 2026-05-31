@@ -236,9 +236,9 @@ jobs:
           grep -r "__PS4__" out/Default/obj 2>/dev/null | head -5 || echo "Warning: __PS4__ not found in build artifacts"
           
           # Verify generated files exist
-          find out/ -name "cast_channel.pb.h" || echo "Warning: cast_channel.pb.h not found"
-          find out/ -name "runtime_version.h" || echo "Warning: runtime_version.h not found"
-          find out/ -name "optimization.h" || echo "Warning: optimization.h not found"
+          find -name "cast_channel.pb.h" || echo "Warning: cast_channel.pb.h not found"
+          find -name "runtime_version.h" || echo "Warning: runtime_version.h not found"
+          find -name "optimization.h" || echo "Warning: optimization.h not found"
 
       - name: Configure pPlay
         run: |
@@ -279,6 +279,7 @@ jobs:
             -DPLATFORM_PS4=ON \
             -DOPTION_SMB2=ON \
             -DOPENSCREEN_ROOT="${GITHUB_WORKSPACE}/openscreen" \
+            -DOPENORBIS_ROOT="/opt/pacbrew/ps4/openorbis" \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER="${CC}" \
             -DCMAKE_CXX_COMPILER="${CXX}" \
