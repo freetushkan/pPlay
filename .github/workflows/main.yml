@@ -120,31 +120,7 @@ jobs:
 
       - name: Prepare OpenScreen
         run: |
-          # set -eux
-          # if [ ! -d "/opt/depot_tools" ]; then
-          #   sudo mkdir -p /opt/depot_tools
-          #   sudo chown -R $USER:$USER /opt/depot_tools
-          #   git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git /opt/depot_tools
-          # fi
-          # export PATH="/opt/depot_tools:$PATH"
-          # echo "/opt/depot_tools" >> $GITHUB_PATH
-          # cd /opt/depot_tools && ./update_depot_tools
-          # source /opt/pacbrew/ps4/openorbis/ps4vars.sh
-          # cd "$GITHUB_WORKSPACE" && rm -rf openscreen
-          # gclient config --spec='
-          # solutions = [
-          #   {
-          #     "name": "openscreen",
-          #     "url": "https://chromium.googlesource.com/openscreen",
-          #     "deps_file": "DEPS",
-          #     "managed": False,
-          #   },
-          # ]'
-          # gclient sync --no-history --shallow --force
-          cd openscreen
-
-          # # Copy ps4-openssl BoringSSL
-          # cp -r "$GITHUB_WORKSPACE/ps4-openssl/boringssl/"* third_party/boringssl/
+          set -eux
 
           # Create C++20 polyfills for PS4 cross-compiler
           mkdir -p "CXX20_polyfills"
@@ -201,54 +177,11 @@ jobs:
             sed -i 's/return std::format(fmt, std::forward<Args>(args)...);/int sz = std::snprintf(nullptr, 0, fmt.c_str(), args...) + 1; std::unique_ptr<char[]> buf(new char[sz]); std::snprintf(buf.get(), sz, fmt.c_str(), args...); return std::string(buf.get(), buf.get() + sz - 1);/g' "$PRINTF_FILE"
           fi
 
-          # mkdir -p build/config
-          # echo "build_with_chromium = false" > build/config/gclient_args.gni
-
-          # # Install system dependencies for GN build
-          # sudo ./build/install-build-deps.py --no-prompt 2>/dev/null || true
-
-          # # Configure GN with PS4-specific settings and use ps4-openssl BoringSSL
-          # gn gen out/Default --args="
-          #   is_debug=false 
-          #   target_os=\"linux\" 
-          #   treat_warnings_as_errors=false 
-          #   is_component_build=false
-          #   use_sysroot=false
-          #   use_custom_libcxx=false
-          #   cc=\"$CC\"
-          #   cxx=\"$CXX\"
-          #   ld=\"$LD\"
-          #   ar=\"$AR\"
-          #   ranlib=\"$RANLIB\"
-          #   extra_cflags=\"-D__PS4__ -stdlib=libc++ -I/opt/pacbrew/ps4/openorbis/usr/include -I/opt/pacbrew/ps4/openorbis/include -I$GITHUB_WORKSPACE/ps4-openssl/boringssl/include\"
-          #   extra_ldflags=\"-stdlib=libc++ -L/opt/pacbrew/ps4/openorbis/usr/lib -L/opt/pacbrew/ps4/openorbis/lib -L$GITHUB_WORKSPACE/ps4-openssl\"
-          # "
-
-          # echo "=== Verifying GN configuration ==="
-          # grep -E "^(cc|cxx|ar) =" out/Default/args.gn || echo "Note: args.gn not in expected format"
-          # cat out/Default/args.gn
-
-          # echo "=== Building OpenScreen components ==="
-          # autoninja -C out/Default cast_receiver platform util -k 0 || true  # gn_all
-
-          # echo "=== Generate Protobuf files ==="
-          mkdir -p openscreen/out/Default/gen/cast/common/channel/proto
-          protoc --cpp_out=openscreen/out/Default/gen/cast/common/channel/proto \
-                --proto_path=openscreen/cast/common/channel/proto \
-                openscreen/cast/common/channel/proto/cast_channel.proto
-
-          # echo "=== Building OpenScreen libs ==="
-          # ALL_OBJ_FILES=$(find out/Default/obj -name "*.o")
-          # "$AR" rcs out/Default/obj/cast/libcast_receiver.a $ALL_OBJ_FILES
-          # "$AR" rcs out/Default/obj/platform/libplatform.a $ALL_OBJ_FILES
-          # "$AR" rcs out/Default/obj/util/libutil.a $ALL_OBJ_FILES
-          # "$RANLIB" out/Default/obj/cast/libcast_receiver.a
-          # "$RANLIB" out/Default/obj/platform/libplatform.a
-          # "$RANLIB" out/Default/obj/util/libutil.a
-          # "$RANLIB" out/Default/obj/third_party/protobuf/libprotobuf_lite.a
-
-          # echo "=== Checking build flags ==="
-          # grep -r "__PS4__" out/Default/obj 2>/dev/null | head -5 || echo "Warning: __PS4__ not found in build artifacts"
+          echo "=== Generate Protobuf files ==="
+          mkdir -p out/Default/gen/cast/common/channel/proto
+          protoc --cpp_out=out/Default/gen/cast/common/channel/proto \
+                --proto_path=cast/common/channel/proto \
+                cast/common/channel/proto/cast_channel.proto
 
           echo "=== Verify generated files exist ==="
           for f in \
