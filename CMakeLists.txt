@@ -157,7 +157,8 @@ set(OPENSCREEN_POLYFILLS_INCLUDE "${OPENSCREEN_ROOT}/CXX20_polyfills")
 
 if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
     add_compile_definitions(__PS4__)
-    add_compile_definitions(OS_FREEBSD=1)
+    add_compile_definitions(OS_FREEBSD)
+    add_compile_definitions(__x86_64__)
 
     include_directories(BEFORE 
         ${OPENSCREEN_ROOT}
