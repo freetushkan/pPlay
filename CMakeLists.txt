@@ -180,6 +180,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/platform/base/tls_credentials.cc
         ${OPENSCREEN_ROOT}/platform/impl/task_runner.cc
         ${OPENSCREEN_ROOT}/platform/impl/platform_client_posix.cc
+        ${OPENSCREEN_ROOT}/platform/impl/socket_handle_posix.cc
         ${OPENSCREEN_ROOT}/platform/impl/socket_handle_waiter.cc
         ${OPENSCREEN_ROOT}/platform/impl/socket_handle_waiter_posix.cc
         ${OPENSCREEN_ROOT}/platform/impl/tls_data_router_posix.cc
@@ -188,11 +189,20 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/platform/impl/time.cc
         ${OPENSCREEN_ROOT}/platform/impl/network_interface.cc
         ${OPENSCREEN_ROOT}/platform/impl/timeval_posix.cc
+        ${OPENSCREEN_ROOT}/platform/impl/udp_socket_posix.cc
         ${OPENSCREEN_ROOT}/platform/impl/udp_socket_reader_posix.cc
         ${OPENSCREEN_ROOT}/cast/receiver/application_agent.cc
         ${OPENSCREEN_ROOT}/cast/receiver/channel/static_credentials.cc
+        ${OPENSCREEN_ROOT}/cast/receiver/channel/device_auth_namespace_handler.cc
+        ${OPENSCREEN_ROOT}/cast/receiver/channel/receiver_socket_factory.cc
         ${OPENSCREEN_ROOT}/cast/standalone_receiver/cast_service.cc
         ${OPENSCREEN_ROOT}/cast/standalone_receiver/mirroring_application.cc
+        ${OPENSCREEN_ROOT}/cast/common/channel/virtual_connection_router.cc
+        ${OPENSCREEN_ROOT}/cast/common/channel/connection_namespace_handler.cc
+        ${OPENSCREEN_ROOT}/cast/common/channel/cast_socket_message_port.cc
+        ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/lib_json/json_reader.cpp
+        ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/lib_json/json_value.cpp
+        ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/lib_json/json_writer.cpp
     )
 
     list(APPEND PPLAY_INC 
