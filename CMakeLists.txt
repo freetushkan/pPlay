@@ -176,7 +176,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/platform/impl/socket_handle_waiter_posix.cc
         ${OPENSCREEN_ROOT}/platform/impl/tls_data_router_posix.cc
         ${OPENSCREEN_ROOT}/platform/impl/logging_posix.cc
-        ${OPENSCREEN_ROOT}/util/osp_logging.cc
         ${OPENSCREEN_ROOT}/platform/base/error.cc
     )
 
