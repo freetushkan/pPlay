@@ -187,19 +187,23 @@ jobs:
           export PATH="$PWD:$PATH"
           cd "$GITHUB_WORKSPACE"/openscreen
           mkdir -p out/Default/gen
-          protoc --proto_path=. --cpp_out=out/Default/gen cast/common/channel/proto/cast_channel.proto
-          protoc --proto_path=. --cpp_out=out/Default/gen cast/common/channel/proto/authority_keys.proto
-          protoc --proto_path=. --cpp_out=out/Default/gen cast/streaming/remoting.proto
+          for proto in \
+            cast/common/channel/proto/cast_channel.proto \
+            cast/common/channel/proto/authority_keys.proto \
+            cast/streaming/remoting.proto \
+            cast/streaming/input.proto
+          do
+            protoc --proto_path=. --cpp_out=out/Default/gen $proto
+          done
 
           echo "=== Verify generated files exist ==="
-          for f in \
+          for file in \
             runtime_version.h optimization.h value.h build_config.h \
-            cast_channel.pb.h cast_channel.pb.cc \
-            remoting.pb.h remoting.pb.cc \
+            cast_channel.pb.h remoting.pb.h input.pb.h \
             logging_posix.cc
           do 
-            res=$(find . -name "$f")
-            [ -n "$res" ] && echo "$res" || echo "Warning: $f not found"
+            res=$(find . -name "$file")
+            [ -n "$res" ] && echo "$res" || echo "Warning: $file not found"
           done
 
       - name: Configure pPlay
