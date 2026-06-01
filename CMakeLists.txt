@@ -183,7 +183,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/platform/impl/network_interface.cc
         ${OPENSCREEN_ROOT}/platform/base/interface_info.cc
         ${OPENSCREEN_ROOT}/platform/base/ip_address.cc
-        ${OPENSCREEN_ROOT}/platform/impl/time_posix.cc
+        ${OPENSCREEN_ROOT}/platform/impl/time.cc
         ${OPENSCREEN_ROOT}/platform/base/tls_credentials.cc
         ${OPENSCREEN_ROOT}/cast/standalone_receiver/cast_service.cc
     )
