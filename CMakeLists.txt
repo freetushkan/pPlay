@@ -200,9 +200,9 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/cast/common/channel/virtual_connection_router.cc
         ${OPENSCREEN_ROOT}/cast/common/channel/connection_namespace_handler.cc
         ${OPENSCREEN_ROOT}/cast/common/channel/cast_socket_message_port.cc
-        ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/lib_json/json_reader.cpp
-        ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/lib_json/json_value.cpp
-        ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/lib_json/json_writer.cpp
+        ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/src/lib_json/json_reader.cpp
+        ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/src/lib_json/json_value.cpp
+        ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/src/lib_json/json_writer.cpp
     )
 
     list(APPEND PPLAY_INC 
