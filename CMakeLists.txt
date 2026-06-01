@@ -189,7 +189,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
 
         ${OPENSCREEN_ROOT}/platform/impl/network_interface.cc
         # ${OPENSCREEN_ROOT}/platform/impl/network_interface_linux.cc
-        ${OPENSCREEN_ROOT}/platform/base/socket_handle_waiter.cc
         ${OPENSCREEN_ROOT}/platform/impl/timeval_posix.cc
         ${OPENSCREEN_ROOT}/platform/impl/udp_socket_reader_posix.cc
         ${OPENSCREEN_ROOT}/cast/receiver/channel/static_credentials.cc
