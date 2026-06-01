@@ -179,6 +179,13 @@ jobs:
           fi
 
           echo "=== Generate Protobuf files ==="
+          cd third_party/protobuf
+          mkdir -p cmake/build_host
+          cd cmake/build_host
+          cmake -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_EXAMPLES=OFF ../..
+          make -j$(nproc) protoc libprotobuf-lite
+          export PATH="$PWD:$PATH"
+          cd ../../../
           mkdir -p out/Default/gen/cast/common/channel/proto
           protoc --cpp_out=out/Default/gen/cast/common/channel/proto \
                 --proto_path=cast/common/channel/proto \
