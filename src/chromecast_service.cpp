@@ -48,6 +48,51 @@
 #include "util/uuid.h"
 
 
+
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <vector>
+#include <string>
+
+#include "platform/api/network_interface.h"
+#include "platform/base/ip_address.h"
+
+namespace openscreen {
+
+std::vector<InterfaceInfo> GetNetworkInterfaces() {
+    std::vector<InterfaceInfo> interfaces;
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) return interfaces;
+    char buf[1024];
+    struct ifconf ifc;
+    ifc.ifc_len = sizeof(buf);
+    ifc.ifc_buf = buf;
+    if (ioctl(sock, SIOCGIFCONF, &ifc) >= 0) {
+        struct ifreq* ifr = ifc.ifc_req;
+        int nInterfaces = ifc.ifc_len / sizeof(struct ifreq);
+
+        for (int i = 0; i < nInterfaces; i++) {
+            struct sockaddr_in* addr = (struct sockaddr_in*)&ifr[i].ifr_addr;
+            std::string ip_str = inet_ntoa(addr->sin_addr);
+            if (ip_str == "127.0.0.1" || ip_str == "0.0.0.0") continue;
+            InterfaceInfo info;
+            info.name = ifr[i].ifr_name;
+            info.index = i + 1;
+            info.addresses.push_back(IPAddress::Parse(ip_str).value());
+            info.flags = InterfaceInfo::kUp | InterfaceInfo::kRunning | InterfaceInfo::kMulticast;
+            interfaces.push_back(info);
+        }
+    }
+    close(sock);
+    return interfaces;
+}
+
+} // namespace openscreen
+
+
 using namespace pplay;
 
 namespace {
