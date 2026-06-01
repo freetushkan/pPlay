@@ -210,9 +210,10 @@ jobs:
           fi
           SSL_UTIL_FILE="util/crypto/openssl_util.cc"
           if [ -f "$SSL_UTIL_FILE" ]; then
-            sed -i 's/OPENSSL_INIT_LOAD_SSL_STRINGS/0/g' "$SSL_UTIL_FILE"
-            sed -i 's/<< "): " << SSL_error_description(error_code);/<< "): Error code " << error_code;/g' "$SSL_UTIL_FILE"
-          fi         
+            echo "=== Patching openssl_util.cc for OpenOrbis toolchain ==="
+            sed -i '/void EnsureOpenSSLInit() {/,/OSP_CHECK/c\void EnsureOpenSSLInit() {\n  // Auto-init in old BoringSSL\n}' "$SSL_UTIL_FILE"
+            sed -i 's/<< SSL_error_description(error_code);/<< "SSL Error Occurred";/g' "$SSL_UTIL_FILE"
+          fi
 
           echo "=== Generate Protobuf files ==="
           cd third_party/protobuf
