@@ -211,6 +211,23 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/cast/common/channel/message_util.cc
         ${OPENSCREEN_GEN}/cast/common/channel/proto/cast_channel.pb.cc
         ${OPENSCREEN_GEN}/cast/common/channel/proto/authority_keys.pb.cc
+
+        ${OPENSCREEN_ROOT}/util/crypto/certificate_utils.cc
+        ${OPENSCREEN_ROOT}/util/crypto/openssl_util.cc
+        ${OPENSCREEN_ROOT}/platform/base/location.cc
+        ${OPENSCREEN_ROOT}/cast/common/public/receiver_info.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/stubs/common.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/stubs/stringprintf.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/stubs/strutil.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/coded_stream.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/zero_copy_stream.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/zero_copy_stream_impl_lite.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/wire_format_lite.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/message_lite.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/repeated_field.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/extension_set.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_util.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_tctable_lite.cc
     )
 
     list(APPEND PPLAY_INC 
