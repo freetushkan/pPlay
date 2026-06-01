@@ -203,12 +203,12 @@ jobs:
           rm -f ps4_config.h
 
           echo "=== Patching OpenScreen Crypto compatibility ==="
-          CERT_FILE="openscreen/util/crypto/certificate_utils.cc"
+          CERT_FILE="util/crypto/certificate_utils.cc"
           if [ -f "$CERT_FILE" ]; then
             sed -i 's/ASN1_STRING_get0_data/ASN1_STRING_data/g' "$CERT_FILE"
             sed -i 's/ASN1_STRING_data(asn1int)/ASN1_STRING_data(const_cast<ASN1_INTEGER*>(asn1int))/g' "$CERT_FILE"
           fi
-          SSL_UTIL_FILE="openscreen/util/crypto/openssl_util.cc"
+          SSL_UTIL_FILE="util/crypto/openssl_util.cc"
           if [ -f "$SSL_UTIL_FILE" ]; then
             sed -i 's/OPENSSL_INIT_LOAD_SSL_STRINGS/0/g' "$SSL_UTIL_FILE"
             sed -i 's/<< "): " << SSL_error_description(error_code);/<< "): Error code " << error_code;/g' "$SSL_UTIL_FILE"
