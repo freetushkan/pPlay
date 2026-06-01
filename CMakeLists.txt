@@ -175,6 +175,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
 
     list(APPEND PPLAY_SRC 
         ${OPENSCREEN_ROOT}/platform/base/error.cc
+        ${OPENSCREEN_ROOT}/platform/base/location.cc
         ${OPENSCREEN_ROOT}/platform/base/interface_info.cc
         ${OPENSCREEN_ROOT}/platform/base/ip_address.cc
         ${OPENSCREEN_ROOT}/platform/base/tls_credentials.cc
@@ -200,6 +201,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/cast/common/channel/virtual_connection_router.cc
         ${OPENSCREEN_ROOT}/cast/common/channel/connection_namespace_handler.cc
         ${OPENSCREEN_ROOT}/cast/common/channel/cast_socket_message_port.cc
+        ${OPENSCREEN_ROOT}/cast/common/public/receiver_info.cc
         ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/src/lib_json/json_reader.cpp
         ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/src/lib_json/json_value.cpp
         ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/src/lib_json/json_writer.cpp
@@ -208,17 +210,12 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/platform/impl/socket_address_posix.cc
         ${OPENSCREEN_ROOT}/util/json/json_serialization.cc
         ${OPENSCREEN_ROOT}/util/json/json_value.cc
+        ${OPENSCREEN_ROOT}/util/crypto/certificate_utils.cc
+        ${OPENSCREEN_ROOT}/util/crypto/openssl_util.cc
         ${OPENSCREEN_ROOT}/cast/common/channel/message_util.cc
         ${OPENSCREEN_GEN}/cast/common/channel/proto/cast_channel.pb.cc
         ${OPENSCREEN_GEN}/cast/common/channel/proto/authority_keys.pb.cc
-
-        ${OPENSCREEN_ROOT}/util/crypto/certificate_utils.cc
-        ${OPENSCREEN_ROOT}/util/crypto/openssl_util.cc
-        ${OPENSCREEN_ROOT}/platform/base/location.cc
-        ${OPENSCREEN_ROOT}/cast/common/public/receiver_info.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/stubs/common.cc
-        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/stubs/stringprintf.cc
-        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/stubs/strutil.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/coded_stream.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/zero_copy_stream.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/zero_copy_stream_impl_lite.cc
