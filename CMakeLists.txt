@@ -208,8 +208,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/platform/impl/socket_address_posix.cc
         ${OPENSCREEN_ROOT}/util/json/json_serialization.cc
         ${OPENSCREEN_ROOT}/util/json/json_value.cc
-        ${OPENSCREEN_ROOT}/cast/common/channel/cast_message_handler.cc
-        # ${OPENSCREEN_ROOT}/cast/common/channel/message_util.cc
+        ${OPENSCREEN_ROOT}/cast/common/channel/message_util.cc
         ${OPENSCREEN_GEN}/cast/common/channel/proto/cast_channel.pb.cc
         ${OPENSCREEN_GEN}/cast/common/channel/proto/authority_keys.pb.cc
     )
