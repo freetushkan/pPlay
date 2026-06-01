@@ -26,7 +26,7 @@ jobs:
           sudo apt-get install -y \
             pacman-package-manager wget cmake git gettext smpq \
             makepkg libarchive-tools build-essential autoconf \
-            libtool nasm curl pkg-config protobuf-compiler
+            libtool nasm curl pkg-config
 
           sudo tee -a /etc/pacman.conf > /dev/null <<TEXT
           [pacbrew]
