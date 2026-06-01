@@ -198,9 +198,8 @@ jobs:
             #define BUILDFLAG_INTERNAL_IS_WIN() (0)
             #endif
           EOF
-            sed -i '/#define BUILD_BUILD_CONFIG_H_/r ps4_config.h' "$CONFIG_FILE"
-            rm ps4_config.h
-          fi     
+          sed -i '/#define BUILD_BUILD_CONFIG_H_/r ps4_config.h' "$CONFIG_FILE"
+          rm ps4_config.h
 
           echo "=== Generate Protobuf files ==="
           cd third_party/protobuf
