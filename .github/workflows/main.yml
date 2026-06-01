@@ -186,18 +186,19 @@ jobs:
           make -j$(nproc) protoc libprotobuf-lite
           export PATH="$PWD:$PATH"
           cd "$GITHUB_WORKSPACE"/openscreen
-          mkdir -p out/Default/gen/cast/common/channel/proto
-          protoc --cpp_out=out/Default/gen/cast/common/channel/proto \
-                --proto_path=cast/common/channel/proto \
-                cast/common/channel/proto/cast_channel.proto
-          protoc --cpp_out=out/Default/gen/cast/common/channel/proto \
-                --proto_path=cast/common/channel/proto \
-                cast/common/channel/proto/authority_keys.proto
+          mkdir -p out/Default/gen
+          protoc --proto_path=. --cpp_out=out/Default/gen cast/common/channel/proto/cast_channel.proto
+          protoc --proto_path=. --cpp_out=out/Default/gen cast/common/channel/proto/authority_keys.proto
+          protoc --proto_path=. --cpp_out=out/Default/gen cast/streaming/remoting.proto
+          protoc --proto_path=. --cpp_out=out/Default/gen cast/streaming/rpc_messages.proto
 
           echo "=== Verify generated files exist ==="
           for f in \
-            cast_channel.pb.h runtime_version.h optimization.h value.h \
-            cast_channel.pb.cc logging_posix.cc build_config.h
+            runtime_version.h optimization.h value.h build_config.h \
+            cast_channel.pb.h cast_channel.pb.cc \
+            rpc_messages.pb.h rpc_messages.pb.cc \
+            remoting.pb.h remoting.pb.cc \
+            logging_posix.cc
           do 
             res=$(find . -name "$f")
             [ -n "$res" ] && echo "$res" || echo "Warning: $f not found"
