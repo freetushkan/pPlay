@@ -210,10 +210,8 @@ jobs:
           fi
           SSL_UTIL_FILE="util/crypto/openssl_util.cc"
           if [ -f "$SSL_UTIL_FILE" ]; then
-            echo "=== Patching openssl_util.cc for OpenOrbis toolchain ==="
             sed -i 's/OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, nullptr) == 1/1 == 1/g' "$SSL_UTIL_FILE"
             sed -i 's/<< SSL_error_description(error_code);/<< "SSL Error Occurred";/g' "$SSL_UTIL_FILE"
-            
           fi
 
           echo "=== Generate Protobuf files ==="

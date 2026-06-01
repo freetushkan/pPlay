@@ -171,16 +171,20 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_BORINGSSL_INCLUDE}
         ${OPENSCREEN_POLYFILLS_INCLUDE}
         ${CMAKE_SOURCE_DIR}/ps4-openssl/boringssl/include
+        include_directories(BEFORE ${OPENSCREEN_ROOT}/third_party/protobuf/third_party/utf8_range)
     )
 
-    list(APPEND PPLAY_SRC 
+    list(APPEND PPLAY_SRC
+        ${OPENSCREEN_ROOT}/platform/api/udp_socket.cc
         ${OPENSCREEN_ROOT}/platform/base/error.cc
         ${OPENSCREEN_ROOT}/platform/base/location.cc
         ${OPENSCREEN_ROOT}/platform/base/interface_info.cc
         ${OPENSCREEN_ROOT}/platform/base/ip_address.cc
         ${OPENSCREEN_ROOT}/platform/base/tls_credentials.cc
+        ${OPENSCREEN_ROOT}/platform/base/udp_packet.cc
         ${OPENSCREEN_ROOT}/platform/impl/task_runner.cc
         ${OPENSCREEN_ROOT}/platform/impl/platform_client_posix.cc
+        ${OPENSCREEN_ROOT}/platform/impl/socket_address_posix.cc
         ${OPENSCREEN_ROOT}/platform/impl/socket_handle_posix.cc
         ${OPENSCREEN_ROOT}/platform/impl/socket_handle_waiter.cc
         ${OPENSCREEN_ROOT}/platform/impl/socket_handle_waiter_posix.cc
@@ -202,12 +206,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/cast/common/channel/connection_namespace_handler.cc
         ${OPENSCREEN_ROOT}/cast/common/channel/cast_socket_message_port.cc
         ${OPENSCREEN_ROOT}/cast/common/public/receiver_info.cc
-        ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/src/lib_json/json_reader.cpp
-        ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/src/lib_json/json_value.cpp
-        ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/src/lib_json/json_writer.cpp
-        ${OPENSCREEN_ROOT}/platform/base/udp_packet.cc
-        ${OPENSCREEN_ROOT}/platform/api/udp_socket.cc
-        ${OPENSCREEN_ROOT}/platform/impl/socket_address_posix.cc
         ${OPENSCREEN_ROOT}/util/json/json_serialization.cc
         ${OPENSCREEN_ROOT}/util/json/json_value.cc
         ${OPENSCREEN_ROOT}/util/crypto/certificate_utils.cc
@@ -215,6 +213,9 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/cast/common/channel/message_util.cc
         ${OPENSCREEN_GEN}/cast/common/channel/proto/cast_channel.pb.cc
         ${OPENSCREEN_GEN}/cast/common/channel/proto/authority_keys.pb.cc
+        ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/src/lib_json/json_reader.cpp
+        ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/src/lib_json/json_value.cpp
+        ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/src/lib_json/json_writer.cpp
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/stubs/common.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/coded_stream.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/zero_copy_stream.cc
@@ -225,6 +226,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/extension_set.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_util.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_tctable_lite.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/third_party/utf8_range/utf8_range.c
     )
 
     list(APPEND PPLAY_INC 
@@ -237,6 +239,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_JSON_SRC}
         ${OPENSCREEN_BORINGSSL_INCLUDE}
         ${OPENSCREEN_POLYFILLS_INCLUDE}
+        
     )
 
     # Link OpenScreen libraries
