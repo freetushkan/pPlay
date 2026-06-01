@@ -220,8 +220,8 @@ jobs:
             ld=\"$LD\"
             ar=\"$AR\"
             ranlib=\"$RANLIB\"
-            extra_cflags=\"-D__PS4__ -I/opt/pacbrew/ps4/openorbis/usr/include -I/opt/pacbrew/ps4/openorbis/include -I$GITHUB_WORKSPACE/ps4-openssl/boringssl/include\"
-            extra_ldflags=\"-L/opt/pacbrew/ps4/openorbis/usr/lib -L/opt/pacbrew/ps4/openorbis/lib -L$GITHUB_WORKSPACE/ps4-openssl\"
+            extra_cflags=\"-D__PS4__ -stdlib=libc++ -I/opt/pacbrew/ps4/openorbis/usr/include -I/opt/pacbrew/ps4/openorbis/include -I$GITHUB_WORKSPACE/ps4-openssl/boringssl/include\"
+            extra_ldflags=\"-stdlib=libc++ -L/opt/pacbrew/ps4/openorbis/usr/lib -L/opt/pacbrew/ps4/openorbis/lib -L$GITHUB_WORKSPACE/ps4-openssl\"
           "
 
           echo "=== Verifying GN configuration ==="
@@ -229,7 +229,7 @@ jobs:
           cat out/Default/args.gn
 
           echo "=== Building OpenScreen components ==="
-          autoninja -C out/Default gn_all -k 0 || true
+          autoninja -C out/Default cast_receiver platform util -k 0 || true  # gn_all
 
           echo "=== Building OpenScreen libs ==="
           ALL_OBJ_FILES=$(find out/Default/obj -name "*.o")

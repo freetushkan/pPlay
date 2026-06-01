@@ -148,8 +148,6 @@ endif ()
 #####################
 set(OPENSCREEN_ROOT "${CMAKE_SOURCE_DIR}/openscreen" CACHE STRING "OpenScreen root directory")
 set(OPENSCREEN_GEN "${OPENSCREEN_ROOT}/out/Default/gen")
-# file(GLOB OPENSCREEN_THIRD_PARTY_SRC LIST_DIRECTORIES true "${OPENSCREEN_ROOT}/third_party/*/src")
-# list(FILTER OPENSCREEN_THIRD_PARTY_SRC INCLUDE REGEX ".*/src$")
 set(OPENSCREEN_PROTOBUF_SRC "${OPENSCREEN_ROOT}/third_party/protobuf/src")
 set(OPENSCREEN_ABSEIL_SRC "${OPENSCREEN_ROOT}/third_party/abseil/src")
 set(OPENSCREEN_JSON_SRC "${OPENSCREEN_ROOT}/third_party/jsoncpp/src/include")
@@ -165,7 +163,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/openscreen
         ${OPENSCREEN_GEN}
         ${OPENSCREEN_GEN}/cast/common/channel/proto
-        # ${OPENSCREEN_THIRD_PARTY_SRC}
         ${OPENSCREEN_PROTOBUF_SRC}
         ${OPENSCREEN_ABSEIL_SRC}
         ${OPENSCREEN_JSON_SRC}
@@ -173,12 +170,16 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_POLYFILLS_INCLUDE}
     )
 
+    list(APPEND PPLAY_SRC 
+        ${OPENSCREEN_ROOT}/platform/impl/task_runner.cc
+        ${OPENSCREEN_ROOT}/platform/impl/platform_client_posix.cc
+    )
+
     list(APPEND PPLAY_INC 
         ${OPENSCREEN_ROOT}
         ${OPENSCREEN_ROOT}/openscreen
         ${OPENSCREEN_GEN}
         ${OPENSCREEN_GEN}/cast/common/channel/proto
-        # ${OPENSCREEN_THIRD_PARTY_SRC}
         ${OPENSCREEN_PROTOBUF_SRC}
         ${OPENSCREEN_ABSEIL_SRC}
         ${OPENSCREEN_JSON_SRC}
