@@ -160,6 +160,21 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
     add_compile_definitions(OS_FREEBSD)
     add_compile_definitions(__x86_64__)
 
+    set(PROTO_SRC_DIR "${OPENSCREEN_ROOT}/cast/common/channel/proto")
+    set(PROTO_GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/openscreen_gen/proto")
+    file(MAKE_DIRECTORY ${PROTO_GEN_DIR})
+    find_program(PROTOBUF_PROTOC_EXECUTABLE protoc REQUIRED)
+    add_custom_command(
+        OUTPUT "${PROTO_GEN_DIR}/cast_channel.pb.cc" "${PROTO_GEN_DIR}/cast_channel.pb.h"
+        COMMAND ${PROTOBUF_PROTOC_EXECUTABLE}
+        ARGS --cpp_out=${PROTO_GEN_DIR} --proto_path=${PROTO_SRC_DIR} ${PROTO_SRC_DIR}/cast_channel.proto
+        DEPENDS ${PROTO_SRC_DIR}/cast_channel.proto
+        COMMENT "Generating OpenScreen Protobuf files..."
+        VERBATIM
+    )
+    include_directories(BEFORE ${PROTO_GEN_DIR})
+    list(APPEND PPLAY_INC ${PROTO_GEN_DIR})
+
     include_directories(BEFORE 
         ${OPENSCREEN_ROOT}
         ${OPENSCREEN_ROOT}/openscreen
@@ -194,14 +209,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
     )
 
     # Link OpenScreen libraries
-    list(APPEND PPLAY_LDFLAGS 
-        ${OPENSCREEN_ROOT}/out/Default/obj/cast/libcast_receiver.a
-        ${OPENSCREEN_ROOT}/out/Default/obj/platform/libplatform.a
-        ${OPENSCREEN_ROOT}/out/Default/obj/util/libutil.a
-        ${OPENSCREEN_ROOT}/out/Default/obj/third_party/protobuf/libprotobuf_lite.a
-        ssl
-        crypto
-    )
+    list(APPEND PPLAY_LDFLAGS ssl crypto)
 
     message(STATUS "OpenScreen support enabled at ${OPENSCREEN_ROOT}")
 else()
