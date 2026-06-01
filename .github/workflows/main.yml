@@ -178,6 +178,30 @@ jobs:
             sed -i 's/return std::format(fmt, std::forward<Args>(args)...);/int sz = std::snprintf(nullptr, 0, fmt.c_str(), args...) + 1; std::unique_ptr<char[]> buf(new char[sz]); std::snprintf(buf.get(), sz, fmt.c_str(), args...); return std::string(buf.get(), buf.get() + sz - 1);/g' "$PRINTF_FILE"
           fi
 
+          echo "=== Patching platform support check. ==="
+          CONFIG_FILE="build/build_config.h"
+          cat << 'EOF' > ps4_config.h
+            #if defined(__PS4__)
+            #define OS_FREEBSD 1
+            #define OS_BSD 1
+            #define OS_POSIX 1
+            #define COMPILER_GCC 1
+            #define ARCH_CPU_X86_FAMILY 1
+            #define ARCH_CPU_X86_64 1
+            #define ARCH_CPU_64_BITS 1
+            #define ARCH_CPU_LITTLE_ENDIAN 1
+            #define WCHAR_T_IS_32_BIT 1
+            #define BUILDFLAG_INTERNAL_IS_FREEBSD() (1)
+            #define BUILDFLAG_INTERNAL_IS_BSD() (1)
+            #define BUILDFLAG_INTERNAL_IS_POSIX() (1)
+            #define BUILDFLAG_INTERNAL_IS_LINUX() (0)
+            #define BUILDFLAG_INTERNAL_IS_WIN() (0)
+            #endif
+          EOF
+            sed -i '/#define BUILD_BUILD_CONFIG_H_/r ps4_config.h' "$CONFIG_FILE"
+            rm ps4_config.h
+          fi     
+
           echo "=== Generate Protobuf files ==="
           cd third_party/protobuf
           mkdir -p cmake/build_host
