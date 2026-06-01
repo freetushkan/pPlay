@@ -187,7 +187,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/platform/impl/logging_posix.cc
         ${OPENSCREEN_ROOT}/platform/impl/time.cc
         ${OPENSCREEN_ROOT}/platform/impl/network_interface.cc
-        ${OPENSCREEN_ROOT}/platform/impl/network_interface_linux.cc
+        ${OPENSCREEN_ROOT}/platform/impl/network_interface_mac.cc
         ${OPENSCREEN_ROOT}/platform/impl/timeval_posix.cc
         ${OPENSCREEN_ROOT}/platform/impl/udp_socket_reader_posix.cc
         ${OPENSCREEN_ROOT}/cast/receiver/application_agent.cc
