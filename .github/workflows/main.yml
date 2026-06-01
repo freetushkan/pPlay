@@ -228,8 +228,10 @@ jobs:
             logging_posix.cc
           do 
             res=$(find . -name "$file")
-            [ -n "$res" ] && echo "$res" || echo "Warning: $file not found"
-            [ -z "$res" ] && exit 1
+            [ -n "$res" ] && echo "$res" || {
+              echo "Warning: $file not found"
+              exit 1
+            }
           done
 
       - name: Configure pPlay
