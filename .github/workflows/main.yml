@@ -121,7 +121,7 @@ jobs:
       - name: Prepare OpenScreen
         run: |
           set -eux
-          cd openscreen
+          cd "$GITHUB_WORKSPACE"/openscreen
 
           # Create C++20 polyfills for PS4 cross-compiler
           mkdir -p "CXX20_polyfills"
@@ -185,7 +185,7 @@ jobs:
           cmake -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_EXAMPLES=OFF ../..
           make -j$(nproc) protoc libprotobuf-lite
           export PATH="$PWD:$PATH"
-          cd ../../../
+          cd "$GITHUB_WORKSPACE"/openscreen
           mkdir -p out/Default/gen/cast/common/channel/proto
           protoc --cpp_out=out/Default/gen/cast/common/channel/proto \
                 --proto_path=cast/common/channel/proto \
@@ -197,8 +197,7 @@ jobs:
           echo "=== Verify generated files exist ==="
           for f in \
             cast_channel.pb.h runtime_version.h optimization.h value.h \
-            libcast_receiver.a libplatform.a libutil.a libprotobuf_lite.a \
-            logging_posix.cc build_config.h
+            cast_channel.pb.cc logging_posix.cc build_config.h
           do 
             res=$(find . -name "$f")
             [ -n "$res" ] && echo "$res" || echo "Warning: $f not found"
