@@ -203,6 +203,15 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/src/lib_json/json_reader.cpp
         ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/src/lib_json/json_value.cpp
         ${OPENSCREEN_ROOT}/third_party/jsoncpp/src/src/lib_json/json_writer.cpp
+        ${OPENSCREEN_ROOT}/platform/base/udp_packet.cc
+        ${OPENSCREEN_ROOT}/platform/api/udp_socket.cc
+        ${OPENSCREEN_ROOT}/platform/impl/socket_address_posix.cc
+        ${OPENSCREEN_ROOT}/util/json/json_serialization.cc
+        ${OPENSCREEN_ROOT}/util/json/json_value.cc
+        ${OPENSCREEN_ROOT}/cast/common/channel/cast_message_handler.cc
+        # ${OPENSCREEN_ROOT}/cast/common/channel/message_util.cc
+        ${OPENSCREEN_GEN}/cast/common/channel/proto/cast_channel.pb.cc
+        ${OPENSCREEN_GEN}/cast/common/channel/proto/authority_keys.pb.cc
     )
 
     list(APPEND PPLAY_INC 
