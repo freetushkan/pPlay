@@ -70,7 +70,12 @@ uint8_t ToPrefixLength(std::span<const uint8_t> netmask) {
   return result;
 }
 IPAddress GetIPAddressFromSockAddr(const sockaddr_in& sa) {
-  return IPAddress(reinterpret_cast<const uint8_t*>(&sa.sin_addr.s_addr), IPAddress::kV4Size);
+  uint32_t s_addr = sa.sin_addr.s_addr;
+  uint8_t b1 = s_addr & 0xFF;
+  uint8_t b2 = (s_addr >> 8) & 0xFF;
+  uint8_t b3 = (s_addr >> 16) & 0xFF;
+  uint8_t b4 = (s_addr >> 24) & 0xFF;
+  return IPAddress(b1, b2, b3, b4);
 }
 std::vector<InterfaceInfo> ProcessInterfacesList(ifaddrs* interfaces) {
   std::vector<InterfaceInfo> results;
