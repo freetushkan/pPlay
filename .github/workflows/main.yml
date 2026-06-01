@@ -118,7 +118,7 @@ jobs:
         run: |
           find /opt/compiled_libs/libmpv -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
 
-      - name: Build OpenScreen via GN
+      - name: Prepare OpenScreen
         run: |
           # set -eux
           # if [ ! -d "/opt/depot_tools" ]; then
@@ -231,10 +231,11 @@ jobs:
           # echo "=== Building OpenScreen components ==="
           # autoninja -C out/Default cast_receiver platform util -k 0 || true  # gn_all
 
-          # mkdir -p openscreen/out/Default/gen/cast/common/channel/proto
-          # protoc --cpp_out=openscreen/out/Default/gen/cast/common/channel/proto \
-          #       --proto_path=openscreen/cast/common/channel/proto \
-          #       openscreen/cast/common/channel/proto/cast_channel.proto
+          # echo "=== Generate Protobuf files ==="
+          mkdir -p openscreen/out/Default/gen/cast/common/channel/proto
+          protoc --cpp_out=openscreen/out/Default/gen/cast/common/channel/proto \
+                --proto_path=openscreen/cast/common/channel/proto \
+                openscreen/cast/common/channel/proto/cast_channel.proto
 
           # echo "=== Building OpenScreen libs ==="
           # ALL_OBJ_FILES=$(find out/Default/obj -name "*.o")
