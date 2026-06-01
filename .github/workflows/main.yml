@@ -190,13 +190,11 @@ jobs:
           protoc --proto_path=. --cpp_out=out/Default/gen cast/common/channel/proto/cast_channel.proto
           protoc --proto_path=. --cpp_out=out/Default/gen cast/common/channel/proto/authority_keys.proto
           protoc --proto_path=. --cpp_out=out/Default/gen cast/streaming/remoting.proto
-          protoc --proto_path=. --cpp_out=out/Default/gen cast/streaming/rpc_messages.proto
 
           echo "=== Verify generated files exist ==="
           for f in \
             runtime_version.h optimization.h value.h build_config.h \
             cast_channel.pb.h cast_channel.pb.cc \
-            rpc_messages.pb.h rpc_messages.pb.cc \
             remoting.pb.h remoting.pb.cc \
             logging_posix.cc
           do 
