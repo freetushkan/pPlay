@@ -47,6 +47,33 @@
 #include "util/stringprintf.h"
 #include "util/uuid.h"
 
+// openscreen fixes
+#include "platform/base/error.h"
+#include "cast/receiver/channel/static_credentials.h"
+#include "platform/impl/task_runner.h"
+#include "platform/impl/platform_client_posix.h"
+
+namespace openscreen {
+    std::string Error::ToString() const {
+        return "OpenScreen Stub Error";
+    }
+    TaskRunnerImpl::TaskRunnerImpl(std::chrono::time_point<TrivialClockTraits, std::chrono::microseconds> (*clock)(),
+        TaskRunnerImpl::TaskWaiter* waiter, std::chrono::microseconds d) : TaskRunner(clock) {}
+    void TaskRunnerImpl::PostPackagedTaskWithDelay(Task task, std::chrono::microseconds delay) {}
+    void TaskRunnerImpl::PostPackagedTask(Task task) {}
+    bool TaskRunnerImpl::IsRunningOnTaskRunnerThread() { return true; }
+    std::unique_ptr<PlatformClientPosix> PlatformClientPosix::Create(
+        std::chrono::microseconds r, std::unique_ptr<TaskRunnerImpl> t) { return nullptr; }
+}
+
+namespace openscreen::cast {
+    openscreen::ErrorOr<GeneratedCredentials> GenerateCredentials(
+        const std::string& device_certificate_id,
+        const std::string& private_key_path,
+        const std::string& server_certificate_path) 
+    { return openscreen::Error(openscreen::Error::Code::kUnknownError); }
+}
+
 
 using namespace pplay;
 
