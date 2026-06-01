@@ -121,6 +121,7 @@ jobs:
       - name: Prepare OpenScreen
         run: |
           set -eux
+          cd openscreen
 
           # Create C++20 polyfills for PS4 cross-compiler
           mkdir -p "CXX20_polyfills"
@@ -182,6 +183,9 @@ jobs:
           protoc --cpp_out=out/Default/gen/cast/common/channel/proto \
                 --proto_path=cast/common/channel/proto \
                 cast/common/channel/proto/cast_channel.proto
+          protoc --cpp_out=out/Default/gen/cast/common/channel/proto \
+                --proto_path=cast/common/channel/proto \
+                cast/common/channel/proto/authority_keys.proto
 
           echo "=== Verify generated files exist ==="
           for f in \
