@@ -9,16 +9,13 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
-#include <ifaddrs.h>
 #include <mutex>
-#include <net/if.h>
-#include <netinet/in.h>
 #include <sstream>
 #include <string>
 #include <thread>
 #include <utility>
 #include <vector>
-#include <memory>
+#include <array>
 
 #include "cross2d/c2d.h"
 #include "pplay_config.h"
@@ -26,17 +23,23 @@
 #include "utility.h"
 #include "main.h"
 
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <fcntl.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 // openscreen
 #include "cast/standalone_receiver/cast_service.h"
+#include "platform/api/network_interface.h"
 #include "platform/api/time.h"
 #include "platform/base/error.h"
+#include "platform/base/span.h"
 #include "platform/base/ip_address.h"
 #include "platform/impl/logging.h"
 #include "platform/impl/network_interface.h"
@@ -47,50 +50,78 @@
 #include "util/stringprintf.h"
 #include "util/uuid.h"
 
-
-
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <net/if.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <vector>
-#include <string>
-
-#include "platform/api/network_interface.h"
-#include "platform/base/ip_address.h"
-
 namespace openscreen {
-
-std::vector<InterfaceInfo> GetNetworkInterfaces() {
-    std::vector<InterfaceInfo> interfaces;
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock < 0) return interfaces;
-    char buf[1024];
-    struct ifconf ifc;
-    ifc.ifc_len = sizeof(buf);
-    ifc.ifc_buf = buf;
-    if (ioctl(sock, SIOCGIFCONF, &ifc) >= 0) {
-        struct ifreq* ifr = ifc.ifc_req;
-        int nInterfaces = ifc.ifc_len / sizeof(struct ifreq);
-
-        for (int i = 0; i < nInterfaces; i++) {
-            struct sockaddr_in* addr = (struct sockaddr_in*)&ifr[i].ifr_addr;
-            std::string ip_str = inet_ntoa(addr->sin_addr);
-            if (ip_str == "127.0.0.1" || ip_str == "0.0.0.0") continue;
-            InterfaceInfo info;
-            info.name = ifr[i].ifr_name;
-            info.index = i + 1;
-            info.addresses.push_back(IPAddress::Parse(ip_str).value());
-            info.flags = InterfaceInfo::kUp | InterfaceInfo::kRunning | InterfaceInfo::kMulticast;
-            interfaces.push_back(info);
-        }
+namespace {
+uint8_t ToPrefixLength(std::span<const uint8_t> netmask) {
+  uint8_t result = 0;
+  size_t i = 0;
+  while (i < netmask.size() && netmask[i] == UINT8_C(0xff)) {
+    result += 8;
+    ++i;
+  }
+  if (i < netmask.size() && netmask[i] != UINT8_C(0x00)) {
+    uint8_t last_byte = netmask[i];
+    while (last_byte & UINT8_C(0x80)) {
+      ++result;
+      last_byte <<= 1;
     }
-    close(sock);
-    return interfaces;
+    ++i;
+  }
+  return result;
 }
-
-} // namespace openscreen
+IPAddress GetIPAddressFromSockAddr(const sockaddr_in& sa) {
+  return IPAddress(reinterpret_cast<const uint8_t*>(&sa.sin_addr.s_addr), IPAddress::kV4Size);
+}
+std::vector<InterfaceInfo> ProcessInterfacesList(ifaddrs* interfaces) {
+  std::vector<InterfaceInfo> results;
+  
+  for (ifaddrs* cur = interfaces; cur; cur = cur->ifa_next) {
+    if (!(IFF_RUNNING & cur->ifa_flags) || !cur->ifa_addr) {
+      continue;
+    }
+    if (cur->ifa_addr->sa_family != AF_INET) {
+      continue;
+    }
+    const std::string name = cur->ifa_name;
+    if (cur->ifa_flags & IFF_LOOPBACK) {
+      continue;
+    }
+    auto it = std::find_if(results.begin(), results.end(),
+        [&name](const InterfaceInfo& info) { return info.name == name; });
+    InterfaceInfo* interface;
+    if (it == results.end()) {
+      InterfaceInfo::Type type = InterfaceInfo::Type::kEthernet;
+      const uint8_t kUnknownHardwareAddress[6] = {0, 0, 0, 0, 0, 0};
+      results.emplace_back(if_nametoindex(cur->ifa_name),
+                           kUnknownHardwareAddress, name, type,
+                           std::vector<IPSubnet>());
+      interface = &(results.back());
+    } else {
+      interface = &(*it);
+    }
+    auto* const addr_in = reinterpret_cast<const sockaddr_in*>(cur->ifa_addr);
+    IPAddress ip = GetIPAddressFromSockAddr(*addr_in);
+    std::array<uint8_t, IPAddress::kV4Size> netmask_bytes{};
+    if (cur->ifa_netmask && cur->ifa_netmask->sa_family == AF_INET) {
+      auto* netmask_in = reinterpret_cast<const sockaddr_in*>(cur->ifa_netmask);
+      std::copy_n(reinterpret_cast<const uint8_t*>(&netmask_in->sin_addr.s_addr),
+                  netmask_bytes.size(), netmask_bytes.begin());
+    }
+    interface->addresses.emplace_back(ip, ToPrefixLength(netmask_bytes));
+  }
+  return results;
+}
+}  // namespace
+std::vector<InterfaceInfo> GetNetworkInterfaces() {
+  std::vector<InterfaceInfo> results;
+  ifaddrs* interfaces;
+  if (getifaddrs(&interfaces) == 0) {
+    results = ProcessInterfacesList(interfaces);
+    freeifaddrs(interfaces);
+  }
+  return results;
+}
+}  // namespace openscreen
 
 
 using namespace pplay;
