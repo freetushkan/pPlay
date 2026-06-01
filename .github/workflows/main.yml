@@ -247,7 +247,8 @@ jobs:
           echo "=== Verify generated files exist ==="
           for f in \
             cast_channel.pb.h runtime_version.h optimization.h value.h \
-            libcast_receiver.a libplatform.a libutil.a libprotobuf_lite.a
+            libcast_receiver.a libplatform.a libutil.a libprotobuf_lite.a \
+            logging_posix.cc build_config.h
           do 
             res=$(find . -name "$f")
             [ -n "$res" ] && echo "$res" || echo "Warning: $f not found"
