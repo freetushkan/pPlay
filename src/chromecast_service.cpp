@@ -137,7 +137,6 @@ extern "C" {
     // void absl_GetStackTrace(void*, int, int) {}
     // void absl_log_internal_EncodeStructuredProtoField(void*) {}
     // void absl_DoIgnoreLeak(void*) {}
-    // Реальный SemPost: инкрементирует счетчик и будит поток
     void AbslInternalPerThreadSemPost(void* t) {
         static AbslThreadSem sem;
         static bool inited = false;
@@ -155,19 +154,42 @@ extern "C" {
     bool AbslInternalPerThreadSemWait(void* t, int64_t timeout_ns) {
         static AbslThreadSem sem;
         pthread_mutex_lock(&sem.mutex);
-        while (sem.count (std::malloc(sizeof(CordRepCrc)));
+        while (sem.count <= 0) {
+            pthread_cond_wait(&sem.cond, &sem.mutex);
+        }
+        sem.count--;
+        pthread_mutex_unlock(&sem.mutex);
+        return true;
+    }
+    void* absl_synchronization_internal_CreateThreadIdentity(void) {
+        static uint64_t dummy_id = 0xABCDE;
+        return &dummy_id;
+    }
+    void* absl_base_internal_LowLevelAlloc_Alloc(size_t size) { return std::malloc(size); }
+    void absl_base_internal_LowLevelAlloc_Free(void* ptr) { std::free(ptr); }
+    void absl_container_internal_ForcedTrySample(void*) {}
+    bool AbslContainerInternalSampleEverything(void*) { return false; }
+    int absl_crc_internal_TryNewCRC32AcceleratedX86ARMCombined(void) { return 0; }
+}
+namespace absl {
+    namespace cord_internal {
+        void* CordRepCrcNew(void* head, uint32_t crc) __asm__("_ZN4absl13cord_internal10CordRepCrc3NewEPNS0_7CordRepENS_12crc_internal13CrcCordStateE");
+        void CordRepCrcDestroy(void* node) __asm__("_ZN4absl13cord_internal10CordRepCrc7DestroyEPNS0_10CordRepCrcE");
+
+        void* CordRepCrcNew(void* head, uint32_t crc) {
+            void* node = std::malloc(32); 
             if (!node) return head;
-            std::memset(node, 0, sizeof(CordRepCrc));
-            node->crc = crc;
+            std::memset(node, 0, 32);
             return node;
         }
-        void CordRepCrc::Destroy(CordRepCrc* node) {
+        
+        void CordRepCrcDestroy(void* node) {
             std::free(node);
         }
     }
     namespace status_internal {
         void* GetStatusPayloadPrinter() {
-            return nullptr;
+            return nullptr; 
         }
     }
 }
