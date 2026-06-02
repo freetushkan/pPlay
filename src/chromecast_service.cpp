@@ -108,6 +108,23 @@ extern "C" {
     //         std::memset(ctx, 0, sizeof(EVP_MD_CTX));
     //     }
     // }
+    long SSL_CTX_set_mode(SSL_CTX *ctx, long mode) {
+        return SSL_CTX_ctrl(ctx, SSL_CTRL_MODE, mode, nullptr);
+    }
+    long SSL_CTX_set_session_cache_mode(SSL_CTX *ctx, long mode) {
+        return SSL_CTX_ctrl(ctx, SSL_CTRL_SET_SESS_CACHE_MODE, mode, nullptr);
+    }
+    void AbslInternalSleepFor(int64_t nanoseconds) {
+        if (nanoseconds > 0) usleep(nanoseconds / 1000);
+    }
+    int64_t absl_GetCurrentTimeNanos() {
+        struct timespec ts;
+        return (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) ? ((int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec) : 0;
+    }
+    void absl_debugging_internal_DumpStackTrace(void*) {}
+    void absl_GetStackTrace(void*, int, int) {}
+    void absl_log_internal_EncodeStructuredProtoField(void*) {}
+    void absl_DoIgnoreLeak(void*) {}
 }
 
 namespace openscreen {

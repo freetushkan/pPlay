@@ -397,6 +397,45 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc_memcpy_fallback.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/per_thread_sem.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/create_thread_identity.cc
+
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/rtcp_session.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/sender_report_parser.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/compound_rtcp_builder.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/packet_receive_stats_tracker.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/rtp_packet_parser.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/frame_crypto.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/clock_drift_smoother.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/frame_collector.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/receiver_packet_router.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/statistics_common.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/packet_util.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/rtp_time.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/ssrc.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/resolution.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/message_fields.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/offer_messages.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/answer_messages.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/session_config.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/capture_recommendations.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/constants.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/receiver_message.cc
+        ${OPENSCREEN_ROOT}/util/simple_fraction.cc
+        ${OPENSCREEN_ROOT}/util/big_endian.cc
+
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/any.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/inlined_string_field.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/reflection_mode.cc
+
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/time.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/status/status.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/status/statusor.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/crc32c.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc_cord_state.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc_memcpy_fallback.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/cycleclock.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/unscaledcycleclock.cc
+
+        ${OPENSCREEN_ROOT}/third_party/modp_b64/modp_b64.cc
     )
 
     list(APPEND PPLAY_INC 
