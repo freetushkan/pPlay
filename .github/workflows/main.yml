@@ -123,7 +123,7 @@ jobs:
           set -eux
           cd "$GITHUB_WORKSPACE"/openscreen
 
-          # Create C++20 polyfills for PS4 cross-compiler
+          echo "=== Clean from CXX20 stuff ==="
           mkdir -p "CXX20_polyfills"
           cat > "CXX20_polyfills/format" <<'POLYFILL'
             #pragma once
@@ -133,10 +133,9 @@ jobs:
             namespace std { using fmt::format; using fmt::format_string; }
             #endif
           POLYFILL
-
-          echo "=== Clean from CXX20 stuff ==="
           STRING_UTIL_H="util/string_util.h"
           if [ -f "$STRING_UTIL_H" ]; then
+            sed -i '/#include <ranges>/d' "$STRING_UTIL_H"
             sed -i 's/constexpr std::string/std::string/g' "$STRING_UTIL_H"
             sed -i 's/template <std::ranges::input_range R>/template <typename R>/g' "$STRING_UTIL_H"
             sed -i 's/std::ranges::empty/std::empty/g' "$STRING_UTIL_H"
