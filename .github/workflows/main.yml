@@ -123,7 +123,7 @@ jobs:
           set -eux
           cd "$GITHUB_WORKSPACE"/openscreen
 
-          echo "=== Clean from CXX20 stuff ==="
+          echo "=== Patch C++20 related stuff ==="
           mkdir -p "CXX20_polyfills"
           cat > "CXX20_polyfills/format" <<'POLYFILL'
             #pragma once
@@ -154,6 +154,12 @@ jobs:
           if [ -f "$RECEIVER_H" ]; then
             sed -i '9i #include <optional>' "$RECEIVER_H"
             echo "Successfully added <optional> to receiver.h"
+          fi
+          ANY_INVOCABLE_INTERNAL_H="third_party/abseil/src/absl/functional/internal/any_invocable.h"
+          if [ -f "$ANY_INVOCABLE_INTERNAL_H" ]; then
+            echo "=== Patching internal any_invocable.h macro for C++17 ==="
+            sed -i 's/ABSL_ASSERT(\[this\]() {/auto __absl_check = [this]() {/g' "$ANY_INVOCABLE_INTERNAL_H"
+            sed -i 's/    }());/    }; ABSL_ASSERT(__absl_check());/g' "$ANY_INVOCABLE_INTERNAL_H"
           fi
 
           echo "=== Patching platform support check ==="
