@@ -303,7 +303,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/ostringstream.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/map_field.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/map.cc
-
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/unknown_field_set.cc
 
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/mutex.h
@@ -322,6 +321,17 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/str_format/output.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/str_format/parser.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/stringify_sink.cc
+
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/charconv_bigint.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/charconv_parse.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/charconv.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/hash/internal/city.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/create_thread_identity.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/per_thread_sem.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/pthread_waiter.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/waiter_base.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/graphcycles.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/kernel_timeout.cc
     )
 
     list(APPEND PPLAY_INC 
