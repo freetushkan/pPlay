@@ -137,7 +137,7 @@ extern "C" {
     // void absl_GetStackTrace(void*, int, int) {}
     // void absl_log_internal_EncodeStructuredProtoField(void*) {}
     // void absl_DoIgnoreLeak(void*) {}
-    void AbslInternalPerThreadSemPost(absl::synchronization_internal::ThreadIdentity* t) {
+    void AbslInternalPerThreadSemPost(absl::base_internal::ThreadIdentity* t) {
         static AbslThreadSem sem;
         static bool inited = false;
         if (!inited) {
@@ -151,7 +151,7 @@ extern "C" {
         pthread_cond_signal(&sem.cond);
         pthread_mutex_unlock(&sem.mutex);
     }
-    bool AbslInternalPerThreadSemWait(absl::synchronization_internal::ThreadIdentity* t, int64_t timeout_ns) {
+    bool AbslInternalPerThreadSemWait(absl::synchronization_internal::ThreadIdentity* t, absl::KernelTimeout timeout) {
         static AbslThreadSem sem;
         pthread_mutex_lock(&sem.mutex);
         while (sem.count <= 0) {
