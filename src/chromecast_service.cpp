@@ -153,7 +153,7 @@ extern "C" {
     }
     bool AbslInternalPerThreadSemWait(
             absl::base_internal::ThreadIdentity* t,
-            absl::base_internal::KernelTimeout timeout) {
+            absl::synchronization_internal::KernelTimeout timeout) {
         static AbslThreadSem sem;
         pthread_mutex_lock(&sem.mutex);
         while (sem.count <= 0) {
