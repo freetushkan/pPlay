@@ -224,10 +224,10 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/zero_copy_stream.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/zero_copy_stream_impl.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/zero_copy_stream_impl_lite.cc
-        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/wire_format_lite.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/wire_format.cc
-        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/message_lite.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/wire_format_lite.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/message.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/message_lite.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/repeated_field.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/extension_set.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_util.cc
@@ -348,7 +348,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/cast/streaming/impl/ntp_time.cc
 
         ${OPENSCREEN_GEN}/cast/streaming/remoting.pb.cc
-        ${OPENSCREEN_GEN}/cast/streaming/input.pb.h
+        ${OPENSCREEN_GEN}/cast/streaming/input.pb.cc
 
         ${OPENSCREEN_ROOT}/discovery/dnssd/impl/dns_data_graph.cc
         ${OPENSCREEN_ROOT}/discovery/dnssd/impl/instance_key.cc
@@ -413,7 +413,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/cast/streaming/ssrc.cc
         ${OPENSCREEN_ROOT}/cast/streaming/resolution.cc
         ${OPENSCREEN_ROOT}/cast/streaming/message_fields.cc
-        ${OPENSCREEN_ROOT}/cast/streaming/public/offer_messages.cc
         ${OPENSCREEN_ROOT}/cast/streaming/public/answer_messages.cc
         ${OPENSCREEN_ROOT}/cast/streaming/public/session_config.cc
         ${OPENSCREEN_ROOT}/cast/streaming/public/capture_recommendations.cc
@@ -444,6 +443,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/internal/cctz/src/time_zone_impl.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/internal/cctz/src/time_zone_fixed.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/internal/cctz/src/zone_info_source.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/clock.cc
 
         ${OPENSCREEN_ROOT}/cast/streaming/impl/rtcp_common.cc
         ${OPENSCREEN_ROOT}/cast/streaming/rtp_time.cc
@@ -451,6 +451,32 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/internal/cctz/src/time_zone_libc.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/match.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/cord_analysis.cc
+        ${OPENSCREEN_ROOT}/protobuf/src/google/protobuf/raw_ptr.cc
+        ${OPENSCREEN_ROOT}/protobuf/src/google/protobuf/any.cc
+        ${OPENSCREEN_ROOT}/protobuf/src/google/protobuf/any_lite.cc
+        ${OPENSCREEN_ROOT}/protobuf/src/google/protobuf/any.pb.cc
+        ${OPENSCREEN_ROOT}/protobuf/src/google/protobuf/util/message_differencer.cc
+
+        ${OPENSCREEN_ROOT}/cast/common/channel/message_framer_fuzzer.cc
+        ${OPENSCREEN_ROOT}/cast/common/channel/message_framer.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/session_messenger.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/rtp_defines.cc
+
+        ${OPENSCREEN_ROOT}/platform/base/trace_logging_types.cc
+        ${OPENSCREEN_ROOT}/platform/base/trivial_clock_traits.cc
+
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/per_thread_sem.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/pthread_waiter.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/waiter_base.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/crc32c.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc_cord_state.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc_memcpy_fallback.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/low_level_alloc.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/thread_identity.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/container/internal/hashtablez_sampler.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/status/status.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/log/internal/conditions.cc
     )
 
     list(APPEND PPLAY_INC 
