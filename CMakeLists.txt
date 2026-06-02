@@ -429,7 +429,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/status/statusor.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/crc32c.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc_cord_state.cc
-        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc_memcpy_fallback.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/cycleclock.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/unscaledcycleclock.cc
 
@@ -463,6 +462,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/cast/common/channel/message_framer.cc
         ${OPENSCREEN_ROOT}/cast/streaming/public/session_messenger.cc
         ${OPENSCREEN_ROOT}/cast/streaming/impl/rtp_defines.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/frame_id.cc
 
         ${OPENSCREEN_ROOT}/platform/base/trace_logging_types.cc
         ${OPENSCREEN_ROOT}/platform/base/trivial_clock_traits.cc
@@ -473,7 +473,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/crc32c.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc_cord_state.cc
-        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc_memcpy_fallback.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/low_level_alloc.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/thread_identity.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/container/internal/hashtablez_sampler.cc
@@ -487,6 +486,9 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/log/internal/structured_proto.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/log/log_sink.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/str_split.cc
+
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/debugging/internal/examine_stack.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/debugging/leak_check.cc
     )
 
     list(APPEND PPLAY_INC 
@@ -526,6 +528,8 @@ elseif (PLATFORM_PS4)
     list(APPEND PPLAY_CFLAGS
         -DABSL_FORCE_WAITER_MODE=1
         -DABSL_INTERNAL_HAS_SALT=1
+        -DABSL_ALLOCATOR_NOTHROW=1
+        -D_POSIX_C_SOURCE=200809L
         -D_HAVE_PTHREAD=1
         -D_GNU_SOURCE=1
     )
