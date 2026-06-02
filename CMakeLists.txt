@@ -326,6 +326,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/charconv_parse.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/charconv.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/hash/internal/city.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/create_thread_identity.h
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/create_thread_identity.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/pthread_waiter.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/waiter_base.cc
@@ -426,7 +427,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/status/status.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/status/statusor.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/crc32c.cc
-        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc_cord_state.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/cycleclock.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/unscaledcycleclock.cc
 
@@ -468,11 +468,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/per_thread_sem.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/pthread_waiter.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/waiter_base.cc
-        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/crc32c.cc
-        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc.cc
-        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc_cord_state.cc
-        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/low_level_alloc.cc
-        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/thread_identity.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/container/internal/hashtablez_sampler.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/status/status.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/log/internal/conditions.cc
