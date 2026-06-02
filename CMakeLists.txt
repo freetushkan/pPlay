@@ -444,6 +444,13 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/internal/cctz/src/time_zone_impl.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/internal/cctz/src/time_zone_fixed.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/internal/cctz/src/zone_info_source.cc
+
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/rtcp_common.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/rtp_time.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/internal/cctz/src/time_zone_posix.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/internal/cctz/src/time_zone_libc.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/match.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/cord_analysis.cc
     )
 
     list(APPEND PPLAY_INC 
