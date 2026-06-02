@@ -53,6 +53,9 @@
 #include <openssl/x509.h>
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
+#include <openssl/bytestring.h>
+#include <openssl/digest.h>
+#include <openssl/asn1.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -68,21 +71,27 @@ extern "C" {
         return 0;
     }
 
+    void EVP_cleanup(void) {}
+    void X509V3_EXT_free(void *ext) {}
+    int EVP_MD_CTX_cleanup(EVP_MD_CTX *ctx) { return 1; }
     RSA *RSA_private_key_from_bytes(const uint8_t *bytes, size_t len) {
         CBS cbs;
         CBS_init(&cbs, bytes, len);
         return RSA_parse_private_key(&cbs);
     }
-    // RSA *RSA_private_key_from_bytes(const uint8_t *bytes, size_t len) {
-    //     const uint8_t *p = bytes;
-    //     return d2i_RSAPrivateKey(nullptr, &p, len);
-    // }
-    void EVP_cleanup(void) {}
-    void X509V3_EXT_free(void *ext) {}
-    int EVP_MD_CTX_cleanup(EVP_MD_CTX *ctx) { return 1;  }
-    int X509_set_notBefore(X509 *x, const ASN1_TIME *tm) { return X509_set_time(X509_get_notBefore(x), tm) ? 1 : 0; }
-    int X509_set_notAfter(X509 *x, const ASN1_TIME *tm) { return X509_set_time(X509_get_notAfter(x), tm) ? 1 : 0; }
-    int EVP_PKEY_assign_RSA(EVP_PKEY *pkey, RSA *key) { return EVP_PKEY_set1_RSA(pkey, key); }
+    int X509_set_notBefore(X509 *x, const ASN1_TIME *tm) {
+        ASN1_TIME *current = X509_get_notBefore(x);
+        if (!current) return 0;
+        return ASN1_STRING_copy(current, tm) ? 1 : 0;
+    }
+    int X509_set_notAfter(X509 *x, const ASN1_TIME *tm) {
+        ASN1_TIME *current = X509_get_notAfter(x);
+        if (!current) return 0;
+        return ASN1_STRING_copy(current, tm) ? 1 : 0;
+    }
+    int EVP_PKEY_assign_RSA(EVP_PKEY *pkey, RSA *key) {
+        return EVP_PKEY_set1_RSA(pkey, key);
+    }
     int EVP_DigestSignUpdate(EVP_MD_CTX *ctx, const void *data, size_t dsize) {
         return EVP_DigestUpdate(ctx, data, dsize);
     }
