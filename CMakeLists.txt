@@ -451,11 +451,11 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/internal/cctz/src/time_zone_libc.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/match.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/cord_analysis.cc
-        ${OPENSCREEN_ROOT}/protobuf/src/google/protobuf/raw_ptr.cc
-        ${OPENSCREEN_ROOT}/protobuf/src/google/protobuf/any.cc
-        ${OPENSCREEN_ROOT}/protobuf/src/google/protobuf/any_lite.cc
-        ${OPENSCREEN_ROOT}/protobuf/src/google/protobuf/any.pb.cc
-        ${OPENSCREEN_ROOT}/protobuf/src/google/protobuf/util/message_differencer.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/raw_ptr.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/any.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/any_lite.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/any.pb.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/util/message_differencer.cc
 
         ${OPENSCREEN_ROOT}/cast/common/channel/message_framer_fuzzer.cc
         ${OPENSCREEN_ROOT}/cast/common/channel/message_framer.cc
