@@ -278,7 +278,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_JSON_SRC}
         ${OPENSCREEN_BORINGSSL_INCLUDE}
         ${OPENSCREEN_POLYFILLS_INCLUDE}
-        
     )
 
     # Link OpenScreen libraries
@@ -303,6 +302,14 @@ if (PLATFORM_SWITCH)
 elseif (PLATFORM_PS4)
     find_package(fmt REQUIRED)
     list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509 SceNet fmt::fmt)
+    target_link_options(${CMAKE_PROJECT_NAME} PRIVATE 
+        "LINKER:--defsym=X509_set_notBefore=X509_set_time"
+        "LINKER:--defsym=X509_set_notAfter=X509_set_time"
+        "LINKER:--defsym=EVP_MD_CTX_init=EVP_MD_CTX_init"
+        "LINKER:--defsym=EVP_cleanup=EVP_CIPHER_CTX_cleanup"
+        "LINKER:--defsym=RSA_private_key_from_bytes=d2i_RSAPrivateKey"
+        "LINKER:--defsym=RSA_public_key_from_bytes=d2i_RSAPublicKey"
+    )
 endif ()
 target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS})
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
