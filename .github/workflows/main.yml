@@ -150,6 +150,11 @@ jobs:
             sed -i '/return std::ranges::equal(/,/);/c\  if (a.size() != b.size()) return false;\n  return std::equal(a.begin(), a.end(), b.begin(), [](char ch1, char ch2) { return ascii_tolower(ch1) == ascii_tolower(ch2); });' "$STRING_UTIL_CC"
             sed -i '/std::vector<std::string_view> Split/,/^}/c\std::vector<std::string_view> Split(std::string_view value, char delim) {\n  std::vector<std::string_view> result;\n  size_t start = 0, end = 0;\n  while ((end = value.find(delim, start)) != std::string_view::npos) {\n    if (end > start) result.emplace_back(value.substr(start, end - start));\n    start = end + 1;\n  }\n  if (start < value.size()) result.emplace_back(value.substr(start));\n  return result;\n}' "$STRING_UTIL_CC"
           fi
+          RECEIVER_H="cast/streaming/public/receiver.h"
+          if [ -f "$RECEIVER_H" ]; then
+            sed -i '9i #include <optional>' "$RECEIVER_H"
+            echo "Successfully added <optional> to receiver.h"
+          fi
 
           echo "=== Patching platform support check ==="
           CONFIG_FILE="build/build_config.h"
