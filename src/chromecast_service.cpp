@@ -58,9 +58,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define EVP_MD_CTX_init COMPILER_HOOK_EVP_MD_CTX_init
-#include <openssl/digest.h>
-#undef EVP_MD_CTX_init
+// #define EVP_MD_CTX_init COMPILER_HOOK_EVP_MD_CTX_init
+// #include <openssl/digest.h>
+// #undef EVP_MD_CTX_init
 
 #include <pthread.h>
 #include <cstdint>
@@ -107,36 +107,18 @@ extern "C" {
     int EVP_DigestSignUpdate(EVP_MD_CTX *ctx, const void *data, size_t dsize) {
         return EVP_DigestUpdate(ctx, data, dsize);
     }
-    void EVP_MD_CTX_init(EVP_MD_CTX *ctx) {
-        if (ctx) {
-            std::memset(ctx, 0, sizeof(EVP_MD_CTX));
-        }
-    }
-    long SSL_CTX_set_session_cache_mode(SSL_CTX *ctx, long mode) {
-        // implement?
-        return mode;
-    }
-    // void ps4_evp_md_ctx_init_hook(EVP_MD_CTX *ctx) __asm__("EVP_MD_CTX_init");
-    // void ps4_evp_md_ctx_init_hook(EVP_MD_CTX *ctx) {
+    long SSL_CTX_set_session_cache_mode(SSL_CTX *ctx, long mode) { return mode; }
+    // void EVP_MD_CTX_init(EVP_MD_CTX *ctx) {
     //     if (ctx) {
     //         std::memset(ctx, 0, sizeof(EVP_MD_CTX));
     //     }
     // }
-    // long SSL_CTX_set_mode(SSL_CTX *ctx, long mode) {
-    //     return SSL_CTX_set_options(ctx, mode);
-    // }
-
-    // void AbslInternalSleepFor(int64_t nanoseconds) {
-    //     if (nanoseconds > 0) usleep(nanoseconds / 1000);
-    // }
-    // int64_t absl_GetCurrentTimeNanos() {
-    //     struct timespec ts;
-    //     return (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) ? ((int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec) : 0;
-    // }
-    // void absl_debugging_internal_DumpStackTrace(void*) {}
-    // void absl_GetStackTrace(void*, int, int) {}
-    // void absl_log_internal_EncodeStructuredProtoField(void*) {}
-    // void absl_DoIgnoreLeak(void*) {}
+    void ps4_evp_md_ctx_init_hook(EVP_MD_CTX *ctx) __asm__("EVP_MD_CTX_init");
+    void ps4_evp_md_ctx_init_hook(EVP_MD_CTX *ctx) {
+        if (ctx) {
+            std::memset(ctx, 0, sizeof(EVP_MD_CTX));
+        }
+    }
     void AbslInternalPerThreadSemPost(absl::base_internal::ThreadIdentity* t) {
         static AbslThreadSem sem;
         static bool inited = false;
@@ -192,28 +174,6 @@ extern "C" {
     }
     void ps4_absl_cord_crc_destroy(void* node) __asm__("_ZN4absl13cord_internal10CordRepCrc7DestroyEPNS0_10CordRepCrcE");
     void ps4_absl_cord_crc_destroy(void* node) { std::free(node); }
-}
-namespace absl {
-    namespace cord_internal {
-        void* CordRepCrcNew(void* head, uint32_t crc) __asm__("_ZN4absl13cord_internal10CordRepCrc3NewEPNS0_7CordRepENS_12crc_internal13CrcCordStateE");
-        void CordRepCrcDestroy(void* node) __asm__("_ZN4absl13cord_internal10CordRepCrc7DestroyEPNS0_10CordRepCrcE");
-
-        void* CordRepCrcNew(void* head, uint32_t crc) {
-            void* node = std::malloc(32); 
-            if (!node) return head;
-            std::memset(node, 0, 32);
-            return node;
-        }
-        
-        void CordRepCrcDestroy(void* node) {
-            std::free(node);
-        }
-    }
-    namespace status_internal {
-        void* GetStatusPayloadPrinter() {
-            return nullptr; 
-        }
-    }
 }
 
 namespace openscreen {
