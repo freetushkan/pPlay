@@ -215,7 +215,8 @@ jobs:
             cast/common/channel/proto/cast_channel.proto \
             cast/common/channel/proto/authority_keys.proto \
             cast/streaming/remoting.proto \
-            cast/streaming/input.proto
+            cast/streaming/input.proto \
+            cast/streaming/rpc_messages.proto
           do
             protoc --proto_path=. --cpp_out=out/Default/gen $proto
           done

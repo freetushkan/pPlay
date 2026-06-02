@@ -357,6 +357,15 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/discovery/mdns/impl/mdns_probe.cc
         ${OPENSCREEN_ROOT}/discovery/mdns/impl/mdns_publisher.cc
         ${OPENSCREEN_ROOT}/discovery/mdns/public/mdns_records.cc
+        ${OPENSCREEN_ROOT}/discovery/dnssd/impl/network_interface_config.cc
+        ${OPENSCREEN_ROOT}/discovery/dnssd/impl/service_key.cc
+        ${OPENSCREEN_ROOT}/discovery/mdns/impl/mdns_receiver.cc
+        ${OPENSCREEN_ROOT}/discovery/mdns/impl/mdns_sender.cc
+        ${OPENSCREEN_ROOT}/discovery/mdns/impl/mdns_trackers.cc
+        ${OPENSCREEN_ROOT}/discovery/mdns/impl/mdns_responder.cc
+        ${OPENSCREEN_ROOT}/discovery/mdns/public/mdns_reader.cc
+        ${OPENSCREEN_ROOT}/discovery/mdns/public/mdns_writer.cc
+        ${OPENSCREEN_ROOT}/discovery/mdns/public/mdns_service.cc
 
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/dynamic_message.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/text_format.cc
@@ -365,6 +374,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/micro_string.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/tokenizer.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/strtod.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/cpp_features.pb.cc
 
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/ascii.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/escaping.cc
