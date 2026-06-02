@@ -133,9 +133,9 @@ jobs:
             namespace std { using fmt::format; using fmt::format_string; }
             #endif
           POLYFILL
+          touch "CXX20_polyfills/ranges"
           STRING_UTIL_H="util/string_util.h"
           if [ -f "$STRING_UTIL_H" ]; then
-            sed -i '/#include <ranges>/d' "$STRING_UTIL_H"
             sed -i 's/constexpr std::string/std::string/g' "$STRING_UTIL_H"
             sed -i 's/template <std::ranges::input_range R>/template <typename R>/g' "$STRING_UTIL_H"
             sed -i 's/std::ranges::empty/std::empty/g' "$STRING_UTIL_H"
