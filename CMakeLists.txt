@@ -171,6 +171,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_BORINGSSL_INCLUDE}
         ${OPENSCREEN_POLYFILLS_INCLUDE}
         ${CMAKE_SOURCE_DIR}/ps4-openssl/boringssl/include
+        ${CMAKE_SOURCE_DIR}/ps4-openssl/include
         include_directories(BEFORE ${OPENSCREEN_ROOT}/third_party/protobuf/third_party/utf8_range)
     )
 
@@ -210,6 +211,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/util/json/json_value.cc
         ${OPENSCREEN_ROOT}/util/crypto/certificate_utils.cc
         ${OPENSCREEN_ROOT}/util/crypto/openssl_util.cc
+        ${OPENSCREEN_ROOT}/util/crypto/digest_sign.cc
         ${OPENSCREEN_ROOT}/cast/common/channel/message_util.cc
         ${OPENSCREEN_GEN}/cast/common/channel/proto/cast_channel.pb.cc
         ${OPENSCREEN_GEN}/cast/common/channel/proto/authority_keys.pb.cc
@@ -226,6 +228,9 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/extension_set.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_util.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_tctable_lite.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/arena.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/arenastring.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/port.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/third_party/utf8_range/utf8_range.c
     )
 

@@ -237,7 +237,7 @@ jobs:
             runtime_version.h optimization.h value.h build_config.h \
             cast_channel.pb.h remoting.pb.h input.pb.h \
             json_value.cpp json_reader.cpp json_writer.cpp \
-            logging_posix.cc
+            logging_posix.cc arena.cc
           do 
             res=$(find . -name "$file")
             [ -n "$res" ] && echo "$res" || {

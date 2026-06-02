@@ -50,6 +50,23 @@
 #include "util/stringprintf.h"
 #include "util/uuid.h"
 
+#include <openssl/rsa.h>
+#include <stddef.h>
+#include <stdint.h>
+
+extern "C" {
+    int RSA_private_key_to_bytes(uint8_t **out_bytes, size_t *out_len, const RSA *rsa) {
+        if (out_len) *out_len = 0;
+        if (out_bytes) *out_bytes = nullptr;
+        return 0;
+    }
+    int RSA_public_key_to_bytes(uint8_t **out_bytes, size_t *out_len, const RSA *rsa) {
+        if (out_len) *out_len = 0;
+        if (out_bytes) *out_bytes = nullptr;
+        return 0;
+    }
+}
+
 namespace openscreen {
 namespace {
 uint8_t ToPrefixLength(std::span<const uint8_t> netmask) {
