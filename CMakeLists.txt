@@ -332,6 +332,61 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/waiter_base.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/graphcycles.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/kernel_timeout.cc
+
+        ${OPENSCREEN_ROOT}/util/alarm.cc
+        ${OPENSCREEN_ROOT}/util/base64.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/session_config.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/offer_messages.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/answer_messages.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/capture_recommendations.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/encoded_frame.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/receiver.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/rpc_messenger.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/receiver_impl.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/receiver_packet_router.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/statistics_collector.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/impl/ntp_time.cc
+
+        ${OPENSCREEN_GEN}/cast/streaming/remoting.pb.cc
+        ${OPENSCREEN_GEN}/cast/streaming/rpc_messages.pb.cc
+
+        ${OPENSCREEN_ROOT}/discovery/dnssd/impl/dns_data_graph.cc
+        ${OPENSCREEN_ROOT}/discovery/dnssd/impl/instance_key.cc
+        ${OPENSCREEN_ROOT}/discovery/dnssd/impl/conversion_layer.cc
+        ${OPENSCREEN_ROOT}/discovery/mdns/impl/mdns_probe_manager.cc
+        ${OPENSCREEN_ROOT}/discovery/mdns/impl/mdns_probe.cc
+        ${OPENSCREEN_ROOT}/discovery/mdns/impl/mdns_publisher.cc
+        ${OPENSCREEN_ROOT}/discovery/mdns/public/mdns_records.cc
+
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/dynamic_message.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/text_format.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/descriptor_database.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/feature_resolver.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/micro_string.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/tokenizer.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/strtod.cc
+
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/ascii.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/escaping.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/charconv.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/numbers.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/substitute.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/escaping.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/utf8.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/memutil.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/throw_delegate.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/raw_logging.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/strerror.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/numeric/int128.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/hash/internal/city.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/log/internal/proto.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/log/internal/log_format.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/status/internal/status_internal.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc_cord_state.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc_memcpy_fallback.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/per_thread_sem.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/create_thread_identity.cc
     )
 
     list(APPEND PPLAY_INC 

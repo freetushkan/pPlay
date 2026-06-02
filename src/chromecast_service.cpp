@@ -108,6 +108,18 @@ extern "C" {
     //         std::memset(ctx, 0, sizeof(EVP_MD_CTX));
     //     }
     // }
+    void AbslInternalSleepFor(int64_t nanoseconds) {
+        if (nanoseconds > 0) {
+            usleep(nanoseconds / 1000);
+        }
+    }
+    int64_t absl_GetCurrentTimeNanos() {
+        struct timespec ts;
+        if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
+            return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+        }
+        return 0;
+    }
 }
 
 namespace openscreen {
