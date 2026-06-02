@@ -102,6 +102,10 @@ extern "C" {
             std::memset(ctx, 0, sizeof(EVP_MD_CTX));
         }
     }
+    long SSL_CTX_set_session_cache_mode(SSL_CTX *ctx, long mode) {
+        // implement?
+        return mode;
+    }
     // void ps4_evp_md_ctx_init_hook(EVP_MD_CTX *ctx) __asm__("EVP_MD_CTX_init");
     // void ps4_evp_md_ctx_init_hook(EVP_MD_CTX *ctx) {
     //     if (ctx) {
@@ -111,9 +115,7 @@ extern "C" {
     // long SSL_CTX_set_mode(SSL_CTX *ctx, long mode) {
     //     return SSL_CTX_set_options(ctx, mode);
     // }
-    long SSL_CTX_set_session_cache_mode(SSL_CTX *ctx, long mode) {
-        return mode;
-    }
+
     // void AbslInternalSleepFor(int64_t nanoseconds) {
     //     if (nanoseconds > 0) usleep(nanoseconds / 1000);
     // }

@@ -436,6 +436,14 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/unscaledcycleclock.cc
 
         ${OPENSCREEN_ROOT}/third_party/modp_b64/modp_b64.cc
+
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/duration.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/internal/cctz/src/time_zone_info.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/internal/cctz/src/time_zone_lookup.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/internal/cctz/src/time_zone_if.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/internal/cctz/src/time_zone_impl.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/internal/cctz/src/time_zone_fixed.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/time/internal/cctz/src/zone_info_source.cc
     )
 
     list(APPEND PPLAY_INC 
