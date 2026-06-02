@@ -170,9 +170,9 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_JSON_SRC}
         ${OPENSCREEN_BORINGSSL_INCLUDE}
         ${OPENSCREEN_POLYFILLS_INCLUDE}
+        ${OPENSCREEN_ROOT}/third_party/protobuf/third_party/utf8_range
         ${CMAKE_SOURCE_DIR}/ps4-openssl/boringssl/include
         ${CMAKE_SOURCE_DIR}/ps4-openssl/include
-        include_directories(BEFORE ${OPENSCREEN_ROOT}/third_party/protobuf/third_party/utf8_range)
     )
 
     list(APPEND PPLAY_SRC
