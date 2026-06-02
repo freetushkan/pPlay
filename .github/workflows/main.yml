@@ -273,7 +273,7 @@ jobs:
           source /opt/pacbrew/ps4/openorbis/ps4vars.sh
           export OPENORBIS=/opt/pacbrew/ps4/openorbis
           cd cmake-build
-          make pplay_pkg -j$(nproc)
+          make pplay_pkg -j$(nproc) VERBOSE=1
           mv *.pkg ../
 
       - name: Upload Artifact
