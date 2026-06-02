@@ -54,10 +54,13 @@
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
 #include <openssl/bytestring.h>
-#include <openssl/digest.h>
 #include <openssl/asn1.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#define EVP_MD_CTX_init COMPILER_HOOK_EVP_MD_CTX_init
+#include <openssl/digest.h>
+#undef EVP_MD_CTX_init
 
 extern "C" {
     int RSA_private_key_to_bytes(uint8_t **out_bytes, size_t *out_len, const RSA *rsa) {
@@ -93,6 +96,9 @@ extern "C" {
     }
     int EVP_DigestSignUpdate(EVP_MD_CTX *ctx, const void *data, size_t dsize) {
         return EVP_DigestUpdate(ctx, data, dsize);
+    }
+    void EVP_MD_CTX_init(void *ctx) {
+        EVP_MD_CTX_init(reinterpret_cast<EVP_MD_CTX*>(ctx));
     }
 }
 
