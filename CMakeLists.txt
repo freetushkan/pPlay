@@ -348,6 +348,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/cast/streaming/impl/ntp_time.cc
 
         ${OPENSCREEN_GEN}/cast/streaming/remoting.pb.cc
+        ${OPENSCREEN_GEN}/cast/streaming/input.pb.h
 
         ${OPENSCREEN_ROOT}/discovery/dnssd/impl/dns_data_graph.cc
         ${OPENSCREEN_ROOT}/discovery/dnssd/impl/instance_key.cc
