@@ -327,7 +327,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/charconv.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/hash/internal/city.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/create_thread_identity.cc
-        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/per_thread_sem.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/pthread_waiter.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/waiter_base.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/graphcycles.cc
@@ -395,7 +394,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc_cord_state.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc_memcpy_fallback.cc
-        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/per_thread_sem.cc
 
         ${OPENSCREEN_ROOT}/cast/streaming/impl/rtcp_session.cc
         ${OPENSCREEN_ROOT}/cast/streaming/impl/sender_report_parser.cc
