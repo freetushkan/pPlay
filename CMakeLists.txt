@@ -396,7 +396,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/crc/internal/crc_memcpy_fallback.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/per_thread_sem.cc
-        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/internal/create_thread_identity.cc
 
         ${OPENSCREEN_ROOT}/cast/streaming/impl/rtcp_session.cc
         ${OPENSCREEN_ROOT}/cast/streaming/impl/sender_report_parser.cc
@@ -457,6 +456,9 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/any.pb.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/util/message_differencer.cc
 
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/util/field_comparator.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/printer.cc
+
         ${OPENSCREEN_ROOT}/cast/common/channel/message_framer_fuzzer.cc
         ${OPENSCREEN_ROOT}/cast/common/channel/message_framer.cc
         ${OPENSCREEN_ROOT}/cast/streaming/public/session_messenger.cc
@@ -477,6 +479,11 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/container/internal/hashtablez_sampler.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/status/status.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/log/internal/conditions.cc
+
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/debugging/stacktrace.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/debugging/symbolize.cc
+
+
     )
 
     list(APPEND PPLAY_INC 
@@ -513,6 +520,7 @@ if (PLATFORM_SWITCH)
 elseif (PLATFORM_PS4)
     find_package(fmt REQUIRED)
     list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509 SceNet fmt::fmt)
+    list(APPEND PPLAY_CFLAGS -DABSL_FORCE_WAITER_MODE=1 -DABSL_INTERNAL_HAS_SALT=1)
 endif ()
 target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS})
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
