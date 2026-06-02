@@ -483,7 +483,10 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/debugging/stacktrace.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/debugging/symbolize.cc
 
-
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/zero_copy_sink.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/log/internal/structured_proto.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/log/log_sink.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/str_split.cc
     )
 
     list(APPEND PPLAY_INC 
@@ -520,7 +523,12 @@ if (PLATFORM_SWITCH)
 elseif (PLATFORM_PS4)
     find_package(fmt REQUIRED)
     list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509 SceNet fmt::fmt)
-    list(APPEND PPLAY_CFLAGS -DABSL_FORCE_WAITER_MODE=1 -DABSL_INTERNAL_HAS_SALT=1)
+    list(APPEND PPLAY_CFLAGS
+        -DABSL_FORCE_WAITER_MODE=1
+        -DABSL_INTERNAL_HAS_SALT=1
+        -D_HAVE_PTHREAD=1
+        -D_GNU_SOURCE=1
+    )
 endif ()
 target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS})
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
