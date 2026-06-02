@@ -75,9 +75,8 @@ extern "C" {
     void X509V3_EXT_free(void *ext) {}
     int EVP_MD_CTX_cleanup(EVP_MD_CTX *ctx) { return 1; }
     RSA *RSA_private_key_from_bytes(const uint8_t *bytes, size_t len) {
-        CBS cbs;
-        CBS_init(&cbs, bytes, len);
-        return RSA_parse_private_key(&cbs);
+        const uint8_t *p = bytes;
+        return d2i_RSAPrivateKey(nullptr, &p, len);
     }
     int X509_set_notBefore(X509 *x, const ASN1_TIME *tm) {
         ASN1_TIME *current = X509_get_notBefore(x);
@@ -94,6 +93,9 @@ extern "C" {
     }
     int EVP_DigestSignUpdate(EVP_MD_CTX *ctx, const void *data, size_t dsize) {
         return EVP_DigestUpdate(ctx, data, dsize);
+    }
+    void EVP_MD_CTX_init(void *ctx) {
+        EVP_MD_CTX_init(reinterpret_cast<EVP_MD_CTX*>(ctx));
     }
 }
 

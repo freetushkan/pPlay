@@ -223,15 +223,17 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/coded_stream.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/zero_copy_stream.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/zero_copy_stream_impl_lite.cc
-        # ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/wire_format_lite.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/wire_format_lite.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/wire_format.cc
-        # ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/message_lite.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/message_lite.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/message.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/repeated_field.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/extension_set.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_util.cc
-        # ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_tctable_lite.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_tctable_lite.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_tctable_full.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_tctable_impl.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_tctable_gen.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_bases.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_reflection.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_enum_util.cc
@@ -244,6 +246,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/arena.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/arenastring.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/port.cc
+
 
         ${OPENSCREEN_ROOT}/third_party/protobuf/third_party/utf8_range/utf8_range.c
 
