@@ -245,6 +245,22 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/cast/streaming/public/receiver_session.cc
         ${OPENSCREEN_ROOT}/cast/common/public/cast_streaming_app_ids.cc
         ${OPENSCREEN_ROOT}/cast/common/channel/cast_socket.cc
+
+        ${OPENSCREEN_ROOT}/platform/api/task_runner_deleter.cc
+        ${OPENSCREEN_ROOT}/platform/api/tls_connection_factory.cc
+        ${OPENSCREEN_ROOT}/platform/api/tls_connection.cc
+        ${OPENSCREEN_ROOT}/cast/standalone_receiver/streaming_playback_controller.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/environment.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/receiver_constraints.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/session_messenger.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/receiver_message.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/sender_message.cc
+        ${OPENSCREEN_ROOT}/discovery/dnssd/impl/publisher_impl.cc
+        ${OPENSCREEN_ROOT}/discovery/dnssd/impl/querier_impl.cc
+        ${OPENSCREEN_ROOT}/discovery/dnssd/impl/service_instance.cc
+        ${OPENSCREEN_ROOT}/discovery/dnssd/impl/conversion_layer.cc
+        ${OPENSCREEN_ROOT}/discovery/mdns/impl/mdns_responder.cc
+        ${OPENSCREEN_ROOT}/discovery/mdns/impl/mdns_querier.cc
     )
 
     list(APPEND PPLAY_INC 
