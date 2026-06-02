@@ -151,14 +151,10 @@ extern "C" {
         pthread_cond_signal(&sem.cond);
         pthread_mutex_unlock(&sem.mutex);
     }
-    bool AbslInternalPerThreadSemWait(
-            absl::base_internal::ThreadIdentity* t,
-            absl::synchronization_internal::KernelTimeout timeout) {
+    bool AbslInternalPerThreadSemWait(absl::synchronization_internal::KernelTimeout timeout) {
         static AbslThreadSem sem;
         pthread_mutex_lock(&sem.mutex);
-        while (sem.count <= 0) {
-            pthread_cond_wait(&sem.cond, &sem.mutex);
-        }
+        while (sem.count <= 0) { pthread_cond_wait(&sem.cond, &sem.mutex); }
         sem.count--;
         pthread_mutex_unlock(&sem.mutex);
         return true;
