@@ -151,7 +151,9 @@ extern "C" {
         pthread_cond_signal(&sem.cond);
         pthread_mutex_unlock(&sem.mutex);
     }
-    bool AbslInternalPerThreadSemWait(absl::synchronization_internal::ThreadIdentity* t, absl::KernelTimeout timeout) {
+    bool AbslInternalPerThreadSemWait(
+            absl::base_internal::ThreadIdentity* t,
+            absl::base_internal::KernelTimeout timeout) {
         static AbslThreadSem sem;
         pthread_mutex_lock(&sem.mutex);
         while (sem.count <= 0) {
