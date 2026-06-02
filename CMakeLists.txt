@@ -211,6 +211,8 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/util/crypto/certificate_utils.cc
         ${OPENSCREEN_ROOT}/util/crypto/openssl_util.cc
         ${OPENSCREEN_ROOT}/util/crypto/digest_sign.cc
+        ${OPENSCREEN_ROOT}/util/crypto/random_bytes.cc
+        ${OPENSCREEN_ROOT}/util/string_util.cc
         ${OPENSCREEN_ROOT}/cast/common/channel/message_util.cc
         ${OPENSCREEN_GEN}/cast/common/channel/proto/cast_channel.pb.cc
         ${OPENSCREEN_GEN}/cast/common/channel/proto/authority_keys.pb.cc
@@ -231,6 +233,18 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/arenastring.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/port.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/third_party/utf8_range/utf8_range.c
+
+        ${OPENSCREEN_ROOT}/platform/impl/tls_connection_factory_posix.cc
+        ${OPENSCREEN_ROOT}/platform/impl/tls_connection_posix.cc
+        ${OPENSCREEN_ROOT}/platform/impl/stream_socket_posix.cc
+        ${OPENSCREEN_ROOT}/discovery/dnssd/impl/service_dispatcher.cc
+        ${OPENSCREEN_ROOT}/discovery/dnssd/public/dns_sd_instance.cc
+        ${OPENSCREEN_ROOT}/discovery/mdns/impl/mdns_service_impl.cc
+        ${OPENSCREEN_ROOT}/discovery/dnssd/public/dns_sd_instance_endpoint.cc
+        ${OPENSCREEN_ROOT}/discovery/dnssd/public/dns_sd_txt_record.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/receiver_session.cc
+        ${OPENSCREEN_ROOT}/cast/common/public/cast_streaming_app_ids.cc
+        ${OPENSCREEN_ROOT}/cast/common/channel/cast_socket.cc
     )
 
     list(APPEND PPLAY_INC 

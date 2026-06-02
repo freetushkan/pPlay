@@ -218,7 +218,6 @@ jobs:
             sed -i '/if (!EVP_DigestSignInit/,/^}/c\  if (!EVP_DigestSignInit(ctx.get(), nullptr, digest, nullptr, private_key)) { return Error::Code::kEVPInitializationError; } if (EVP_DigestSignUpdate(ctx.get(), data.data(), data.size()) != 1) { return Error::Code::kEVPInitializationError; } size_t sig_len = 0; if (EVP_DigestSignFinal(ctx.get(), nullptr, \&sig_len) != 1 || sig_len == 0) { return Error::Code::kEVPInitializationError; } std::string signature(sig_len, 0); if (EVP_DigestSignFinal(ctx.get(), reinterpret_cast<uint8_t*>(\&signature[0]), \&sig_len) != 1) { return Error::Code::kCreateSignatureFailed; } return signature; }' "$DIGEST_SIGN_FILE"
           fi
 
-
           echo "=== Generate Protobuf files ==="
           cd third_party/protobuf
           mkdir -p cmake/build_host
