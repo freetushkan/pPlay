@@ -161,6 +161,17 @@ jobs:
             sed -i 's/ABSL_ASSERT(\[this\]() {/auto __absl_check = [this]() {/g' "$ANY_INVOCABLE_INTERNAL_H"
             sed -i 's/    }());/    }; ABSL_ASSERT(__absl_check());/g' "$ANY_INVOCABLE_INTERNAL_H"
           fi
+          OFFER_MESSAGES_CC="cast/streaming/public/offer_messages.cc"
+          if [ -f "$OFFER_MESSAGES_CC" ]; then
+            sed -i '/using enum VideoCodec;/d' "$OFFER_MESSAGES_CC"
+            sed -i 's/case kVp8:/case VideoCodec::kVp8:/g' "$OFFER_MESSAGES_CC"
+            sed -i 's/case kVp9:/case VideoCodec::kVp9:/g' "$OFFER_MESSAGES_CC"
+            sed -i 's/case kAv1:/case VideoCodec::kAv1:/g' "$OFFER_MESSAGES_CC"
+            sed -i 's/case kHevc:/case VideoCodec::kHevc:/g' "$OFFER_MESSAGES_CC"
+            sed -i 's/case kH264:/case VideoCodec::kH264:/g' "$OFFER_MESSAGES_CC"
+            sed -i 's/case kNotSpecified:/case VideoCodec::kNotSpecified:/g' "$OFFER_MESSAGES_CC"
+            sed -i '/bool Offer::IsValid() const {/,/^}/c\bool Offer::IsValid() const {\n  for (const auto\& a : audio_streams) if (!a.IsValid()) return false;\n  for (const auto\& v : video_streams) if (!v.IsValid()) return false;\n  return true;\n}' "$OFFER_MESSAGES_CC"
+          fi
 
           echo "=== Patching platform support check ==="
           CONFIG_FILE="build/build_config.h"
