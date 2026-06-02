@@ -172,7 +172,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_POLYFILLS_INCLUDE}
         ${OPENSCREEN_ROOT}/third_party/protobuf/third_party/utf8_range
         ${CMAKE_SOURCE_DIR}/ps4-openssl/boringssl/include
-        ${CMAKE_SOURCE_DIR}/ps4-openssl/include
     )
 
     list(APPEND PPLAY_SRC
