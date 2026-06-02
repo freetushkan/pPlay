@@ -222,6 +222,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/stubs/common.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/coded_stream.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/zero_copy_stream.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/zero_copy_stream_impl.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/io/zero_copy_stream_impl_lite.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/wire_format_lite.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/wire_format.cc
@@ -302,6 +303,15 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/ostringstream.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/map_field.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/map.cc
+
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/unknown_field_set.cc
+
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/mutex.h
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/mutex.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/notification.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/low_level_alloc.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/thread_identity.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/sysinfo.cc
     )
 
     list(APPEND PPLAY_INC 
