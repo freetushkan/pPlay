@@ -261,6 +261,11 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/discovery/dnssd/impl/conversion_layer.cc
         ${OPENSCREEN_ROOT}/discovery/mdns/impl/mdns_responder.cc
         ${OPENSCREEN_ROOT}/discovery/mdns/impl/mdns_querier.cc
+
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_tctable_full.cc
+        ${OPENSCREEN_ROOT}/util/stringprintf.cc
+        ${OPENSCREEN_ROOT}/cast/standalone_receiver/simple_remoting_receiver.cc
+        ${OPENSCREEN_ROOT}/cast/standalone_receiver/dummy_player.cc
     )
 
     list(APPEND PPLAY_INC 
