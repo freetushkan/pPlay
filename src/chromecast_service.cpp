@@ -55,7 +55,6 @@
 #include <openssl/rsa.h>
 #include <openssl/bytestring.h>
 #include <openssl/asn1.h>
-#include <openssl/modes.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -174,11 +173,9 @@ extern "C" {
         return SSL_CTX_set_options(ctx, mode);
     }
     void CRYPTO_library_init(void) {}
-    void AES_ctr128_encrypt(const uint8_t *in, uint8_t *out, size_t len,
-                            const AES_KEY *key, uint8_t *ivec,
-                            uint8_t *ecount_buf, unsigned int *num) {
-        CRYPTO_ctr128_encrypt(in, out, len, key, ivec, ecount_buf, num, 
-                              (block128_f)AES_encrypt);
+    void AES_ctr128_encrypt(const uint8_t *in, uint8_t *out, size_t len, const AES_KEY *key,
+                            uint8_t *ivec, uint8_t *ecount_buf, unsigned int *num) {
+        CRYPTO_ctr128_encrypt(in, out, len, key, ivec, ecount_buf, num, (block128_f)AES_encrypt);
     }
     void* ps4_absl_alloc(size_t size) __asm__("_ZN4absl13base_internal12LowLevelAlloc5AllocEm");
     void* ps4_absl_alloc(size_t size) { return std::malloc(size); }
