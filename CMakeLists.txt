@@ -308,16 +308,13 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
 
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/mutex.h
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/mutex.cc
-        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/synchronization/notification.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/low_level_alloc.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/thread_identity.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/sysinfo.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/spinlock.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/base/internal/spinlock_wait.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/hash/internal/hash.cc
-        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/hash/internal/low_level_hash.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/container/internal/raw_hash_set.cc
-        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/str_format.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/str_format/arg.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/str_format/bind.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/str_format/extension.cc
@@ -325,8 +322,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/str_format/output.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/str_format/parser.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/stringify_sink.cc
-        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/dynamic_message.cc
-        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/text_format.cc
     )
 
     list(APPEND PPLAY_INC 
@@ -370,6 +365,9 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
 )
 if(NOT MSVC)
     target_link_options(${CMAKE_PROJECT_NAME} PRIVATE "LINKER:--allow-multiple-definition")
+    if(CMAKE_LINKER MATCHES "lld")
+        target_link_options(${CMAKE_PROJECT_NAME} PRIVATE "LINKER:--error-limit=0")
+    endif()
 endif()
 
 #####################
