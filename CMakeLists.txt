@@ -232,7 +232,6 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_util.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_tctable_lite.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_tctable_full.cc
-        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_tctable_impl.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_tctable_gen.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_bases.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_reflection.cc
@@ -246,7 +245,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/arena.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/arenastring.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/port.cc
-
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/parse_context.cc
 
         ${OPENSCREEN_ROOT}/third_party/protobuf/third_party/utf8_range/utf8_range.c
 

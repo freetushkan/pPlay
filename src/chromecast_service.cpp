@@ -178,6 +178,22 @@ std::vector<InterfaceInfo> GetNetworkInterfaces() {
 }  // namespace openscreen
 
 
+#include <google/protobuf/message_lite.h>
+#include <string_view>
+#include <string>
+
+namespace google {
+namespace protobuf {
+    bool MessageLite::ParseFromString(std::string_view input) {
+        return ParseFromString(std::string(input.data(), input.size()));
+    }
+    bool MessageLite::SerializeToString(std::string* output) const {
+        return AppendToString(output);
+    }
+
+}  // namespace protobuf
+}  // namespace google
+
 using namespace pplay;
 
 namespace {
