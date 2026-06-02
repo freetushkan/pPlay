@@ -108,10 +108,9 @@ extern "C" {
     //         std::memset(ctx, 0, sizeof(EVP_MD_CTX));
     //     }
     // }
-    long SSL_CTX_set_mode(SSL_CTX *ctx, long mode) {
-        return SSL_CTX_set_options(ctx, mode);
-    }
-
+    // long SSL_CTX_set_mode(SSL_CTX *ctx, long mode) {
+    //     return SSL_CTX_set_options(ctx, mode);
+    // }
     long SSL_CTX_set_session_cache_mode(SSL_CTX *ctx, long mode) {
         return mode;
     }
