@@ -94,9 +94,6 @@ extern "C" {
     int EVP_DigestSignUpdate(EVP_MD_CTX *ctx, const void *data, size_t dsize) {
         return EVP_DigestUpdate(ctx, data, dsize);
     }
-    void EVP_MD_CTX_init(void *ctx) {
-        EVP_MD_CTX_init(reinterpret_cast<EVP_MD_CTX*>(ctx));
-    }
 }
 
 namespace openscreen {
