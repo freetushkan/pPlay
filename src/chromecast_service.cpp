@@ -67,17 +67,21 @@ extern "C" {
         if (out_bytes) *out_bytes = nullptr;
         return 0;
     }
-    // int X509_set_notBefore(X509 *x, const ASN1_TIME *tm) { return X509_set1_notBefore(x, tm); }
-    // int X509_set_notAfter(X509 *x, const ASN1_TIME *tm) { return X509_set1_notAfter(x, tm); }
-    // void X509V3_EXT_free(void *ext) { }
-    // RSA *RSA_private_key_from_bytes(const uint8_t *bytes, size_t len) {
-    //     return CBS_asn1_ber_to_cbs(nullptr, nullptr) ? nullptr : nullptr; 
-    // }
-    // int EVP_PKEY_assign_RSA(EVP_PKEY *pkey, RSA *key) { return EVP_PKEY_set1_RSA(pkey, key); }
-    // void EVP_cleanup(void) { }
-    // void EVP_MD_CTX_init(EVP_MD_CTX *ctx) { EVP_MD_CTX_reset(ctx); }
-    // void EVP_MD_CTX_cleanup(EVP_MD_CTX *ctx) { EVP_MD_CTX_reset(ctx); }
-    // int EVP_DigestSignUpdate(EVP_MD_CTX *ctx, const void *data, size_t dsize) { return EVP_DigestUpdate(ctx, data, dsize); }
+
+    RSA *RSA_private_key_from_bytes(const uint8_t *bytes, size_t len) {
+        CBS cbs;
+        CBS_init(&cbs, bytes, len);
+        return RSA_parse_private_key(&cbs);
+    }
+    void EVP_cleanup(void) {}
+    void X509V3_EXT_free(void *ext) {}
+    void EVP_MD_CTX_cleanup(EVP_MD_CTX *ctx) { EVP_MD_CTX_reset(ctx); }
+    int X509_set_notBefore(X509 *x, const ASN1_TIME *tm) { return X509_set1_notBefore(x, tm); }
+    int X509_set_notAfter(X509 *x, const ASN1_TIME *tm) { return X509_set1_notAfter(x, tm); }
+    int EVP_PKEY_assign_RSA(EVP_PKEY *pkey, RSA *key) { return EVP_PKEY_set1_RSA(pkey, key); }
+    int EVP_DigestSignUpdate(EVP_MD_CTX *ctx, const void *data, size_t dsize) {
+        return EVP_DigestUpdate(ctx, data, dsize);
+    }
 }
 
 namespace openscreen {

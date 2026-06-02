@@ -234,6 +234,8 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_tctable_full.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_bases.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_message_reflection.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/generated_enum_util.cc
+        ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/repeated_ptr_field.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/reflection_ops.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/descriptor.cc
         ${OPENSCREEN_ROOT}/third_party/protobuf/src/google/protobuf/descriptor.pb.cc
