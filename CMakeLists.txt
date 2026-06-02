@@ -253,7 +253,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/cast/streaming/public/environment.cc
         ${OPENSCREEN_ROOT}/cast/streaming/public/receiver_constraints.cc
         ${OPENSCREEN_ROOT}/cast/streaming/public/session_messenger.cc
-        ${OPENSCREEN_ROOT}/cast/streaming/receiver_message.cc
+        ${OPENSCREEN_ROOT}/cast/streaming/public/receiver_message.cc
         ${OPENSCREEN_ROOT}/cast/streaming/sender_message.cc
         ${OPENSCREEN_ROOT}/discovery/dnssd/impl/publisher_impl.cc
         ${OPENSCREEN_ROOT}/discovery/dnssd/impl/querier_impl.cc
