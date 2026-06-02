@@ -489,6 +489,8 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
 
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/debugging/internal/examine_stack.cc
         ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/debugging/leak_check.cc
+
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/container/internal/hashtablez_sampler_force_weak_definition.cc
     )
 
     list(APPEND PPLAY_INC 
@@ -530,6 +532,7 @@ elseif (PLATFORM_PS4)
         -DABSL_INTERNAL_HAS_SALT=1
         -DABSL_ALLOCATOR_NOTHROW=1
         -D_POSIX_C_SOURCE=200809L
+        -D_XOPEN_SOURCE=700
         -D_HAVE_PTHREAD=1
         -D_GNU_SOURCE=1
     )

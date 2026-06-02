@@ -62,6 +62,16 @@
 #include <openssl/digest.h>
 #undef EVP_MD_CTX_init
 
+#include <pthread.h>
+#include <cstdint>
+#include <string_view>
+
+struct AbslThreadSem {
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    int count;
+};
+
 extern "C" {
     int RSA_private_key_to_bytes(uint8_t **out_bytes, size_t *out_len, const RSA *rsa) {
         if (out_len) *out_len = 0;
@@ -127,6 +137,39 @@ extern "C" {
     // void absl_GetStackTrace(void*, int, int) {}
     // void absl_log_internal_EncodeStructuredProtoField(void*) {}
     // void absl_DoIgnoreLeak(void*) {}
+    // Реальный SemPost: инкрементирует счетчик и будит поток
+    void AbslInternalPerThreadSemPost(void* t) {
+        static AbslThreadSem sem;
+        static bool inited = false;
+        if (!inited) {
+            pthread_mutex_init(&sem.mutex, nullptr);
+            pthread_cond_init(&sem.cond, nullptr);
+            sem.count = 0;
+            inited = true;
+        }
+        pthread_mutex_lock(&sem.mutex);
+        sem.count++;
+        pthread_cond_signal(&sem.cond);
+        pthread_mutex_unlock(&sem.mutex);
+    }
+    bool AbslInternalPerThreadSemWait(void* t, int64_t timeout_ns) {
+        static AbslThreadSem sem;
+        pthread_mutex_lock(&sem.mutex);
+        while (sem.count (std::malloc(sizeof(CordRepCrc)));
+            if (!node) return head;
+            std::memset(node, 0, sizeof(CordRepCrc));
+            node->crc = crc;
+            return node;
+        }
+        void CordRepCrc::Destroy(CordRepCrc* node) {
+            std::free(node);
+        }
+    }
+    namespace status_internal {
+        void* GetStatusPayloadPrinter() {
+            return nullptr;
+        }
+    }
 }
 
 namespace openscreen {
