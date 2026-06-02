@@ -55,6 +55,7 @@
 #include <openssl/rsa.h>
 #include <openssl/bytestring.h>
 #include <openssl/asn1.h>
+#include <openssl/modes.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -168,6 +169,36 @@ extern "C" {
     void absl_container_internal_ForcedTrySample(void*) {}
     bool AbslContainerInternalSampleEverything(void*) { return false; }
     int absl_crc_internal_TryNewCRC32AcceleratedX86ARMCombined(void) { return 0; }
+
+    long SSL_CTX_set_mode(SSL_CTX *ctx, long mode) {
+        return SSL_CTX_set_options(ctx, mode);
+    }
+    void CRYPTO_library_init(void) {}
+    void AES_ctr128_encrypt(const uint8_t *in, uint8_t *out, size_t len,
+                            const AES_KEY *key, uint8_t *ivec,
+                            uint8_t *ecount_buf, unsigned int *num) {
+        CRYPTO_ctr128_encrypt(in, out, len, key, ivec, ecount_buf, num, 
+                              (block128_f)AES_encrypt);
+    }
+    void* ps4_absl_alloc(size_t size) __asm__("_ZN4absl13base_internal12LowLevelAlloc5AllocEm");
+    void* ps4_absl_alloc(size_t size) { return std::malloc(size); }
+    void ps4_absl_free(void* ptr) __asm__("_ZN4absl13base_internal12LowLevelAlloc4FreeEPv");
+    void ps4_absl_free(void* ptr) { std::free(ptr); }
+    void* ps4_absl_create_thread_id(void) __asm__("_ZN4absl24synchronization_internal20CreateThreadIdentityEv");
+    void* ps4_absl_create_thread_id(void) {
+        static uint64_t dummy_id = 0xABCDE;
+        return &dummy_id;
+    }
+    int ps4_absl_try_crc_accel(void) { return 0; }
+    void* ps4_absl_cord_crc_new(void* head, uint64_t crc_state_opaque) __asm__("_ZN4absl13cord_internal10CordRepCrc3NewEPNS0_7CordRepENS_12crc_internal13CrcCordStateE");
+    void* ps4_absl_cord_crc_new(void* head, uint64_t crc_state_opaque) {
+        void* node = std::malloc(48);
+        if (!node) return head;
+        std::memset(node, 0, 48);
+        return node;
+    }
+    void ps4_absl_cord_crc_destroy(void* node) __asm__("_ZN4absl13cord_internal10CordRepCrc7DestroyEPNS0_10CordRepCrcE");
+    void ps4_absl_cord_crc_destroy(void* node) { std::free(node); }
 }
 namespace absl {
     namespace cord_internal {
