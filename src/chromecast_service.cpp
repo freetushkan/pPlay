@@ -109,10 +109,11 @@ extern "C" {
     //     }
     // }
     long SSL_CTX_set_mode(SSL_CTX *ctx, long mode) {
-        return SSL_CTX_ctrl(ctx, SSL_CTRL_MODE, mode, nullptr);
+        return SSL_CTX_set_options(ctx, mode);
     }
+
     long SSL_CTX_set_session_cache_mode(SSL_CTX *ctx, long mode) {
-        return SSL_CTX_ctrl(ctx, SSL_CTRL_SET_SESS_CACHE_MODE, mode, nullptr);
+        return mode;
     }
     // void AbslInternalSleepFor(int64_t nanoseconds) {
     //     if (nanoseconds > 0) usleep(nanoseconds / 1000);
