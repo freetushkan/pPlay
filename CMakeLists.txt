@@ -280,6 +280,23 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/util/stringprintf.cc
         ${OPENSCREEN_ROOT}/cast/standalone_receiver/simple_remoting_receiver.cc
         ${OPENSCREEN_ROOT}/cast/standalone_receiver/dummy_player.cc
+
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/log/internal/log_message.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/log/internal/log_sink_set.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/log/internal/nullguard.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/log/internal/globals.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/log/globals.cc
+
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/cord.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/cord_internal.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/cord_rep_btree.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/cord_rep_btree_reader.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/cord_rep_btree_navigator.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/cord_rep_consume.cc
+
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/cordz_info.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/cordz_handle.cc
+        ${OPENSCREEN_ROOT}/third_party/abseil/src/absl/strings/internal/cordz_functions.cc
     )
 
     list(APPEND PPLAY_INC 

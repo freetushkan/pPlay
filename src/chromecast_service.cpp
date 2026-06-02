@@ -102,6 +102,12 @@ extern "C" {
             std::memset(ctx, 0, sizeof(EVP_MD_CTX));
         }
     }
+    // void ps4_evp_md_ctx_init_hook(EVP_MD_CTX *ctx) __asm__("EVP_MD_CTX_init");
+    // void ps4_evp_md_ctx_init_hook(EVP_MD_CTX *ctx) {
+    //     if (ctx) {
+    //         std::memset(ctx, 0, sizeof(EVP_MD_CTX));
+    //     }
+    // }
 }
 
 namespace openscreen {
