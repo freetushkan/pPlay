@@ -147,24 +147,24 @@ extern "C" {
     // }
     // void* absl_base_internal_LowLevelAlloc_Alloc(size_t size) { return std::malloc(size); }
     // void absl_base_internal_LowLevelAlloc_Free(void* ptr) { std::free(ptr); }
-    void absl_container_internal_ForcedTrySample(void*) {}
-    bool AbslContainerInternalSampleEverything(void*) { return false; }
     // int absl_crc_internal_TryNewCRC32AcceleratedX86ARMCombined(void) { return 0; }
 
     void CRYPTO_library_init(void) {}
     long SSL_CTX_set_mode(void* ctx, long mode) { return mode; }
     void AES_ctr128_encrypt(const uint8_t* in, uint8_t* out, size_t len, const void* key,
                             uint8_t* ivec, uint8_t* ecount_buf, unsigned int* num) {}
-    void* ps4_absl_alloc(size_t size) __asm__("_ZN4absl13base_internal12LowLevelAlloc5AllocEm");
-    void* ps4_absl_alloc(size_t size) { return std::malloc(size); }
-    void ps4_absl_free(void* ptr) __asm__("_ZN4absl13base_internal12LowLevelAlloc4FreeEPv");
-    void ps4_absl_free(void* ptr) { std::free(ptr); }
-    void* ps4_absl_create_thread_id(void) __asm__("_ZN4absl24synchronization_internal20CreateThreadIdentityEv");
-    void* ps4_absl_create_thread_id(void) {
-        static uint64_t dummy_id = 0xABCDE;
-        return &dummy_id;
-    }
-    int ps4_absl_try_crc_accel(void) { return 0; }
+    // void absl_container_internal_ForcedTrySample(void*) {}
+    // bool AbslContainerInternalSampleEverything(void*) { return false; }
+    // void* ps4_absl_alloc(size_t size) __asm__("_ZN4absl13base_internal12LowLevelAlloc5AllocEm");
+    // void* ps4_absl_alloc(size_t size) { return std::malloc(size); }
+    // void ps4_absl_free(void* ptr) __asm__("_ZN4absl13base_internal12LowLevelAlloc4FreeEPv");
+    // void ps4_absl_free(void* ptr) { std::free(ptr); }
+    // void* ps4_absl_create_thread_id(void) __asm__("_ZN4absl24synchronization_internal20CreateThreadIdentityEv");
+    // void* ps4_absl_create_thread_id(void) {
+    //     static uint64_t dummy_id = 0xABCDE;
+    //     return &dummy_id;
+    // }
+    // int ps4_absl_try_crc_accel(void) { return 0; }
 }
 // namespace absl {
 //     namespace cord_internal {
@@ -201,6 +201,16 @@ namespace absl {
             static void* Alloc(unsigned long size) { return std::malloc(size); }
             static void Free(void* ptr) { std::free(ptr); }
         };
+    }
+    namespace synchronization_internal {
+        base_internal::ThreadIdentity* CreateThreadIdentity() {
+            static uint64_t dummy_id = 0xABCDE;
+            return reinterpret_cast(&dummy_id);
+        }
+    }
+    namespace container_internal {
+        void ForcedTrySample(void*) {}
+        bool SampleEverything(void*) { return false; }
     }
     namespace crc_internal { int TryNewCRC32AcceleratedX86ARMCombined() { return 0; } }
     namespace status_internal { void* GetStatusPayloadPrinter() { return nullptr; } }
