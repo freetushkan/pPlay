@@ -111,6 +111,13 @@ extern "C" {
     void __gcov_init(void* info) {}
     void __gcov_dump(void) {}
     void __gcov_flush(void) {}
+    int getentropy(void *buf, size_t buflen) {
+        if (buflen > 256) {
+            return -1; 
+        }
+        arc4random_buf(buf, buflen);
+        return 0;
+    }
 }
 
 // absl compatibility
