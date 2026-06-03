@@ -812,12 +812,12 @@ void runCastServiceOnThread(const std::string &interfaceName,
     if (interface.GetIpAddressV4()) {
         std::stringstream ss;
         ss << interface.GetIpAddressV4(); 
-        log_info("ChromecastService: Interface " + interfaceName + " successfully bound to IPv4: " + ss.str());
+        log_info("Interface " + interfaceName + " IPv4: " + ss.str());
     }
     if (interface.GetIpAddressV6()) {
         std::stringstream ss;
         ss << interface.GetIpAddressV6();
-        log_info("ChromecastService: Interface " + interfaceName + " bound to IPv6: " + ss.str());
+        log_info("Interface " + interfaceName + " IPv6: " + ss.str());
     }
     auto buildHardcodedCredentials = [&]() -> ErrorOr<GeneratedCredentials> {
         std::unique_ptr<RSA, decltype(&RSA_free)> rsa(
@@ -842,7 +842,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
             return Error(Error::Code::kParseError, "Failed to parse embedded certificate");
         }
 
-        return GenerateCredentials(deviceId, private_key.get(), certificate.get());
+        return openscreen::cast::GenerateCredentials(deviceId, private_key.get(), certificate.get());
     };
 
     ErrorOr<GeneratedCredentials> creds = buildHardcodedCredentials();
