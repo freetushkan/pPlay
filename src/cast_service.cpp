@@ -130,57 +130,53 @@ extern "C" {
     int getifaddrs(struct ifaddrs **ifap) {
         if (!ifap) return -1;
         *ifap = nullptr;
-        struct ifaddrs *first = nullptr;
-        struct ifaddrs *last = nullptr;
-        int sock = socket(AF_INET, SOCK_DGRAM, 0);
+        int sock = sceNetSocket("pplay_net_query", AF_INET, SOCK_DGRAM, 0);
         if (sock < 0) return -1;
-        for (int i = 0; i < 2; i++) {
-            const char* current_ifname = (i == 0) ? "sce_net0" : "sce_net1";
-            struct ifreq ifr{};
-            std::strncpy(ifr.ifr_name, current_ifname, sizeof(ifr.ifr_name) - 1);
-            if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0) continue;
-            if (!(ifr.ifr_flags & IFF_UP)) continue;
-            unsigned int flags = ifr.ifr_flags;
-            std::memset(&ifr.ifr_addr, 0, sizeof(ifr.ifr_addr));
-            std::strncpy(ifr.ifr_name, current_ifname, sizeof(ifr.ifr_name) - 1);
-            if (ioctl(sock, SIOCGIFADDR, &ifr) < 0) continue;
-            struct sockaddr_in* ip_addr = (struct sockaddr_in*)std::malloc(sizeof(struct sockaddr_in));
-            std::memcpy(ip_addr, &ifr.ifr_addr, sizeof(struct sockaddr_in));
-            std::memset(&ifr.ifr_netmask, 0, sizeof(ifr.ifr_netmask));
-            std::strncpy(ifr.ifr_name, current_ifname, sizeof(ifr.ifr_name) - 1);
-            if (ioctl(sock, SIOCGIFNETMASK, &ifr) < 0) {
-                std::free(ip_addr);
-                continue;
+        struct sockaddr_in loopback_trigger{};
+        loopback_trigger.sin_family = AF_INET;
+        loopback_trigger.sin_port = htons(53);
+        loopback_trigger.sin_addr.s_addr = inet_addr("8.8.8.8");
+        connect(sock, (struct sockaddr*)&loopback_trigger, sizeof(loopback_trigger));
+        struct sockaddr_in local_bound_address{};
+        unsigned int namelen = sizeof(local_bound_address);
+        struct sockaddr_in* ip_addr = (struct sockaddr_in*)std::malloc(sizeof(struct sockaddr_in));
+        std::memset(ip_addr, 0, sizeof(struct sockaddr_in));
+        ip_addr->sin_family = AF_INET;
+        if (sceNetGetsockname(sock, (struct sockaddr*)&local_bound_address, &namelen) == 0 && 
+            local_bound_address.sin_addr.s_addr != 0) {
+            ip_addr->sin_addr.s_addr = local_bound_address.sin_addr.s_addr;
+        } else {
+            ip_addr->sin_addr.s_addr = inet_addr("127.0.0.1");
+        }
+        const char* picked_ifname = "sce_net0";
+        unsigned int flags = IFF_UP | IFF_RUNNING;
+        struct ifreq ifr{};
+        std::strncpy(ifr.ifr_name, "sce_net0", sizeof(ifr.ifr_name) - 1);
+        if (sceNetIoctl(sock, SIOCGIFFLAGS, &ifr) >= 0) {
+            if (!(ifr.ifr_flags & IFF_UP) || !(ifr.ifr_flags & IFF_RUNNING)) {
+                picked_ifname = "sce_net1";
+            } else {
+                flags = ifr.ifr_flags;
             }
-            struct sockaddr_in* netmask_addr = (struct sockaddr_in*)std::malloc(sizeof(struct sockaddr_in));
-            std::memcpy(netmask_addr, &ifr.ifr_netmask, sizeof(struct sockaddr_in));
-            struct ifaddrs *new_if = (struct ifaddrs *)std::malloc(sizeof(struct ifaddrs));
-            std::memset(new_if, 0, sizeof(struct ifaddrs));
-            new_if->ifa_name = strdup(current_ifname);
-            new_if->ifa_flags = flags | IFF_RUNNING;
-            new_if->ifa_addr = (struct sockaddr *)ip_addr;
-            new_if->ifa_netmask = (struct sockaddr *)netmask_addr;
-            if (!first) first = new_if; else last->ifa_next = new_if;
-            last = new_if;
         }
-        close(sock);
-        if (!first) {
-            first = (struct ifaddrs *)std::malloc(sizeof(struct ifaddrs));
-            std::memset(first, 0, sizeof(struct ifaddrs));
-            first->ifa_name = strdup("sce_net0");
-            first->ifa_flags = IFF_UP | IFF_RUNNING;
-            struct sockaddr_in* def_ip = (struct sockaddr_in*)std::malloc(sizeof(struct sockaddr_in));
-            std::memset(def_ip, 0, sizeof(struct sockaddr_in));
-            def_ip->sin_family = AF_INET;
-            def_ip->sin_addr.s_addr = htonl(INADDR_ANY);
-            first->ifa_addr = (struct sockaddr *)def_ip;
-            struct sockaddr_in* def_mask = (struct sockaddr_in*)std::malloc(sizeof(struct sockaddr_in));
-            std::memset(def_mask, 0, sizeof(struct sockaddr_in));
-            def_mask->sin_family = AF_INET;
-            def_mask->sin_addr.s_addr = inet_addr("255.255.255.0");
-            first->ifa_netmask = (struct sockaddr *)def_mask;
+        struct sockaddr_in* netmask_addr = (struct sockaddr_in*)std::malloc(sizeof(struct sockaddr_in));
+        std::memset(netmask_addr, 0, sizeof(struct sockaddr_in));
+        netmask_addr->sin_family = AF_INET;
+        std::strncpy(ifr.ifr_name, picked_ifname, sizeof(ifr.ifr_name) - 1);
+        if (sceNetIoctl(sock, SIOCGIFNETMASK, &ifr) >= 0 && ifr.ifr_netmask.sa_family == AF_INET) {
+            struct sockaddr_in* real_mask = (struct sockaddr_in*)&ifr.ifr_netmask;
+            netmask_addr->sin_addr.s_addr = real_mask->sin_addr.s_addr;
+        } else {
+            netmask_addr->sin_addr.s_addr = inet_addr("255.255.255.0");
         }
-        *ifap = first;
+        sceNetClose(sock);
+        struct ifaddrs *new_if = (struct ifaddrs *)std::malloc(sizeof(struct ifaddrs));
+        std::memset(new_if, 0, sizeof(struct ifaddrs));
+        new_if->ifa_name = std::strdup(picked_ifname);
+        new_if->ifa_flags = flags | IFF_UP | IFF_RUNNING;
+        new_if->ifa_addr = (struct sockaddr *)ip_addr;
+        new_if->ifa_netmask = (struct sockaddr *)netmask_addr;
+        *ifap = new_if;
         return 0;
     }
     void freeifaddrs(struct ifaddrs *ifa) {
@@ -306,16 +302,15 @@ namespace openscreen {
         }
         void GetHardwareAddress(const std::string& if_name, uint8_t* mac_out) {
             std::memset(mac_out, 0, 6);
-            int sock = socket(AF_INET, SOCK_DGRAM, 0);
-            if (sock < 0) return;
-            struct ifreq ifr{};
-            std::strncpy(ifr.ifr_name, if_name.c_str(), sizeof(ifr.ifr_name) - 1);
-            #if defined(SIOCGIFHWADDR)
-            if (ioctl(sock, SIOCGIFHWADDR, &ifr) >= 0) {
-                std::memcpy(mac_out, ifr.ifr_hwaddr.sa_data, 6);
+            int if_index = 0;
+            if (if_name == "sce_net0") {
+                if_index = 1;
+            } else if (if_name == "sce_net1") {
+                if_index = 2;
+            } else {
+                return;
             }
-            #endif
-            close(sock);
+            sceNetGetMacAddress(mac_out, if_index);
         }
         std::vector<InterfaceInfo> ProcessInterfacesList(ifaddrs* interfaces) {
             std::vector<InterfaceInfo> results;
@@ -809,6 +804,14 @@ void runCastServiceOnThread(const std::string &interfaceName,
         log_info("ERROR: No IP address on interface " + interfaceName);
         return;
     }
+    if (interface.GetIpAddressV4()) {
+        std::string ip_str = interface.GetIpAddressV4()->ToString();
+        log_info("Interface " + interfaceName + " IPv4: " + ip_str);
+    }
+    if (interface.GetIpAddressV6()) {
+        std::string ip6_str = interface.GetIpAddressV6()->ToString();
+        log_info("Interface " + interfaceName + " IPv6: " + ip6_str);
+    }
     std::string privateKey(reinterpret_cast<const char*>(peer_key_der), peer_key_der_len);
     std::string certificate(reinterpret_cast<const char*>(auth_crt), auth_crt_len);
 
@@ -865,13 +868,13 @@ void requestCastServiceStop() {
 
 // ==================== MAIN CLASS ====================
 
-PlayCast::PlayCast(Main *main) : main(main) {}
+PPLAYCast::PPLAYCast(Main *main) : main(main) {}
 
-PlayCast::~PlayCast() {
+PPLAYCast::~PPLAYCast() {
     stop();
 }
 
-void PlayCast::start() {
+void PPLAYCast::start() {
     if (running || !main) return;
 
     if (main->getConfig()->getOption(OPT_CAST_ENABLED)->getInteger() == 0) {
@@ -885,7 +888,7 @@ void PlayCast::start() {
     running = true;
     log_info("Starting receiver='" + receiverName() + "' http=" + std::to_string(httpPort));
 
-    httpThread = std::thread(&PlayCast::workerLoop, this);
+    httpThread = std::thread(&PPLAYCast::workerLoop, this);
 
     castThread = std::thread([this] {
         std::string interfaceName = pickInterfaceName();
@@ -908,7 +911,7 @@ void PlayCast::start() {
     });
 }
 
-void PlayCast::stop() {
+void PPLAYCast::stop() {
     if (!running) return;
     running = false;
    log_info("stopping");
@@ -918,7 +921,7 @@ void PlayCast::stop() {
     if (castThread.joinable()) castThread.join();
 }
 
-void PlayCast::reloadFromConfig() {
+void PPLAYCast::reloadFromConfig() {
     bool shouldRun = main && main->getConfig()->getOption(OPT_CAST_ENABLED)->getInteger() != 0;
     if (shouldRun != running) {
         if (running) stop();
@@ -926,14 +929,14 @@ void PlayCast::reloadFromConfig() {
     }
 }
 
-bool PlayCast::isRunning() const { return running; }
+bool PPLAYCast::isRunning() const { return running; }
 
-void PlayCast::enqueue(const Command &command) {
+void PPLAYCast::enqueue(const Command &command) {
     std::lock_guard<std::mutex> lock(queueMutex);
     pendingCommands.push(command);
 }
 
-std::vector<PlayCast::Command> PlayCast::popCommands() {
+std::vector<PPLAYCast::Command> PPLAYCast::popCommands() {
     std::vector<Command> commands;
     std::lock_guard<std::mutex> lock(queueMutex);
     while (!pendingCommands.empty()) {
@@ -943,18 +946,18 @@ std::vector<PlayCast::Command> PlayCast::popCommands() {
     return commands;
 }
 
-std::string PlayCast::receiverName() const {
+std::string PPLAYCast::receiverName() const {
     return chooseFriendlyName(main);
 }
 
-std::string PlayCast::uuid() const {
+std::string PPLAYCast::uuid() const {
     std::string seed = receiverName() + ":" + std::to_string(httpPort);
     std::string hash = Utility::md5hash(seed);
     return hash.substr(0, 8) + "-" + hash.substr(8, 4) + "-" + hash.substr(12, 4) + "-"
            + hash.substr(16, 4) + "-" + hash.substr(20, 12);
 }
 
-std::string PlayCast::buildDeviceDescription() const {
+std::string PPLAYCast::buildDeviceDescription() const {
     std::ostringstream ss;
     ss << "<?xml version=\"1.0\"?>\n"
        << "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">\n"
@@ -970,7 +973,7 @@ std::string PlayCast::buildDeviceDescription() const {
     return ss.str();
 }
 
-std::string PlayCast::buildStatusJson() const {
+std::string PPLAYCast::buildStatusJson() const {
     auto *mpv = main->getPlayer()->getMpv();
     std::ostringstream ss;
     ss << "{\"name\":\"" << jsonEscape(receiverName()) << "\","
@@ -982,7 +985,7 @@ std::string PlayCast::buildStatusJson() const {
     return ss.str();
 }
 
-std::string PlayCast::buildDialResponse(const std::string &appName) const {
+std::string PPLAYCast::buildDialResponse(const std::string &appName) const {
     std::ostringstream ss;
     ss << "<service xmlns=\"urn:dial-multiscreen-org:schemas:dial\">\n"
        << "  <name>" << xmlEscape(appName) << "</name>\n"
@@ -992,7 +995,7 @@ std::string PlayCast::buildDialResponse(const std::string &appName) const {
     return ss.str();
 }
 
-void PlayCast::workerLoop() {
+void PPLAYCast::workerLoop() {
     int server = socket(AF_INET, SOCK_STREAM, 0);
     if (server < 0) {
        log_info("http socket() failed");

@@ -254,7 +254,7 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     player->setLayer(2);
     Main::add(player);
 
-    castService = new pplay::PlayCast(this);
+    castService = new pplay::PPLAYCast(this);
 
     // main menu
     setCurrentModuleIndex(
@@ -355,25 +355,25 @@ void Main::onUpdate() {
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
                 "Main::onUpdate Cast command=" + std::to_string((int) command.type));
             switch (command.type) {
-                case pplay::PlayCast::CommandType::Play:
+                case pplay::PPLAYCast::CommandType::Play:
                     player->resume();
                     break;
-                case pplay::PlayCast::CommandType::Pause:
+                case pplay::PPLAYCast::CommandType::Pause:
                     player->pause();
                     break;
-                case pplay::PlayCast::CommandType::TogglePause:
+                case pplay::PPLAYCast::CommandType::TogglePause:
                     player->getMpv()->isPaused() ? player->resume() : player->pause();
                     break;
-                case pplay::PlayCast::CommandType::Stop:
+                case pplay::PPLAYCast::CommandType::Stop:
                     player->stop();
                     break;
-                case pplay::PlayCast::CommandType::SeekRelative:
+                case pplay::PPLAYCast::CommandType::SeekRelative:
                     player->getMpv()->seek(command.value);
                     break;
-                case pplay::PlayCast::CommandType::VolumeRelative:
+                case pplay::PPLAYCast::CommandType::VolumeRelative:
                     player->getMpv()->changeVolume(command.value);
                     break;
-                case pplay::PlayCast::CommandType::LoadUrl: {
+                case pplay::PPLAYCast::CommandType::LoadUrl: {
                     MediaFile castFile;
                     castFile.path = command.text;
                     size_t slash = command.text.find_last_of('/');
@@ -570,7 +570,7 @@ StatusBar *Main::getStatusBar() {
     return statusBar;
 }
 
-pplay::PlayCast *Main::getCastService() {
+pplay::PPLAYCast *Main::getCastService() {
     return castService;
 }
 
