@@ -12,7 +12,7 @@ class Main;
 
 namespace pplay {
 
-class CastService {
+class PlayCast {
 public:
     enum class CommandType {
         Play,
@@ -30,8 +30,8 @@ public:
         std::string text;
     };
 
-    explicit CastService(Main *main);
-    ~CastService();
+    explicit PlayCast(Main *main);
+    ~PlayCast();
 
     void start();
     void stop();

@@ -110,7 +110,7 @@ public:
 
     StatusBar *getStatusBar();
 
-    pplay::CastService *getCastService();
+    pplay::PlayCast *getCastService();
 
 #ifdef PPLAY_ENABLE_SCRAPPING
     pplay::Scrapper *getScrapper();
@@ -152,7 +152,7 @@ private:
     Player *player;
     MenuMain *menu_main;
     MenuVideo *menu_video;
-    pplay::CastService *castService = nullptr;
+    pplay::PlayCast *castService = nullptr;
 #ifdef PPLAY_ENABLE_SCRAPPING
     pplay::Scrapper *scrapper;
 #endif

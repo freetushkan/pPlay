@@ -156,7 +156,7 @@ extern "C" {
             std::memcpy(netmask_addr, &ifr.ifr_netmask, sizeof(struct sockaddr_in));
             struct ifaddrs *new_if = (struct ifaddrs *)std::malloc(sizeof(struct ifaddrs));
             std::memset(new_if, 0, sizeof(struct ifaddrs));
-            new_if->ifa_name = std::strdup(current_ifname);
+            new_if->ifa_name = strdup(current_ifname);
             new_if->ifa_flags = flags | IFF_RUNNING;
             new_if->ifa_addr = (struct sockaddr *)ip_addr;
             new_if->ifa_netmask = (struct sockaddr *)netmask_addr;
@@ -167,7 +167,7 @@ extern "C" {
         if (!first) {
             first = (struct ifaddrs *)std::malloc(sizeof(struct ifaddrs));
             std::memset(first, 0, sizeof(struct ifaddrs));
-            first->ifa_name = std::strdup("sce_net0");
+            first->ifa_name = strdup("sce_net0");
             first->ifa_flags = IFF_UP | IFF_RUNNING;
             struct sockaddr_in* def_ip = (struct sockaddr_in*)std::malloc(sizeof(struct sockaddr_in));
             std::memset(def_ip, 0, sizeof(struct sockaddr_in));
@@ -865,13 +865,13 @@ void requestCastServiceStop() {
 
 // ==================== MAIN CLASS ====================
 
-CastService::CastService(Main *main) : main(main) {}
+PlayCast::PlayCast(Main *main) : main(main) {}
 
-CastService::~CastService() {
+PlayCast::~PlayCast() {
     stop();
 }
 
-void CastService::start() {
+void PlayCast::start() {
     if (running || !main) return;
 
     if (main->getConfig()->getOption(OPT_CAST_ENABLED)->getInteger() == 0) {
@@ -885,7 +885,7 @@ void CastService::start() {
     running = true;
     log_info("Starting receiver='" + receiverName() + "' http=" + std::to_string(httpPort));
 
-    httpThread = std::thread(&CastService::workerLoop, this);
+    httpThread = std::thread(&PlayCast::workerLoop, this);
 
     castThread = std::thread([this] {
         std::string interfaceName = pickInterfaceName();
@@ -908,7 +908,7 @@ void CastService::start() {
     });
 }
 
-void CastService::stop() {
+void PlayCast::stop() {
     if (!running) return;
     running = false;
    log_info("stopping");
@@ -918,7 +918,7 @@ void CastService::stop() {
     if (castThread.joinable()) castThread.join();
 }
 
-void CastService::reloadFromConfig() {
+void PlayCast::reloadFromConfig() {
     bool shouldRun = main && main->getConfig()->getOption(OPT_CAST_ENABLED)->getInteger() != 0;
     if (shouldRun != running) {
         if (running) stop();
@@ -926,14 +926,14 @@ void CastService::reloadFromConfig() {
     }
 }
 
-bool CastService::isRunning() const { return running; }
+bool PlayCast::isRunning() const { return running; }
 
-void CastService::enqueue(const Command &command) {
+void PlayCast::enqueue(const Command &command) {
     std::lock_guard<std::mutex> lock(queueMutex);
     pendingCommands.push(command);
 }
 
-std::vector<CastService::Command> CastService::popCommands() {
+std::vector<PlayCast::Command> PlayCast::popCommands() {
     std::vector<Command> commands;
     std::lock_guard<std::mutex> lock(queueMutex);
     while (!pendingCommands.empty()) {
@@ -943,18 +943,18 @@ std::vector<CastService::Command> CastService::popCommands() {
     return commands;
 }
 
-std::string CastService::receiverName() const {
+std::string PlayCast::receiverName() const {
     return chooseFriendlyName(main);
 }
 
-std::string CastService::uuid() const {
+std::string PlayCast::uuid() const {
     std::string seed = receiverName() + ":" + std::to_string(httpPort);
     std::string hash = Utility::md5hash(seed);
     return hash.substr(0, 8) + "-" + hash.substr(8, 4) + "-" + hash.substr(12, 4) + "-"
            + hash.substr(16, 4) + "-" + hash.substr(20, 12);
 }
 
-std::string CastService::buildDeviceDescription() const {
+std::string PlayCast::buildDeviceDescription() const {
     std::ostringstream ss;
     ss << "<?xml version=\"1.0\"?>\n"
        << "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">\n"
@@ -970,7 +970,7 @@ std::string CastService::buildDeviceDescription() const {
     return ss.str();
 }
 
-std::string CastService::buildStatusJson() const {
+std::string PlayCast::buildStatusJson() const {
     auto *mpv = main->getPlayer()->getMpv();
     std::ostringstream ss;
     ss << "{\"name\":\"" << jsonEscape(receiverName()) << "\","
@@ -982,7 +982,7 @@ std::string CastService::buildStatusJson() const {
     return ss.str();
 }
 
-std::string CastService::buildDialResponse(const std::string &appName) const {
+std::string PlayCast::buildDialResponse(const std::string &appName) const {
     std::ostringstream ss;
     ss << "<service xmlns=\"urn:dial-multiscreen-org:schemas:dial\">\n"
        << "  <name>" << xmlEscape(appName) << "</name>\n"
@@ -992,7 +992,7 @@ std::string CastService::buildDialResponse(const std::string &appName) const {
     return ss.str();
 }
 
-void CastService::workerLoop() {
+void PlayCast::workerLoop() {
     int server = socket(AF_INET, SOCK_STREAM, 0);
     if (server < 0) {
        log_info("http socket() failed");
