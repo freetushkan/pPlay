@@ -173,6 +173,11 @@ extern "C" {
 
 
 // absl compatibility
+#include "absl/base/internal/low_level_alloc.h"
+#include "absl/synchronization/internal/create_thread_identity.h"
+#include "absl/synchronization/internal/kernel_timeout.h"
+#include "absl/strings/internal/cord_rep_crc.h"
+#include "absl/crc/internal/crc_cord_state.h"
 struct AbslThreadSem {
     pthread_mutex_t mutex;
     pthread_cond_t cond;
