@@ -106,10 +106,21 @@ extern "C" {
     void ps4_evp_md_ctx_init_hook(EVP_MD_CTX *ctx) {
         if (ctx) { std::memset(ctx, 0, sizeof(EVP_MD_CTX)); }
     }
-    int sceKernelRandom(void *buf, size_t buflen);
     int getentropy(void *buf, size_t buflen) {
         if (buflen > 256) { return -1; }
-        if (sceKernelRandom(buf, buflen) < 0) { return -1; }
+        int fd = open("/dev/random", O_RDONLY | O_CLOEXEC);
+        if (fd < 0) { return -1; }
+        size_t total_read = 0;
+        uint8_t *p = static_cast<uint8_t*>(buf);
+        while (total_read < buflen) {
+            ssize_t bytes_read = read(fd, p + total_read, buflen - total_read);
+            if (bytes_read < 0) {
+                close(fd);
+                return -1;
+            }
+            total_read += bytes_read;
+        }
+        close(fd);
         return 0;
     }
     void __gcov_init(void* info) {}
