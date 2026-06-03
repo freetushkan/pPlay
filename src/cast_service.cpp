@@ -63,7 +63,6 @@
 #include <cstdint>
 #include <string_view>
 
-#include <sys/sysctl.h>
 #include <net/if_mib.h>
 
 struct ifaddrs {
@@ -143,64 +142,40 @@ extern "C" {
     int getifaddrs(struct ifaddrs **ifap) {
         if (!ifap) return -1;
         *ifap = nullptr;
-        int mib[6];
-        mib[0] = CTL_NET;
-        mib[1] = PF_ROUTE;
-        mib[2] = 0;
-        mib[3] = AF_INET;
-        mib[4] = NET_RT_IFLIST;
-        mib[5] = 0;
-        size_t len = 0;
-        if (sysctl(mib, 6, nullptr, &len, nullptr, 0) < 0) {
-            return -1;
-        }
-        char *buf = (char *)std::malloc(len);
-        if (!buf) return -1;
-        if (sysctl(mib, 6, buf, &len, nullptr, 0) < 0) {
-            std::free(buf);
-            return -1;
-        }
         struct ifaddrs *first = nullptr;
         struct ifaddrs *last = nullptr;
+        int sock = socket(AF_INET, SOCK_DGRAM, 0);
+        if (sock < 0) return -1;
         for (int i = 0; i < 2; i++) {
             const char* current_ifname = (i == 0) ? "sce_net0" : "sce_net1";
-            int sock = socket(AF_INET, SOCK_DGRAM, 0);
-            if (sock < 0) continue;
             struct ifreq ifr{};
             std::strncpy(ifr.ifr_name, current_ifname, sizeof(ifr.ifr_name) - 1);
-            if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0 || !(ifr.ifr_flags & IFF_UP)) {
-                close(sock);
-                continue;
-            }
+            if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0) continue;
+            if (!(ifr.ifr_flags & IFF_UP)) continue;
             unsigned int flags = ifr.ifr_flags;
-            if (ioctl(sock, SIOCGIFADDR, &ifr) < 0) {
-                close(sock);
-                continue;
-            }
+            std::memset(&ifr.ifr_addr, 0, sizeof(ifr.ifr_addr));
+            std::strncpy(ifr.ifr_name, current_ifname, sizeof(ifr.ifr_name) - 1);
+            if (ioctl(sock, SIOCGIFADDR, &ifr) < 0) continue;
             struct sockaddr_in* ip_addr = (struct sockaddr_in*)std::malloc(sizeof(struct sockaddr_in));
             std::memcpy(ip_addr, &ifr.ifr_addr, sizeof(struct sockaddr_in));
+            std::memset(&ifr.ifr_netmask, 0, sizeof(ifr.ifr_netmask));
+            std::strncpy(ifr.ifr_name, current_ifname, sizeof(ifr.ifr_name) - 1);
             if (ioctl(sock, SIOCGIFNETMASK, &ifr) < 0) {
                 std::free(ip_addr);
-                close(sock);
                 continue;
             }
             struct sockaddr_in* netmask_addr = (struct sockaddr_in*)std::malloc(sizeof(struct sockaddr_in));
             std::memcpy(netmask_addr, &ifr.ifr_netmask, sizeof(struct sockaddr_in));
-            close(sock);
             struct ifaddrs *new_if = (struct ifaddrs *)std::malloc(sizeof(struct ifaddrs));
             std::memset(new_if, 0, sizeof(struct ifaddrs));
             new_if->ifa_name = std::strdup(current_ifname);
             new_if->ifa_flags = flags | IFF_RUNNING;
             new_if->ifa_addr = (struct sockaddr *)ip_addr;
             new_if->ifa_netmask = (struct sockaddr *)netmask_addr;
-            if (!first) {
-                first = new_if;
-            } else {
-                last->ifa_next = new_if;
-            }
+            if (!first) first = new_if; else last->ifa_next = new_if;
             last = new_if;
         }
-        std::free(buf);
+        close(sock);
         if (!first) {
             first = (struct ifaddrs *)std::malloc(sizeof(struct ifaddrs));
             std::memset(first, 0, sizeof(struct ifaddrs));
@@ -209,8 +184,13 @@ extern "C" {
             struct sockaddr_in* def_ip = (struct sockaddr_in*)std::malloc(sizeof(struct sockaddr_in));
             std::memset(def_ip, 0, sizeof(struct sockaddr_in));
             def_ip->sin_family = AF_INET;
-            def_ip->sin_addr.s_addr = inet_addr("192.168.1.100");
+            def_ip->sin_addr.s_addr = htonl(INADDR_ANY);
             first->ifa_addr = (struct sockaddr *)def_ip;
+            struct sockaddr_in* def_mask = (struct sockaddr_in*)std::malloc(sizeof(struct sockaddr_in));
+            std::memset(def_mask, 0, sizeof(struct sockaddr_in));
+            def_mask->sin_family = AF_INET;
+            def_mask->sin_addr.s_addr = inet_addr("255.255.255.0");
+            first->ifa_netmask = (struct sockaddr *)def_mask;
         }
         *ifap = first;
         return 0;
@@ -220,7 +200,7 @@ extern "C" {
             struct ifaddrs *next = ifa->ifa_next;
             if (ifa->ifa_name) std::free(ifa->ifa_name);
             if (ifa->ifa_addr) std::free(ifa->ifa_addr);
-            if (ifa->ifa_netmask) std::free(ifa->ifa_addr);
+            if (ifa->ifa_netmask) std::free(ifa->ifa_netmask);
             std::free(ifa);
             ifa = next;
         }
