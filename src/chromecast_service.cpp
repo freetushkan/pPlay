@@ -208,12 +208,12 @@ namespace absl {
             static void Free(void* ptr) { std::free(ptr); }
         };
     }
-    namespace synchronization_internal {
-        void* CreateThreadIdentity() {
-            static uint64_t dummy_id = 0xABCDE;
-            return &dummy_id;
-        }
-    }
+    // namespace synchronization_internal {
+    //     void* CreateThreadIdentity() {
+    //         static uint64_t dummy_id = 0xABCDE;
+    //         return &dummy_id;
+    //     }
+    // }
     namespace crc_internal { int TryNewCRC32AcceleratedX86ARMCombined() { return 0; } }
     namespace status_internal { void* GetStatusPayloadPrinter() { return nullptr; } }
 }
