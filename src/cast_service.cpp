@@ -63,8 +63,6 @@
 #include <cstdint>
 #include <string_view>
 
-#include <net/if_mib.h>
-
 struct ifaddrs {
     struct ifaddrs  *ifa_next;
     char            *ifa_name;
