@@ -130,7 +130,7 @@ extern "C" {
     int sceNetSocket(const char *name, int domain, int type, int protocol);
     int sceNetIoctl(int s, unsigned long com, void *data);
     int sceNetGetsockname(int s, struct sockaddr *name, unsigned int *namelen);
-    int sceNetClose(int s);
+    int sceNetSocketClose(int s, int how);
     int sceNetGetMacAddress(uint8_t *mac_out, int if_index);
     int getifaddrs(struct ifaddrs **ifap) {
         if (!ifap) return -1;
@@ -174,7 +174,7 @@ extern "C" {
         } else {
             netmask_addr->sin_addr.s_addr = inet_addr("255.255.255.0");
         }
-        sceNetClose(sock);
+        sceNetSocketClose(sock, 0);
         struct ifaddrs *new_if = (struct ifaddrs *)std::malloc(sizeof(struct ifaddrs));
         std::memset(new_if, 0, sizeof(struct ifaddrs));
         new_if->ifa_name = strdup(picked_ifname);
