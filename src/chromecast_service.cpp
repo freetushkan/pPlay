@@ -66,12 +66,6 @@
 #include <cstdint>
 #include <string_view>
 
-struct AbslThreadSem {
-    pthread_mutex_t mutex;
-    pthread_cond_t cond;
-    int count;
-};
-
 extern "C" {
     int RSA_private_key_to_bytes(uint8_t **out_bytes, size_t *out_len, const RSA *rsa) {
         if (out_len) *out_len = 0;
@@ -177,6 +171,14 @@ extern "C" {
 //     }
 // }
 
+
+// absl compatibility
+struct AbslThreadSem {
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    int count;
+};
+
 void AbslInternalPerThreadSemPost(absl::base_internal::ThreadIdentity* identity) {
     static AbslThreadSem sem;
     static bool inited = false;
@@ -216,11 +218,8 @@ namespace absl {
     }
     namespace base_internal {
         class ThreadIdentity;
-        class LowLevelAlloc {
-        public:
-            static void* Alloc(unsigned long size) { return std::malloc(size); }
-            static void Free(void* ptr) { std::free(ptr); }
-        };
+        void* LowLevelAlloc::Alloc(unsigned long size) { return std::malloc(size); }
+        void LowLevelAlloc::Free(void* ptr) { std::free(ptr); }
     }
     namespace synchronization_internal {
         class KernelTimeout;
@@ -238,81 +237,75 @@ namespace absl {
 }
 
 namespace openscreen {
-namespace {
-uint8_t ToPrefixLength(std::span<const uint8_t> netmask) {
-  uint8_t result = 0;
-  size_t i = 0;
-  while (i < netmask.size() && netmask[i] == UINT8_C(0xff)) {
-    result += 8;
-    ++i;
-  }
-  if (i < netmask.size() && netmask[i] != UINT8_C(0x00)) {
-    uint8_t last_byte = netmask[i];
-    while (last_byte & UINT8_C(0x80)) {
-      ++result;
-      last_byte <<= 1;
+    namespace {
+        uint8_t ToPrefixLength(std::span<const uint8_t> netmask) {
+            uint8_t result = 0;
+            size_t i = 0;
+            while (i < netmask.size() && netmask[i] == UINT8_C(0xff)) {
+                result += 8;
+                ++i;
+            }
+            if (i < netmask.size() && netmask[i] != UINT8_C(0x00)) {
+                uint8_t last_byte = netmask[i];
+                while (last_byte & UINT8_C(0x80)) {
+                ++result;
+                last_byte <<= 1;
+                }
+                ++i;
+            }
+            return result;
+        }
+        IPAddress GetIPAddressFromSockAddr(const sockaddr_in& sa) {
+            uint32_t s_addr = sa.sin_addr.s_addr;
+            uint8_t b1 = s_addr & 0xFF;
+            uint8_t b2 = (s_addr >> 8) & 0xFF;
+            uint8_t b3 = (s_addr >> 16) & 0xFF;
+            uint8_t b4 = (s_addr >> 24) & 0xFF;
+            return IPAddress(b1, b2, b3, b4);
+        }
+        std::vector<InterfaceInfo> ProcessInterfacesList(ifaddrs* interfaces) {
+            std::vector<InterfaceInfo> results;
+            
+            for (ifaddrs* cur = interfaces; cur; cur = cur->ifa_next) {
+                if (!(IFF_RUNNING & cur->ifa_flags) || !cur->ifa_addr) { continue; }
+                if (cur->ifa_addr->sa_family != AF_INET) { continue; }
+                if (cur->ifa_flags & IFF_LOOPBACK) { continue; }
+                const std::string name = cur->ifa_name;
+                auto it = std::find_if(results.begin(), results.end(),
+                    [&name](const InterfaceInfo& info) { return info.name == name; });
+                InterfaceInfo* interface;
+                if (it == results.end()) {
+                    InterfaceInfo::Type type = InterfaceInfo::Type::kEthernet;
+                    const uint8_t kUnknownHardwareAddress[6] = {0, 0, 0, 0, 0, 0};
+                    results.emplace_back(if_nametoindex(cur->ifa_name),
+                                        kUnknownHardwareAddress, name, type,
+                                        std::vector<IPSubnet>());
+                    interface = &(results.back());
+                } else {
+                    interface = &(*it);
+                }
+                auto* const addr_in = reinterpret_cast<const sockaddr_in*>(cur->ifa_addr);
+                IPAddress ip = GetIPAddressFromSockAddr(*addr_in);
+                std::array<uint8_t, IPAddress::kV4Size> netmask_bytes{};
+                if (cur->ifa_netmask && cur->ifa_netmask->sa_family == AF_INET) {
+                    auto* netmask_in = reinterpret_cast<const sockaddr_in*>(cur->ifa_netmask);
+                    std::copy_n(reinterpret_cast<const uint8_t*>(&netmask_in->sin_addr.s_addr),
+                                netmask_bytes.size(), netmask_bytes.begin());
+                }
+                interface->addresses.emplace_back(ip, ToPrefixLength(netmask_bytes));
+            }
+            return results;
+        }
+    }  // namespace
+    std::vector<InterfaceInfo> GetNetworkInterfaces() {
+        std::vector<InterfaceInfo> results;
+        ifaddrs* interfaces;
+        if (getifaddrs(&interfaces) == 0) {
+            results = ProcessInterfacesList(interfaces);
+            freeifaddrs(interfaces);
+        }
+        return results;
     }
-    ++i;
-  }
-  return result;
-}
-IPAddress GetIPAddressFromSockAddr(const sockaddr_in& sa) {
-  uint32_t s_addr = sa.sin_addr.s_addr;
-  uint8_t b1 = s_addr & 0xFF;
-  uint8_t b2 = (s_addr >> 8) & 0xFF;
-  uint8_t b3 = (s_addr >> 16) & 0xFF;
-  uint8_t b4 = (s_addr >> 24) & 0xFF;
-  return IPAddress(b1, b2, b3, b4);
-}
-std::vector<InterfaceInfo> ProcessInterfacesList(ifaddrs* interfaces) {
-  std::vector<InterfaceInfo> results;
-  
-  for (ifaddrs* cur = interfaces; cur; cur = cur->ifa_next) {
-    if (!(IFF_RUNNING & cur->ifa_flags) || !cur->ifa_addr) {
-      continue;
-    }
-    if (cur->ifa_addr->sa_family != AF_INET) {
-      continue;
-    }
-    const std::string name = cur->ifa_name;
-    if (cur->ifa_flags & IFF_LOOPBACK) {
-      continue;
-    }
-    auto it = std::find_if(results.begin(), results.end(),
-        [&name](const InterfaceInfo& info) { return info.name == name; });
-    InterfaceInfo* interface;
-    if (it == results.end()) {
-      InterfaceInfo::Type type = InterfaceInfo::Type::kEthernet;
-      const uint8_t kUnknownHardwareAddress[6] = {0, 0, 0, 0, 0, 0};
-      results.emplace_back(if_nametoindex(cur->ifa_name),
-                           kUnknownHardwareAddress, name, type,
-                           std::vector<IPSubnet>());
-      interface = &(results.back());
-    } else {
-      interface = &(*it);
-    }
-    auto* const addr_in = reinterpret_cast<const sockaddr_in*>(cur->ifa_addr);
-    IPAddress ip = GetIPAddressFromSockAddr(*addr_in);
-    std::array<uint8_t, IPAddress::kV4Size> netmask_bytes{};
-    if (cur->ifa_netmask && cur->ifa_netmask->sa_family == AF_INET) {
-      auto* netmask_in = reinterpret_cast<const sockaddr_in*>(cur->ifa_netmask);
-      std::copy_n(reinterpret_cast<const uint8_t*>(&netmask_in->sin_addr.s_addr),
-                  netmask_bytes.size(), netmask_bytes.begin());
-    }
-    interface->addresses.emplace_back(ip, ToPrefixLength(netmask_bytes));
-  }
-  return results;
-}
-}  // namespace
-std::vector<InterfaceInfo> GetNetworkInterfaces() {
-  std::vector<InterfaceInfo> results;
-  ifaddrs* interfaces;
-  if (getifaddrs(&interfaces) == 0) {
-    results = ProcessInterfacesList(interfaces);
-    freeifaddrs(interfaces);
-  }
-  return results;
-}
 }  // namespace openscreen
 
 
