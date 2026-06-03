@@ -185,21 +185,18 @@ extern "C" {
 
 namespace absl {
     namespace cord_internal {
-        struct CordRep;
-        struct CordRepCrc;
-        class CordRepCrcClass {
-        public:
-            static void* New(void* head, uint64_t crc_state_opaque) __asm__("_ZN4absl13cord_internal10CordRepCrc3NewEPNS0_7CordRepENS_12crc_internal13CrcCordStateE");
-            static void Destroy(void* node) __asm__("_ZN4absl13cord_internal10CordRepCrc7DestroyEPNS0_10CordRepCrcE");
+        struct CordRep { int64_t dummy; };
+        struct CordRepCrc {
+            static CordRep* New(CordRep* head, crc_internal::CrcCordState crc_state);
+            static void Destroy(CordRepCrc* node);
         };
-
-        void* CordRepCrcClass::New(void* head, uint64_t crc_state_opaque) {
+        CordRep* CordRepCrc::New(CordRep* head, crc_internal::CrcCordState crc_state) {
             void* node = std::malloc(48);
             if (!node) return head;
             std::memset(node, 0, 48);
-            return node;
+            return static_cast<CordRep*>(node);
         }
-        void CordRepCrcClass::Destroy(void* node) { std::free(node); }
+        void CordRepCrc::Destroy(CordRepCrc* node) { std::free(node); }
     }
     namespace base_internal {
         class LowLevelAlloc {
@@ -208,12 +205,6 @@ namespace absl {
             static void Free(void* ptr) { std::free(ptr); }
         };
     }
-    // namespace synchronization_internal {
-    //     void* CreateThreadIdentity() {
-    //         static uint64_t dummy_id = 0xABCDE;
-    //         return &dummy_id;
-    //     }
-    // }
     namespace crc_internal { int TryNewCRC32AcceleratedX86ARMCombined() { return 0; } }
     namespace status_internal { void* GetStatusPayloadPrinter() { return nullptr; } }
 }
