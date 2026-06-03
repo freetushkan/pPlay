@@ -63,16 +63,6 @@
 #include <cstdint>
 #include <string_view>
 
-struct ifaddrs {
-    struct ifaddrs  *ifa_next;
-    char            *ifa_name;
-    unsigned int     ifa_flags;
-    struct sockaddr *ifa_addr;
-    struct sockaddr *ifa_netmask;
-    struct sockaddr *ifa_dstaddr;
-    void            *ifa_data;
-};
-
 extern "C" {
     int RSA_private_key_to_bytes(uint8_t **out_bytes, size_t *out_len, const RSA *rsa) {
         if (out_len) *out_len = 0;
