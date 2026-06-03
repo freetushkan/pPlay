@@ -191,7 +191,7 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
                                 "Options: " + option_name + " changed from " + oldValue
                                 + " to " + formatValue(getCurrentValue()));
             if (option_name == OPT_CAST_ENABLED) {
-                main->getChromecastService()->reloadFromConfig();
+                main->getCastService()->reloadFromConfig();
             }
             refresh();
         }
@@ -220,7 +220,7 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
                                 + " to " + option->getString());
         }
         if (option_name == OPT_CAST_ENABLED) {
-            main->getChromecastService()->reloadFromConfig();
+            main->getCastService()->reloadFromConfig();
         }
         refresh();
         return;
@@ -248,7 +248,7 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
     pplay::Utility::log(pplay::Utility::LogLevel::Info,
         "Options: " + option_name + " changed from " + oldValue + " to " + newValue);
     if (option_name == OPT_CAST_RECEIVER_NAME) {
-        main->getChromecastService()->reloadFromConfig();
+        main->getCastService()->reloadFromConfig();
     }
     setSelection(item->name);
 }

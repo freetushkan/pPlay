@@ -126,7 +126,7 @@ Below is the list of currently supported and maintained configuration parameters
 * `SWAP_CONTROLS` (`0/1`, default `0`) — swap seek/control button mapping.
 * `ACCENT_COLOR` (HEX string, default `#1078C8`) — UI accent color.
 * `LOG_LEVEL` (`0..4`, default `0`) — log verbosity: OFF/ERROR/INFO/DEBUG/TRACE.
-* `CAST_ENABLED` (`0/1`, default `0`) — enables the experimental LAN Chromecast/DIAL receiver.
+* `CAST_ENABLED` (`0/1`, default `0`) — enables the experimental LAN Cast/DIAL receiver.
 * `CAST_RECEIVER_NAME` (string, default `pPlay`) — friendly name announced to Android cast clients.
 * `CAST_PORT` (int, default `8008`) — HTTP/DIAL control port; the Cast compatibility listener uses the next port when changed.
 
@@ -182,20 +182,6 @@ CPU_BOOST = "Enabled"
 ```
 
 
-## Chromecast / Android cast support
-
-This fork includes an experimental local-network Chromecast compatibility service. When enabled, pPlay announces itself over DIAL/SSDP, exposes a Chromecast-like device description and provides HTTP control endpoints that can be used by Android notification controls or companion apps on the same LAN. The service writes its lifecycle, discovery and command handling messages to `pplay.log` using the regular `LOG_LEVEL` setting.
-
-Useful debug endpoints while `CAST_ENABLED = 1`:
-
-* `http://<pplay-ip>:8008/ssdp/device-desc.xml` — receiver description.
-* `http://<pplay-ip>:8008/pplay/status` — current playback state.
-* `http://<pplay-ip>:8008/pplay/control?command=playpause` — toggle playback.
-* `http://<pplay-ip>:8008/pplay/control?command=seek&seconds=30` — seek relatively.
-* `http://<pplay-ip>:8008/pplay/control?command=volume&delta=5` — adjust volume.
-* `http://<pplay-ip>:8008/pplay/load?url=<media-url>` — load a network media URL and start playback.
-
-The low-level Cast v2 TCP port is opened for compatibility logging, but full TLS/protobuf Cast session negotiation is still intentionally marked experimental.
 
 ## MPV configuration
 

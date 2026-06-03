@@ -1,5 +1,5 @@
-#ifndef PPLAY_CHROMECAST_SERVICE_H
-#define PPLAY_CHROMECAST_SERVICE_H
+#ifndef PPLAY_CAST_SERVICE_H
+#define PPLAY_CAST_SERVICE_H
 
 #include <atomic>
 #include <mutex>
@@ -12,7 +12,7 @@ class Main;
 
 namespace pplay {
 
-class ChromecastService {
+class CastService {
 public:
     enum class CommandType {
         Play,
@@ -30,8 +30,8 @@ public:
         std::string text;
     };
 
-    explicit ChromecastService(Main *main);
-    ~ChromecastService();
+    explicit CastService(Main *main);
+    ~CastService();
 
     void start();
     void stop();
@@ -63,4 +63,4 @@ private:
 
 }
 
-#endif // PPLAY_CHROMECAST_SERVICE_H
+#endif // PPLAY_CAST_SERVICE_H

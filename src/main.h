@@ -20,7 +20,7 @@
 #include "io.h"
 #include "usbfs.h"
 #include "utility.h"
-#include "chromecast_service.h"
+#include "cast_service.h"
 
 //#define FULL_TEXTURE_TEST 1
 
@@ -110,7 +110,7 @@ public:
 
     StatusBar *getStatusBar();
 
-    pplay::ChromecastService *getChromecastService();
+    pplay::CastService *getCastService();
 
 #ifdef PPLAY_ENABLE_SCRAPPING
     pplay::Scrapper *getScrapper();
@@ -152,7 +152,7 @@ private:
     Player *player;
     MenuMain *menu_main;
     MenuVideo *menu_video;
-    pplay::ChromecastService *chromecastService = nullptr;
+    pplay::CastService *castService = nullptr;
 #ifdef PPLAY_ENABLE_SCRAPPING
     pplay::Scrapper *scrapper;
 #endif

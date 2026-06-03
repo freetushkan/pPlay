@@ -1,4 +1,4 @@
-#include "chromecast_service.h"
+#include "cast_service.h"
 
 #include <algorithm>
 #include <atomic>
@@ -63,6 +63,19 @@
 #include <cstdint>
 #include <string_view>
 
+#include <sys/sysctl.h>
+#include <net/if_mib.h>
+
+struct ifaddrs {
+    struct ifaddrs  *ifa_next;
+    char            *ifa_name;
+    unsigned int     ifa_flags;
+    struct sockaddr *ifa_addr;
+    struct sockaddr *ifa_netmask;
+    struct sockaddr *ifa_dstaddr;
+    void            *ifa_data;
+};
+
 extern "C" {
     int RSA_private_key_to_bytes(uint8_t **out_bytes, size_t *out_len, const RSA *rsa) {
         if (out_len) *out_len = 0;
@@ -126,6 +139,92 @@ extern "C" {
     void __gcov_init(void* info) {}
     void __gcov_dump(void) {}
     void __gcov_flush(void) {}
+
+    int getifaddrs(struct ifaddrs **ifap) {
+        if (!ifap) return -1;
+        *ifap = nullptr;
+        int mib[6];
+        mib[0] = CTL_NET;
+        mib[1] = PF_ROUTE;
+        mib[2] = 0;
+        mib[3] = AF_INET;
+        mib[4] = NET_RT_IFLIST;
+        mib[5] = 0;
+        size_t len = 0;
+        if (sysctl(mib, 6, nullptr, &len, nullptr, 0) < 0) {
+            return -1;
+        }
+        char *buf = (char *)std::malloc(len);
+        if (!buf) return -1;
+        if (sysctl(mib, 6, buf, &len, nullptr, 0) < 0) {
+            std::free(buf);
+            return -1;
+        }
+        struct ifaddrs *first = nullptr;
+        struct ifaddrs *last = nullptr;
+        for (int i = 0; i < 2; i++) {
+            const char* current_ifname = (i == 0) ? "sce_net0" : "sce_net1";
+            int sock = socket(AF_INET, SOCK_DGRAM, 0);
+            if (sock < 0) continue;
+            struct ifreq ifr{};
+            std::strncpy(ifr.ifr_name, current_ifname, sizeof(ifr.ifr_name) - 1);
+            if (ioctl(sock, SIOCGIFFLAGS, &ifr) < 0 || !(ifr.ifr_flags & IFF_UP)) {
+                close(sock);
+                continue;
+            }
+            unsigned int flags = ifr.ifr_flags;
+            if (ioctl(sock, SIOCGIFADDR, &ifr) < 0) {
+                close(sock);
+                continue;
+            }
+            struct sockaddr_in* ip_addr = (struct sockaddr_in*)std::malloc(sizeof(struct sockaddr_in));
+            std::memcpy(ip_addr, &ifr.ifr_addr, sizeof(struct sockaddr_in));
+            if (ioctl(sock, SIOCGIFNETMASK, &ifr) < 0) {
+                std::free(ip_addr);
+                close(sock);
+                continue;
+            }
+            struct sockaddr_in* netmask_addr = (struct sockaddr_in*)std::malloc(sizeof(struct sockaddr_in));
+            std::memcpy(netmask_addr, &ifr.ifr_netmask, sizeof(struct sockaddr_in));
+            close(sock);
+            struct ifaddrs *new_if = (struct ifaddrs *)std::malloc(sizeof(struct ifaddrs));
+            std::memset(new_if, 0, sizeof(struct ifaddrs));
+            new_if->ifa_name = std::strdup(current_ifname);
+            new_if->ifa_flags = flags | IFF_RUNNING;
+            new_if->ifa_addr = (struct sockaddr *)ip_addr;
+            new_if->ifa_netmask = (struct sockaddr *)netmask_addr;
+            if (!first) {
+                first = new_if;
+            } else {
+                last->ifa_next = new_if;
+            }
+            last = new_if;
+        }
+        std::free(buf);
+        if (!first) {
+            first = (struct ifaddrs *)std::malloc(sizeof(struct ifaddrs));
+            std::memset(first, 0, sizeof(struct ifaddrs));
+            first->ifa_name = std::strdup("sce_net0");
+            first->ifa_flags = IFF_UP | IFF_RUNNING;
+            struct sockaddr_in* def_ip = (struct sockaddr_in*)std::malloc(sizeof(struct sockaddr_in));
+            std::memset(def_ip, 0, sizeof(struct sockaddr_in));
+            def_ip->sin_family = AF_INET;
+            def_ip->sin_addr.s_addr = inet_addr("192.168.1.100");
+            first->ifa_addr = (struct sockaddr *)def_ip;
+        }
+        *ifap = first;
+        return 0;
+    }
+    void freeifaddrs(struct ifaddrs *ifa) {
+        while (ifa) {
+            struct ifaddrs *next = ifa->ifa_next;
+            if (ifa->ifa_name) std::free(ifa->ifa_name);
+            if (ifa->ifa_addr) std::free(ifa->ifa_addr);
+            if (ifa->ifa_netmask) std::free(ifa->ifa_addr);
+            std::free(ifa);
+            ifa = next;
+        }
+    }
 }
 
 // absl compatibility
@@ -195,10 +294,9 @@ namespace absl {
     namespace status_internal { void* GetStatusPayloadPrinter() { return nullptr; } }
 }
 
-#include <sys/socket.h>
+
+
 #include <sys/ioctl.h>
-#include <net/if.h>
-#include <arpa/inet.h>
 #include <unistd.h>
 #include <ifaddrs.h>
 #include <algorithm>
@@ -529,7 +627,7 @@ unsigned int peer_key_der_len = 1190;
 // ==================== HELPER FUNCTIONS ====================
 
 void log_info(const std::string &message) {
-    Utility::log(Utility::LogLevel::Info, "ChromecastService: " + message);
+    Utility::log(Utility::LogLevel::Info, "CastService: " + message);
 }
 
 void closeSocket(int fd) {
@@ -799,17 +897,17 @@ void requestCastServiceStop() {
 
 // ==================== MAIN CLASS ====================
 
-ChromecastService::ChromecastService(Main *main) : main(main) {}
+CastService::CastService(Main *main) : main(main) {}
 
-ChromecastService::~ChromecastService() {
+CastService::~CastService() {
     stop();
 }
 
-void ChromecastService::start() {
+void CastService::start() {
     if (running || !main) return;
 
     if (main->getConfig()->getOption(OPT_CAST_ENABLED)->getInteger() == 0) {
-       log_info("ChromecastService disabled by config");
+       log_info("CastService disabled by config");
         return;
     }
 
@@ -819,7 +917,7 @@ void ChromecastService::start() {
     running = true;
     log_info("Starting receiver='" + receiverName() + "' http=" + std::to_string(httpPort));
 
-    httpThread = std::thread(&ChromecastService::workerLoop, this);
+    httpThread = std::thread(&CastService::workerLoop, this);
 
     castThread = std::thread([this] {
         std::string interfaceName = pickInterfaceName();
@@ -829,7 +927,7 @@ void ChromecastService::start() {
         }
 
         std::string friendlyName = receiverName();
-        std::string modelName = "pPlay Chromecast Receiver";
+        std::string modelName = "pPlay Cast Receiver";
         std::string deviceId = chooseCredentialId(friendlyName, httpPort);
         bool enableDiscovery = true;
         bool enableDscp = true;
@@ -842,7 +940,7 @@ void ChromecastService::start() {
     });
 }
 
-void ChromecastService::stop() {
+void CastService::stop() {
     if (!running) return;
     running = false;
    log_info("stopping");
@@ -852,7 +950,7 @@ void ChromecastService::stop() {
     if (castThread.joinable()) castThread.join();
 }
 
-void ChromecastService::reloadFromConfig() {
+void CastService::reloadFromConfig() {
     bool shouldRun = main && main->getConfig()->getOption(OPT_CAST_ENABLED)->getInteger() != 0;
     if (shouldRun != running) {
         if (running) stop();
@@ -860,14 +958,14 @@ void ChromecastService::reloadFromConfig() {
     }
 }
 
-bool ChromecastService::isRunning() const { return running; }
+bool CastService::isRunning() const { return running; }
 
-void ChromecastService::enqueue(const Command &command) {
+void CastService::enqueue(const Command &command) {
     std::lock_guard<std::mutex> lock(queueMutex);
     pendingCommands.push(command);
 }
 
-std::vector<ChromecastService::Command> ChromecastService::popCommands() {
+std::vector<CastService::Command> CastService::popCommands() {
     std::vector<Command> commands;
     std::lock_guard<std::mutex> lock(queueMutex);
     while (!pendingCommands.empty()) {
@@ -877,18 +975,18 @@ std::vector<ChromecastService::Command> ChromecastService::popCommands() {
     return commands;
 }
 
-std::string ChromecastService::receiverName() const {
+std::string CastService::receiverName() const {
     return chooseFriendlyName(main);
 }
 
-std::string ChromecastService::uuid() const {
+std::string CastService::uuid() const {
     std::string seed = receiverName() + ":" + std::to_string(httpPort);
     std::string hash = Utility::md5hash(seed);
     return hash.substr(0, 8) + "-" + hash.substr(8, 4) + "-" + hash.substr(12, 4) + "-"
            + hash.substr(16, 4) + "-" + hash.substr(20, 12);
 }
 
-std::string ChromecastService::buildDeviceDescription() const {
+std::string CastService::buildDeviceDescription() const {
     std::ostringstream ss;
     ss << "<?xml version=\"1.0\"?>\n"
        << "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">\n"
@@ -897,14 +995,14 @@ std::string ChromecastService::buildDeviceDescription() const {
        << "    <deviceType>urn:dial-multiscreen-org:device:dial:1</deviceType>\n"
        << "    <friendlyName>" << xmlEscape(receiverName()) << "</friendlyName>\n"
        << "    <manufacturer>pPlay</manufacturer>\n"
-       << "    <modelName>pPlay Chromecast Receiver</modelName>\n"
+       << "    <modelName>pPlay Cast Receiver</modelName>\n"
        << "    <UDN>uuid:" << uuid() << "</UDN>\n"
        << "  </device>\n"
        << "</root>\n";
     return ss.str();
 }
 
-std::string ChromecastService::buildStatusJson() const {
+std::string CastService::buildStatusJson() const {
     auto *mpv = main->getPlayer()->getMpv();
     std::ostringstream ss;
     ss << "{\"name\":\"" << jsonEscape(receiverName()) << "\","
@@ -916,7 +1014,7 @@ std::string ChromecastService::buildStatusJson() const {
     return ss.str();
 }
 
-std::string ChromecastService::buildDialResponse(const std::string &appName) const {
+std::string CastService::buildDialResponse(const std::string &appName) const {
     std::ostringstream ss;
     ss << "<service xmlns=\"urn:dial-multiscreen-org:schemas:dial\">\n"
        << "  <name>" << xmlEscape(appName) << "</name>\n"
@@ -926,7 +1024,7 @@ std::string ChromecastService::buildDialResponse(const std::string &appName) con
     return ss.str();
 }
 
-void ChromecastService::workerLoop() {
+void CastService::workerLoop() {
     int server = socket(AF_INET, SOCK_STREAM, 0);
     if (server < 0) {
        log_info("http socket() failed");

@@ -37,8 +37,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     it.emplace_back("Short seek step", "", MenuItem::Position::Top);
     it.emplace_back("Long seek step", "", MenuItem::Position::Top);
     it.emplace_back("Swap controls", "", MenuItem::Position::Top);
-    it.emplace_back("Chromecast", "", MenuItem::Position::Top);
-    it.emplace_back("Cast receiver name", "", MenuItem::Position::Top);
+    it.emplace_back("Cast", "", MenuItem::Position::Top);
+    it.emplace_back("Receiver name", "", MenuItem::Position::Top);
     it.emplace_back("Accent color", "", MenuItem::Position::Top);
     it.emplace_back("Connection timeout", "", MenuItem::Position::Top);
     it.emplace_back("Playback retry", "", MenuItem::Position::Top);
@@ -101,9 +101,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                              {"Loop file", 2}, {"Loop directory", 3}}), Submenu::ValueType::Integer);
     addSubmenu("Swap controls", "Triggers and buttons", OPT_SWAP_CONTROLS,
                makeIntItems({{"Normal", 0}, {"Swapped", 1}}), Submenu::ValueType::Integer);
-    addSubmenu("Chromecast", "Chromecast receiver", OPT_CAST_ENABLED,
+    addSubmenu("Cast", "Cast receiver", OPT_CAST_ENABLED,
                makeIntItems({{"Disabled", 0}, {"Enabled", 1}}), Submenu::ValueType::Integer);
-    addSubmenu("Cast receiver name", "Cast receiver name", OPT_CAST_RECEIVER_NAME,
+    addSubmenu("Receiver name", "Cast receiver name", OPT_CAST_RECEIVER_NAME,
                {MenuItem("pPlay", "", MenuItem::Position::Top),
                 MenuItem("pPlay Living Room", "", MenuItem::Position::Top),
                 MenuItem("pPlay Bedroom", "", MenuItem::Position::Top)});

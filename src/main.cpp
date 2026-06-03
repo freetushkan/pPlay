@@ -254,7 +254,7 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     player->setLayer(2);
     Main::add(player);
 
-    chromecastService = new pplay::ChromecastService(this);
+    castService = new pplay::CastService(this);
 
     // main menu
     setCurrentModuleIndex(
@@ -309,14 +309,14 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     scrapper = new Scrapper(this);
 #endif
 
-    chromecastService->start();
+    castService->start();
 
     // open last
     show(currentModuleIndex > 0 ? MenuType::Network : MenuType::Local);
 }
 
 Main::~Main() {
-    delete (chromecastService);
+    delete (castService);
 #ifdef PPLAY_ENABLE_SCRAPPING
     delete (scrapper);
 #endif
@@ -349,31 +349,31 @@ bool Main::onInput(c2d::Input::Player *players) {
 }
 
 void Main::onUpdate() {
-    if (chromecastService != nullptr) {
-        auto commands = chromecastService->popCommands();
+    if (castService != nullptr) {
+        auto commands = castService->popCommands();
         for (const auto &command: commands) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                "Main::onUpdate Chromecast command=" + std::to_string((int) command.type));
+                "Main::onUpdate Cast command=" + std::to_string((int) command.type));
             switch (command.type) {
-                case pplay::ChromecastService::CommandType::Play:
+                case pplay::CastService::CommandType::Play:
                     player->resume();
                     break;
-                case pplay::ChromecastService::CommandType::Pause:
+                case pplay::CastService::CommandType::Pause:
                     player->pause();
                     break;
-                case pplay::ChromecastService::CommandType::TogglePause:
+                case pplay::CastService::CommandType::TogglePause:
                     player->getMpv()->isPaused() ? player->resume() : player->pause();
                     break;
-                case pplay::ChromecastService::CommandType::Stop:
+                case pplay::CastService::CommandType::Stop:
                     player->stop();
                     break;
-                case pplay::ChromecastService::CommandType::SeekRelative:
+                case pplay::CastService::CommandType::SeekRelative:
                     player->getMpv()->seek(command.value);
                     break;
-                case pplay::ChromecastService::CommandType::VolumeRelative:
+                case pplay::CastService::CommandType::VolumeRelative:
                     player->getMpv()->changeVolume(command.value);
                     break;
-                case pplay::ChromecastService::CommandType::LoadUrl: {
+                case pplay::CastService::CommandType::LoadUrl: {
                     MediaFile castFile;
                     castFile.path = command.text;
                     size_t slash = command.text.find_last_of('/');
@@ -570,8 +570,8 @@ StatusBar *Main::getStatusBar() {
     return statusBar;
 }
 
-pplay::ChromecastService *Main::getChromecastService() {
-    return chromecastService;
+pplay::CastService *Main::getCastService() {
+    return castService;
 }
 
 #ifdef PPLAY_ENABLE_SCRAPPING
