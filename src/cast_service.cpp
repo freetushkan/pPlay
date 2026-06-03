@@ -819,12 +819,35 @@ void runCastServiceOnThread(const std::string &interfaceName,
         ss << interface.GetIpAddressV6();
         log_info("ChromecastService: Interface " + interfaceName + " bound to IPv6: " + ss.str());
     }
-    std::string privateKey(reinterpret_cast<const char*>(peer_key_der), peer_key_der_len);
-    std::string certificate(reinterpret_cast<const char*>(auth_crt), auth_crt_len);
+    auto buildHardcodedCredentials = [&]() -> ErrorOr<GeneratedCredentials> {
+        std::unique_ptr<RSA, decltype(&RSA_free)> rsa(
+            RSA_private_key_from_bytes(peer_key_der, peer_key_der_len), &RSA_free);
+        if (!rsa) {
+            return Error(Error::Code::kParseError, "Failed to parse embedded private key");
+        }
 
-    ErrorOr<GeneratedCredentials> creds = GenerateCredentials(deviceId, privateKey, certificate);
+        std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> private_key(
+            EVP_PKEY_new(), &EVP_PKEY_free);
+        if (!private_key) {
+            return Error(Error::Code::kParseError, "Failed to allocate EVP_PKEY");
+        }
+        if (EVP_PKEY_assign_RSA(private_key.get(), rsa.get()) != 1) {
+            return Error(Error::Code::kParseError, "Failed to attach embedded private key");
+        }
+
+        const unsigned char* cert_ptr = auth_crt;
+        std::unique_ptr<X509, decltype(&X509_free)> certificate(
+            d2i_X509(nullptr, &cert_ptr, auth_crt_len), &X509_free);
+        if (!certificate) {
+            return Error(Error::Code::kParseError, "Failed to parse embedded certificate");
+        }
+
+        return GenerateCredentials(deviceId, private_key.get(), certificate.get());
+    };
+
+    ErrorOr<GeneratedCredentials> creds = buildHardcodedCredentials();
     if (!creds.is_value()) {
-        log_info("Failed to load hardcoded credentials: " + creds.error().ToString());
+        log_info("Failed to build hardcoded credentials: " + creds.error().ToString());
         return;
     }
     auto *task_runner = new TaskRunnerImpl(&Clock::now);
