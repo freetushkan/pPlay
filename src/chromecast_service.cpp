@@ -217,12 +217,10 @@ namespace absl {
         }
     }
     namespace base_internal {
-        class ThreadIdentity;
         void* LowLevelAlloc::Alloc(unsigned long size) { return std::malloc(size); }
         void LowLevelAlloc::Free(void* ptr) { std::free(ptr); }
     }
     namespace synchronization_internal {
-        class KernelTimeout;
         base_internal::ThreadIdentity* CreateThreadIdentity() {
             static uint64_t dummy_id = 0xABCDE;
             return (base_internal::ThreadIdentity*)(&dummy_id);
