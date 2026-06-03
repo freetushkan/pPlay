@@ -172,7 +172,7 @@ extern "C" {
         sceNetClose(sock);
         struct ifaddrs *new_if = (struct ifaddrs *)std::malloc(sizeof(struct ifaddrs));
         std::memset(new_if, 0, sizeof(struct ifaddrs));
-        new_if->ifa_name = std::strdup(picked_ifname);
+        new_if->ifa_name = strdup(picked_ifname);
         new_if->ifa_flags = flags | IFF_UP | IFF_RUNNING;
         new_if->ifa_addr = (struct sockaddr *)ip_addr;
         new_if->ifa_netmask = (struct sockaddr *)netmask_addr;
