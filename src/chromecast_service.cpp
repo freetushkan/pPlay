@@ -165,15 +165,22 @@ extern "C" {
         return &dummy_id;
     }
     int ps4_absl_try_crc_accel(void) { return 0; }
-    void* ps4_absl_cord_crc_new(void* head, uint64_t crc_state_opaque) __asm__("_ZN4absl13cord_internal10CordRepCrc3NewEPNS0_7CordRepENS_12crc_internal13CrcCordStateE");
-    void* ps4_absl_cord_crc_new(void* head, uint64_t crc_state_opaque) {
-        void* node = std::malloc(48);
-        if (!node) return head;
-        std::memset(node, 0, 48);
-        return node;
+}
+namespace absl {
+    namespace cord_internal {
+        void* ps4_absl_cord_crc_new(void* head, uint64_t crc) __asm__("_ZN4absl13cord_internal10CordRepCrc3NewEPNS0_7CordRepENS_12crc_internal13CrcCordStateE");
+        void ps4_absl_cord_crc_destroy(void* node) __asm__("_ZN4absl13cord_internal10CordRepCrc7DestroyEPNS0_10CordRepCrcE");
+        void* ps4_absl_cord_crc_new(void* head, uint64_t crc_state_opaque) {
+            void* node = std::malloc(48);
+            if (!node) return head;
+            std::memset(node, 0, 48);
+            return node;
+        }
+        void ps4_absl_cord_crc_destroy(void* node) { std::free(node); }
     }
-    void ps4_absl_cord_crc_destroy(void* node) __asm__("_ZN4absl13cord_internal10CordRepCrc7DestroyEPNS0_10CordRepCrcE");
-    void ps4_absl_cord_crc_destroy(void* node) { std::free(node); }
+    namespace status_internal {
+        void* GetStatusPayloadPrinter() { return nullptr; }
+    }
 }
 
 namespace openscreen {
