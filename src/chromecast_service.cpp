@@ -141,10 +141,10 @@ extern "C" {
         pthread_mutex_unlock(&sem.mutex);
         return true;
     }
-    void* absl_synchronization_internal_CreateThreadIdentity(void) {
-        static uint64_t dummy_id = 0xABCDE;
-        return &dummy_id;
-    }
+    // void* absl_synchronization_internal_CreateThreadIdentity(void) {
+    //     static uint64_t dummy_id = 0xABCDE;
+    //     return &dummy_id;
+    // }
     // void* absl_base_internal_LowLevelAlloc_Alloc(size_t size) { return std::malloc(size); }
     // void absl_base_internal_LowLevelAlloc_Free(void* ptr) { std::free(ptr); }
     void absl_container_internal_ForcedTrySample(void*) {}
