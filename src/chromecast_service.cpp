@@ -195,6 +195,22 @@ namespace absl {
     namespace status_internal { void* GetStatusPayloadPrinter() { return nullptr; } }
 }
 
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <ifaddrs.h>
+#include <algorithm>
+#include <string>
+#include <vector>
+#include <array>
+
+#include "platform/api/network_interface.h"
+#include "platform/base/ip_address.h"
+#include "platform/base/span.h"
+
+// openscreen ps4 network impl
 namespace openscreen {
     namespace {
         uint8_t ToPrefixLength(std::span<const uint8_t> netmask) {
@@ -207,8 +223,8 @@ namespace openscreen {
             if (i < netmask.size() && netmask[i] != UINT8_C(0x00)) {
                 uint8_t last_byte = netmask[i];
                 while (last_byte & UINT8_C(0x80)) {
-                ++result;
-                last_byte <<= 1;
+                    ++result;
+                    last_byte <<= 1;
                 }
                 ++i;
             }
@@ -222,22 +238,43 @@ namespace openscreen {
             uint8_t b4 = (s_addr >> 24) & 0xFF;
             return IPAddress(b1, b2, b3, b4);
         }
+        void GetHardwareAddress(const std::string& if_name, uint8_t* mac_out) {
+            std::memset(mac_out, 0, 6);
+            int sock = socket(AF_INET, SOCK_DGRAM, 0);
+            if (sock < 0) return;
+            struct ifreq ifr{};
+            std::strncpy(ifr.ifr_name, if_name.c_str(), sizeof(ifr.ifr_name) - 1);
+            #if defined(SIOCGIFHWADDR)
+            if (ioctl(sock, SIOCGIFHWADDR, &ifr) >= 0) {
+                std::memcpy(mac_out, ifr.ifr_hwaddr.sa_data, 6);
+            }
+            #endif
+            close(sock);
+        }
         std::vector<InterfaceInfo> ProcessInterfacesList(ifaddrs* interfaces) {
             std::vector<InterfaceInfo> results;
-            
             for (ifaddrs* cur = interfaces; cur; cur = cur->ifa_next) {
                 if (!(IFF_RUNNING & cur->ifa_flags) || !cur->ifa_addr) { continue; }
                 if (cur->ifa_addr->sa_family != AF_INET) { continue; }
-                if (cur->ifa_flags & IFF_LOOPBACK) { continue; }
                 const std::string name = cur->ifa_name;
                 auto it = std::find_if(results.begin(), results.end(),
                     [&name](const InterfaceInfo& info) { return info.name == name; });
                 InterfaceInfo* interface;
                 if (it == results.end()) {
-                    InterfaceInfo::Type type = InterfaceInfo::Type::kEthernet;
-                    const uint8_t kUnknownHardwareAddress[6] = {0, 0, 0, 0, 0, 0};
+                    InterfaceInfo::Type type = InterfaceInfo::Type::kOther;
+                    if (name == "sce_net0") {
+                        type = InterfaceInfo::Type::kEthernet;
+                    } else if (name == "sce_net1") {
+                        type = InterfaceInfo::Type::kWifi;
+                    } else if (cur->ifa_flags & IFF_LOOPBACK) {
+                        type = InterfaceInfo::Type::kLoopback;
+                    } else {
+                        continue;
+                    }
+                    uint8_t hardware_address[6] = {0, 0, 0, 0, 0, 0};
+                    GetHardwareAddress(name, hardware_address);
                     results.emplace_back(if_nametoindex(cur->ifa_name),
-                                        kUnknownHardwareAddress, name, type,
+                                        hardware_address, name, type,
                                         std::vector<IPSubnet>());
                     interface = &(results.back());
                 } else {
@@ -268,20 +305,21 @@ namespace openscreen {
 }  // namespace openscreen
 
 
+
 #include <google/protobuf/message_lite.h>
 #include <string_view>
 #include <string>
 
 namespace google {
-namespace protobuf {
-    bool MessageLite::ParseFromString(std::string_view input) {
-        return ParseFromString(std::string(input.data(), input.size()));
-    }
-    bool MessageLite::SerializeToString(std::string* output) const {
-        return AppendToString(output);
-    }
+    namespace protobuf {
+        bool MessageLite::ParseFromString(std::string_view input) {
+            return ParseFromString(std::string(input.data(), input.size()));
+        }
+        bool MessageLite::SerializeToString(std::string* output) const {
+            return AppendToString(output);
+        }
 
-}  // namespace protobuf
+    }  // namespace protobuf
 }  // namespace google
 
 using namespace pplay;
