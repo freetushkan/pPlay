@@ -83,10 +83,13 @@ extern "C" {
         if (out_bytes) *out_bytes = nullptr;
         return 0;
     }
-
     void EVP_cleanup(void) {}
     void X509V3_EXT_free(void *ext) {}
     int EVP_MD_CTX_cleanup(EVP_MD_CTX *ctx) { return 1; }
+    void CRYPTO_library_init(void) {}
+    long SSL_CTX_set_mode(void* ctx, long mode) { return mode; }
+    void AES_ctr128_encrypt(const uint8_t* in, uint8_t* out, size_t len, const void* key,
+                            uint8_t* ivec, uint8_t* ecount_buf, unsigned int* num) {}
     RSA *RSA_private_key_from_bytes(const uint8_t *bytes, size_t len) {
         const uint8_t *p = bytes;
         return d2i_RSAPrivateKey(nullptr, &p, len);
@@ -108,39 +111,35 @@ extern "C" {
         return EVP_DigestUpdate(ctx, data, dsize);
     }
     long SSL_CTX_set_session_cache_mode(SSL_CTX *ctx, long mode) { return mode; }
-    // void EVP_MD_CTX_init(EVP_MD_CTX *ctx) {
-    //     if (ctx) {
-    //         std::memset(ctx, 0, sizeof(EVP_MD_CTX));
-    //     }
-    // }
     void ps4_evp_md_ctx_init_hook(EVP_MD_CTX *ctx) __asm__("EVP_MD_CTX_init");
     void ps4_evp_md_ctx_init_hook(EVP_MD_CTX *ctx) {
         if (ctx) {
             std::memset(ctx, 0, sizeof(EVP_MD_CTX));
         }
     }
-    void AbslInternalPerThreadSemPost(absl::base_internal::ThreadIdentity* t) {
-        static AbslThreadSem sem;
-        static bool inited = false;
-        if (!inited) {
-            pthread_mutex_init(&sem.mutex, nullptr);
-            pthread_cond_init(&sem.cond, nullptr);
-            sem.count = 0;
-            inited = true;
-        }
-        pthread_mutex_lock(&sem.mutex);
-        sem.count++;
-        pthread_cond_signal(&sem.cond);
-        pthread_mutex_unlock(&sem.mutex);
-    }
-    bool AbslInternalPerThreadSemWait(absl::synchronization_internal::KernelTimeout timeout) {
-        static AbslThreadSem sem;
-        pthread_mutex_lock(&sem.mutex);
-        while (sem.count <= 0) { pthread_cond_wait(&sem.cond, &sem.mutex); }
-        sem.count--;
-        pthread_mutex_unlock(&sem.mutex);
-        return true;
-    }
+
+    // void AbslInternalPerThreadSemPost(absl::base_internal::ThreadIdentity* t) {
+    //     static AbslThreadSem sem;
+    //     static bool inited = false;
+    //     if (!inited) {
+    //         pthread_mutex_init(&sem.mutex, nullptr);
+    //         pthread_cond_init(&sem.cond, nullptr);
+    //         sem.count = 0;
+    //         inited = true;
+    //     }
+    //     pthread_mutex_lock(&sem.mutex);
+    //     sem.count++;
+    //     pthread_cond_signal(&sem.cond);
+    //     pthread_mutex_unlock(&sem.mutex);
+    // }
+    // bool AbslInternalPerThreadSemWait(absl::synchronization_internal::KernelTimeout timeout) {
+    //     static AbslThreadSem sem;
+    //     pthread_mutex_lock(&sem.mutex);
+    //     while (sem.count <= 0) { pthread_cond_wait(&sem.cond, &sem.mutex); }
+    //     sem.count--;
+    //     pthread_mutex_unlock(&sem.mutex);
+    //     return true;
+    // }
     // void* absl_synchronization_internal_CreateThreadIdentity(void) {
     //     static uint64_t dummy_id = 0xABCDE;
     //     return &dummy_id;
@@ -148,11 +147,6 @@ extern "C" {
     // void* absl_base_internal_LowLevelAlloc_Alloc(size_t size) { return std::malloc(size); }
     // void absl_base_internal_LowLevelAlloc_Free(void* ptr) { std::free(ptr); }
     // int absl_crc_internal_TryNewCRC32AcceleratedX86ARMCombined(void) { return 0; }
-
-    void CRYPTO_library_init(void) {}
-    long SSL_CTX_set_mode(void* ctx, long mode) { return mode; }
-    void AES_ctr128_encrypt(const uint8_t* in, uint8_t* out, size_t len, const void* key,
-                            uint8_t* ivec, uint8_t* ecount_buf, unsigned int* num) {}
     // void absl_container_internal_ForcedTrySample(void*) {}
     // bool AbslContainerInternalSampleEverything(void*) { return false; }
     // void* ps4_absl_alloc(size_t size) __asm__("_ZN4absl13base_internal12LowLevelAlloc5AllocEm");
@@ -183,6 +177,31 @@ extern "C" {
 //     }
 // }
 
+void AbslInternalPerThreadSemPost(absl::base_internal::ThreadIdentity* identity) {
+    static AbslThreadSem sem;
+    static bool inited = false;
+    if (!inited) {
+        pthread_mutex_init(&sem.mutex, nullptr);
+        pthread_cond_init(&sem.cond, nullptr);
+        sem.count = 0;
+        inited = true;
+    }
+    pthread_mutex_lock(&sem.mutex);
+    sem.count++;
+    pthread_cond_signal(&sem.cond);
+    pthread_mutex_unlock(&sem.mutex);
+}
+bool AbslInternalPerThreadSemWait(absl::synchronization_internal::KernelTimeout timeout) {
+    static AbslThreadSem sem;
+    pthread_mutex_lock(&sem.mutex);
+    while (sem.count <= 0) {
+        pthread_cond_wait(&sem.cond, &sem.mutex);
+    }
+    sem.count--;
+    pthread_mutex_unlock(&sem.mutex);
+    return true;
+}
+
 namespace absl {
     namespace cord_internal {
         CordRepCrc* CordRepCrc::New(CordRep* head, crc_internal::CrcCordState crc_state) {
@@ -196,6 +215,7 @@ namespace absl {
         }
     }
     namespace base_internal {
+        class ThreadIdentity;
         class LowLevelAlloc {
         public:
             static void* Alloc(unsigned long size) { return std::malloc(size); }
@@ -203,9 +223,10 @@ namespace absl {
         };
     }
     namespace synchronization_internal {
+        class KernelTimeout;
         base_internal::ThreadIdentity* CreateThreadIdentity() {
             static uint64_t dummy_id = 0xABCDE;
-            return reinterpret_cast(&dummy_id);
+            return (base_internal::ThreadIdentity*)(&dummy_id);
         }
     }
     namespace container_internal {
