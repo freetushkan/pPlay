@@ -127,6 +127,11 @@ extern "C" {
     void __gcov_dump(void) {}
     void __gcov_flush(void) {}
 
+    int sceNetSocket(const char *name, int domain, int type, int protocol);
+    int sceNetIoctl(int s, unsigned long com, void *data);
+    int sceNetGetsockname(int s, struct sockaddr *name, unsigned int *namelen);
+    int sceNetClose(int s);
+    int sceNetGetMacAddress(uint8_t *mac_out, int if_index);
     int getifaddrs(struct ifaddrs **ifap) {
         if (!ifap) return -1;
         *ifap = nullptr;
@@ -805,11 +810,11 @@ void runCastServiceOnThread(const std::string &interfaceName,
         return;
     }
     if (interface.GetIpAddressV4()) {
-        std::string ip_str = interface.GetIpAddressV4()->ToString();
+        std::string ip_str = interface.GetIpAddressV4().ToString();
         log_info("Interface " + interfaceName + " IPv4: " + ip_str);
     }
     if (interface.GetIpAddressV6()) {
-        std::string ip6_str = interface.GetIpAddressV6()->ToString();
+        std::string ip6_str = interface.GetIpAddressV6().ToString();
         log_info("Interface " + interfaceName + " IPv6: " + ip6_str);
     }
     std::string privateKey(reinterpret_cast<const char*>(peer_key_der), peer_key_der_len);

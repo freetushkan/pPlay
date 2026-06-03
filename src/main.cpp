@@ -46,14 +46,8 @@ static void on_applet_hook(AppletHookType hook, void *arg) {
 
 #include <orbis/Sysmodule.h>
 
-extern "C" {
-    int sceSystemServiceLoadExec(const char *path, const char *args[]);
-    int sceNetSocket(const char *name, int domain, int type, int protocol);
-    int sceNetIoctl(int s, unsigned long com, void *data);
-    int sceNetGetsockname(int s, struct sockaddr *name, unsigned int *namelen);
-    int sceNetClose(int s);
-    int sceNetGetMacAddress(uint8_t *mac_out, int if_index);
-}
+extern "C" int sceSystemServiceLoadExec(const char *path, const char *args[]);
+
 #endif
 
 using namespace c2d;
