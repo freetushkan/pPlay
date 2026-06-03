@@ -500,6 +500,7 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
 
     # Link OpenScreen libraries
     list(APPEND PPLAY_LDFLAGS ssl crypto)
+    add_compile_options(-fno-profile-arcs -fno-test-coverage)
 
     message(STATUS "OpenScreen support enabled at ${OPENSCREEN_ROOT}")
 else()
