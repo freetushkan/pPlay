@@ -810,12 +810,12 @@ void runCastServiceOnThread(const std::string &interfaceName,
         return;
     }
     if (interface.GetIpAddressV4()) {
-        std::string ip_str = openscreen::ToString(interface.GetIpAddressV4());
-        log_info("Interface " + interfaceName + " IPv4: " + ip_str);
+        log_info("ChromecastService: Interface " + interfaceName + " successfully bound to IPv4: " + 
+            static_cast<std::stringstream&>(std::stringstream() << interface.GetIpAddressV4()).str());
     }
     if (interface.GetIpAddressV6()) {
-        std::string ip6_str = openscreen::ToString(interface.GetIpAddressV6());
-        log_info("Interface " + interfaceName + " IPv6: " + ip6_str);
+        log_info("ChromecastService: Interface " + interfaceName + " successfully bound to IPv6: " + 
+            static_cast<std::stringstream&>(std::stringstream() << interface.GetIpAddressV6()).str());
     }
     std::string privateKey(reinterpret_cast<const char*>(peer_key_der), peer_key_der_len);
     std::string certificate(reinterpret_cast<const char*>(auth_crt), auth_crt_len);
