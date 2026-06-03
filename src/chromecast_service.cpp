@@ -184,20 +184,20 @@ extern "C" {
 // }
 
 namespace absl {
-    namespace cord_internal {
-        struct CordRep { int64_t dummy; };
-        struct CordRepCrc {
-            static CordRep* New(CordRep* head, crc_internal::CrcCordState crc_state);
-            static void Destroy(CordRepCrc* node);
-        };
-        CordRep* CordRepCrc::New(CordRep* head, crc_internal::CrcCordState crc_state) {
-            void* node = std::malloc(48);
-            if (!node) return head;
-            std::memset(node, 0, 48);
-            return static_cast<CordRep*>(node);
-        }
-        void CordRepCrc::Destroy(CordRepCrc* node) { std::free(node); }
-    }
+    // namespace cord_internal {
+    //     struct CordRep { int64_t dummy; };
+    //     struct CordRepCrc {
+    //         static CordRep* New(CordRep* head, crc_internal::CrcCordState crc_state);
+    //         static void Destroy(CordRepCrc* node);
+    //     };
+    //     CordRep* CordRepCrc::New(CordRep* head, crc_internal::CrcCordState crc_state) {
+    //         void* node = std::malloc(48);
+    //         if (!node) return head;
+    //         std::memset(node, 0, 48);
+    //         return static_cast<CordRep*>(node);
+    //     }
+    //     void CordRepCrc::Destroy(CordRepCrc* node) { std::free(node); }
+    // }
     namespace base_internal {
         class LowLevelAlloc {
         public:
