@@ -104,20 +104,17 @@ extern "C" {
     long SSL_CTX_set_session_cache_mode(SSL_CTX *ctx, long mode) { return mode; }
     void ps4_evp_md_ctx_init_hook(EVP_MD_CTX *ctx) __asm__("EVP_MD_CTX_init");
     void ps4_evp_md_ctx_init_hook(EVP_MD_CTX *ctx) {
-        if (ctx) {
-            std::memset(ctx, 0, sizeof(EVP_MD_CTX));
-        }
+        if (ctx) { std::memset(ctx, 0, sizeof(EVP_MD_CTX)); }
+    }
+    int sceKernelRandom(void *buf, size_t buflen);
+    int getentropy(void *buf, size_t buflen) {
+        if (buflen > 256) { return -1; }
+        if (sceKernelRandom(buf, buflen) < 0) { return -1; }
+        return 0;
     }
     void __gcov_init(void* info) {}
     void __gcov_dump(void) {}
     void __gcov_flush(void) {}
-    int getentropy(void *buf, size_t buflen) {
-        if (buflen > 256) {
-            return -1; 
-        }
-        arc4random_buf(buf, buflen);
-        return 0;
-    }
 }
 
 // absl compatibility
