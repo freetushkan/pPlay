@@ -55,12 +55,9 @@
 #include <openssl/rsa.h>
 #include <openssl/bytestring.h>
 #include <openssl/asn1.h>
+#include <openssl/digest.h>
 #include <stddef.h>
 #include <stdint.h>
-
-// #define EVP_MD_CTX_init COMPILER_HOOK_EVP_MD_CTX_init
-// #include <openssl/digest.h>
-// #undef EVP_MD_CTX_init
 
 #include <pthread.h>
 #include <cstdint>
@@ -111,66 +108,10 @@ extern "C" {
             std::memset(ctx, 0, sizeof(EVP_MD_CTX));
         }
     }
-
-    // void AbslInternalPerThreadSemPost(absl::base_internal::ThreadIdentity* t) {
-    //     static AbslThreadSem sem;
-    //     static bool inited = false;
-    //     if (!inited) {
-    //         pthread_mutex_init(&sem.mutex, nullptr);
-    //         pthread_cond_init(&sem.cond, nullptr);
-    //         sem.count = 0;
-    //         inited = true;
-    //     }
-    //     pthread_mutex_lock(&sem.mutex);
-    //     sem.count++;
-    //     pthread_cond_signal(&sem.cond);
-    //     pthread_mutex_unlock(&sem.mutex);
-    // }
-    // bool AbslInternalPerThreadSemWait(absl::synchronization_internal::KernelTimeout timeout) {
-    //     static AbslThreadSem sem;
-    //     pthread_mutex_lock(&sem.mutex);
-    //     while (sem.count <= 0) { pthread_cond_wait(&sem.cond, &sem.mutex); }
-    //     sem.count--;
-    //     pthread_mutex_unlock(&sem.mutex);
-    //     return true;
-    // }
-    // void* absl_synchronization_internal_CreateThreadIdentity(void) {
-    //     static uint64_t dummy_id = 0xABCDE;
-    //     return &dummy_id;
-    // }
-    // void* absl_base_internal_LowLevelAlloc_Alloc(size_t size) { return std::malloc(size); }
-    // void absl_base_internal_LowLevelAlloc_Free(void* ptr) { std::free(ptr); }
-    // int absl_crc_internal_TryNewCRC32AcceleratedX86ARMCombined(void) { return 0; }
-    // void absl_container_internal_ForcedTrySample(void*) {}
-    // bool AbslContainerInternalSampleEverything(void*) { return false; }
-    // void* ps4_absl_alloc(size_t size) __asm__("_ZN4absl13base_internal12LowLevelAlloc5AllocEm");
-    // void* ps4_absl_alloc(size_t size) { return std::malloc(size); }
-    // void ps4_absl_free(void* ptr) __asm__("_ZN4absl13base_internal12LowLevelAlloc4FreeEPv");
-    // void ps4_absl_free(void* ptr) { std::free(ptr); }
-    // void* ps4_absl_create_thread_id(void) __asm__("_ZN4absl24synchronization_internal20CreateThreadIdentityEv");
-    // void* ps4_absl_create_thread_id(void) {
-    //     static uint64_t dummy_id = 0xABCDE;
-    //     return &dummy_id;
-    // }
-    // int ps4_absl_try_crc_accel(void) { return 0; }
+    void __gcov_init(void* info) {}
+    void __gcov_dump(void) {}
+    void __gcov_flush(void) {}
 }
-// namespace absl {
-//     namespace cord_internal {
-//         void* ps4_absl_cord_crc_new(void* head, uint64_t crc) __asm__("_ZN4absl13cord_internal10CordRepCrc3NewEPNS0_7CordRepENS_12crc_internal13CrcCordStateE");
-//         void ps4_absl_cord_crc_destroy(void* node) __asm__("_ZN4absl13cord_internal10CordRepCrc7DestroyEPNS0_10CordRepCrcE");
-//         void* ps4_absl_cord_crc_new(void* head, uint64_t crc_state_opaque) {
-//             void* node = std::malloc(48);
-//             if (!node) return head;
-//             std::memset(node, 0, 48);
-//             return node;
-//         }
-//         void ps4_absl_cord_crc_destroy(void* node) { std::free(node); }
-//     }
-//     namespace status_internal {
-//         void* GetStatusPayloadPrinter() { return nullptr; }
-//     }
-// }
-
 
 // absl compatibility
 #include "absl/base/internal/low_level_alloc.h"
