@@ -810,11 +810,11 @@ void runCastServiceOnThread(const std::string &interfaceName,
         return;
     }
     if (interface.GetIpAddressV4()) {
-        std::string ip_str = interface.GetIpAddressV4().ToString();
+        std::string ip_str = openscreen::ToString(interface.GetIpAddressV4());
         log_info("Interface " + interfaceName + " IPv4: " + ip_str);
     }
     if (interface.GetIpAddressV6()) {
-        std::string ip6_str = interface.GetIpAddressV6().ToString();
+        std::string ip6_str = openscreen::ToString(interface.GetIpAddressV6());
         log_info("Interface " + interfaceName + " IPv6: " + ip6_str);
     }
     std::string privateKey(reinterpret_cast<const char*>(peer_key_der), peer_key_der_len);
