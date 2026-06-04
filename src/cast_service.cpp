@@ -882,9 +882,11 @@ void runCastServiceOnThread(const std::string &interfaceName,
         log_info("Failed to build hardcoded credentials: " + creds.error().ToString());
         return;
     }
+    log_info("Credentials loaded");
     auto *task_runner = new TaskRunnerImpl(&Clock::now);
     PlatformClientPosix::Create(milliseconds(50), std::unique_ptr<TaskRunnerImpl>(task_runner));
     std::unique_ptr<CastService> service;
+    log_info("TaskRunner: post service task");
     task_runner->PostTask([&] {
         service = std::make_unique<CastService>(CastService::Configuration{
             *task_runner,
@@ -940,7 +942,7 @@ void PPLAYCast::start() {
     if (running || !main) return;
 
     if (main->getConfig()->getOption(OPT_CAST_ENABLED)->getInteger() == 0) {
-       log_info("CastService disabled by config");
+        log_info("CastService disabled by config");
         return;
     }
 
