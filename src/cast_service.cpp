@@ -849,8 +849,8 @@ void runCastServiceOnThread(const std::string &interfaceName,
     // };
 
     auto buildHardcodedCredentials = [&]() -> ErrorOr<GeneratedCredentials> {
-        std::string pk_path = "/tmp/pplay_cast_key.der";
-        std::string cert_path = "/tmp/pplay_cast_crt.der";
+        std::string pk_path = "pplay_cast_key.der";
+        std::string cert_path = "pplay_cast_crt.der";
         std::ofstream pk_file(pk_path, std::ios::binary);
         if (!pk_file) return Error(Error::Code::kParseError, "Failed to create temp key file");
         pk_file.write(reinterpret_cast<const char*>(peer_key_der), peer_key_der_len);
