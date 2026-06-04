@@ -874,9 +874,9 @@ namespace {
 
         auto *task_runner = new TaskRunnerImpl(&Clock::now);
         PlatformClientPosix::Create(milliseconds(50), std::unique_ptr<TaskRunnerImpl>(task_runner));
+        log_info("ChromecastService: Creating CastService monolith directly in memory...");
         std::unique_ptr<CastService> service;
-        log_info("TaskRunner: post service task");
-        task_runner->PostTask([&] {
+        try {
             service = std::make_unique<CastService>(CastService::Configuration{
                 *task_runner,
                 interface,
@@ -887,7 +887,11 @@ namespace {
                 enableDiscovery,
                 enableDscp,
             });
-        });
+            log_info("ChromecastService: CastService monolith successfully created.");
+        } catch (...) {
+            log_info("ERROR: Exception thrown during CastService constructor!");
+            return;
+        }
         {
             std::lock_guard<std::mutex> lock(g_receiverRuntime.mutex);
             g_receiverRuntime.runner = task_runner;
