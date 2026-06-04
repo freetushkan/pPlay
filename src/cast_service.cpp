@@ -182,7 +182,8 @@ extern "C" {
     int sceNetIoctl(int s, unsigned long com, void *data);
     int sceNetGetsockname(int s, struct sockaddr *name, unsigned int *namelen);
     int sceNetSocketClose(int s, int how);
-    int sceNetGetMacAddress(uint8_t *mac_out, int if_index);
+    int sceNetGetMacAddress(int if_index, uint8_t *mac_out);
+    int sceNetNametoindex(const char *if_name);
     int getifaddrs(struct ifaddrs **ifap) {
         if (!ifap) return -1;
         *ifap = nullptr;
@@ -367,6 +368,14 @@ namespace openscreen {
                 return;
             }
             sceNetGetMacAddress(mac_out, if_index);
+        }
+        void GetHardwareAddress(const std::string& if_name, uint8_t* mac_out) {
+            std::memset(mac_out, 0, 6);
+            int if_index = sceNetNametoindex(if_name.c_str());
+            if (if_index <= 0) {
+                if_index = (if_name == "sce_net1") ? 2 : 1;
+            }
+            sceNetGetMacAddress(if_index, mac_out);
         }
         std::vector<InterfaceInfo> ProcessInterfacesList(ifaddrs* interfaces) {
             std::vector<InterfaceInfo> results;
