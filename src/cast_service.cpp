@@ -878,16 +878,19 @@ namespace {
         log_info("Creating CastService monolith directly in memory...");
         std::unique_ptr<CastService> service;
         try {
+            log_info("CastService obj conf.");
             CastService::Configuration config{
                 *task_runner,
                 interface,
                 std::move(creds)
             };
+            log_info("CastService obj conf params.");
             config.device_uuid = deviceId;
             config.friendly_name = friendlyName;
             config.model_name = modelName;
             config.enable_discovery = enableDiscovery;
             config.enable_dscp = enableDscp;
+            log_info("CastService obj conf srv.");
             service = std::make_unique<CastService>(std::move(config));
             log_info("CastService monolith successfully created.");
         } catch (...) {
