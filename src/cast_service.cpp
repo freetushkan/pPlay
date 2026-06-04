@@ -754,8 +754,10 @@ namespace {
             return;
         } else {
             std::stringstream ss;
-            ss << interface.GetIpAddressV4(); 
-            log_info("Interface " + interfaceName + " IPv4: " + ss.str());
+            ss << interface.GetIpAddressV4();
+            std::string ip_str = ss.str();
+            std::string mac_str = openscreen::HexEncode(interface.hardware_address);
+            log_info("Interface " + interfaceName + " IPv4: " + ip_str + " MAC: " + mac_str);
         }
 
         log_info("Loading credentials..");
@@ -888,11 +890,8 @@ namespace {
             config.device_uuid = deviceId;
             config.friendly_name = friendlyName;
             config.model_name = modelName;
-            // config.enable_discovery = enableDiscovery;
-            // config.enable_dscp = enableDscp;
-            // for test
-            config.enable_discovery = false;
-            config.enable_dscp = false;
+            config.enable_discovery = enableDiscovery;
+            config.enable_dscp = enableDscp;
             log_info("CastService obj conf srv.");
             service = std::make_unique<CastService>(std::move(config));
             log_info("CastService monolith successfully created.");
