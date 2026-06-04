@@ -773,7 +773,7 @@ namespace {
             std::stringstream ss;
             ss << "[Network Interface Diagnostic]\n"
                << "  - Name: " << interface.name << "\n"
-               << "  - Index: " << interface.index << "\n"
+               << "  - Index: " << interface.index << "\n";
             switch (interface.type) {
                 case InterfaceInfo::Type::kEthernet: ss << "Ethernet (LAN)"; break;
                 case InterfaceInfo::Type::kWifi:     ss << "Wi-Fi"; break;
