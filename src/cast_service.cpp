@@ -439,6 +439,8 @@ namespace google {
 using namespace pplay;
 
 
+#include <iomanip>
+
 namespace openscreen {
     namespace cast {
         namespace {
@@ -772,7 +774,6 @@ namespace {
             ss << "[Network Interface Diagnostic]\n"
                << "  - Name: " << interface.name << "\n"
                << "  - Index: " << interface.index << "\n"
-               << "  - Type: ";
             switch (interface.type) {
                 case InterfaceInfo::Type::kEthernet: ss << "Ethernet (LAN)"; break;
                 case InterfaceInfo::Type::kWifi:     ss << "Wi-Fi"; break;
@@ -785,13 +786,8 @@ namespace {
             ss << "  - Subnets Count: " << interface.addresses.size() << "\n";
             int addr_index = 0;
             for (const auto& subnet : interface.addresses) {
-                ss << "    [" << addr_index++ << "] IP: " << subnet.address();
-                ss << " /" << static_cast<int>(subnet.prefix());
-                if (subnet.address().IsV4()) {
-                    ss << " (IPv4)";
-                } else if (subnet.address().IsV6()) {
-                    ss << " (IPv6)";
-                }
+                ss << "    [" << addr_index++ << "] IP: " << subnet.address;
+                ss << " /" << static_cast<int>(subnet.prefix_length);
                 ss << "\n";
             }
             log_info(ss.str());
