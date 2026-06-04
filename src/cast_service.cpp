@@ -78,7 +78,7 @@ extern "C" {
         *out_len = 0;
         int len = i2d_RSAPrivateKey(rsa, nullptr);
         if (len <= 0) return 0;
-        uint8_t *buffer = static_cast<uint8_t*>(OPENSSL_malloc(static_cast<size_t>(len)));
+        uint8_t *buffer = static_cast<uint8_t*>(std::malloc(static_cast<size_t>(len)));
         if (!buffer) return 0;
         uint8_t *cursor = buffer;
         if (i2d_RSAPrivateKey(rsa, &cursor) != len) {
@@ -95,7 +95,7 @@ extern "C" {
         *out_len = 0;
         int len = i2d_RSA_PUBKEY(const_cast<RSA*>(rsa), nullptr);
         if (len <= 0) return 0;
-        uint8_t *buffer = static_cast<uint8_t*>(OPENSSL_malloc(static_cast<size_t>(len)));
+        uint8_t *buffer = static_cast<uint8_t*>(std::malloc(static_cast<size_t>(len)));
         if (!buffer) return 0;
         uint8_t *cursor = buffer;
         if (i2d_RSA_PUBKEY(const_cast<RSA*>(rsa), &cursor) != len) {
@@ -431,13 +431,13 @@ namespace cast {
 
 namespace {
 
-using ::cast::channel::AuthChallenge;
-using ::cast::channel::AuthError;
-using ::cast::channel::AuthResponse;
-using ::cast::channel::CastMessage;
-using ::cast::channel::DeviceAuthMessage;
-using ::cast::channel::HashAlgorithm;
-using ::cast::channel::SignatureAlgorithm;
+using openscreen::cast::channel::AuthChallenge;
+using openscreen::cast::channel::AuthError;
+using openscreen::cast::channel::AuthResponse;
+using openscreen::cast::channel::CastMessage;
+using openscreen::cast::channel::DeviceAuthMessage;
+using openscreen::cast::channel::HashAlgorithm;
+using openscreen::cast::channel::SignatureAlgorithm;
 
 CastMessage GenerateAuthErrorMessage(AuthError::ErrorType error_type) {
     DeviceAuthMessage message;
@@ -448,9 +448,9 @@ CastMessage GenerateAuthErrorMessage(AuthError::ErrorType error_type) {
     message.SerializeToString(&payload);
 
     CastMessage response;
-    response.set_protocol_version(::cast::channel::CastMessage_ProtocolVersion_CASTV2_1_0);
+    response.set_protocol_version(openscreen::cast::channel::CastMessage_ProtocolVersion_CASTV2_1_0);
     response.set_namespace_(kAuthNamespace);
-    response.set_payload_type(::cast::channel::CastMessage_PayloadType_BINARY);
+    response.set_payload_type(openscreen::cast::channel::CastMessage_PayloadType_BINARY);
     response.set_payload_binary(std::move(payload));
     return response;
 }
@@ -475,7 +475,7 @@ std::size_t CurrentCredsSignatureOffset() {
 
 DeviceAuthNamespaceHandler::CredentialsProvider::~CredentialsProvider() = default;
 
-DeviceAuthNamespaceHandler::DeviceAuthNamespaceHandler(CredentialsProvider* creds_provider)
+DeviceAuthNamespaceHandler::DeviceAuthNamespaceHandler(CredentialsProvider& creds_provider)
     : creds_provider_(creds_provider) {}
 
 DeviceAuthNamespaceHandler::~DeviceAuthNamespaceHandler() = default;
@@ -486,7 +486,7 @@ void DeviceAuthNamespaceHandler::OnMessage(VirtualConnectionRouter* router,
     if (!socket || !creds_provider_) {
         return;
     }
-    if (message.payload_type() != ::cast::channel::CastMessage_PayloadType_BINARY) {
+    if (message.payload_type() != openscreen::cast::channel::CastMessage_PayloadType_BINARY) {
         return;
     }
 
@@ -505,9 +505,9 @@ void DeviceAuthNamespaceHandler::OnMessage(VirtualConnectionRouter* router,
     const SignatureAlgorithm sig_alg = challenge.signature_algorithm();
     const HashAlgorithm hash_alg = challenge.hash_algorithm();
 
-    if ((sig_alg != ::cast::channel::UNSPECIFIED &&
-         sig_alg != ::cast::channel::RSASSA_PKCS1v15) ||
-        (hash_alg != ::cast::channel::SHA1 && hash_alg != ::cast::channel::SHA256)) {
+    if ((sig_alg != openscreen::cast::channel::UNSPECIFIED &&
+         sig_alg != openscreen::cast::channel::RSASSA_PKCS1v15) ||
+        (hash_alg != openscreen::cast::channel::SHA1 && hash_alg != openscreen::cast::channel::SHA256)) {
         router->Send(virtual_conn,
                      GenerateAuthErrorMessage(AuthError::SIGNATURE_ALGORITHM_UNAVAILABLE));
         return;
@@ -527,7 +527,7 @@ void DeviceAuthNamespaceHandler::OnMessage(VirtualConnectionRouter* router,
     auth_response->add_intermediate_certificate(std::string(
         reinterpret_cast<const char*>(pplay::cast::creds::kIntermediateCrt),
         pplay::cast::creds::kIntermediateCrtLen));
-    auth_response->set_signature_algorithm(::cast::channel::RSASSA_PKCS1v15);
+    auth_response->set_signature_algorithm(openscreen::cast::channel::RSASSA_PKCS1v15);
     auth_response->set_hash_algorithm(hash_alg);
     auth_response->set_crl(device_creds.serialized_crl);
 
@@ -543,9 +543,9 @@ void DeviceAuthNamespaceHandler::OnMessage(VirtualConnectionRouter* router,
     response_auth_message.SerializeToString(&response_string);
 
     CastMessage response;
-    response.set_protocol_version(::cast::channel::CastMessage_ProtocolVersion_CASTV2_1_0);
+    response.set_protocol_version(openscreen::cast::channel::CastMessage_ProtocolVersion_CASTV2_1_0);
     response.set_namespace_(kAuthNamespace);
-    response.set_payload_type(::cast::channel::CastMessage_PayloadType_BINARY);
+    response.set_payload_type(openscreen::cast::channel::CastMessage_PayloadType_BINARY);
     response.set_payload_binary(std::move(response_string));
 
     router->Send(virtual_conn, std::move(response));
