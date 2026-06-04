@@ -82,7 +82,7 @@ extern "C" {
         if (!buffer) return 0;
         uint8_t *cursor = buffer;
         if (i2d_RSAPrivateKey(rsa, &cursor) != len) {
-            OPENSSL_free(buffer);
+            std::free(buffer);
             return 0;
         }
         *out_bytes = buffer;
@@ -99,7 +99,7 @@ extern "C" {
         if (!buffer) return 0;
         uint8_t *cursor = buffer;
         if (i2d_RSA_PUBKEY(const_cast<RSA*>(rsa), &cursor) != len) {
-            OPENSSL_free(buffer);
+            std::free(buffer);
             return 0;
         }
         *out_bytes = buffer;
@@ -431,13 +431,13 @@ namespace cast {
 
 namespace {
 
-using openscreen::cast::proto::AuthChallenge;
 using openscreen::cast::proto::AuthError;
-using openscreen::cast::proto::AuthResponse;
 using openscreen::cast::proto::CastMessage;
 using openscreen::cast::proto::DeviceAuthMessage;
-using openscreen::cast::proto::HashAlgorithm;
-using openscreen::cast::proto::SignatureAlgorithm;
+// using openscreen::cast::proto::AuthChallenge;
+// using openscreen::cast::proto::AuthResponse;
+// using openscreen::cast::proto::HashAlgorithm;
+// using openscreen::cast::proto::SignatureAlgorithm;
 
 CastMessage GenerateAuthErrorMessage(AuthError::ErrorType error_type) {
     DeviceAuthMessage message;
