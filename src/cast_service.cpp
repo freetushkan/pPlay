@@ -872,21 +872,23 @@ namespace {
                                     pplay::cast::creds::kIntermediateCrtLen)};
         log_info("Credentials loaded!");
 
-        auto *task_runner = new TaskRunnerImpl(&Clock::now);
-        PlatformClientPosix::Create(milliseconds(50), std::unique_ptr<TaskRunnerImpl>(task_runner));
+        auto task_runner_owner = std::make_unique<TaskRunnerImpl>(&Clock::now);
+        TaskRunnerImpl* task_runner = task_runner_owner.get();
+        openscreen::PlatformClientPosix::Create(milliseconds(50), std::move(task_runner_owner));
         log_info("Creating CastService monolith directly in memory...");
         std::unique_ptr<CastService> service;
         try {
-            service = std::make_unique<CastService>(CastService::Configuration{
+            CastService::Configuration config{
                 *task_runner,
                 interface,
-                std::move(creds),
-                deviceId,
-                friendlyName,
-                modelName,
-                enableDiscovery,
-                enableDscp,
-            });
+                std::move(creds)
+            };
+            config.device_uuid = deviceId;
+            config.friendly_name = friendlyName;
+            config.model_name = modelName;
+            config.enable_discovery = enableDiscovery;
+            config.enable_dscp = enableDscp;
+            service = std::make_unique<CastService>(std::move(config));
             log_info("CastService monolith successfully created.");
         } catch (...) {
             log_info("ERROR: Exception thrown during CastService constructor!");
