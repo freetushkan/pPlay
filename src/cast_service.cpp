@@ -359,18 +359,6 @@ namespace openscreen {
         }
         void GetHardwareAddress(const std::string& if_name, uint8_t* mac_out) {
             std::memset(mac_out, 0, 6);
-            int if_index = 0;
-            if (if_name == "sce_net0") {
-                if_index = 1;
-            } else if (if_name == "sce_net1") {
-                if_index = 2;
-            } else {
-                return;
-            }
-            sceNetGetMacAddress(mac_out, if_index);
-        }
-        void GetHardwareAddress(const std::string& if_name, uint8_t* mac_out) {
-            std::memset(mac_out, 0, 6);
             int if_index = sceNetNametoindex(if_name.c_str());
             if (if_index <= 0) {
                 if_index = (if_name == "sce_net1") ? 2 : 1;
