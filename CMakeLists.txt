@@ -198,7 +198,8 @@ if(EXISTS "${OPENSCREEN_ROOT}" AND EXISTS "${OPENSCREEN_GEN}")
         ${OPENSCREEN_ROOT}/platform/impl/udp_socket_reader_posix.cc
         ${OPENSCREEN_ROOT}/cast/receiver/application_agent.cc
         ${OPENSCREEN_ROOT}/cast/receiver/channel/static_credentials.cc
-        ${OPENSCREEN_ROOT}/cast/receiver/channel/device_auth_namespace_handler.cc
+        # pPlay supplies custom DeviceAuthNamespaceHandler in src/cast_service.cpp.
+        # ${OPENSCREEN_ROOT}/cast/receiver/channel/device_auth_namespace_handler.cc
         ${OPENSCREEN_ROOT}/cast/receiver/channel/receiver_socket_factory.cc
         ${OPENSCREEN_ROOT}/cast/standalone_receiver/cast_service.cc
         ${OPENSCREEN_ROOT}/cast/standalone_receiver/mirroring_application.cc
