@@ -769,10 +769,32 @@ namespace {
             return;
         } else {
             std::stringstream ss;
-            ss << interface.GetIpAddressV4();
-            std::string ip_str = ss.str();
+            ss << "[Network Interface Diagnostic]\n"
+               << "  - Name: " << interface.name << "\n"
+               << "  - Index: " << interface.index << "\n"
+               << "  - Type: ";
+            switch (interface.type) {
+                case InterfaceInfo::Type::kEthernet: ss << "Ethernet (LAN)"; break;
+                case InterfaceInfo::Type::kWifi:     ss << "Wi-Fi"; break;
+                case InterfaceInfo::Type::kLoopback: ss << "Loopback"; break;
+                default:                             ss << "Other/Unknown"; break;
+            }
+            ss << "\n";
             std::string mac_str = openscreen::HexEncode(interface.hardware_address);
-            log_info("Interface " + interfaceName + " IPv4: " + ip_str + " MAC: " + mac_str);
+            ss << "  - Hardware MAC: " << (mac_str.empty() ? "000000000000" : mac_str) << "\n";
+            ss << "  - Subnets Count: " << interface.addresses.size() << "\n";
+            int addr_index = 0;
+            for (const auto& subnet : interface.addresses) {
+                ss << "    [" << addr_index++ << "] IP: " << subnet.address();
+                ss << " /" << static_cast<int>(subnet.prefix());
+                if (subnet.address().IsV4()) {
+                    ss << " (IPv4)";
+                } else if (subnet.address().IsV6()) {
+                    ss << " (IPv6)";
+                }
+                ss << "\n";
+            }
+            log_info(ss.str());
         }
 
         log_info("Loading credentials..");
@@ -949,6 +971,41 @@ namespace {
     }
 
 } // namespace
+
+
+
+class PS4LogStreamer {
+public:
+    PS4LogStreamer() = default;
+    ~PS4LogStreamer() {
+        ::log_info("[OpenScreen] " + stream_.str());
+    }
+    template<typename T>
+    PS4LogStreamer& operator<<(const T& val) {
+        stream_ << val;
+        return *this;
+    }
+
+private:
+    std::stringstream stream_;
+};
+
+namespace openscreen {
+namespace internal {
+    class PS4Voidify {
+    public:
+        void operator&(const PS4LogStreamer&) {}
+    };
+}
+}
+#undef OSP_LOG_WARN
+#undef OSP_LOG_INFO
+#undef OSP_LOG_ERROR
+#undef OSP_CHECK
+#define OSP_LOG_WARN  PS4LogStreamer()
+#define OSP_LOG_INFO  PS4LogStreamer()
+#define OSP_LOG_ERROR PS4LogStreamer()
+#define OSP_CHECK(condition) if(!(condition)) PS4LogStreamer() << "CRITICAL CHECK FAILED: " #condition " "
 
 
 // ==================== MAIN CLASS ====================
