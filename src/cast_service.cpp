@@ -834,15 +834,18 @@ void runCastServiceOnThread(const std::string &interfaceName,
         if (EVP_PKEY_assign_RSA(private_key.get(), rsa.get()) != 1) {
             return Error(Error::Code::kParseError, "Failed to attach embedded private key");
         }
-
         const unsigned char* cert_ptr = auth_crt;
         std::unique_ptr<X509, decltype(&X509_free)> certificate(
             d2i_X509(nullptr, &cert_ptr, auth_crt_len), &X509_free);
         if (!certificate) {
             return Error(Error::Code::kParseError, "Failed to parse embedded certificate");
         }
-
-        return openscreen::cast::GenerateCredentials(deviceId, private_key.get(), certificate.get());
+        // return openscreen::cast::GenerateCredentials(deviceId, private_key.get(), certificate.get());
+        GeneratedCredentials creds;
+        creds.private_key.reset(private_key.release());
+        creds.cert.reset(certificate.release());
+        creds.device_id = deviceId;
+        return creds;
     };
 
     ErrorOr<GeneratedCredentials> creds = buildHardcodedCredentials();
