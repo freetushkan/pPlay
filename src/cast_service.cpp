@@ -888,8 +888,11 @@ namespace {
             config.device_uuid = deviceId;
             config.friendly_name = friendlyName;
             config.model_name = modelName;
-            config.enable_discovery = enableDiscovery;
-            config.enable_dscp = enableDscp;
+            // config.enable_discovery = enableDiscovery;
+            // config.enable_dscp = enableDscp;
+            // for test
+            config.enable_discovery = false;
+            config.enable_dscp = false;
             log_info("CastService obj conf srv.");
             service = std::make_unique<CastService>(std::move(config));
             log_info("CastService monolith successfully created.");
