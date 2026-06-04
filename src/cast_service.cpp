@@ -780,109 +780,140 @@ void runCastServiceOnThread(const std::string &interfaceName,
     using namespace std::chrono;
 
     InterfaceInfo interface = findInterfaceInfo(interfaceName);
-    if (!(interface.GetIpAddressV4() || interface.GetIpAddressV6())) {
+    if (!(interface.GetIpAddressV4())) {
         log_info("ERROR: No IP address on interface " + interfaceName);
         return;
-    }
-    if (interface.GetIpAddressV4()) {
+    } else {
         std::stringstream ss;
         ss << interface.GetIpAddressV4(); 
         log_info("Interface " + interfaceName + " IPv4: " + ss.str());
     }
-    if (interface.GetIpAddressV6()) {
-        std::stringstream ss;
-        ss << interface.GetIpAddressV6();
-        log_info("Interface " + interfaceName + " IPv6: " + ss.str());
-    }
-    auto buildHardcodedCredentials = [&]() -> ErrorOr<GeneratedCredentials> {
-        const unsigned char* key_ptr = pplay::cast::creds::kPeerKeyDer;
-        std::unique_ptr<RSA, decltype(&RSA_free)> rsa(
-            d2i_RSAPrivateKey(nullptr, &key_ptr, pplay::cast::creds::kPeerKeyDerLen),
-            &RSA_free);
-        if (!rsa) {
-            return Error(Error::Code::kParseError, "Failed to parse embedded TLS key");
-        }
 
-        bssl::UniquePtr<EVP_PKEY> tls_key(EVP_PKEY_new());
-        if (!tls_key || EVP_PKEY_set1_RSA(tls_key.get(), rsa.get()) != 1) {
-            return Error(Error::Code::kParseError, "Failed to import embedded TLS key");
-        }
-
-        constexpr auto kCertificateDuration = std::chrono::seconds(
-            pplay::cast::creds::kSignaturePeriodSeconds);
-        const auto now = GetWallTimeSinceUnixEpoch();
-        const auto startDate = std::chrono::seconds(
-            pplay::cast::creds::kSignatureStartUnixSeconds);
-        int64_t index = 0;
-        if (now > startDate) {
-            index = std::chrono::duration_cast<std::chrono::seconds>(now - startDate).count() /
-                    pplay::cast::creds::kSignaturePeriodSeconds;
-        }
-        const int64_t signatureCount = static_cast<int64_t>(
-            pplay::cast::creds::kSignaturesLen / pplay::cast::creds::kSignatureSize);
-        if (index < 0) index = 0;
-        if (index >= signatureCount) index = signatureCount - 1;
-        const auto certDate = startDate + std::chrono::seconds(
-            index * pplay::cast::creds::kSignaturePeriodSeconds);
-
-        ErrorOr<bssl::UniquePtr<X509>> tls_cert_or_error =
-            CreateSelfSignedX509Certificate(pplay::cast::creds::kTlsCertificateName,
-                                            kCertificateDuration, *tls_key, certDate);
-        if (!tls_cert_or_error.is_value()) {
-            return tls_cert_or_error.error();
-        }
-        bssl::UniquePtr<X509> tls_cert = std::move(tls_cert_or_error.value());
-
-        const RSA* rsa_key = EVP_PKEY_get0_RSA(tls_key.get());
-        size_t key_len = 0;
-        uint8_t* key_bytes = nullptr;
-        if (!RSA_private_key_to_bytes(&key_bytes, &key_len, rsa_key) || key_len == 0) {
-            return Error(Error::Code::kParseError, "Failed to serialize embedded TLS private key");
-        }
-        std::vector<uint8_t> tls_key_der(key_bytes, key_bytes + key_len);
-        std::free(key_bytes);
-
-        key_len = 0;
-        key_bytes = nullptr;
-        if (!RSA_public_key_to_bytes(&key_bytes, &key_len, rsa_key) || key_len == 0) {
-            return Error(Error::Code::kParseError, "Failed to serialize embedded TLS public key");
-        }
-        std::vector<uint8_t> tls_pub_der(key_bytes, key_bytes + key_len);
-        std::free(key_bytes);
-
-        int cert_len = i2d_X509(tls_cert.get(), nullptr);
-        if (cert_len <= 0) {
-            return Error(Error::Code::kParseError, "Failed to serialize embedded TLS certificate");
-        }
-        std::vector<uint8_t> tls_cert_der(static_cast<size_t>(cert_len));
-        uint8_t* cert_out = tls_cert_der.data();
-        i2d_X509(tls_cert.get(), &cert_out);
-
-        DeviceCredentials device_creds;
-        device_creds.certs.emplace_back(
-            reinterpret_cast<const char*>(pplay::cast::creds::kAuthCrt),
-            pplay::cast::creds::kAuthCrtLen);
-        device_creds.certs.emplace_back(
-            reinterpret_cast<const char*>(pplay::cast::creds::kIntermediateCrt),
-            pplay::cast::creds::kIntermediateCrtLen);
-
-        auto provider = std::make_unique<StaticCredentialsProvider>(
-            std::move(device_creds), tls_cert_der);
-        return GeneratedCredentials{
-            std::move(provider),
-            TlsCredentials{std::move(tls_key_der), std::move(tls_pub_der),
-                           std::move(tls_cert_der)},
-            std::vector<uint8_t>(pplay::cast::creds::kIntermediateCrt,
-                                 pplay::cast::creds::kIntermediateCrt +
-                                     pplay::cast::creds::kIntermediateCrtLen)};
-    };
-
-    ErrorOr<GeneratedCredentials> creds = buildHardcodedCredentials();
-    if (!creds.is_value()) {
-        log_info("Failed to build hardcoded credentials: " + creds.error().ToString());
+    log_info("Loading credentials..");
+    log_info("[Step 1/8] Starting embedded RSA private key parsing...");
+    const unsigned char* key_ptr = pplay::cast::creds::kPeerKeyDer;
+    std::unique_ptr<RSA, decltype(&RSA_free)> rsa(
+        d2i_RSAPrivateKey(nullptr, &key_ptr, pplay::cast::creds::kPeerKeyDerLen),
+        &RSA_free);
+    if (!rsa) {
+        log_info("Failed to build hardcoded credentials: [kParseError] Failed to parse embedded TLS key");
         return;
     }
+    log_info("[Step 1/8] Embedded RSA private key successfully parsed.");
+
+    log_info("[Step 2/8] Allocating EVP_PKEY context...");
+    bssl::UniquePtr<EVP_PKEY> tls_key(EVP_PKEY_new());
+    if (!tls_key) {
+        log_info("Failed to build hardcoded credentials: [kParseError] Failed to allocate EVP_PKEY structure");
+        return;
+    }
+    log_info("[Step 2/8] Assigning RSA key to EVP_PKEY context...");
+    if (EVP_PKEY_set1_RSA(tls_key.get(), rsa.get()) != 1) {
+        log_info("Failed to build hardcoded credentials: [kParseError] Failed to import embedded TLS key");
+        return;
+    }
+    log_info("[Step 2/8] EVP_PKEY context successfully built.");
+
+    log_info("[Step 3/8] Calculating certificate rotation timestamps...");
+    constexpr auto kCertificateDuration = std::chrono::seconds(
+        pplay::cast::creds::kSignaturePeriodSeconds);
+    const auto now = GetWallTimeSinceUnixEpoch();
+    const auto startDate = std::chrono::seconds(
+        pplay::cast::creds::kSignatureStartUnixSeconds);
+    int64_t index = 0;
+    if (now > startDate) {
+        index = std::chrono::duration_cast<std::chrono::seconds>(now - startDate).count() /
+                pplay::cast::creds::kSignaturePeriodSeconds;
+    }
+    const int64_t signatureCount = static_cast<int64_t>(
+        pplay::cast::creds::kSignaturesLen / pplay::cast::creds::kSignatureSize);
+    if (index < 0) index = 0;
+    if (index >= signatureCount) index = signatureCount - 1;
+    const auto certDate = startDate + std::chrono::seconds(
+        index * pplay::cast::creds::kSignaturePeriodSeconds);
+    log_info("[Step 3/8] Timestamps calculated. Index selected: " + std::to_string(index));
+
+    log_info("[Step 4/8] Generating self-signed X509 certificate in memory...");
+    ErrorOr<bssl::UniquePtr<X509>> tls_cert_or_error =
+        CreateSelfSignedX509Certificate(pplay::cast::creds::kTlsCertificateName,
+                                        kCertificateDuration, *tls_key, certDate);
+    if (!tls_cert_or_error.is_value()) {
+        log_info("Failed to build hardcoded credentials: " + tls_cert_or_error.error().ToString());
+        return;
+    }
+    bssl::UniquePtr<X509> tls_cert = std::move(tls_cert_or_error.value());
+    if (!tls_cert) {
+        log_info("Failed to build hardcoded credentials: Self-signed X509 returned null pointer");
+        return;
+    }
+    log_info("[Step 4/8] Self-signed X509 certificate successfully generated.");
+
+    log_info("[Step 5/8] Extracting RSA handle and serializing private key to DER...");
+    const RSA* rsa_key = EVP_PKEY_get0_RSA(tls_key.get());
+    if (!rsa_key) {
+        log_info("Failed to build hardcoded credentials: EVP_PKEY_get0_RSA returned null pointer");
+        return;
+    }
+    size_t key_len = 0;
+    uint8_t* key_bytes = nullptr;
+    if (!RSA_private_key_to_bytes(&key_bytes, &key_len, rsa_key) || key_len == 0) {
+        log_info("Failed to build hardcoded credentials: [kParseError] Failed to serialize embedded TLS private key");
+        return;
+    }
+    std::vector<uint8_t> tls_key_der(key_bytes, key_bytes + key_len);
+    std::free(key_bytes);
+    log_info("[Step 5/8] Private key serialized. Size: " + std::to_string(key_len) + " bytes.");
+
+    log_info("[Step 6/8] Serializing public key to DER...");
+    key_len = 0;
+    key_bytes = nullptr;
+    if (!RSA_public_key_to_bytes(&key_bytes, &key_len, rsa_key) || key_len == 0) {
+        log_info("Failed to build hardcoded credentials: [kParseError] Failed to serialize embedded TLS public key");
+        return;
+    }
+    std::vector<uint8_t> tls_pub_der(key_bytes, key_bytes + key_len);
+    std::free(key_bytes);
+    log_info("[Step 6/8] Public key serialized. Size: " + std::to_string(key_len) + " bytes.");
+
+    log_info("[Step 7/8] Determining X509 certificate DER buffer size...");
+    int cert_len = i2d_X509(tls_cert.get(), nullptr);
+    if (cert_len <= 0) {
+        log_info("Failed to build hardcoded credentials: [kParseError] Failed to serialize embedded TLS certificate (invalid len)");
+        return;
+    }
+    log_info("[Step 7/8] Allocating DER buffer and performing i2d_X509...");
+    std::vector<uint8_t> tls_cert_der(static_cast<size_t>(cert_len));
+    uint8_t* cert_out = tls_cert_der.data();
+    i2d_X509(tls_cert.get(), &cert_out);
+    log_info("[Step 7/8] X509 certificate serialized. Size: " + std::to_string(cert_len) + " bytes.");
+
+    log_info("[Step 8/8] populating DeviceCredentials certificate chain...");
+    DeviceCredentials device_creds;
+    device_creds.certs.emplace_back(
+        reinterpret_cast<const char*>(pplay::cast::creds::kAuthCrt),
+        pplay::cast::creds::kAuthCrtLen);
+    device_creds.certs.emplace_back(
+        reinterpret_cast<const char*>(pplay::cast::creds::kIntermediateCrt),
+        pplay::cast::creds::kIntermediateCrtLen);
+
+    log_info("[Step 8/8] Allocating StaticCredentialsProvider...");
+    auto provider = std::make_unique<StaticCredentialsProvider>(
+        std::move(device_creds), tls_cert_der);
+    if (!provider) {
+        log_info("Failed to build hardcoded credentials: Failed to allocate StaticCredentialsProvider");
+        return;
+    }
+
+    log_info("[Step 8/8] Constructing final GeneratedCredentials monolith...");
+    GeneratedCredentials creds{
+        std::move(provider),
+        TlsCredentials{std::move(tls_key_der), std::move(tls_pub_der),
+                       std::move(tls_cert_der)},
+        std::vector<uint8_t>(pplay::cast::creds::kIntermediateCrt,
+                             pplay::cast::creds::kIntermediateCrt +
+                                 pplay::cast::creds::kIntermediateCrtLen)};
     log_info("Credentials loaded");
+
     auto *task_runner = new TaskRunnerImpl(&Clock::now);
     PlatformClientPosix::Create(milliseconds(50), std::unique_ptr<TaskRunnerImpl>(task_runner));
     std::unique_ptr<CastService> service;
