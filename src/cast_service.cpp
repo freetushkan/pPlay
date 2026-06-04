@@ -411,7 +411,8 @@ namespace openscreen {
 namespace google {
     namespace protobuf {
         bool MessageLite::ParseFromString(std::string_view input) {
-            return ParseFromString(std::string(input.data(), input.size()));
+            io::ArrayInputStream array_input(input.data(), static_cast<int>(input.size()));
+            return ParsePartialFromZeroCopyStream(&array_input);
         }
         bool MessageLite::SerializeToString(std::string* output) const {
             return AppendToString(output);
@@ -423,9 +424,6 @@ namespace google {
 using namespace pplay;
 
 
-// AirReceiver-compatible discovery needs to replay the public Google-signed
-// device certificate chain and the matching two-day precomputed signature
-// for the deterministic TLS certificate instead.
 namespace openscreen {
 namespace cast {
 
@@ -434,10 +432,6 @@ namespace {
 using openscreen::cast::proto::AuthError;
 using openscreen::cast::proto::CastMessage;
 using openscreen::cast::proto::DeviceAuthMessage;
-// using openscreen::cast::proto::AuthChallenge;
-// using openscreen::cast::proto::AuthResponse;
-// using openscreen::cast::proto::HashAlgorithm;
-// using openscreen::cast::proto::SignatureAlgorithm;
 
 CastMessage GenerateAuthErrorMessage(AuthError::ErrorType error_type) {
     DeviceAuthMessage message;
@@ -922,7 +916,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
         service = std::make_unique<CastService>(CastService::Configuration{
             *task_runner,
             interface,
-            std::move(creds.value()),
+            std::move(creds),
             deviceId,
             friendlyName,
             modelName,
