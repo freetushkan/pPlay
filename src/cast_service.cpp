@@ -499,9 +499,9 @@ void DeviceAuthNamespaceHandler::OnMessage(VirtualConnectionRouter* router,
 
     const VirtualConnection virtual_conn{
         message.destination_id(), message.source_id(), socket->socket_id()};
-    const AuthChallenge& challenge = device_auth_message.challenge();
-    const SignatureAlgorithm sig_alg = challenge.signature_algorithm();
-    const HashAlgorithm hash_alg = challenge.hash_algorithm();
+    const proto::AuthChallenge& challenge = device_auth_message.challenge();
+    const proto::SignatureAlgorithm sig_alg = challenge.signature_algorithm();
+    const proto::HashAlgorithm hash_alg = challenge.hash_algorithm();
 
     if ((sig_alg != proto::UNSPECIFIED &&
          sig_alg != proto::RSASSA_PKCS1v15) ||
@@ -518,7 +518,7 @@ void DeviceAuthNamespaceHandler::OnMessage(VirtualConnectionRouter* router,
         return;
     }
 
-    std::unique_ptr<AuthResponse> auth_response(new AuthResponse());
+    std::unique_ptr<proto::AuthResponse> auth_response(new proto::AuthResponse());
     auth_response->set_client_auth_certificate(std::string(
         reinterpret_cast<const char*>(pplay::cast::creds::kAuthCrt),
         pplay::cast::creds::kAuthCrtLen));
