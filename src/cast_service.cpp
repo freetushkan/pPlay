@@ -352,9 +352,9 @@ namespace openscreen {
         std::vector<InterfaceInfo> ProcessInterfacesList(ifaddrs* interfaces) {
             std::vector<InterfaceInfo> results;
             for (ifaddrs* cur = interfaces; cur; cur = cur->ifa_next) {
-                if (!(IFF_RUNNING & cur->ifa_flags) || !cur->ifa_addr) { continue; }
-                if (cur->ifa_addr->sa_family != AF_INET) { continue; }
-                const std::string name = cur->ifa_name;
+                if (!cur->ifa_addr) continue;
+                if (cur->ifa_addr->sa_family != AF_INET) continue;
+                const std::string name = cur->ifa_name ? cur->ifa_name : "sce_net0";
                 auto it = std::find_if(results.begin(), results.end(),
                     [&name](const InterfaceInfo& info) { return info.name == name; });
                 InterfaceInfo* interface;
@@ -367,12 +367,12 @@ namespace openscreen {
                     } else if (cur->ifa_flags & IFF_LOOPBACK) {
                         type = InterfaceInfo::Type::kLoopback;
                     } else {
-                        continue;
+                        type = InterfaceInfo::Type::kEthernet;
                     }
-                    uint8_t hardware_address[6] = {0, 0, 0, 0, 0, 0};
+                    uint8_t hardware_address[6] = {0x00, 0x01, 0x4A, 0xBB, 0xCC, 0xDD};
                     GetHardwareAddress(name, hardware_address);
-                    results.emplace_back(if_nametoindex(cur->ifa_name),
-                                        hardware_address, name, type,
+                    int if_index = (name == "sce_net1") ? 2 : 1;
+                    results.emplace_back(if_index, hardware_address, name, type,
                                         std::vector<IPSubnet>());
                     interface = &(results.back());
                 } else {
@@ -874,7 +874,7 @@ namespace {
 
         auto *task_runner = new TaskRunnerImpl(&Clock::now);
         PlatformClientPosix::Create(milliseconds(50), std::unique_ptr<TaskRunnerImpl>(task_runner));
-        log_info("ChromecastService: Creating CastService monolith directly in memory...");
+        log_info("Creating CastService monolith directly in memory...");
         std::unique_ptr<CastService> service;
         try {
             service = std::make_unique<CastService>(CastService::Configuration{
@@ -887,7 +887,7 @@ namespace {
                 enableDiscovery,
                 enableDscp,
             });
-            log_info("ChromecastService: CastService monolith successfully created.");
+            log_info("CastService monolith successfully created.");
         } catch (...) {
             log_info("ERROR: Exception thrown during CastService constructor!");
             return;
