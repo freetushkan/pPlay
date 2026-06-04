@@ -896,12 +896,17 @@ namespace {
         }
         log_info("CastService is running on interface " + interfaceName);
         task_runner->RunUntilStopped();
-        task_runner->PostTask([&] {
+        log_info("Thread received stop signal, starting clean shutdown...");
+        if (service) {
             service.reset();
-            task_runner->RequestStopSoon();
-        });
-        task_runner->RunUntilStopped();
-        PlatformClientPosix::ShutDown();
+            log_info("Cast service monolith successfully reset.");
+        }
+        try {
+            openscreen::PlatformClientPosix::ShutDown();
+            log_info("PlatformClientPosix successfully shutdown.");
+        } catch (...) {
+            log_info("Warning - platform shutdown threw an exception");
+        }
         {
             std::lock_guard<std::mutex> lock(g_receiverRuntime.mutex);
             g_receiverRuntime.runner = nullptr;
