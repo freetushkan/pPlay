@@ -431,13 +431,13 @@ namespace cast {
 
 namespace {
 
-using openscreen::cast::channel::AuthChallenge;
-using openscreen::cast::channel::AuthError;
-using openscreen::cast::channel::AuthResponse;
-using openscreen::cast::channel::CastMessage;
-using openscreen::cast::channel::DeviceAuthMessage;
-using openscreen::cast::channel::HashAlgorithm;
-using openscreen::cast::channel::SignatureAlgorithm;
+using openscreen::cast::proto::AuthChallenge;
+using openscreen::cast::proto::AuthError;
+using openscreen::cast::proto::AuthResponse;
+using openscreen::cast::proto::CastMessage;
+using openscreen::cast::proto::DeviceAuthMessage;
+using openscreen::cast::proto::HashAlgorithm;
+using openscreen::cast::proto::SignatureAlgorithm;
 
 CastMessage GenerateAuthErrorMessage(AuthError::ErrorType error_type) {
     DeviceAuthMessage message;
@@ -448,9 +448,9 @@ CastMessage GenerateAuthErrorMessage(AuthError::ErrorType error_type) {
     message.SerializeToString(&payload);
 
     CastMessage response;
-    response.set_protocol_version(openscreen::cast::channel::CastMessage_ProtocolVersion_CASTV2_1_0);
+    response.set_protocol_version(openscreen::cast::proto::CastMessage_ProtocolVersion_CASTV2_1_0);
     response.set_namespace_(kAuthNamespace);
-    response.set_payload_type(openscreen::cast::channel::CastMessage_PayloadType_BINARY);
+    response.set_payload_type(openscreen::cast::proto::CastMessage_PayloadType_BINARY);
     response.set_payload_binary(std::move(payload));
     return response;
 }
@@ -483,10 +483,8 @@ DeviceAuthNamespaceHandler::~DeviceAuthNamespaceHandler() = default;
 void DeviceAuthNamespaceHandler::OnMessage(VirtualConnectionRouter* router,
                                            CastSocket* socket,
                                            CastMessage message) {
-    if (!socket || !creds_provider_) {
-        return;
-    }
-    if (message.payload_type() != openscreen::cast::channel::CastMessage_PayloadType_BINARY) {
+    if (!socket) return;
+    if (message.payload_type() != openscreen::cast::proto::CastMessage_PayloadType_BINARY) {
         return;
     }
 
@@ -505,9 +503,9 @@ void DeviceAuthNamespaceHandler::OnMessage(VirtualConnectionRouter* router,
     const SignatureAlgorithm sig_alg = challenge.signature_algorithm();
     const HashAlgorithm hash_alg = challenge.hash_algorithm();
 
-    if ((sig_alg != openscreen::cast::channel::UNSPECIFIED &&
-         sig_alg != openscreen::cast::channel::RSASSA_PKCS1v15) ||
-        (hash_alg != openscreen::cast::channel::SHA1 && hash_alg != openscreen::cast::channel::SHA256)) {
+    if ((sig_alg != proto::UNSPECIFIED &&
+         sig_alg != proto::RSASSA_PKCS1v15) ||
+        (hash_alg != proto::SHA1 && hash_alg != proto::SHA256)) {
         router->Send(virtual_conn,
                      GenerateAuthErrorMessage(AuthError::SIGNATURE_ALGORITHM_UNAVAILABLE));
         return;
@@ -527,7 +525,7 @@ void DeviceAuthNamespaceHandler::OnMessage(VirtualConnectionRouter* router,
     auth_response->add_intermediate_certificate(std::string(
         reinterpret_cast<const char*>(pplay::cast::creds::kIntermediateCrt),
         pplay::cast::creds::kIntermediateCrtLen));
-    auth_response->set_signature_algorithm(openscreen::cast::channel::RSASSA_PKCS1v15);
+    auth_response->set_signature_algorithm(proto::RSASSA_PKCS1v15);
     auth_response->set_hash_algorithm(hash_alg);
     auth_response->set_crl(device_creds.serialized_crl);
 
@@ -542,10 +540,10 @@ void DeviceAuthNamespaceHandler::OnMessage(VirtualConnectionRouter* router,
     std::string response_string;
     response_auth_message.SerializeToString(&response_string);
 
-    CastMessage response;
-    response.set_protocol_version(openscreen::cast::channel::CastMessage_ProtocolVersion_CASTV2_1_0);
+    proto::CastMessage response;
+    response.set_protocol_version(proto::CastMessage_ProtocolVersion_CASTV2_1_0);
     response.set_namespace_(kAuthNamespace);
-    response.set_payload_type(openscreen::cast::channel::CastMessage_PayloadType_BINARY);
+    response.set_payload_type(proto::CastMessage_PayloadType_BINARY);
     response.set_payload_binary(std::move(response_string));
 
     router->Send(virtual_conn, std::move(response));
@@ -842,7 +840,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
             return Error(Error::Code::kParseError, "Failed to serialize embedded TLS private key");
         }
         std::vector<uint8_t> tls_key_der(key_bytes, key_bytes + key_len);
-        OPENSSL_free(key_bytes);
+        std::free(key_bytes);
 
         key_len = 0;
         key_bytes = nullptr;
@@ -850,7 +848,7 @@ void runCastServiceOnThread(const std::string &interfaceName,
             return Error(Error::Code::kParseError, "Failed to serialize embedded TLS public key");
         }
         std::vector<uint8_t> tls_pub_der(key_bytes, key_bytes + key_len);
-        OPENSSL_free(key_bytes);
+        std::free(key_bytes);
 
         int cert_len = i2d_X509(tls_cert.get(), nullptr);
         if (cert_len <= 0) {
