@@ -511,8 +511,8 @@ void DeviceAuthNamespaceHandler::OnMessage(VirtualConnectionRouter* router,
         return;
     }
 
-    const auto tls_cert_der = creds_provider_->GetCurrentTlsCertAsDer();
-    const DeviceCredentials& device_creds = creds_provider_->GetCurrentDeviceCredentials();
+    const auto tls_cert_der = creds_provider_.GetCurrentTlsCertAsDer();
+    const DeviceCredentials& device_creds = creds_provider_.GetCurrentDeviceCredentials();
     if (tls_cert_der.empty() || device_creds.certs.empty()) {
         router->Send(virtual_conn, GenerateAuthErrorMessage(AuthError::INTERNAL_ERROR));
         return;
