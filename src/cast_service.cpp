@@ -405,6 +405,7 @@ namespace openscreen {
 
 
 #include <google/protobuf/message_lite.h>
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 #include <string_view>
 #include <string>
 
@@ -417,7 +418,6 @@ namespace google {
         bool MessageLite::SerializeToString(std::string* output) const {
             return AppendToString(output);
         }
-
     }  // namespace protobuf
 }  // namespace google
 
@@ -425,538 +425,513 @@ using namespace pplay;
 
 
 namespace openscreen {
-namespace cast {
+    namespace cast {
+        namespace {
+            using openscreen::cast::proto::AuthError;
+            using openscreen::cast::proto::CastMessage;
+            using openscreen::cast::proto::DeviceAuthMessage;
 
-namespace {
+            CastMessage GenerateAuthErrorMessage(AuthError::ErrorType error_type) {
+                DeviceAuthMessage message;
+                AuthError* error = message.mutable_error();
+                error->set_error_type(error_type);
 
-using openscreen::cast::proto::AuthError;
-using openscreen::cast::proto::CastMessage;
-using openscreen::cast::proto::DeviceAuthMessage;
+                std::string payload;
+                message.SerializeToString(&payload);
 
-CastMessage GenerateAuthErrorMessage(AuthError::ErrorType error_type) {
-    DeviceAuthMessage message;
-    AuthError* error = message.mutable_error();
-    error->set_error_type(error_type);
+                CastMessage response;
+                response.set_protocol_version(openscreen::cast::proto::CastMessage_ProtocolVersion_CASTV2_1_0);
+                response.set_namespace_(kAuthNamespace);
+                response.set_payload_type(openscreen::cast::proto::CastMessage_PayloadType_BINARY);
+                response.set_payload_binary(std::move(payload));
+                return response;
+            }
 
-    std::string payload;
-    message.SerializeToString(&payload);
+            std::size_t CurrentCredsSignatureOffset() {
+                using namespace std::chrono;
+                const auto now = GetWallTimeSinceUnixEpoch();
+                const auto start = seconds(pplay::cast::creds::kSignatureStartUnixSeconds);
+                int64_t index = 0;
+                if (now > start) {
+                    index = duration_cast<seconds>(now - start).count() /
+                            pplay::cast::creds::kSignaturePeriodSeconds;
+                }
+                const int64_t signature_count = static_cast<int64_t>(
+                    pplay::cast::creds::kSignaturesLen / pplay::cast::creds::kSignatureSize);
+                if (index < 0) index = 0;
+                if (index >= signature_count) index = signature_count - 1;
+                return static_cast<std::size_t>(index) * pplay::cast::creds::kSignatureSize;
+            }
+        }  // namespace
 
-    CastMessage response;
-    response.set_protocol_version(openscreen::cast::proto::CastMessage_ProtocolVersion_CASTV2_1_0);
-    response.set_namespace_(kAuthNamespace);
-    response.set_payload_type(openscreen::cast::proto::CastMessage_PayloadType_BINARY);
-    response.set_payload_binary(std::move(payload));
-    return response;
-}
+        DeviceAuthNamespaceHandler::CredentialsProvider::~CredentialsProvider() = default;
 
-std::size_t CurrentCredsSignatureOffset() {
-    using namespace std::chrono;
-    const auto now = GetWallTimeSinceUnixEpoch();
-    const auto start = seconds(pplay::cast::creds::kSignatureStartUnixSeconds);
-    int64_t index = 0;
-    if (now > start) {
-        index = duration_cast<seconds>(now - start).count() /
-                pplay::cast::creds::kSignaturePeriodSeconds;
-    }
-    const int64_t signature_count = static_cast<int64_t>(
-        pplay::cast::creds::kSignaturesLen / pplay::cast::creds::kSignatureSize);
-    if (index < 0) index = 0;
-    if (index >= signature_count) index = signature_count - 1;
-    return static_cast<std::size_t>(index) * pplay::cast::creds::kSignatureSize;
-}
+        DeviceAuthNamespaceHandler::DeviceAuthNamespaceHandler(CredentialsProvider& creds_provider)
+            : creds_provider_(creds_provider) {}
 
-}  // namespace
+        DeviceAuthNamespaceHandler::~DeviceAuthNamespaceHandler() = default;
 
-DeviceAuthNamespaceHandler::CredentialsProvider::~CredentialsProvider() = default;
+        void DeviceAuthNamespaceHandler::OnMessage(VirtualConnectionRouter* router,
+                                                CastSocket* socket,
+                                                CastMessage message) {
+            if (!socket) return;
+            if (message.payload_type() != openscreen::cast::proto::CastMessage_PayloadType_BINARY) {
+                return;
+            }
 
-DeviceAuthNamespaceHandler::DeviceAuthNamespaceHandler(CredentialsProvider& creds_provider)
-    : creds_provider_(creds_provider) {}
+            const std::string& payload = message.payload_binary();
+            DeviceAuthMessage device_auth_message;
+            if (!device_auth_message.ParseFromString(payload) ||
+                !device_auth_message.has_challenge() ||
+                device_auth_message.has_response() ||
+                device_auth_message.has_error()) {
+                return;
+            }
 
-DeviceAuthNamespaceHandler::~DeviceAuthNamespaceHandler() = default;
+            const VirtualConnection virtual_conn{
+                message.destination_id(), message.source_id(), socket->socket_id()};
+            const proto::AuthChallenge& challenge = device_auth_message.challenge();
+            const proto::SignatureAlgorithm sig_alg = challenge.signature_algorithm();
+            const proto::HashAlgorithm hash_alg = challenge.hash_algorithm();
 
-void DeviceAuthNamespaceHandler::OnMessage(VirtualConnectionRouter* router,
-                                           CastSocket* socket,
-                                           CastMessage message) {
-    if (!socket) return;
-    if (message.payload_type() != openscreen::cast::proto::CastMessage_PayloadType_BINARY) {
-        return;
-    }
+            if ((sig_alg != proto::UNSPECIFIED &&
+                sig_alg != proto::RSASSA_PKCS1v15) ||
+                (hash_alg != proto::SHA1 && hash_alg != proto::SHA256)) {
+                router->Send(virtual_conn,
+                            GenerateAuthErrorMessage(AuthError::SIGNATURE_ALGORITHM_UNAVAILABLE));
+                return;
+            }
 
-    const std::string& payload = message.payload_binary();
-    DeviceAuthMessage device_auth_message;
-    if (!device_auth_message.ParseFromString(payload) ||
-        !device_auth_message.has_challenge() ||
-        device_auth_message.has_response() ||
-        device_auth_message.has_error()) {
-        return;
-    }
+            const auto tls_cert_der = creds_provider_.GetCurrentTlsCertAsDer();
+            const DeviceCredentials& device_creds = creds_provider_.GetCurrentDeviceCredentials();
+            if (tls_cert_der.empty() || device_creds.certs.empty()) {
+                router->Send(virtual_conn, GenerateAuthErrorMessage(AuthError::INTERNAL_ERROR));
+                return;
+            }
 
-    const VirtualConnection virtual_conn{
-        message.destination_id(), message.source_id(), socket->socket_id()};
-    const proto::AuthChallenge& challenge = device_auth_message.challenge();
-    const proto::SignatureAlgorithm sig_alg = challenge.signature_algorithm();
-    const proto::HashAlgorithm hash_alg = challenge.hash_algorithm();
+            std::unique_ptr<proto::AuthResponse> auth_response(new proto::AuthResponse());
+            auth_response->set_client_auth_certificate(std::string(
+                reinterpret_cast<const char*>(pplay::cast::creds::kAuthCrt),
+                pplay::cast::creds::kAuthCrtLen));
+            auth_response->add_intermediate_certificate(std::string(
+                reinterpret_cast<const char*>(pplay::cast::creds::kIntermediateCrt),
+                pplay::cast::creds::kIntermediateCrtLen));
+            auth_response->set_signature_algorithm(proto::RSASSA_PKCS1v15);
+            auth_response->set_hash_algorithm(hash_alg);
+            auth_response->set_crl(device_creds.serialized_crl);
 
-    if ((sig_alg != proto::UNSPECIFIED &&
-         sig_alg != proto::RSASSA_PKCS1v15) ||
-        (hash_alg != proto::SHA1 && hash_alg != proto::SHA256)) {
-        router->Send(virtual_conn,
-                     GenerateAuthErrorMessage(AuthError::SIGNATURE_ALGORITHM_UNAVAILABLE));
-        return;
-    }
+            const std::size_t offset = CurrentCredsSignatureOffset();
+            auth_response->set_signature(std::string(
+                reinterpret_cast<const char*>(&pplay::cast::creds::kSignatures[offset]),
+                pplay::cast::creds::kSignatureSize));
 
-    const auto tls_cert_der = creds_provider_.GetCurrentTlsCertAsDer();
-    const DeviceCredentials& device_creds = creds_provider_.GetCurrentDeviceCredentials();
-    if (tls_cert_der.empty() || device_creds.certs.empty()) {
-        router->Send(virtual_conn, GenerateAuthErrorMessage(AuthError::INTERNAL_ERROR));
-        return;
-    }
+            DeviceAuthMessage response_auth_message;
+            response_auth_message.set_allocated_response(auth_response.release());
 
-    std::unique_ptr<proto::AuthResponse> auth_response(new proto::AuthResponse());
-    auth_response->set_client_auth_certificate(std::string(
-        reinterpret_cast<const char*>(pplay::cast::creds::kAuthCrt),
-        pplay::cast::creds::kAuthCrtLen));
-    auth_response->add_intermediate_certificate(std::string(
-        reinterpret_cast<const char*>(pplay::cast::creds::kIntermediateCrt),
-        pplay::cast::creds::kIntermediateCrtLen));
-    auth_response->set_signature_algorithm(proto::RSASSA_PKCS1v15);
-    auth_response->set_hash_algorithm(hash_alg);
-    auth_response->set_crl(device_creds.serialized_crl);
+            std::string response_string;
+            response_auth_message.SerializeToString(&response_string);
 
-    const std::size_t offset = CurrentCredsSignatureOffset();
-    auth_response->set_signature(std::string(
-        reinterpret_cast<const char*>(&pplay::cast::creds::kSignatures[offset]),
-        pplay::cast::creds::kSignatureSize));
+            proto::CastMessage response;
+            response.set_protocol_version(proto::CastMessage_ProtocolVersion_CASTV2_1_0);
+            response.set_namespace_(kAuthNamespace);
+            response.set_payload_type(proto::CastMessage_PayloadType_BINARY);
+            response.set_payload_binary(std::move(response_string));
 
-    DeviceAuthMessage response_auth_message;
-    response_auth_message.set_allocated_response(auth_response.release());
+            router->Send(virtual_conn, std::move(response));
+        }
 
-    std::string response_string;
-    response_auth_message.SerializeToString(&response_string);
-
-    proto::CastMessage response;
-    response.set_protocol_version(proto::CastMessage_ProtocolVersion_CASTV2_1_0);
-    response.set_namespace_(kAuthNamespace);
-    response.set_payload_type(proto::CastMessage_PayloadType_BINARY);
-    response.set_payload_binary(std::move(response_string));
-
-    router->Send(virtual_conn, std::move(response));
-}
-
-}  // namespace cast
+    }  // namespace cast
 }  // namespace openscreen
 
 namespace {
 
-using openscreen::cast::CastService;
-using openscreen::cast::GeneratedCredentials;
-using openscreen::InterfaceInfo;
-using openscreen::cast::StaticCredentialsProvider;
-using openscreen::cast::GenerateCredentials;
-using openscreen::cast::GenerateCredentialsForTesting;
-using openscreen::GetNetworkInterfaces;
-using openscreen::TaskRunnerImpl;
-using openscreen::PlatformClientPosix;
+    using openscreen::cast::CastService;
+    using openscreen::cast::GeneratedCredentials;
+    using openscreen::InterfaceInfo;
+    using openscreen::cast::StaticCredentialsProvider;
+    using openscreen::cast::GenerateCredentials;
+    using openscreen::cast::GenerateCredentialsForTesting;
+    using openscreen::GetNetworkInterfaces;
+    using openscreen::TaskRunnerImpl;
+    using openscreen::PlatformClientPosix;
 
-
-// Credential bytes live in cast_creds_data.h.
-
-// ==================== HELPER FUNCTIONS ====================
-
-void log_info(const std::string &message) {
-    Utility::log(Utility::LogLevel::Info, "CastService: " + message);
-}
-
-void closeSocket(int fd) {
-    if (fd >= 0) close(fd);
-}
-
-bool setReuseAddr(int fd) {
-    int yes = 1;
-    return setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == 0;
-}
-
-bool setNonBlocking(int fd) {
-    int flags = fcntl(fd, F_GETFL, 0);
-    return flags >= 0 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0;
-}
-
-std::string lower(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(),
-        [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
-    return value;
-}
-
-std::string urlDecode(const std::string &value) {
-    std::string out;
-    out.reserve(value.size());
-    for (size_t i = 0; i < value.size(); i++) {
-        if (value[i] == '%' && i + 2 < value.size()) {
-            char hex[3] = {value[i + 1], value[i + 2], 0};
-            char *end = nullptr;
-            long decoded = std::strtol(hex, &end, 16);
-            if (end && *end == 0) {
-                out.push_back(static_cast<char>(decoded));
-                i += 2;
-                continue;
+    // ==================== HELPER FUNCTIONS ====================
+    void log_info(const std::string &message) {
+        Utility::log(Utility::LogLevel::Info, "CastService: " + message);
+    }
+    void closeSocket(int fd) {
+        if (fd >= 0) close(fd);
+    }
+    bool setReuseAddr(int fd) {
+        int yes = 1;
+        return setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) == 0;
+    }
+    bool setNonBlocking(int fd) {
+        int flags = fcntl(fd, F_GETFL, 0);
+        return flags >= 0 && fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0;
+    }
+    std::string lower(std::string value) {
+        std::transform(value.begin(), value.end(), value.begin(),
+            [](unsigned char c){ return static_cast<char>(std::tolower(c)); });
+        return value;
+    }
+    std::string urlDecode(const std::string &value) {
+        std::string out;
+        out.reserve(value.size());
+        for (size_t i = 0; i < value.size(); i++) {
+            if (value[i] == '%' && i + 2 < value.size()) {
+                char hex[3] = {value[i + 1], value[i + 2], 0};
+                char *end = nullptr;
+                long decoded = std::strtol(hex, &end, 16);
+                if (end && *end == 0) {
+                    out.push_back(static_cast<char>(decoded));
+                    i += 2;
+                    continue;
+                }
+            }
+            out.push_back(value[i] == '+' ? ' ' : value[i]);
+        }
+        return out;
+    }
+    std::string queryParam(const std::string &target, const std::string &name) {
+        size_t question = target.find('?');
+        if (question == std::string::npos) return "";
+        std::string query = target.substr(question + 1);
+        size_t start = 0;
+        while (start <= query.size()) {
+            size_t amp = query.find('&', start);
+            std::string part = query.substr(start, amp == std::string::npos ? std::string::npos : amp - start);
+            size_t eq = part.find('=');
+            std::string key = urlDecode(part.substr(0, eq));
+            if (key == name) {
+                return urlDecode(eq == std::string::npos ? "" : part.substr(eq + 1));
+            }
+            if (amp == std::string::npos) break;
+            start = amp + 1;
+        }
+        return "";
+    }
+    std::string xmlEscape(const std::string &value) {
+        std::string out;
+        out.reserve(value.size());
+        for (char ch: value) {
+            switch (ch) {
+                case '&': out += "&amp;"; break;
+                case '<': out += "&lt;"; break;
+                case '>': out += "&gt;"; break;
+                case '"': out += "&quot;"; break;
+                default: out.push_back(ch); break;
             }
         }
-        out.push_back(value[i] == '+' ? ' ' : value[i]);
+        return out;
     }
-    return out;
-}
-
-std::string queryParam(const std::string &target, const std::string &name) {
-    size_t question = target.find('?');
-    if (question == std::string::npos) return "";
-    std::string query = target.substr(question + 1);
-    size_t start = 0;
-    while (start <= query.size()) {
-        size_t amp = query.find('&', start);
-        std::string part = query.substr(start, amp == std::string::npos ? std::string::npos : amp - start);
-        size_t eq = part.find('=');
-        std::string key = urlDecode(part.substr(0, eq));
-        if (key == name) {
-            return urlDecode(eq == std::string::npos ? "" : part.substr(eq + 1));
+    std::string jsonEscape(const std::string &value) {
+        std::string out;
+        out.reserve(value.size());
+        for (char ch: value) {
+            switch (ch) {
+                case '\\': out += "\\\\"; break;
+                case '"': out += "\\\""; break;
+                case '\n': out += "\\n"; break;
+                case '\r': out += "\\r"; break;
+                case '\t': out += "\\t"; break;
+                default: out.push_back(ch); break;
+            }
         }
-        if (amp == std::string::npos) break;
-        start = amp + 1;
+        return out;
     }
-    return "";
-}
-
-std::string xmlEscape(const std::string &value) {
-    std::string out;
-    out.reserve(value.size());
-    for (char ch: value) {
-        switch (ch) {
-            case '&': out += "&amp;"; break;
-            case '<': out += "&lt;"; break;
-            case '>': out += "&gt;"; break;
-            case '"': out += "&quot;"; break;
-            default: out.push_back(ch); break;
+    std::string httpResponse(const std::string &body, const std::string &contentType,
+                                const std::string &extraHeaders = "") {
+        std::ostringstream ss;
+        ss << "HTTP/1.1 200 OK\r\n"
+            << "Content-Type: " << contentType << "\r\n"
+            << "Content-Length: " << body.size() << "\r\n"
+            << "Access-Control-Allow-Origin: *\r\n"
+            << extraHeaders
+            << "Connection: close\r\n\r\n"
+            << body;
+        return ss.str();
+    }
+    std::string notFoundResponse() {
+        std::string body = "Not found";
+        std::ostringstream ss;
+        ss << "HTTP/1.1 404 Not Found\r\nContent-Length: " << body.size()
+            << "\r\nConnection: close\r\n\r\n" << body;
+        return ss.str();
+    }
+    std::string okTextResponse(const std::string &body = "OK") {
+        return httpResponse(body, "text/plain; charset=utf-8");
+    }
+    std::string headerValue(const std::string &request, const std::string &header) {
+        std::string needle = lower(header) + ":";
+        std::istringstream stream(request);
+        std::string line;
+        while (std::getline(stream, line)) {
+            if (!line.empty() && line.back() == '\r') line.pop_back();
+            std::string low = lower(line);
+            if (low.rfind(needle, 0) == 0) {
+                std::string value = line.substr(needle.size());
+                while (!value.empty() && value.front() == ' ') value.erase(value.begin());
+                return value;
+            }
         }
+        return "";
     }
-    return out;
-}
+    std::vector<std::string> splitRequestLine(const std::string &request) {
+        size_t end = request.find("\r\n");
+        std::istringstream ss(request.substr(0, end));
+        std::vector<std::string> parts;
+        std::string part;
+        while (ss >> part) parts.push_back(part);
+        return parts;
+    }
+    std::string pickInterfaceName() {
+        struct ifaddrs *ifaddr = nullptr;
+        if (getifaddrs(&ifaddr) != 0) return "";
 
-std::string jsonEscape(const std::string &value) {
-    std::string out;
-    out.reserve(value.size());
-    for (char ch: value) {
-        switch (ch) {
-            case '\\': out += "\\\\"; break;
-            case '"': out += "\\\""; break;
-            case '\n': out += "\\n"; break;
-            case '\r': out += "\\r"; break;
-            case '\t': out += "\\t"; break;
-            default: out.push_back(ch); break;
+        std::string selected;
+        for (auto *ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
+            if (!ifa->ifa_name || !ifa->ifa_addr) continue;
+            if ((ifa->ifa_flags & IFF_UP) == 0 || (ifa->ifa_flags & IFF_LOOPBACK)) continue;
+            if (ifa->ifa_addr->sa_family != AF_INET) continue;
+            selected = ifa->ifa_name;
+            break;
         }
+        freeifaddrs(ifaddr);
+        return selected;
     }
-    return out;
-}
-
-std::string httpResponse(const std::string &body, const std::string &contentType,
-                            const std::string &extraHeaders = "") {
-    std::ostringstream ss;
-    ss << "HTTP/1.1 200 OK\r\n"
-        << "Content-Type: " << contentType << "\r\n"
-        << "Content-Length: " << body.size() << "\r\n"
-        << "Access-Control-Allow-Origin: *\r\n"
-        << extraHeaders
-        << "Connection: close\r\n\r\n"
-        << body;
-    return ss.str();
-}
-
-std::string notFoundResponse() {
-    std::string body = "Not found";
-    std::ostringstream ss;
-    ss << "HTTP/1.1 404 Not Found\r\nContent-Length: " << body.size()
-        << "\r\nConnection: close\r\n\r\n" << body;
-    return ss.str();
-}
-
-std::string okTextResponse(const std::string &body = "OK") {
-    return httpResponse(body, "text/plain; charset=utf-8");
-}
-
-std::string headerValue(const std::string &request, const std::string &header) {
-    std::string needle = lower(header) + ":";
-    std::istringstream stream(request);
-    std::string line;
-    while (std::getline(stream, line)) {
-        if (!line.empty() && line.back() == '\r') line.pop_back();
-        std::string low = lower(line);
-        if (low.rfind(needle, 0) == 0) {
-            std::string value = line.substr(needle.size());
-            while (!value.empty() && value.front() == ' ') value.erase(value.begin());
-            return value;
+    InterfaceInfo findInterfaceInfo(const std::string &name) {
+        if (name.empty()) {
+            log_info("Missing interface name");
+            return InterfaceInfo{};
         }
-    }
-    return "";
-}
-
-std::vector<std::string> splitRequestLine(const std::string &request) {
-    size_t end = request.find("\r\n");
-    std::istringstream ss(request.substr(0, end));
-    std::vector<std::string> parts;
-    std::string part;
-    while (ss >> part) parts.push_back(part);
-    return parts;
-}
-
-std::string pickInterfaceName() {
-    struct ifaddrs *ifaddr = nullptr;
-    if (getifaddrs(&ifaddr) != 0) return "";
-
-    std::string selected;
-    for (auto *ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
-        if (!ifa->ifa_name || !ifa->ifa_addr) continue;
-        if ((ifa->ifa_flags & IFF_UP) == 0 || (ifa->ifa_flags & IFF_LOOPBACK)) continue;
-        if (ifa->ifa_addr->sa_family != AF_INET) continue;
-        selected = ifa->ifa_name;
-        break;
-    }
-    freeifaddrs(ifaddr);
-    return selected;
-}
-
-InterfaceInfo findInterfaceInfo(const std::string &name) {
-    if (name.empty()) {
-        log_info("Missing interface name");
+        std::vector<InterfaceInfo> interfaces = GetNetworkInterfaces();
+        for (auto &iface : interfaces) {
+            if (iface.name == name) {
+                return iface;
+            }
+        }
+        log_info("Invalid interface '" + name + "' specified. Available interfaces: ");
+        for (auto &iface : interfaces) {
+            log_info("  - " + iface.name);
+        }
         return InterfaceInfo{};
     }
-    std::vector<InterfaceInfo> interfaces = GetNetworkInterfaces();
-    for (auto &iface : interfaces) {
-        if (iface.name == name) {
-            return iface;
+    std::string chooseFriendlyName(Main* main) {
+        std::string name = main->getConfig()->getOption(OPT_CAST_RECEIVER_NAME)->getString();
+        return name.empty() ? "pPlay" : name;
+    }
+    std::string chooseCredentialId(const std::string &receiverName, int httpPort) {
+        std::string seed = receiverName + ":" + std::to_string(httpPort);
+        std::string hash = Utility::md5hash(seed);
+        return hash.substr(0, 8) + "-" + hash.substr(8, 4) + "-" + hash.substr(12, 4) + "-"
+            + hash.substr(16, 4) + "-" + hash.substr(20, 12);
+    }
+
+
+    // ==================== CAST SERVICE THREAD ====================
+    struct ReceiverRuntime {
+        std::mutex mutex;
+        TaskRunnerImpl* runner = nullptr;
+        bool serviceCreated = false;
+        bool stopRequested = false;
+    };
+
+    ReceiverRuntime g_receiverRuntime;
+    void runCastServiceOnThread(const std::string &interfaceName,
+                                const std::string &friendlyName,
+                                const std::string &modelName,
+                                bool enableDiscovery,
+                                bool enableDscp,
+                                const std::string &deviceId) {
+        using namespace openscreen;
+        using namespace openscreen::cast;
+        using namespace std::chrono;
+
+        InterfaceInfo interface = findInterfaceInfo(interfaceName);
+        if (!(interface.GetIpAddressV4())) {
+            log_info("ERROR: No IP address on interface " + interfaceName);
+            return;
+        } else {
+            std::stringstream ss;
+            ss << interface.GetIpAddressV4(); 
+            log_info("Interface " + interfaceName + " IPv4: " + ss.str());
+        }
+
+        log_info("Loading credentials..");
+        log_info("[Step 1/8] Starting embedded RSA private key parsing...");
+        const unsigned char* key_ptr = pplay::cast::creds::kPeerKeyDer;
+        std::unique_ptr<RSA, decltype(&RSA_free)> rsa(
+            d2i_RSAPrivateKey(nullptr, &key_ptr, pplay::cast::creds::kPeerKeyDerLen),
+            &RSA_free);
+        if (!rsa) {
+            log_info("Failed to build hardcoded credentials: [kParseError] Failed to parse embedded TLS key");
+            return;
+        }
+        log_info("[Step 1/8] Embedded RSA private key successfully parsed.");
+
+        log_info("[Step 2/8] Allocating EVP_PKEY context...");
+        bssl::UniquePtr<EVP_PKEY> tls_key(EVP_PKEY_new());
+        if (!tls_key) {
+            log_info("Failed to build hardcoded credentials: [kParseError] Failed to allocate EVP_PKEY structure");
+            return;
+        }
+        log_info("[Step 2/8] Assigning RSA key to EVP_PKEY context...");
+        if (EVP_PKEY_set1_RSA(tls_key.get(), rsa.get()) != 1) {
+            log_info("Failed to build hardcoded credentials: [kParseError] Failed to import embedded TLS key");
+            return;
+        }
+        log_info("[Step 2/8] EVP_PKEY context successfully built.");
+
+        log_info("[Step 3/8] Calculating certificate rotation timestamps...");
+        constexpr auto kCertificateDuration = std::chrono::seconds(
+            pplay::cast::creds::kSignaturePeriodSeconds);
+        const auto now = GetWallTimeSinceUnixEpoch();
+        const auto startDate = std::chrono::seconds(
+            pplay::cast::creds::kSignatureStartUnixSeconds);
+        int64_t index = 0;
+        if (now > startDate) {
+            index = std::chrono::duration_cast<std::chrono::seconds>(now - startDate).count() /
+                    pplay::cast::creds::kSignaturePeriodSeconds;
+        }
+        const int64_t signatureCount = static_cast<int64_t>(
+            pplay::cast::creds::kSignaturesLen / pplay::cast::creds::kSignatureSize);
+        if (index < 0) index = 0;
+        if (index >= signatureCount) index = signatureCount - 1;
+        const auto certDate = startDate + std::chrono::seconds(
+            index * pplay::cast::creds::kSignaturePeriodSeconds);
+        log_info("[Step 3/8] Timestamps calculated. Index selected: " + std::to_string(index));
+
+        log_info("[Step 4/8] Generating self-signed X509 certificate in memory...");
+        ErrorOr<bssl::UniquePtr<X509>> tls_cert_or_error =
+            CreateSelfSignedX509Certificate(pplay::cast::creds::kTlsCertificateName,
+                                            kCertificateDuration, *tls_key, certDate);
+        if (!tls_cert_or_error.is_value()) {
+            log_info("Failed to build hardcoded credentials: " + tls_cert_or_error.error().ToString());
+            return;
+        }
+        bssl::UniquePtr<X509> tls_cert = std::move(tls_cert_or_error.value());
+        if (!tls_cert) {
+            log_info("Failed to build hardcoded credentials: Self-signed X509 returned null pointer");
+            return;
+        }
+        log_info("[Step 4/8] Self-signed X509 certificate successfully generated.");
+
+        log_info("[Step 5/8] Extracting RSA handle and serializing private key to DER...");
+        const RSA* rsa_key = EVP_PKEY_get0_RSA(tls_key.get());
+        if (!rsa_key) {
+            log_info("Failed to build hardcoded credentials: EVP_PKEY_get0_RSA returned null pointer");
+            return;
+        }
+        size_t key_len = 0;
+        uint8_t* key_bytes = nullptr;
+        if (!RSA_private_key_to_bytes(&key_bytes, &key_len, rsa_key) || key_len == 0) {
+            log_info("Failed to build hardcoded credentials: [kParseError] Failed to serialize embedded TLS private key");
+            return;
+        }
+        std::vector<uint8_t> tls_key_der(key_bytes, key_bytes + key_len);
+        std::free(key_bytes);
+        log_info("[Step 5/8] Private key serialized. Size: " + std::to_string(key_len) + " bytes.");
+
+        log_info("[Step 6/8] Serializing public key to DER...");
+        key_len = 0;
+        key_bytes = nullptr;
+        if (!RSA_public_key_to_bytes(&key_bytes, &key_len, rsa_key) || key_len == 0) {
+            log_info("Failed to build hardcoded credentials: [kParseError] Failed to serialize embedded TLS public key");
+            return;
+        }
+        std::vector<uint8_t> tls_pub_der(key_bytes, key_bytes + key_len);
+        std::free(key_bytes);
+        log_info("[Step 6/8] Public key serialized. Size: " + std::to_string(key_len) + " bytes.");
+
+        log_info("[Step 7/8] Determining X509 certificate DER buffer size...");
+        int cert_len = i2d_X509(tls_cert.get(), nullptr);
+        if (cert_len <= 0) {
+            log_info("Failed to build hardcoded credentials: [kParseError] Failed to serialize embedded TLS certificate (invalid len)");
+            return;
+        }
+        log_info("[Step 7/8] Allocating DER buffer and performing i2d_X509...");
+        std::vector<uint8_t> tls_cert_der(static_cast<size_t>(cert_len));
+        uint8_t* cert_out = tls_cert_der.data();
+        i2d_X509(tls_cert.get(), &cert_out);
+        log_info("[Step 7/8] X509 certificate serialized. Size: " + std::to_string(cert_len) + " bytes.");
+
+        log_info("[Step 8/8] populating DeviceCredentials certificate chain...");
+        DeviceCredentials device_creds;
+        device_creds.certs.emplace_back(
+            reinterpret_cast<const char*>(pplay::cast::creds::kAuthCrt),
+            pplay::cast::creds::kAuthCrtLen);
+        device_creds.certs.emplace_back(
+            reinterpret_cast<const char*>(pplay::cast::creds::kIntermediateCrt),
+            pplay::cast::creds::kIntermediateCrtLen);
+
+        log_info("[Step 8/8] Allocating StaticCredentialsProvider...");
+        auto provider = std::make_unique<StaticCredentialsProvider>(
+            std::move(device_creds), tls_cert_der);
+        if (!provider) {
+            log_info("Failed to build hardcoded credentials: Failed to allocate StaticCredentialsProvider");
+            return;
+        }
+
+        log_info("[Step 8/8] Constructing final GeneratedCredentials monolith...");
+        GeneratedCredentials creds{
+            std::move(provider),
+            TlsCredentials{std::move(tls_key_der), std::move(tls_pub_der),
+                        std::move(tls_cert_der)},
+            std::vector<uint8_t>(pplay::cast::creds::kIntermediateCrt,
+                                pplay::cast::creds::kIntermediateCrt +
+                                    pplay::cast::creds::kIntermediateCrtLen)};
+        log_info("Credentials loaded");
+
+        auto *task_runner = new TaskRunnerImpl(&Clock::now);
+        PlatformClientPosix::Create(milliseconds(50), std::unique_ptr<TaskRunnerImpl>(task_runner));
+        std::unique_ptr<CastService> service;
+        log_info("TaskRunner: post service task");
+        task_runner->PostTask([&] {
+            service = std::make_unique<CastService>(CastService::Configuration{
+                *task_runner,
+                interface,
+                std::move(creds),
+                deviceId,
+                friendlyName,
+                modelName,
+                enableDiscovery,
+                enableDscp,
+            });
+        });
+        {
+            std::lock_guard<std::mutex> lock(g_receiverRuntime.mutex);
+            g_receiverRuntime.runner = task_runner;
+            g_receiverRuntime.serviceCreated = true;
+            g_receiverRuntime.stopRequested = false;
+        }
+        log_info("CastService is running on interface " + interfaceName);
+        task_runner->RunUntilStopped();
+        task_runner->PostTask([&] {
+            service.reset();
+            task_runner->RequestStopSoon();
+        });
+        task_runner->RunUntilStopped();
+        PlatformClientPosix::ShutDown();
+        {
+            std::lock_guard<std::mutex> lock(g_receiverRuntime.mutex);
+            g_receiverRuntime.runner = nullptr;
+            g_receiverRuntime.serviceCreated = false;
+        }
+        log_info("CastService stopped");
+    }
+
+    void requestCastServiceStop() {
+        std::lock_guard<std::mutex> lock(g_receiverRuntime.mutex);
+        if (g_receiverRuntime.runner) {
+            g_receiverRuntime.runner->RequestStopSoon();
         }
     }
-    log_info("Invalid interface '" + name + "' specified. Available interfaces: ");
-    for (auto &iface : interfaces) {
-        log_info("  - " + iface.name);
-    }
-    return InterfaceInfo{};
-}
-
-std::string chooseFriendlyName(Main* main) {
-    std::string name = main->getConfig()->getOption(OPT_CAST_RECEIVER_NAME)->getString();
-    return name.empty() ? "pPlay" : name;
-}
-
-std::string chooseCredentialId(const std::string &receiverName, int httpPort) {
-    std::string seed = receiverName + ":" + std::to_string(httpPort);
-    std::string hash = Utility::md5hash(seed);
-    return hash.substr(0, 8) + "-" + hash.substr(8, 4) + "-" + hash.substr(12, 4) + "-"
-           + hash.substr(16, 4) + "-" + hash.substr(20, 12);
-}
-
-// ==================== CAST SERVICE THREAD ====================
-
-struct ReceiverRuntime {
-    std::mutex mutex;
-    TaskRunnerImpl* runner = nullptr;
-    bool serviceCreated = false;
-    bool stopRequested = false;
-};
-
-ReceiverRuntime g_receiverRuntime;
-
-void runCastServiceOnThread(const std::string &interfaceName,
-                            const std::string &friendlyName,
-                            const std::string &modelName,
-                            bool enableDiscovery,
-                            bool enableDscp,
-                            const std::string &deviceId) {
-    using namespace openscreen;
-    using namespace openscreen::cast;
-    using namespace std::chrono;
-
-    InterfaceInfo interface = findInterfaceInfo(interfaceName);
-    if (!(interface.GetIpAddressV4())) {
-        log_info("ERROR: No IP address on interface " + interfaceName);
-        return;
-    } else {
-        std::stringstream ss;
-        ss << interface.GetIpAddressV4(); 
-        log_info("Interface " + interfaceName + " IPv4: " + ss.str());
-    }
-
-    log_info("Loading credentials..");
-    log_info("[Step 1/8] Starting embedded RSA private key parsing...");
-    const unsigned char* key_ptr = pplay::cast::creds::kPeerKeyDer;
-    std::unique_ptr<RSA, decltype(&RSA_free)> rsa(
-        d2i_RSAPrivateKey(nullptr, &key_ptr, pplay::cast::creds::kPeerKeyDerLen),
-        &RSA_free);
-    if (!rsa) {
-        log_info("Failed to build hardcoded credentials: [kParseError] Failed to parse embedded TLS key");
-        return;
-    }
-    log_info("[Step 1/8] Embedded RSA private key successfully parsed.");
-
-    log_info("[Step 2/8] Allocating EVP_PKEY context...");
-    bssl::UniquePtr<EVP_PKEY> tls_key(EVP_PKEY_new());
-    if (!tls_key) {
-        log_info("Failed to build hardcoded credentials: [kParseError] Failed to allocate EVP_PKEY structure");
-        return;
-    }
-    log_info("[Step 2/8] Assigning RSA key to EVP_PKEY context...");
-    if (EVP_PKEY_set1_RSA(tls_key.get(), rsa.get()) != 1) {
-        log_info("Failed to build hardcoded credentials: [kParseError] Failed to import embedded TLS key");
-        return;
-    }
-    log_info("[Step 2/8] EVP_PKEY context successfully built.");
-
-    log_info("[Step 3/8] Calculating certificate rotation timestamps...");
-    constexpr auto kCertificateDuration = std::chrono::seconds(
-        pplay::cast::creds::kSignaturePeriodSeconds);
-    const auto now = GetWallTimeSinceUnixEpoch();
-    const auto startDate = std::chrono::seconds(
-        pplay::cast::creds::kSignatureStartUnixSeconds);
-    int64_t index = 0;
-    if (now > startDate) {
-        index = std::chrono::duration_cast<std::chrono::seconds>(now - startDate).count() /
-                pplay::cast::creds::kSignaturePeriodSeconds;
-    }
-    const int64_t signatureCount = static_cast<int64_t>(
-        pplay::cast::creds::kSignaturesLen / pplay::cast::creds::kSignatureSize);
-    if (index < 0) index = 0;
-    if (index >= signatureCount) index = signatureCount - 1;
-    const auto certDate = startDate + std::chrono::seconds(
-        index * pplay::cast::creds::kSignaturePeriodSeconds);
-    log_info("[Step 3/8] Timestamps calculated. Index selected: " + std::to_string(index));
-
-    log_info("[Step 4/8] Generating self-signed X509 certificate in memory...");
-    ErrorOr<bssl::UniquePtr<X509>> tls_cert_or_error =
-        CreateSelfSignedX509Certificate(pplay::cast::creds::kTlsCertificateName,
-                                        kCertificateDuration, *tls_key, certDate);
-    if (!tls_cert_or_error.is_value()) {
-        log_info("Failed to build hardcoded credentials: " + tls_cert_or_error.error().ToString());
-        return;
-    }
-    bssl::UniquePtr<X509> tls_cert = std::move(tls_cert_or_error.value());
-    if (!tls_cert) {
-        log_info("Failed to build hardcoded credentials: Self-signed X509 returned null pointer");
-        return;
-    }
-    log_info("[Step 4/8] Self-signed X509 certificate successfully generated.");
-
-    log_info("[Step 5/8] Extracting RSA handle and serializing private key to DER...");
-    const RSA* rsa_key = EVP_PKEY_get0_RSA(tls_key.get());
-    if (!rsa_key) {
-        log_info("Failed to build hardcoded credentials: EVP_PKEY_get0_RSA returned null pointer");
-        return;
-    }
-    size_t key_len = 0;
-    uint8_t* key_bytes = nullptr;
-    if (!RSA_private_key_to_bytes(&key_bytes, &key_len, rsa_key) || key_len == 0) {
-        log_info("Failed to build hardcoded credentials: [kParseError] Failed to serialize embedded TLS private key");
-        return;
-    }
-    std::vector<uint8_t> tls_key_der(key_bytes, key_bytes + key_len);
-    std::free(key_bytes);
-    log_info("[Step 5/8] Private key serialized. Size: " + std::to_string(key_len) + " bytes.");
-
-    log_info("[Step 6/8] Serializing public key to DER...");
-    key_len = 0;
-    key_bytes = nullptr;
-    if (!RSA_public_key_to_bytes(&key_bytes, &key_len, rsa_key) || key_len == 0) {
-        log_info("Failed to build hardcoded credentials: [kParseError] Failed to serialize embedded TLS public key");
-        return;
-    }
-    std::vector<uint8_t> tls_pub_der(key_bytes, key_bytes + key_len);
-    std::free(key_bytes);
-    log_info("[Step 6/8] Public key serialized. Size: " + std::to_string(key_len) + " bytes.");
-
-    log_info("[Step 7/8] Determining X509 certificate DER buffer size...");
-    int cert_len = i2d_X509(tls_cert.get(), nullptr);
-    if (cert_len <= 0) {
-        log_info("Failed to build hardcoded credentials: [kParseError] Failed to serialize embedded TLS certificate (invalid len)");
-        return;
-    }
-    log_info("[Step 7/8] Allocating DER buffer and performing i2d_X509...");
-    std::vector<uint8_t> tls_cert_der(static_cast<size_t>(cert_len));
-    uint8_t* cert_out = tls_cert_der.data();
-    i2d_X509(tls_cert.get(), &cert_out);
-    log_info("[Step 7/8] X509 certificate serialized. Size: " + std::to_string(cert_len) + " bytes.");
-
-    log_info("[Step 8/8] populating DeviceCredentials certificate chain...");
-    DeviceCredentials device_creds;
-    device_creds.certs.emplace_back(
-        reinterpret_cast<const char*>(pplay::cast::creds::kAuthCrt),
-        pplay::cast::creds::kAuthCrtLen);
-    device_creds.certs.emplace_back(
-        reinterpret_cast<const char*>(pplay::cast::creds::kIntermediateCrt),
-        pplay::cast::creds::kIntermediateCrtLen);
-
-    log_info("[Step 8/8] Allocating StaticCredentialsProvider...");
-    auto provider = std::make_unique<StaticCredentialsProvider>(
-        std::move(device_creds), tls_cert_der);
-    if (!provider) {
-        log_info("Failed to build hardcoded credentials: Failed to allocate StaticCredentialsProvider");
-        return;
-    }
-
-    log_info("[Step 8/8] Constructing final GeneratedCredentials monolith...");
-    GeneratedCredentials creds{
-        std::move(provider),
-        TlsCredentials{std::move(tls_key_der), std::move(tls_pub_der),
-                       std::move(tls_cert_der)},
-        std::vector<uint8_t>(pplay::cast::creds::kIntermediateCrt,
-                             pplay::cast::creds::kIntermediateCrt +
-                                 pplay::cast::creds::kIntermediateCrtLen)};
-    log_info("Credentials loaded");
-
-    auto *task_runner = new TaskRunnerImpl(&Clock::now);
-    PlatformClientPosix::Create(milliseconds(50), std::unique_ptr<TaskRunnerImpl>(task_runner));
-    std::unique_ptr<CastService> service;
-    log_info("TaskRunner: post service task");
-    task_runner->PostTask([&] {
-        service = std::make_unique<CastService>(CastService::Configuration{
-            *task_runner,
-            interface,
-            std::move(creds),
-            deviceId,
-            friendlyName,
-            modelName,
-            enableDiscovery,
-            enableDscp,
-        });
-    });
-    {
-        std::lock_guard<std::mutex> lock(g_receiverRuntime.mutex);
-        g_receiverRuntime.runner = task_runner;
-        g_receiverRuntime.serviceCreated = true;
-        g_receiverRuntime.stopRequested = false;
-    }
-    log_info("CastService is running on interface " + interfaceName);
-    task_runner->RunUntilStopped();
-    task_runner->PostTask([&] {
-        service.reset();
-        task_runner->RequestStopSoon();
-    });
-    task_runner->RunUntilStopped();
-    PlatformClientPosix::ShutDown();
-    {
-        std::lock_guard<std::mutex> lock(g_receiverRuntime.mutex);
-        g_receiverRuntime.runner = nullptr;
-        g_receiverRuntime.serviceCreated = false;
-    }
-    log_info("CastService stopped");
-}
-
-void requestCastServiceStop() {
-    std::lock_guard<std::mutex> lock(g_receiverRuntime.mutex);
-    if (g_receiverRuntime.runner) {
-        g_receiverRuntime.runner->RequestStopSoon();
-    }
-}
 
 } // namespace
 
-// ==================== MAIN CLASS ====================
 
+// ==================== MAIN CLASS ====================
 PPLAYCast::PPLAYCast(Main *main) : main(main) {}
 
 PPLAYCast::~PPLAYCast() {
