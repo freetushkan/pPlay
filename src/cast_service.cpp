@@ -155,6 +155,25 @@ extern "C" {
         close(fd);
         return 0;
     }
+    int RAND_bytes(uint8_t *buf, size_t len) {
+        if (!buf || len == 0) return 1;
+        int fd = open("/dev/random", O_RDONLY | O_CLOEXEC);
+        if (fd < 0) {
+            for (size_t i = 0; i < len; ++i) buf[i] = static_cast<uint8_t>(rand() & 0xFF);
+            return 1; 
+        }
+        size_t total_read = 0;
+        while (total_read < len) {
+            ssize_t bytes_read = read(fd, buf + total_read, len - total_read);
+            if (bytes_read <= 0) {
+                for (size_t i = total_read; i < len; ++i) buf[i] = static_cast<uint8_t>(rand() & 0xFF);
+                break;
+            }
+            total_read += bytes_read;
+        }
+        close(fd);
+        return 1;
+    }
     void __gcov_init(void* info) {}
     void __gcov_dump(void) {}
     void __gcov_flush(void) {}
@@ -880,13 +899,11 @@ namespace {
         log_info("Creating CastService monolith directly in memory...");
         std::unique_ptr<CastService> service;
         try {
-            log_info("CastService obj conf.");
             CastService::Configuration config{
                 *task_runner,
                 interface,
                 std::move(creds)
             };
-            log_info("CastService obj conf params.");
             config.device_uuid = deviceId;
             config.friendly_name = friendlyName;
             config.model_name = modelName;
