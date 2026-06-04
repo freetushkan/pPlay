@@ -895,18 +895,17 @@ namespace {
         log_info("Creating CastService monolith directly in memory...");
         std::unique_ptr<CastService> service;
         try {
-            CastService::Configuration config{
-                *task_runner,
-                interface,
-                std::move(creds)
-            };
+            CastService::Configuration config{ *task_runner, interface, std::move(creds) };
+            log_info("CastService set conf params.");
             config.device_uuid = deviceId;
             config.friendly_name = friendlyName;
             config.model_name = modelName;
-            config.enable_discovery = enableDiscovery;
-            config.enable_dscp = enableDscp;
+            // config.enable_discovery = enableDiscovery;
+            // config.enable_dscp = enableDscp;
+            config.enable_dscp = false;
+            config.enable_discovery = false;
             log_info("CastService obj conf srv.");
-            service = std::make_unique<CastService>(std::move(config));
+            service = std::unique_ptr<CastService>(new CastService(config));
             log_info("CastService monolith successfully created.");
         } catch (...) {
             log_info("ERROR: Exception thrown during CastService constructor!");
