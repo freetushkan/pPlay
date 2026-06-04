@@ -819,33 +819,53 @@ void runCastServiceOnThread(const std::string &interfaceName,
         ss << interface.GetIpAddressV6();
         log_info("Interface " + interfaceName + " IPv6: " + ss.str());
     }
-    auto buildHardcodedCredentials = [&]() -> ErrorOr<GeneratedCredentials> {
-        std::unique_ptr<RSA, decltype(&RSA_free)> rsa(
-            RSA_private_key_from_bytes(peer_key_der, peer_key_der_len), &RSA_free);
-        if (!rsa) {
-            return Error(Error::Code::kParseError, "Failed to parse embedded private key");
-        }
+    // auto buildHardcodedCredentials = [&]() -> ErrorOr<GeneratedCredentials> {
+    //     std::unique_ptr<RSA, decltype(&RSA_free)> rsa(
+    //         RSA_private_key_from_bytes(peer_key_der, peer_key_der_len), &RSA_free);
+    //     if (!rsa) {
+    //         return Error(Error::Code::kParseError, "Failed to parse embedded private key");
+    //     }
 
-        std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> private_key(
-            EVP_PKEY_new(), &EVP_PKEY_free);
-        if (!private_key) {
-            return Error(Error::Code::kParseError, "Failed to allocate EVP_PKEY");
+    //     std::unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> private_key(
+    //         EVP_PKEY_new(), &EVP_PKEY_free);
+    //     if (!private_key) {
+    //         return Error(Error::Code::kParseError, "Failed to allocate EVP_PKEY");
+    //     }
+    //     if (EVP_PKEY_assign_RSA(private_key.get(), rsa.get()) != 1) {
+    //         return Error(Error::Code::kParseError, "Failed to attach embedded private key");
+    //     }
+    //     const unsigned char* cert_ptr = auth_crt;
+    //     std::unique_ptr<X509, decltype(&X509_free)> certificate(
+    //         d2i_X509(nullptr, &cert_ptr, auth_crt_len), &X509_free);
+    //     if (!certificate) {
+    //         return Error(Error::Code::kParseError, "Failed to parse embedded certificate");
+    //     }
+    //     // return openscreen::cast::GenerateCredentials(deviceId, private_key.get(), certificate.get());
+    //     GeneratedCredentials creds;
+    //     creds.private_key.reset(private_key.release());
+    //     creds.cert.reset(certificate.release());
+    //     creds.device_id = deviceId;
+    //     return creds;
+    // };
+
+    auto buildHardcodedCredentials = [&]() -> ErrorOr<GeneratedCredentials> {
+        std::string pk_path = "/tmp/pplay_cast_key.der";
+        std::string cert_path = "/tmp/pplay_cast_crt.der";
+        std::ofstream pk_file(pk_path, std::ios::binary);
+        if (!pk_file) return Error(Error::Code::kParseError, "Failed to create temp key file");
+        pk_file.write(reinterpret_cast<const char*>(peer_key_der), peer_key_der_len);
+        pk_file.close();
+        std::ofstream cert_file(cert_path, std::ios::binary);
+        if (!cert_file) {
+            std::remove(pk_path.c_str());
+            return Error(Error::Code::kParseError, "Failed to create temp cert file");
         }
-        if (EVP_PKEY_assign_RSA(private_key.get(), rsa.get()) != 1) {
-            return Error(Error::Code::kParseError, "Failed to attach embedded private key");
-        }
-        const unsigned char* cert_ptr = auth_crt;
-        std::unique_ptr<X509, decltype(&X509_free)> certificate(
-            d2i_X509(nullptr, &cert_ptr, auth_crt_len), &X509_free);
-        if (!certificate) {
-            return Error(Error::Code::kParseError, "Failed to parse embedded certificate");
-        }
-        // return openscreen::cast::GenerateCredentials(deviceId, private_key.get(), certificate.get());
-        GeneratedCredentials creds;
-        creds.private_key.reset(private_key.release());
-        creds.cert.reset(certificate.release());
-        creds.device_id = deviceId;
-        return creds;
+        cert_file.write(reinterpret_cast<const char*>(auth_crt), auth_crt_len);
+        cert_file.close();
+        auto result = openscreen::cast::GenerateCredentials(deviceId, pk_path, cert_path);
+        std::remove(pk_path.c_str());
+        std::remove(cert_path.c_str());
+        return result;
     };
 
     ErrorOr<GeneratedCredentials> creds = buildHardcodedCredentials();
