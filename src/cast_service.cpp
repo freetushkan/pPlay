@@ -724,9 +724,7 @@ namespace {
         }
         std::vector<InterfaceInfo> interfaces = GetNetworkInterfaces();
         for (auto &iface : interfaces) {
-            if (iface.name == name) {
-                return iface;
-            }
+            if (iface.name == name) return iface;
         }
         log_info("Invalid interface '" + name + "' specified. Available interfaces: ");
         for (auto &iface : interfaces) {
@@ -775,7 +773,7 @@ namespace {
             ss << "[Network Interface Diagnostic]\n"
                << "  - Name: " << interface.name << "\n"
                << "  - Index: " << interface.index << "\n"
-               << "  - Type: " << interface.index << "\n";
+               << "  - Type: ";
             switch (interface.type) {
                 case InterfaceInfo::Type::kEthernet: ss << "Ethernet"; break;
                 case InterfaceInfo::Type::kWifi:     ss << "Wi-Fi"; break;
@@ -834,24 +832,30 @@ namespace {
         if (index >= signatureCount) index = signatureCount - 1;
         log_info("Timestamps calculated. Index selected: " + std::to_string(index));
 
-        log_info("Generating unique X509 certificate handle from memory key...");
+        log_info("Generating unique X509 certificate handle from memory key..");
         bssl::UniquePtr<X509> tls_cert(X509_new());
         if (!tls_cert) {
             log_info("Failed to build hardcoded credentials: Failed to allocate X509 object");
             return;
         }
+        log_info("Set X509 certificate serial number..");
         ASN1_INTEGER_set(X509_get_serialNumber(tls_cert.get()), 0x51c9ac6);
+        log_info("Set certificate dates..");
         X509_gmtime_adj(X509_get_notBefore(tls_cert.get()), index * kTwoDaysInSeconds);
         X509_gmtime_adj(X509_get_notAfter(tls_cert.get()), (index * kTwoDaysInSeconds) + kTwoDaysInSeconds);
 
         X509_NAME* subject_name = X509_get_subject_name(tls_cert.get());
+        log_info("Set certificate CN..");
         X509_NAME_add_entry_by_txt(subject_name, "CN", MBSTRING_ASC, 
                                 reinterpret_cast<const unsigned char*>(deviceId.c_str()), -1, -1, 0);
+        log_info("Set certificate issuer..");
         X509_set_issuer_name(tls_cert.get(), subject_name);
+        log_info("Set certificate pubkey..");
         X509_set_pubkey(tls_cert.get(), tls_key.get());
 
+        log_info("Sign certificate..");
         if (X509_sign(tls_cert.get(), tls_key.get(), EVP_sha1()) <= 0) {
-            log_info("Failed to build hardcoded credentials: [Shanocast] X509_sign with SHA1 failed");
+            log_info("Failed to build hardcoded credentials: X509_sign with SHA1 failed");
             return;
         }
         log_info("TLS X509 certificate successfully generated and signed.");
