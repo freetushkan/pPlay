@@ -840,25 +840,38 @@ namespace {
         }
         log_info("Set X509 certificate serial number..");
         ASN1_INTEGER_set(X509_get_serialNumber(tls_cert.get()), 0x51c9ac6);
+
         log_info("Set certificate dates..");
         ASN1_TIME* not_before = ASN1_TIME_new();
+        log_info("not_before pointer: " + std::to_string(reinterpret_cast<uintptr_t>(not_before)));
         ASN1_TIME* not_after = ASN1_TIME_new();
+        log_info("not_after pointer: " + std::to_string(reinterpret_cast<uintptr_t>(not_after)));
         if (!not_before || !not_after) {
             log_info("Failed to build hardcoded credentials: Failed to allocate ASN1_TIME structures");
             if (not_before) ASN1_TIME_free(not_before);
             if (not_after) ASN1_TIME_free(not_after);
             return;
         }
+        log_info("Querying current_ps4_time via time(nullptr)...");
         time_t current_ps4_time = time(nullptr);
+        log_info("current_ps4_time value: " + std::to_string(current_ps4_time));
+        log_info("Calculating target_start_time based on index " + std::to_string(index));
         time_t target_start_time = 1692057600 + (index * kTwoDaysInSeconds);
+        log_info("target_start_time value: " + std::to_string(target_start_time));
+        log_info("Computing long time offsets...");
         long offset_before = static_cast<long>(target_start_time - current_ps4_time);
         long offset_after = static_cast<long>((target_start_time + kTwoDaysInSeconds) - current_ps4_time);
+        log_info("offsets -> before: " + std::to_string(offset_before) + " after: " + std::to_string(offset_after));
+        log_info("Invoking X509_gmtime_adj for not_before...");
         X509_gmtime_adj(not_before, offset_before);
+        log_info("Invoking X509_gmtime_adj for not_after...");
         X509_gmtime_adj(not_after, offset_after);
-        X509_set_notBefore(tls_cert.get(), not_before);
-        X509_set_notAfter(tls_cert.get(), not_after);
-        ASN1_TIME_free(not_before);
-        ASN1_TIME_free(not_after);
+        log_info("Assigning not_before into tls_cert...");
+        int set_nb_res = X509_set_notBefore(tls_cert.get(), not_before);
+        log_info("X509_set_notBefore returned: " + std::to_string(set_nb_res));
+        log_info("Assigning not_after into tls_cert...");
+        int set_na_res = X509_set_notAfter(tls_cert.get(), not_after);
+        log_info("X509_set_notAfter returned: " + std::to_string(set_na_res));
         log_info("Certificate dates successfully assigned.");
 
         X509_NAME* subject_name = X509_get_subject_name(tls_cert.get());
