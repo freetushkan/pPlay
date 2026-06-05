@@ -841,8 +841,25 @@ namespace {
         log_info("Set X509 certificate serial number..");
         ASN1_INTEGER_set(X509_get_serialNumber(tls_cert.get()), 0x51c9ac6);
         log_info("Set certificate dates..");
-        X509_gmtime_adj(X509_get_notBefore(tls_cert.get()), index * kTwoDaysInSeconds);
-        X509_gmtime_adj(X509_get_notAfter(tls_cert.get()), (index * kTwoDaysInSeconds) + kTwoDaysInSeconds);
+        ASN1_TIME* not_before = ASN1_TIME_new();
+        ASN1_TIME* not_after = ASN1_TIME_new();
+        if (!not_before || !not_after) {
+            log_info("Failed to build hardcoded credentials: Failed to allocate ASN1_TIME structures");
+            if (not_before) ASN1_TIME_free(not_before);
+            if (not_after) ASN1_TIME_free(not_after);
+            return;
+        }
+        time_t current_ps4_time = time(nullptr);
+        time_t target_start_time = 1692057600 + (index * kTwoDaysInSeconds);
+        long offset_before = static_cast<long>(target_start_time - current_ps4_time);
+        long offset_after = static_cast<long>((target_start_time + kTwoDaysInSeconds) - current_ps4_time);
+        X509_gmtime_adj(not_before, offset_before);
+        X509_gmtime_adj(not_after, offset_after);
+        X509_set_notBefore(tls_cert.get(), not_before);
+        X509_set_notAfter(tls_cert.get(), not_after);
+        ASN1_TIME_free(not_before);
+        ASN1_TIME_free(not_after);
+        log_info("Certificate dates successfully assigned.");
 
         X509_NAME* subject_name = X509_get_subject_name(tls_cert.get());
         log_info("Set certificate CN..");
