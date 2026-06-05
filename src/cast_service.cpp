@@ -745,86 +745,6 @@ namespace {
             + hash.substr(16, 4) + "-" + hash.substr(20, 12);
     }
 
-    constexpr int kTwoDaysInSeconds = 2 * 24 * 60 * 60;
-    constexpr int64_t kMaxSignatureCount = 795;
-    bool BuildCredentials(std::unique_ptr<StaticCredentialsProvider>& out_provider, 
-                                    TlsCredentials& out_tls_creds, 
-                                    std::vector<uint8_t>& out_intermediate,
-                                    const std::string& deviceId) {
-        auto now = GetWallTimeSinceUnixEpoch();
-        auto startDate = std::chrono::seconds(1692057600); // 15 Aug 2023 00:00:00
-        int64_t index = (now - startDate).count() / kTwoDaysInSeconds;
-        if (index < 0) index = 0;
-        if (index >= kMaxSignatureCount) index = kMaxSignatureCount - 1;
-        auto certDate = std::chrono::seconds(1692057600 + index * kTwoDaysInSeconds);
-
-        const unsigned char* key_ptr = pplay::cast::creds::kPeerKeyDer;
-        std::unique_ptr<RSA, decltype(&RSA_free)> rsa(
-            d2i_RSAPrivateKey(nullptr, &key_ptr, pplay::cast::creds::kPeerKeyDerLen),
-            &RSA_free);
-        if (!rsa) {
-            log_info("ERROR: Failed to parse embedded peer_key_der!");
-            return false;
-        }
-        bssl::UniquePtr<EVP_PKEY> tls_key(EVP_PKEY_new());
-        if (!tls_key || EVP_PKEY_set1_RSA(tls_key.get(), rsa.get()) != 1) {
-            log_info("ERROR: Failed to assign RSA to EVP_PKEY!");
-            return false;
-        }
-        bssl::UniquePtr<X509> tls_cert(X509_new());
-        if (!tls_cert) return false;
-        ASN1_INTEGER_set(X509_get_serialNumber(tls_cert.get()), 0x51c9ac6);
-        X509_gmtime_adj(X509_get_notBefore(tls_cert.get()), index * kTwoDaysInSeconds);
-        X509_gmtime_adj(X509_get_notAfter(tls_cert.get()), (index * kTwoDaysInSeconds) + kTwoDaysInSeconds);
-        X509_NAME* name = X509_get_subject_name(tls_cert.get());
-        X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, 
-                                reinterpret_cast<const unsigned char*>(deviceId.c_str()), -1, -1, 0);
-        X509_set_issuer_name(tls_cert.get(), name);
-        X509_set_pubkey(tls_cert.get(), tls_key.get());
-        if (X509_sign(tls_cert.get(), tls_key.get(), EVP_sha1()) <= 0) {
-            log_info("ERROR: X509_sign with EVP_sha1 failed!");
-            return false;
-        }
-
-        int cert_len = i2d_X509(tls_cert.get(), nullptr);
-        std::vector<uint8_t> tls_cert_der(static_cast<size_t>(cert_len));
-        uint8_t* cert_out = tls_cert_der.data();
-        i2d_X509(tls_cert.get(), &cert_out);
-
-        const RSA* rsa_key = EVP_PKEY_get0_RSA(tls_key.get());
-        size_t key_len = 0;
-        uint8_t* key_bytes = nullptr;
-        
-        RSA_private_key_to_bytes(&key_bytes, &key_len, rsa_key);
-        std::vector<uint8_t> tls_key_der(key_bytes, key_bytes + key_len);
-        std::free(key_bytes);
-
-        key_len = 0;
-        key_bytes = nullptr;
-        RSA_public_key_to_bytes(&key_bytes, &key_len, rsa_key);
-        std::vector<uint8_t> tls_pub_der(key_bytes, key_bytes + key_len);
-        std::free(key_bytes);
-
-        DeviceCredentials device_creds;
-        device_creds.certs.emplace_back(
-            reinterpret_cast<const char*>(pplay::cast::creds::kAuthCrt),
-            pplay::cast::creds::kAuthCrtLen);
-        device_creds.certs.emplace_back(
-            reinterpret_cast<const char*>(pplay::cast::creds::kIntermediateCrt),
-            pplay::cast::creds::kIntermediateCrtLen);
-
-        out_provider = std::make_unique<StaticCredentialsProvider>(std::move(device_creds), tls_cert_der);
-        
-        out_tls_creds.private_key_der = std::move(tls_key_der);
-        out_tls_creds.public_key_der = std::move(tls_pub_der);
-        out_tls_creds.cert_der = std::move(tls_cert_der);
-        
-        out_intermediate = std::vector<uint8_t>(pplay::cast::creds::kIntermediateCrt,
-                            pplay::cast::creds::kIntermediateCrt + pplay::cast::creds::kIntermediateCrtLen);
-                            
-        log_info("Crypto subsystem compiled safely. Target Index: " + std::to_string(index));
-        return true;
-    }    
 
 
     // ==================== CAST SERVICE THREAD ====================
@@ -876,7 +796,6 @@ namespace {
         }
 
         log_info("Loading credentials..");
-        log_info("Starting embedded RSA private key parsing..");
         const unsigned char* key_ptr = pplay::cast::creds::kPeerKeyDer;
         std::unique_ptr<RSA, decltype(&RSA_free)> rsa(
             d2i_RSAPrivateKey(nullptr, &key_ptr, pplay::cast::creds::kPeerKeyDerLen),
@@ -901,32 +820,42 @@ namespace {
         log_info("EVP_PKEY context successfully built.");
 
         log_info("Calculating certificate rotation timestamps..");
-        constexpr auto kCertificateDuration = std::chrono::seconds(
-            pplay::cast::creds::kSignaturePeriodSeconds);
+        constexpr int kTwoDaysInSeconds = 2 * 24 * 60 * 60;
         const auto now = GetWallTimeSinceUnixEpoch();
-        const auto startDate = std::chrono::seconds(
-            pplay::cast::creds::kSignatureStartUnixSeconds);
+        const auto startDate = std::chrono::seconds(1692057600); // 15 Aug 2023 00:00:00
+        
         int64_t index = 0;
         if (now > startDate) {
-            index = std::chrono::duration_cast<std::chrono::seconds>(now - startDate).count() /
-                    pplay::cast::creds::kSignaturePeriodSeconds;
+            index = (now - startDate).count() / kTwoDaysInSeconds;
         }
         const int64_t signatureCount = static_cast<int64_t>(
             pplay::cast::creds::kSignaturesLen / pplay::cast::creds::kSignatureSize);
         if (index < 0) index = 0;
         if (index >= signatureCount) index = signatureCount - 1;
-        const auto certDate = startDate + std::chrono::seconds(
-            index * pplay::cast::creds::kSignaturePeriodSeconds);
         log_info("Timestamps calculated. Index selected: " + std::to_string(index));
 
-        log_info("Parsing pre-generated TLS X509 certificate from memory...");
-        const unsigned char* tls_cert_ptr = pplay::cast::creds::kAuthCrt;
-        bssl::UniquePtr<X509> tls_cert(d2i_X509(nullptr, &tls_cert_ptr, pplay::cast::creds::kAuthCrtLen));
+        log_info("Generating unique X509 certificate handle from memory key...");
+        bssl::UniquePtr<X509> tls_cert(X509_new());
         if (!tls_cert) {
-            log_info("Failed to build hardcoded credentials: Failed to parse pre-generated TLS certificate");
+            log_info("Failed to build hardcoded credentials: Failed to allocate X509 object");
             return;
         }
-        log_info("TLS X509 certificate successfully parsed from memory.");
+        ASN1_INTEGER_set(X509_get_serialNumber(tls_cert.get()), 0x51c9ac6);
+        X509_gmtime_adj(X509_get_notBefore(tls_cert.get()), index * kTwoDaysInSeconds);
+        X509_gmtime_adj(X509_get_notAfter(tls_cert.get()), (index * kTwoDaysInSeconds) + kTwoDaysInSeconds);
+
+        X509_NAME* subject_name = X509_get_subject_name(tls_cert.get());
+        X509_NAME_add_entry_by_txt(subject_name, "CN", MBSTRING_ASC, 
+                                reinterpret_cast<const unsigned char*>(deviceId.c_str()), -1, -1, 0);
+        X509_set_issuer_name(tls_cert.get(), subject_name);
+        X509_set_pubkey(tls_cert.get(), tls_key.get());
+
+        if (X509_sign(tls_cert.get(), tls_key.get(), EVP_sha1()) <= 0) {
+            log_info("Failed to build hardcoded credentials: [Shanocast] X509_sign with SHA1 failed");
+            return;
+        }
+        log_info("TLS X509 certificate successfully generated and signed.");
+
         int cert_len = i2d_X509(tls_cert.get(), nullptr);
         if (cert_len <= 0) {
             log_info("Failed to build hardcoded credentials: Failed to determine TLS cert DER size");
@@ -972,22 +901,19 @@ namespace {
             pplay::cast::creds::kIntermediateCrtLen);
 
         log_info("Allocating StaticCredentialsProvider...");
-        auto provider = std::make_unique<StaticCredentialsProvider>(
-            std::move(device_creds), tls_cert_der);
+        auto provider = std::make_unique<StaticCredentialsProvider>(std::move(device_creds), tls_cert_der);
         if (!provider) {
             log_info("Failed to build hardcoded credentials: Failed to allocate StaticCredentialsProvider");
             return;
         }
 
         log_info("Constructing creds..");
-        if (!BuildCredentials(provider, tls_creds, intermediate, deviceId)) {
-            log_info("ERROR: Failed to build credentials architecture!");
-            return;
-        }
         GeneratedCredentials creds{
             std::move(provider),
-            std::move(tls_creds),
-            std::move(intermediate)
+            TlsCredentials{std::move(tls_key_der), std::move(tls_pub_der), std::move(tls_cert_der)},
+            std::vector<uint8_t>(pplay::cast::creds::kIntermediateCrt,
+                                pplay::cast::creds::kIntermediateCrt +
+                                    pplay::cast::creds::kIntermediateCrtLen)
         };
         log_info("Credentials loaded!");
 
@@ -1008,6 +934,7 @@ namespace {
             config.enable_discovery = enableDiscovery;
             // config.enable_dscp = enableDscp;
             config.enable_dscp = false;
+            
             log_info("CastService obj conf srv.");
             service = std::unique_ptr<CastService>(new CastService(std::move(config)));
             log_info("CastService monolith successfully created.");
