@@ -358,7 +358,7 @@ void Player::onUpdate() {
         }
         try {
             if (position > 0 && duration > 300
-                && (position - lastProgressSave) >= 20
+                && (position - lastProgressSave) >= 10
                 && (duration - position) >= 60) {
                 mpv->save();
                 pplay::Utility::log(pplay::Utility::LogLevel::Debug,
