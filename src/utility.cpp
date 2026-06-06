@@ -308,7 +308,7 @@ bool Utility::deleteWatchLater(const std::string &video_path) {
     return false;
 }
 
-#ifdef __PS4__
+#ifdef __PPLAY_PLAYSTATION__
 std::string Utility::getCertificatesPath() {
     std::string customCA = c2d_renderer->getIo()->getDataPath() + "cacert.pem";
     std::string defaultCA = c2d_renderer->getIo()->getRomFsPath() + "cacert.pem";

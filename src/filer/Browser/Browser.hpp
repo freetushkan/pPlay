@@ -192,7 +192,7 @@ Browser::Browser()
     curl_global_init(CURL_GLOBAL_SSL);
     curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_TRY);
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
-#ifdef __PS4__
+#ifdef __PPLAY_PLAYSTATION__
     curl_easy_setopt(curl, CURLOPT_CAINFO, pplay::Utility::getCertificatesPath().c_str());
 #endif
     //for authentification
@@ -250,7 +250,7 @@ void Browser::init()
     form.clear();
     links.clear();
 
-#ifdef __PS4__
+#ifdef __PPLAY_PLAYSTATION__
     curl_easy_setopt(curl, CURLOPT_CAINFO, pplay::Utility::getCertificatesPath().c_str());
 #endif
 
@@ -260,7 +260,7 @@ void Browser::init()
         oss << "libcurl version=" << vi->version
             << ", ssl=" << (vi->ssl_version ? vi->ssl_version : "unknown")
             << ", libz=" << (vi->libz_version ? vi->libz_version : "none")
-#ifdef __PS4__
+#ifdef __PPLAY_PLAYSTATION__
             << ", CApath=" << pplay::Utility::getCertificatesPath()
 #endif
             ;

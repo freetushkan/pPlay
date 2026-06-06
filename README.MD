@@ -22,7 +22,9 @@ pPlay uses the [MPV](https://mpv.io/) interface to handle FFmpeg interoperabilit
 Installation
 ----
 
-- **PS4:** just install the `.pkg` file from latest release.
+- **Linux:** unpack the Linux `.zip` release and run `pplay`.
+- **PS4:** install the PS4 release package from the latest release archive.
+- **PS5:** unpack the PS5 `.zip` release on a jailbroken console with the PS5 payload SDK runtime available.
 - **Switch:** currently there is no build.
 
 Usage

@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
+set(CMAKE_CXX_USE_RESPONSE_FILE_FOR_OBJECTS 1)
+set(CMAKE_CXX_RESPONSE_FILE_LINK_FLAG "@")
+
 ####################
 # TARGET PLATFORM
 ####################
@@ -10,6 +13,8 @@ set(PLATFORM_RPI3 OFF CACHE BOOL "RIP3 platform target")
 set(PLATFORM_SWITCH OFF CACHE BOOL "Nintendo Switch platform target")
 set(PLATFORM_3DS OFF CACHE BOOL "Nintendo 3DS platform target")
 set(PLATFORM_VITA OFF CACHE BOOL "Sony PS Vita platform target")
+set(PLATFORM_PS4 OFF CACHE BOOL "Sony PS4 platform target")
+set(PLATFORM_PS5 OFF CACHE BOOL "Sony PS5 platform target")
 
 ####################
 # BUILD OPTIONS
@@ -130,7 +135,13 @@ elseif (PLATFORM_PS4)
     set(PS4_PKG_TITLE_ID "PPLA00001")
     set(PS4_PKG_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
     list(APPEND PPLAY_INC)
+    list(APPEND PPLAY_CFLAGS -D__PPLAY_PLAYSTATION__)
     list(APPEND PPLAY_LDFLAGS opus freetype fribidi png bz2)
+elseif (PLATFORM_PS5)
+    #####################
+    # PS5 PLATFORM
+    #####################
+    list(APPEND PPLAY_CFLAGS -D__PS5__ -D__PPLAY_PLAYSTATION__)
 elseif (PLATFORM_LINUX)
     #####################
     # LINUX PLATORM
@@ -149,6 +160,8 @@ if (PLATFORM_SWITCH)
     list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509 nx)
 elseif (PLATFORM_PS4)
     list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509 SceNet)
+elseif (PLATFORM_PS5)
+    # PS5 payload SDK packages expose most dependencies through pkg-config/find_library.
 endif ()
 target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS})
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
