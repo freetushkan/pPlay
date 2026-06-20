@@ -28,12 +28,14 @@ static void on_applet_hook(AppletHookType hook, void *arg) {
             break;
         case AppletHookType_OnFocusState:
             if (appletGetFocusState() == AppletFocusState_InFocus) {
-                if (main->getPlayer()->getMpv()->isPaused()) {
+                if (main->getPlayer()->getMpv()->isPaused() && paused_on_focus_loss) {
                     main->getPlayer()->resume();
+                    paused_on_focus_loss = false;
                 }
             } else {
                 if (!main->getPlayer()->getMpv()->isPaused()) {
                     main->getPlayer()->pause();
+                    paused_on_focus_loss = true;
                 }
             }
             break;
@@ -171,11 +173,9 @@ static std::string extractDirPath(const std::string &path) {
     }
     std::string p = normalizePath(path);
     size_t schemePos = p.find("://");
-    size_t minPos = 0;
     if (schemePos != std::string::npos) {
         size_t afterHost = p.find('/', schemePos + 3);
         if (afterHost == std::string::npos) return ensureTrailingSlash(p);
-        minPos = afterHost + 1;
     }
     size_t pos = p.find_last_of('/');
     if (pos == 0) return "/";
@@ -202,7 +202,12 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     setClearColor(COLOR_BG);
 
     // create pplay data directory
-    pplayIo->create(pplayIo->getDataPath() + "mpv");
+    // pplayIo->create(pplayIo->getDataPath() + "mpv");
+    // create and sync pplay data directory
+    pplayIo->create(pplayIo->getDataPath());
+#if defined(__PS4__) || defined(__SWITCH__)
+    pplayIo->syncRomFs(); 
+#endif
 
     // configure input
     Main::getInput()->setRepeatDelay(INPUT_DELAY);
@@ -219,10 +224,7 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
 
     // font
     font = new Font();
-    std::string customFont = Main::getIo()->getDataPath() + "font.ttf";
-    std::string defaultFont = Main::getIo()->getRomFsPath() + "skin/font.ttf";
-    std::string fontPath = Main::getIo()->exist(customFont) ? customFont : defaultFont;
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main::font path=" + fontPath);
+    std::string fontPath = Main::getIo()->getDataPath() + "skin/font.ttf";
     font->loadFromFile(fontPath);
     font->setFilter(Texture::Filter::Point);
     font->setOffset({0, -4.0f});
@@ -277,6 +279,7 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
 
     // video menu
     items.clear();
+    items.emplace_back("Playback mode", "pl_mode.png", MenuItem::Position::Top);
     items.emplace_back("Playlist", "playlist.png", MenuItem::Position::Top);
     items.emplace_back("Audio", "audio.png", MenuItem::Position::Top);
     items.emplace_back("Video", "video.png", MenuItem::Position::Top);
@@ -308,7 +311,15 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
 #endif
 
     // open last
-    show(currentModuleIndex > 0 ? MenuType::Network : MenuType::Local);
+    show(
+#ifdef __SWITCH__
+        config->getOption(OPT_LAST_MODULE)->getString() == "USB"
+            ? MenuType::Usb :
+#endif
+        currentModuleIndex > 0
+            ? MenuType::Network
+            : MenuType::Local
+    );
 }
 
 Main::~Main() {
@@ -373,8 +384,9 @@ void Main::show(MenuType type) {
     filer->setVisibility(Visibility::Visible, true);
     if (type == MenuType::Local) {
 #ifdef __SWITCH__
-        usbHsFsExit();
+        usbExit();
 #endif
+        currentModuleIndex = -1;
         std::string path = normalizePath(config->getOption(OPT_LAST_LOCAL_PATH)->getString());
         if (path.empty()) {
             path = config->getOption(OPT_HOME_PATH)->getString();
@@ -389,12 +401,18 @@ void Main::show(MenuType type) {
         }
 #ifdef __SWITCH__
     } else if (type == MenuType::Usb) {
+        currentModuleIndex = -2;
         usbInit();
-        filer->getDir(config->getOption(OPT_UMS_DEVICE)->getString());
+        usbWaitForDevice();
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main::usb path=ums_list");
+        if (!filer->getDir("ums_list")) {
+            show(MenuType::Local);
+            return;
+        }
 #endif
     } else {
 #ifdef __SWITCH__
-        usbHsFsExit();
+        usbExit();
 #endif
         std::string network = config->getOption(
             PPLAYConfig::networkOption(currentModuleIndex))->getString();
@@ -411,7 +429,7 @@ void Main::show(MenuType type) {
         std::string dirPath = extractDirPath(path);
         if (!filer->getDir(dirPath)) {
             if (!filer->getDir(root)) {
-                messageBox->show("OOPS", filer->getError(), "OK");
+                messageBox->show("ERROR", filer->getError());
                 show(MenuType::Local);
             }
         } else {
@@ -435,6 +453,9 @@ void Main::setRunningStop() {
 }
 
 void Main::quit() {
+#ifdef __SWITCH__
+        usbExit();
+#endif
     syncLastLocation();
     config->save();
     exit = true;
@@ -448,28 +469,36 @@ void Main::quit() {
 void Main::syncLastLocation() {
     MediaFile selected = filer->getSelection();
     std::string selectedPath = selected.path.empty() ? filer->getPath() + "/.." : selected.path;
-    selectedPath = normalizePath(selectedPath);
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "Main::syncLastLocation module="
-        + std::string(currentModuleIndex > 0 ? networkModuleName(currentModuleIndex) : "LOCAL")
-        + " index=" + std::to_string(currentModuleIndex)
-        + " selected=" + selectedPath);
+    std::string path = normalizePath(selectedPath);
+
     if (currentModuleIndex > 0) {
+        pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Main::syncLastLocation module="
+            + std::string(currentModuleIndex > 0 ? networkModuleName(currentModuleIndex) : "LOCAL")
+            + " index=" + std::to_string(currentModuleIndex) + " path=" + path);
+
         config->getOption(OPT_LAST_MODULE)->setString(networkModuleName(currentModuleIndex));
-        if (pplayIo->getDeviceType(selectedPath) != pplay::Io::DeviceType::Local) {
-            const char *lastOption = PPLAYConfig::networkLastOption(currentModuleIndex);
-            if (getLeafName(selectedPath).empty()) {
-                config->getOption(lastOption)->setString(ensureTrailingSlash(selectedPath));
-            } else {
-                config->getOption(lastOption)->setString(selectedPath);
-            }
-        }
-    } else {
-        config->getOption(OPT_LAST_MODULE)->setString("LOCAL");
-        if (getLeafName(selectedPath).empty()) {
-            config->getOption(OPT_LAST_LOCAL_PATH)->setString(ensureTrailingSlash(selectedPath));
+        const char *lastOption = PPLAYConfig::networkLastOption(currentModuleIndex);
+        if (getLeafName(path).empty()) {
+            config->getOption(lastOption)->setString(ensureTrailingSlash(path));
         } else {
-            config->getOption(OPT_LAST_LOCAL_PATH)->setString(selectedPath);
+            config->getOption(lastOption)->setString(path);
+        }
+#ifdef __SWITCH__
+    } else if (c2d::Utility::startWith(selectedPath, "ums")) {
+        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+            "Main::syncLastLocation module=USB");
+
+        config->getOption(OPT_LAST_MODULE)->setString("USB");
+#endif
+    } else {
+        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+            "Main::syncLastLocation module=LOCAL path=" + path);
+
+        config->getOption(OPT_LAST_MODULE)->setString("LOCAL");
+        if (getLeafName(path).empty()) {
+            config->getOption(OPT_LAST_LOCAL_PATH)->setString(ensureTrailingSlash(path));
+        } else {
+            config->getOption(OPT_LAST_LOCAL_PATH)->setString(path);
         }
     }
     config->save();
@@ -536,6 +565,7 @@ pplay::Scrapper *Main::getScrapper() {
 int main() {
 
     Vector2f size = {1920, 1080};
+    // Vector2f size = {3840, 2160};
 
 #ifdef __SWITCH__
 #ifdef NDEBUG
@@ -564,7 +594,7 @@ int main() {
     delete (main);
 
 #ifdef __SWITCH__
-    usbHsFsExit();
+    usbExit();
     appletUnhook(&applet_hook_cookie);
     appletUnlockExit();
 #ifdef NDEBUG

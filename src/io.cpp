@@ -10,6 +10,7 @@
 #include <regex>
 #include <sstream>
 #include <vector>
+#include <fcntl.h>
 #include "io.h"
 #include "main.h"
 #include "media_info.h"
@@ -19,6 +20,9 @@
 #include "Browser/json.hpp"
 #include "pplay_config.h"
 #include "torrserve.h"
+#ifdef __SWITCH__
+#include "usbfs.h"
+#endif
 
 #ifdef __SMB2__
 #include <mpv/client.h>
@@ -551,6 +555,16 @@ std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, con
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::getDirList path=" + path);
 
     if (type == DeviceType::Local) {
+#ifdef __SWITCH__
+        if (path == "ums_list") {
+            for (const auto &mountName: usbGetMountNames()) {
+                files.emplace_back(c2d::Utility::removeLastSlash(mountName), mountName, Io::Type::Directory, 0);
+            }
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::UsbList entries="
+                                                                    + std::to_string(files.size()));
+            return files;
+        }
+#endif
         files = c2d::C2DIo::getDirList(path, sort, showHidden);
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::Local path=" + path
                                                             + " entries=" + std::to_string(files.size()));
@@ -825,6 +839,36 @@ Io::DeviceType Io::getDeviceType(const std::string &path) {
 
     return type;
 }
+
+#if defined(__PS4__) || defined(__SWITCH__)
+void Io::syncRomFs(const std::string &relativePath) {
+    auto files = c2d::C2DIo::getDirList(getRomFsPath() + relativePath, false, false);
+    for (const auto &file : files) {
+        if (file.name == "." || file.name == "..") continue;
+        std::string relPath = relativePath.empty() ? file.name : relativePath + "/" + file.name;
+        std::string target = getDataPath() + relPath;
+        if (file.type == c2d::Io::Type::Directory) {
+            if (file.name == "sce_sys") continue;
+            if (file.name == "sce_module") continue;
+            if (!exist(target)) create(target);
+            syncRomFs(relPath);
+        } else if (file.type == c2d::Io::Type::File) {
+            if (!exist(target)) {
+                std::string sourcePath = getRomFsPath() + relPath;
+                size_t size = getSize(sourcePath);
+                if (size > 0) {
+                    char *buf = (char *)malloc(size);
+                    if (buf) {
+                        read(sourcePath, buf, size);
+                        write(target, buf, size);
+                        free(buf);
+                    }
+                }
+            }
+        }
+    }
+}
+#endif
 
 Io::~Io() {
     delete (browser);

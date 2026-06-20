@@ -3,12 +3,16 @@
 
 #ifdef __SWITCH__
 
-#include <cstdlib>
-#include <threads.h>
+#include <string>
+#include <vector>
 #include <usbhsfs.h>
 
-int usbThread(void *arg);
 void usbInit();
+void usbExit();
+bool usbWaitForDevice(int timeoutSeconds = 5);
+std::string usbGetFirstMountName();
+std::vector<std::string> usbGetMountNames();
 
 #endif
-#endif
+
+#endif //PPLAY_USBFS_H

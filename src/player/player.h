@@ -23,7 +23,7 @@ public:
 
     ~Player() override;
 
-    bool load(const MediaFile &file, bool resetRetry = true, const std::string &options = "pause=yes");
+    bool load(const MediaFile &file, bool firstTry = true, const std::string &options = "pause=yes");
 
     void pause();
 
@@ -32,6 +32,10 @@ public:
     void stop();
 
     void setSpeed(double speed);
+
+    void changeVolume(double delta);
+
+    void changeBrightness(double delta);
 
     bool isFullscreen();
 
@@ -49,6 +53,8 @@ public:
 
     int getSubtitleStream();
 
+    void showMessage(const std::string &message);
+
     PlayerOSD *getOSD();
 
     Mpv *getMpv();
@@ -58,7 +64,10 @@ public:
     MenuVideoSubmenu *getMenuAudioStreams();
 
     MenuVideoSubmenu *getMenuSubtitlesStreams();
+
     MenuVideoSubmenu *getMenuPlaylist();
+
+    MenuVideoSubmenu *getMenuPlaybackMode();
 
     const std::string &getTitle() const;
     bool hasVideo() const;
@@ -78,20 +87,25 @@ private:
     // ui
     Main *main = nullptr;
     PlayerOSD *osd = nullptr;
+    c2d::Text *message_text = nullptr;
     c2d::TweenScale *tweenScale = nullptr;
     c2d::TweenPosition *tweenPosition = nullptr;
     MenuVideoSubmenu *menuVideoStreams = nullptr;
     MenuVideoSubmenu *menuAudioStreams = nullptr;
     MenuVideoSubmenu *menuSubtitlesStreams = nullptr;
     MenuVideoSubmenu *menuPlaylist = nullptr;
+    MenuVideoSubmenu *menuPlaybackMode = nullptr;
     MediaFile file;
     std::vector<MediaFile> autoplayFiles;
     int retryCount = 0;
     long lastProgressSave = 0;
     long lastKnownDuration = 0;
     long lastKnownPosition = 0;
-    bool pausedHttpsStream = false;
     c2d::C2DClock pauseClock;
+    c2d::C2DClock messageClock;
+#ifdef __PS4__
+    bool pausedHttpsStream = false;
+#endif
 
     // player
     VideoTexture *texture = nullptr;

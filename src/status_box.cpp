@@ -17,7 +17,7 @@ StatusBox::StatusBox(Main *m, const c2d::Vector2f &position)
     pos = m->getScaled(position);
     StatusBox::setPosition(pos);
 
-    icon = new C2DTexture(main->getIo()->getRomFsPath() + "skin/wait.png");
+    icon = new C2DTexture(main->getIo()->getDataPath() + "skin/wait.png");
     icon->setOrigin(Origin::Center);
     icon->setPosition(icon->getSize().x / 2 + (8 * m->getScaling().x), StatusBox::getSize().y / 2);
     icon->setScale(main->getScaling());
@@ -80,22 +80,24 @@ void StatusBox::onDraw(c2d::Transform &transform, bool draw) {
 
     if (isVisible() && !infinite && clock->getElapsedTime().asSeconds() > 2) {
         setVisibility(Visibility::Hidden, true);
-    }
-
-    PlayerOSD *osd = main->getPlayer()->getOSD();
-    if (osd && osd->isVisible()) {
-        FloatRect bounds = main->getPlayer()->getOSD()->getGlobalBounds();
-        setPosition(pos.x,
-            bounds.top - (
-                (static_cast<int>(Main::FontSize::XL) + 32)
-                * main->getScaling().y
-            ));
     } else {
-        FloatRect bounds = main->getMenuMain()->getGlobalBounds();
-        setPosition(bounds.left + bounds.width + pos.x,
-            main->getSize().y - (16 * main->getScaling().x));
+        PlayerOSD *osd = main->getPlayer()->getOSD();
+        if (osd && osd->isVisible()) {
+            FloatRect bounds = main->getPlayer()->getOSD()->getGlobalBounds();
+            setPosition(pos.x,
+                bounds.top - (
+                    (static_cast<int>(Main::FontSize::XL) + 32)
+                    * main->getScaling().y
+                ));
+        } else {
+            FloatRect bounds = main->getMenuMain()->getGlobalBounds();
+            setPosition(bounds.left + bounds.width + pos.x,
+                main->getSize().y - (16 * main->getScaling().x));
+        }
     }
-    titleText->setFillColor(COLOR_ACCENT);
+    if (isVisible() && titleText->getAlpha() > 0) {
+        titleText->setFillColor(COLOR_ACCENT);
+    }
 
     SDL_LockMutex(mutex);
     C2DObject::onDraw(transform, draw);

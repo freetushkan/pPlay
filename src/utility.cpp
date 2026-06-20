@@ -23,7 +23,11 @@
 #include "io.h"
 #include <string>
 #include <vector>
+#ifdef __PS5__
+#include <openssl/evp.h>
+#else
 #include <mbedtls/md5.h>
+#endif
 #include <cstdio>
 
 #include <algorithm>
@@ -244,15 +248,28 @@ void Utility::log(Utility::LogLevel level, const std::string &message) {
 
 std::string Utility::md5hash(const std::string &input) {
     unsigned char output[16];
+
+#ifdef __PS5__
+    EVP_MD_CTX* context = EVP_MD_CTX_new();
+    if (context != nullptr) {
+        if (EVP_DigestInit_ex(context, EVP_md5(), nullptr) == 1) {
+            EVP_DigestUpdate(context, input.c_str(), input.length());
+            unsigned int length = 0;
+            EVP_DigestFinal_ex(context, output, &length);
+        }
+        EVP_MD_CTX_free(context);
+    }
+#else
     mbedtls_md5_context ctx;
     mbedtls_md5_init(&ctx);
     mbedtls_md5_starts_ret(&ctx);
     mbedtls_md5_update_ret(&ctx, (const unsigned char*)input.c_str(), input.length());
     mbedtls_md5_finish_ret(&ctx, output);
     mbedtls_md5_free(&ctx);
+#endif
 
     std::stringstream ss;
-    for(int i = 0; i < 16; i++) {
+    for (int i = 0; i < 16; i++) {
         ss << std::hex << std::setw(2) << std::setfill('0') << (int)output[i];
     }
     return ss.str();
@@ -308,11 +325,12 @@ bool Utility::deleteWatchLater(const std::string &video_path) {
     return false;
 }
 
-#ifdef __PS4__
+#if defined(__PS4__) || defined(__PS5__)
 std::string Utility::getCertificatesPath() {
-    std::string customCA = c2d_renderer->getIo()->getDataPath() + "cacert.pem";
-    std::string defaultCA = c2d_renderer->getIo()->getRomFsPath() + "cacert.pem";
-    return fileExists(customCA) ? customCA : defaultCA;
+    // std::string customCA = c2d_renderer->getIo()->getDataPath() + "cacert.pem";
+    // std::string defaultCA = c2d_renderer->getIo()->getRomFsPath() + "cacert.pem";
+    // return fileExists(customCA) ? customCA : defaultCA;
+    return c2d_renderer->getIo()->getDataPath() + "cacert.pem";
 }
 #endif
 

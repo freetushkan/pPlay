@@ -50,7 +50,9 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
     addOption({OPT_LAST_MODULE, "LOCAL"});
     addOption({OPT_NETWORK_TIMEOUT, (int) 15});
     addOption({OPT_NETWORK_RETRIES, (int) 3});
+#ifdef __SMB2__
     addOption({OPT_SMB_READ_BUFFER_MB, (int) 10});
+#endif
     addOption({OPT_AUTOPLAY_MODE, (int) 1});
 #ifdef PPLAY_ENABLE_SCRAPPING
     addOption({OPT_ENABLE_SCRAPPING, (int) 0});
@@ -91,11 +93,13 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
         getOption(OPT_LAST_MODULE)->setString("LOCAL");
     }
 
+#ifdef __SMB2__
     if (getOption(OPT_SMB_READ_BUFFER_MB)->getInteger() < 1) {
         getOption(OPT_SMB_READ_BUFFER_MB)->setString("1");
     } else if (getOption(OPT_SMB_READ_BUFFER_MB)->getInteger() > 100) {
         getOption(OPT_SMB_READ_BUFFER_MB)->setString("100");
     }
+#endif
 
 #ifdef PPLAY_ENABLE_SCRAPPING
     if (getOption(OPT_TMDB_LANGUAGE)->getString().empty()) {

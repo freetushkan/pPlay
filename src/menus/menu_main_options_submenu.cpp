@@ -52,6 +52,7 @@ namespace {
         return oss.str();
     }
 
+#ifdef __PS4__
     std::string formatUTCOffset(float hours) {
         bool isNegative = hours < 0.0f;
         float absHours = std::abs(hours);
@@ -67,14 +68,16 @@ namespace {
             << std::setfill('0') << std::setw(2) << m;
         return oss.str();
     }
+#endif
 }
 
 std::string MenuMainOptionsSubmenu::formatValue(float value) const {
     std::ostringstream oss;
-
+#ifdef __PS4__
     if (option_name == OPT_UTC_OFFSET) {
         return formatUTCOffset(value);
     }
+#endif
     if (option_name == OPT_SEEK_SHORT_SEC
         || option_name == OPT_SEEK_LONG_SEC
         || option_name == OPT_NETWORK_TIMEOUT) {

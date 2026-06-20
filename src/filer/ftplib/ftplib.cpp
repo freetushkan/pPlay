@@ -34,6 +34,13 @@
 #include <cerrno>
 #include <cctype>
 
+#if defined(__SWITCH__)
+#include <sys/select.h>
+#ifndef INADDR_NONE
+#define INADDR_NONE ((unsigned long int) 0xffffffff)
+#endif
+#endif
+
 #if defined(__unix__) || defined(__SWITCH__)
 
 #include <sys/time.h>
@@ -403,6 +410,25 @@ GLOBALDEF char *FtpLastResponse(netbuf *nControl) {
  * return 1 if connected, 0 if not
  */
 GLOBALDEF int FtpConnect(const char *host, netbuf **nControl) {
+#if defined(__SWITCH__)
+    #define PF_INET AF_INET
+    #define hstrerror(x) "Host lookup failed"
+    auto gethostbyname = [](const char* name) -> struct hostent* {
+        static struct hostent he;
+        static char* addr_list[2];
+        static struct in_addr addr;
+        struct addrinfo hints{}, *res;
+        hints.ai_family = AF_INET;
+        if (getaddrinfo(name, nullptr, &hints, &res) != 0) return nullptr;
+        addr = ((struct sockaddr_in*)res->ai_addr)->sin_addr;
+        freeaddrinfo(res);
+        addr_list[0] = (char*)&addr;
+        addr_list[1] = nullptr;
+        he.h_addr_list = addr_list;
+        he.h_length = sizeof(struct in_addr);
+        return &he;
+    };
+#endif
     int sControl;
     struct sockaddr_in sin;
     int on = 1;
@@ -627,6 +653,9 @@ GLOBALDEF int FtpLogin(const char *user, const char *pass, netbuf *nControl) {
  * return 1 if successful, 0 otherwise
  */
 static int FtpOpenPort(netbuf *nControl, netbuf **nData, int mode, int dir) {
+#if defined(__SWITCH__)
+    #define PF_INET AF_INET
+#endif
     int sData;
     union {
         struct sockaddr sa;

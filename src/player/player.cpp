@@ -11,6 +11,7 @@
 #include "utility.h"
 #include "pplay_config.h"
 #include "encodings.h"
+#include "menu_video_submenu.h"
 
 using namespace c2d;
 
@@ -53,14 +54,33 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
 
     osd = new PlayerOSD(main);
     Player::add(osd);
+
+    // OSD message
+    message_text = new Text("", main->getFontSize(Main::FontSize::Bigger), main->getFont());
+    message_text->setFillColor(COLOR_FONT);
+    message_text->setOrigin(Origin::Left);
+    message_text->setOutlineColor(COLOR_GRAY_DARK);
+    message_text->setOutlineThickness(5.0f);
+    message_text->setPosition((20 * main->getScaling().x), (20 * main->getScaling().y));
+    message_text->setVisibility(Visibility::Hidden);
+    message_text->setLayer(3);
+    add(message_text);
 }
 
 Player::~Player() {
     delete (mpv);
 }
 
-bool Player::load(const MediaFile &f, bool resetRetry, const std::string &options) {
+void Player::showMessage(const std::string &message) {
+    message_text->setString(message);
+    message_text->setVisibility(Visibility::Visible);
+    messageClock.restart();
+}
+
+bool Player::load(const MediaFile &f, bool firstTry, const std::string &options) {
+#ifdef __PS4__
     pausedHttpsStream = false;
+#endif
     file = f;
     std::string opts = options;
     if (!isPlaylistFile()) {
@@ -76,9 +96,7 @@ bool Player::load(const MediaFile &f, bool resetRetry, const std::string &option
         }
     }
 
-    if (resetRetry) {
-        retryCount = 0;
-    }
+    if (firstTry) retryCount = 0;
     lastProgressSave = 0;
     lastKnownDuration = 0;
     lastKnownPosition = 0;
@@ -86,7 +104,7 @@ bool Player::load(const MediaFile &f, bool resetRetry, const std::string &option
         "Player::load path=" + encoding::fix(file.path)
         + " name=" + encoding::fix(file.name)
         + " type=" + std::to_string((int) file.type)
-        + " resetRetry=" + std::to_string(resetRetry ? 1 : 0)
+        + " firstTry=" + std::to_string(firstTry ? 1 : 0)
         + " retryCount=" + std::to_string(retryCount));
     std::string path = pplay::TorrServe::toStreamUrl(file.path);
 #ifdef __SMB2__
@@ -111,12 +129,16 @@ bool Player::load(const MediaFile &f, bool resetRetry, const std::string &option
         pplay::Utility::log(pplay::Utility::LogLevel::Error,
             "Player::load error code=" + std::to_string(res)
             + " msg=" + std::string(mpv_error_string(res))
+            + " opts=" + opts
             + " try=" + std::to_string(retryCount));
-        main->getStatus()->show("Error...", "Could not play file:\n"
+        main->getStatus()->show("Error...", "Could not play file: "
             + std::string(mpv_error_string(res)));
         printf("Player::load: could not play file: %s\n", mpv_error_string(res));
         return false;
     }
+
+    osd->setVisibility(c2d::Visibility::Visible);
+    main->getStatusBar()->setVisibility(Visibility::Visible, true);
 
     return true;
 }
@@ -143,9 +165,6 @@ void Player::onLoadEvent() {
         menuVideoStreams->setVisibility(Visibility::Hidden, false);
         menuVideoStreams->setLayer(3);
         add(menuVideoStreams);
-    } else {
-        osd->setVisibility(Visibility::Visible, true);
-        main->getStatusBar()->setVisibility(Visibility::Visible, true);
     }
 
     // build audio track selection menu
@@ -196,10 +215,23 @@ void Player::onLoadEvent() {
     }
     if (!playlistItems.empty()) {
         menuPlaylist = new MenuVideoSubmenu(
-            main, main->getMenuVideo()->getGlobalBounds(), "Playlist", playlistItems, MENU_VIDEO_TYPE_PL);
+            main, main->getMenuVideo()->getGlobalBounds(), "Playlist", playlistItems, MENU_VIDEO_TYPE_PLAYLIST);
         menuPlaylist->setVisibility(Visibility::Hidden, false);
         menuPlaylist->setLayer(3);
         add(menuPlaylist);
+    }
+
+    if (menuPlaybackMode == nullptr) {
+        menuPlaybackMode = new MenuVideoSubmenu(
+            main, main->getMenuVideo()->getGlobalBounds(), "At playback end..",
+            {MenuItem("Stop", "", MenuItem::Position::Top, 0),
+             MenuItem("Play next", "", MenuItem::Position::Top, 1),
+             MenuItem("Loop file", "", MenuItem::Position::Top, 2),
+             MenuItem("Loop directory", "", MenuItem::Position::Top, 3)},
+            MENU_VIDEO_TYPE_PL_MODE);
+        menuPlaybackMode->setLayer(3);
+        menuPlaybackMode->setVisibility(Visibility::Hidden, false);
+        add(menuPlaybackMode);
     }
 
 #ifdef FULL_TEXTURE_TEST
@@ -211,8 +243,11 @@ void Player::onLoadEvent() {
     texture->setScale(scaling, scaling);
 #endif
 
+    mpv->restoreVolume();
+    mpv->restoreSpeed();
+    mpv->saveVolume();
+    mpv->saveSpeed();
     resume();
-    setFullscreen(true);
 }
 
 void Player::onStopEvent(int reason) {
@@ -237,8 +272,11 @@ void Player::onStopEvent(int reason) {
         menuPlaylist = nullptr;
     }
 
-
     if (main->isExiting()) {
+        if (menuPlaybackMode != nullptr) {
+            delete (menuPlaybackMode);
+            menuPlaybackMode = nullptr;
+        }
         main->setRunningStop();
         return;
     }
@@ -278,7 +316,7 @@ void Player::onStopEvent(int reason) {
         if (autoplayMode == 2) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
                 "Player::onStopEvent loopFile current=" + file.path);
-            load(file);
+            load(file, true, "pause=yes,start=0");
             return;
         }
         if ((autoplayMode == 1 || autoplayMode == 3) && !autoplayFiles.empty()) {
@@ -296,7 +334,7 @@ void Player::onStopEvent(int reason) {
                         pplay::Utility::log(pplay::Utility::LogLevel::Info,
                             "Player::onStopEvent autoplayNext current=" + file.path
                             + " next=" + autoplayFiles[idx].path);
-                        load(autoplayFiles[idx]);
+                        load(autoplayFiles[idx], true, "pause=yes,start=0");
                         return;
                     }
                 }
@@ -306,7 +344,7 @@ void Player::onStopEvent(int reason) {
                             pplay::Utility::log(pplay::Utility::LogLevel::Info,
                                 "Player::onStopEvent autoplayLoop current=" + file.path
                                 + " next=" + autoplayFiles[idx].path);
-                            load(autoplayFiles[idx]);
+                            load(autoplayFiles[idx], true, "pause=yes,start=0");
                             return;
                         }
                     }
@@ -372,8 +410,6 @@ void Player::onUpdate() {
         }
         mpv_event *event = mpv->getEvent();
         if (event != nullptr) {
-            pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-                "Player::onUpdate::event event_id=" + std::to_string(event->event_id));
             switch (event->event_id) {
                 case MPV_EVENT_START_FILE:
                     printf("MPV_EVENT_START_FILE\n");
@@ -402,6 +438,10 @@ void Player::onUpdate() {
         }
     }
 
+    if (message_text->isVisible() && messageClock.getElapsedTime().asSeconds() >= 2.0f) {
+        message_text->setVisibility(Visibility::Hidden);
+    }
+
     if (isVisible()) {
         texture->setOutlineColor(COLOR_ACCENT);
         Rectangle::onUpdate();
@@ -419,7 +459,8 @@ bool Player::onInput(c2d::Input::Player *players) {
         || (getMenuVideoStreams() != nullptr && getMenuVideoStreams()->isVisible())
         || (getMenuAudioStreams() != nullptr && getMenuAudioStreams()->isVisible())
         || (getMenuSubtitlesStreams() != nullptr && getMenuSubtitlesStreams()->isVisible())
-        || (getMenuPlaylist() != nullptr && getMenuPlaylist()->isVisible())) {
+        || (getMenuPlaylist() != nullptr && getMenuPlaylist()->isVisible())
+        || (getMenuPlaybackMode() != nullptr && getMenuPlaybackMode()->isVisible())) {
         return C2DObject::onInput(players);
     }
 
@@ -431,14 +472,26 @@ bool Player::onInput(c2d::Input::Player *players) {
 
     float seek = main->getConfig()->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
     if (keys & btnSpeedReset) {
-        setSpeed(1);
+        if (mpv->getSpeed() != 1.00) setSpeed(1);
+        else getMpv()->seek(-1.00f);
     } else if (keys & btnSpeedUp) {
         double new_speed = mpv->getSpeed() + 0.05;
-        if (new_speed <= 100) setSpeed(new_speed);
+        if (new_speed <= 3) setSpeed(new_speed);
     } else if (keys & (btnSeekBack | btnSeekForward)) {
         osd->setVisibility(c2d::Visibility::Visible);
         getMpv()->seek(((keys & btnSeekBack) ? -seek : seek));
-    }
+    } else if (keys & Input::Start) {
+        int width = getMpv()->getOsdWidth();
+        int height = getMpv()->getOsdHeight();
+        std::string message = "Render: " +
+                        std::to_string(width) + "x" + std::to_string(height);
+        showMessage(message);
+    } else if (keys & (Input::Up | Input::Down)) {
+        int delta = (keys & Input::Up) ? 1 : -1;
+        if (keys & Input::Y)
+            changeBrightness(delta);
+        else changeVolume(delta);
+    } 
 
     if (osd->isVisible()) {
         return C2DObject::onInput(players);
@@ -447,25 +500,22 @@ bool Player::onInput(c2d::Input::Player *players) {
     //////////////////
     /// handle inputs
     //////////////////
-    if (keys & (Input::Up | Input::Down))
-        mpv->changeVolume((keys & Input::Up) ? 1 : -1);
-    else if (keys & Input::B)
+    if (keys & Input::B) {
         setFullscreen(false);
-    else if (keys & Input::X) {
+    } else if (keys & Input::X) {
         main->getMenuVideo()->setVisibility(Visibility::Visible, true);
         return true;
-    }
-    else if (keys & Input::A) {
+    } else if (keys & Input::A) {
         bool paused = mpv->isPaused();
         main->getStatus()->show("Info...",
             paused ? "Resuming playback..." : "Pausing playback...");
         paused ? resume() : pause();
-        getOSD()->btn_play->setVisibility(paused ? Visibility::Hidden : Visibility::Visible);
-        getOSD()->btn_pause->setVisibility(paused ? Visibility::Visible : Visibility::Hidden);
+        osd->btn_play->setVisibility(paused ? Visibility::Hidden : Visibility::Visible);
+        osd->btn_pause->setVisibility(paused ? Visibility::Visible : Visibility::Hidden);
     }
 
-    if (keys && !getOSD()->isVisible()) {
-        getOSD()->setVisibility(Visibility::Visible, true);
+    if (keys && !osd->isVisible()) {
+        osd->setVisibility(Visibility::Visible, true);
         main->getStatusBar()->setVisibility(Visibility::Visible, true);
     }
 
@@ -500,11 +550,19 @@ int Player::getSubtitleStream() {
 }
 
 void Player::setSpeed(double speed) {
-    mpv->setSpeed(speed);
-    osd->setVisibility(Visibility::Visible, true);
+    showMessage(mpv->setSpeed(speed));
+}
+
+void Player::changeVolume(double delta) {
+    showMessage(mpv->changeVolume(delta));
+}
+
+void Player::changeBrightness(double delta) {
+    showMessage(mpv->changeBrightness(delta));
 }
 
 void Player::pause() {
+#ifdef __PS4__
     std::string streamUrl = pplay::TorrServe::toStreamUrl(mpv->getCurrentPath());
     pausedHttpsStream = Utility::startWith(streamUrl, "https://");
     if (pausedHttpsStream) {
@@ -512,7 +570,7 @@ void Player::pause() {
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
             "Player::pause https stream detected, pause timer started");
     }
-
+#endif
     mpv->pause();
     if (lastKnownPosition > 0 && lastKnownDuration > 300
         && (lastKnownDuration - lastKnownPosition) >= 60) {
@@ -528,22 +586,16 @@ void Player::pause() {
 }
 
 void Player::resume() {
+#ifdef __PS4__
     if (pausedHttpsStream && pauseClock.getElapsedTime().asSeconds() >= 300) {
-        std::string opts = "pause=yes";
-        if (!isPlaylistFile() && lastKnownPosition > 0) {
-            opts += ",start=" + std::to_string(lastKnownPosition);
-        }
-        pplay::Utility::log(pplay::Utility::LogLevel::Info,
-            "Player::resume reopenAfterLongPause elapsed="
-            + std::to_string((long)pauseClock.getElapsedTime().asSeconds())
-            + " isPlaylistFile=" + (isPlaylistFile() ? "true" : "false")
-            + " lastKnownPosition=" + std::to_string(lastKnownPosition));
         pausedHttpsStream = false;
-        load(file, false, opts);
+        load(file, false, "pause=yes");
         return;
     }
     pausedHttpsStream = false;
+#endif
     mpv->resume();
+    texture->drawFrame();
 #ifdef __SWITCH__
     if (main->getConfig()->getOption(OPT_CPU_BOOST)->getString() == "Enabled") {
         pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Max);
@@ -599,7 +651,8 @@ void Player::setFullscreen(bool fs, bool hide) {
         tweenPosition->play(TweenDirection::Forward);
         texture->hideFade();
         main->getFiler()->setVisibility(Visibility::Hidden, true);
-        main->getStatusBar()->setVisibility(Visibility::Hidden, true);
+        main->getStatusBar()->setVisibility(Visibility::Visible, true);
+        osd->setVisibility(c2d::Visibility::Visible);
         setVisibility(Visibility::Visible, true);
     }
 }
@@ -618,6 +671,10 @@ MenuVideoSubmenu *Player::getMenuSubtitlesStreams() {
 
 MenuVideoSubmenu *Player::getMenuPlaylist() {
     return menuPlaylist;
+}
+
+MenuVideoSubmenu *Player::getMenuPlaybackMode() {
+    return menuPlaybackMode;
 }
 
 const std::string &Player::getTitle() const {

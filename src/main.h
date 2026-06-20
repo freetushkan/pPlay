@@ -50,6 +50,9 @@ inline c2d::Color& COLOR_ACCENT = pplay::Utility::getAccentColor();
 #define COLOR_RED           Color(0xEB4D4BFF)
 #define COLOR_VIEWED        Color(0x5B6464FF)
 
+#ifdef __SWITCH__
+bool paused_on_focus_loss = false;
+#endif
 
 class Main : public c2d::C2DRenderer {
 

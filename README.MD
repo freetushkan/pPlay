@@ -23,7 +23,8 @@ Installation
 ----
 
 - **PS4:** just install the `.pkg` file from latest release.
-- **Switch:** currently there is no build.
+- **PS5:** extract the `.zip` contents to `/data/homebrew/pplay`.
+- **Switch:** put the `.nro` to your launcher root.
 
 Usage
 -----

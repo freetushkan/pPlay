@@ -5,11 +5,13 @@
 #include "cross2d/c2d.h"
 #include "main.h"
 #include "menu_video.h"
+#include "player_osd.h"
 
 using namespace c2d;
 
 MenuVideo::MenuVideo(Main *main, const c2d::FloatRect &rect, const std::vector<MenuItem> &items)
-        : Menu(main, rect, "Video options", items, false) {}
+        : Menu(main, rect, "Video options", items, false) {
+}
 
 void MenuVideo::onOptionSelection(MenuItem *item) {
 
@@ -41,6 +43,11 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
         } else {
             main->getStatus()->show("Information...", "Playlist is empty", false, false);
         }
+    } else if (item->name == "Playback mode") {
+        if (main->getPlayer()->getMenuPlaybackMode()) {
+            main->getPlayer()->getMenuPlaybackMode()->setVisibility(Visibility::Visible, true);
+            setVisibility(Visibility::Hidden, true);
+        }
     } else if (item->name == "Stop") {
         main->getPlayer()->stop();
         setVisibility(Visibility::Hidden, true);
@@ -51,6 +58,9 @@ bool MenuVideo::onInput(c2d::Input::Player *players) {
 
     if (players[0].buttons & Input::Left || players[0].buttons & Input::B) {
         setVisibility(Visibility::Hidden, true);
+        if (!main->getPlayer()->hasVideo()) {
+            main->getPlayer()->getOSD()->setVisibility(c2d::Visibility::Visible);
+        }
         return true;
     }
 

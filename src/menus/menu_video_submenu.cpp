@@ -5,6 +5,8 @@
 #include "cross2d/c2d.h"
 #include "main.h"
 #include "menu_video_submenu.h"
+#include "pplay_config.h"
+#include "utility.h"
 
 using namespace c2d;
 
@@ -44,7 +46,9 @@ void MenuVideoSubmenu::updateSelectionHighlight() {
         setSelection(main->getPlayer()->getAudioStream());
     } else if (type == MENU_VIDEO_TYPE_SUB) {
         setSelection(main->getPlayer()->getSubtitleStream());
-    } else if (type == MENU_VIDEO_TYPE_PL) {
+    } else if (type == MENU_VIDEO_TYPE_PL_MODE) {
+        setSelection(main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger());
+    } else if (type == MENU_VIDEO_TYPE_PLAYLIST) {
         if (main->getPlayer()->isPlaylistFile()) {
             setSelection(main->getPlayer()->getMpv()->getPlaylistPos());
             return;
@@ -76,8 +80,17 @@ void MenuVideoSubmenu::onOptionSelection(MenuItem *item) {
             main->getStatus()->show("Please Wait...",
                                     "Loading subtitle stream: " + name + ".\nThis can take a few seconds...");
             main->getPlayer()->setSubtitleStream(item->id);
-        } else if (type == MENU_VIDEO_TYPE_PL) {
-            main->getPlayer()->getMpv()->showText("Switching playlist item...");
+        } else if (type == MENU_VIDEO_TYPE_PL_MODE) {
+            auto *option = main->getConfig()->getOption(OPT_AUTOPLAY_MODE);
+            const std::string oldValue = option->getString();
+            option->setType(c2d::config::Option::Type::Integer);
+            option->setInteger(item->id);
+            main->getConfig()->save();
+            pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+                                "Options: " + std::string(OPT_AUTOPLAY_MODE) + " changed from "
+                                + oldValue + " to " + option->getString());
+        } else if (type == MENU_VIDEO_TYPE_PLAYLIST) {
+            main->getStatus()->show("Please Wait...", "Switching playlist item...");
             if (main->getPlayer()->isPlaylistFile()) {
                 main->getPlayer()->getMpv()->setPlaylistPos(item->id);
             } else {

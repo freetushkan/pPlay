@@ -173,9 +173,6 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
 
     logged_mpv_set_option_string(handle, "config", "yes");
     logged_mpv_set_option_string(handle, "config-dir", configPath.c_str());
-#ifdef __PS4__
-    logged_mpv_set_option_string(handle, "tls-ca-file", pplay::Utility::getCertificatesPath().c_str());
-#endif
     logged_mpv_set_option_string(handle, "osd-scale", "0.5");
 #ifndef NDEBUG
     logged_mpv_set_option_string(handle, "terminal", "yes");
@@ -184,20 +181,52 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
 
 #ifdef __SWITCH__
     logged_mpv_set_option_string(handle, "vd-lavc-threads", "4");
+    logged_mpv_set_option_string(handle, "dither", "no");
     // TODO: test this
-    logged_mpv_set_option_string(handle, "fbo-format", "rgba8");
-    logged_mpv_set_option_string(handle, "opengl-pbo", "yes");
+    // logged_mpv_set_option_string(handle, "fbo-format", "rgba8");
+    // logged_mpv_set_option_string(handle, "opengl-pbo", "yes");
 #else
     logged_mpv_set_option_string(handle, "vd-lavc-threads", "6");
     logged_mpv_set_option_string(handle, "video-sync", "audio");
 #endif
+
     logged_mpv_set_option_string(handle, "audio-channels", "stereo");
     logged_mpv_set_option_string(handle, "audio-normalize-downmix", "yes");
     logged_mpv_set_option_string(handle, "cache-pause", "yes");
     logged_mpv_set_option_string(handle, "cache-secs", "60");
-    logged_mpv_set_option_string(handle, "demuxer-lavf-o", "reconnect=1:reconnect_at_eof=1:reconnect_streamed=1:reconnect_delay_max=5");
-#ifdef __PS4__
+
+#if defined(__PS4__) || defined(__PS5__)
+    logged_mpv_set_option_string(handle, "dither", "no");
     logged_mpv_set_option_string(handle, "ignore-path-in-watch-later-config", "yes");
+    logged_mpv_set_option_string(handle, "tls-ca-file", pplay::Utility::getCertificatesPath().c_str());
+    logged_mpv_set_option_string(handle, "sub-ass-override", "force");
+    logged_mpv_set_option_string(handle, "osd-rendering-mode", "normal");
+    logged_mpv_set_option_string(handle, "sub-font-provider", "none");
+    logged_mpv_set_option_string(handle, "osd-font-provider", "none");
+    logged_mpv_set_option_string(handle, "sub-font", "subfont.ttf");
+    logged_mpv_set_option_string(handle, "osd-font", "subfont.ttf");
+#endif
+
+#ifdef __PS4__
+    logged_mpv_set_option_string(handle, "cscale", "bilinear");
+    logged_mpv_set_option_string(handle, "scale", "bilinear");
+    logged_mpv_set_option_string(handle, "dscale", "bilinear");
+    logged_mpv_set_option_string(handle, "sws-scaler", "bilinear");
+    logged_mpv_set_option_string(handle, "sub-fonts-dir", "/data/pplay/mpv");
+    logged_mpv_set_option_string(handle, "osd-fonts-dir", "/data/pplay/mpv");
+#endif
+
+#ifdef __PS5__
+    logged_mpv_set_option_string(handle, "cscale", "bilinear");
+    logged_mpv_set_option_string(handle, "scale", "bicubic");
+    logged_mpv_set_option_string(handle, "dscale", "bicubic");
+    logged_mpv_set_option_string(handle, "sws-scaler", "bicubic");
+    logged_mpv_set_option_string(handle, "sub-fonts-dir", "/data/homebrew/pplay/mpv");
+    logged_mpv_set_option_string(handle, "osd-fonts-dir", "/data/homebrew/pplay/mpv");
+#endif
+
+#if MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2,0)
+    logged_mpv_set_option_string(handle, "vo", "libmpv");
 #endif
 
 #ifdef FULL_TEXTURE_TEST
@@ -265,11 +294,12 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     std::string log = "FFmpeg protocols:\n  Input: " + join_protocols(in_protos) +
                       "\n  Output: " + join_protocols(out_protos);
     pplay::Utility::log(pplay::Utility::LogLevel::Info, log);
-
     if (initRender) {
-        mpv_opengl_init_params gl_init_params{get_proc_address_mpv,
-                                              nullptr,
-                                              nullptr};
+#if MPV_CLIENT_API_VERSION < MPV_MAKE_VERSION(2,0)
+        mpv_opengl_init_params gl_init_params{get_proc_address_mpv, nullptr, nullptr};
+#else
+        mpv_opengl_init_params gl_init_params{get_proc_address_mpv, nullptr};
+#endif
         mpv_render_param params[]{
                 {MPV_RENDER_PARAM_API_TYPE,           (void *) MPV_RENDER_API_TYPE_OPENGL},
                 {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &gl_init_params},
@@ -305,7 +335,11 @@ int Mpv::load(const std::string &file, LoadType loadType, const std::string &opt
         } else if (loadType == LoadType::AppendPlay) {
             type = "append-play";
         }
+#if MPV_CLIENT_API_VERSION < MPV_MAKE_VERSION(2,3)
         const char *cmd[] = {"loadfile", file.c_str(), type.c_str(), options.c_str(), nullptr};
+#else
+        const char *cmd[] = {"loadfile", file.c_str(), type.c_str(), "-1", options.c_str(), nullptr};
+#endif
         return logged_mpv_command(handle, cmd);
     }
 
@@ -328,21 +362,48 @@ int Mpv::stop() {
     return logged_mpv_command_string(handle, "stop");
 }
 
-int Mpv::changeBrightness(double delta) {
-    std::string cmd = "no-osd add brightness " + std::to_string(delta)
-                    + "; show-text \"Brightness: ${brightness}%\"";
-    return logged_mpv_command_string(handle, cmd.c_str());
+std::string Mpv::changeBrightness(double delta) {
+    std::string cmd = "no-osd add brightness " + std::to_string(delta);
+    logged_mpv_command_string(handle, cmd.c_str());
+    double brightness = 0.0;
+    logged_mpv_get_property(handle, "brightness", MPV_FORMAT_DOUBLE, &brightness);
+    return "Brightness: " + std::to_string((int) brightness) + "%";
 }
 
-int Mpv::changeVolume(double delta) {
-    std::string cmd = "no-osd add volume " + std::to_string(delta)
-                    + "; show-text \"Volume: ${volume}%\"";
-    return logged_mpv_command_string(handle, cmd.c_str());
+std::string Mpv::changeVolume(double delta) {
+    std::string cmd = "no-osd add volume " + std::to_string(delta);
+    logged_mpv_command_string(handle, cmd.c_str());
+    double volume = 0.0;
+    logged_mpv_get_property(handle, "volume", MPV_FORMAT_DOUBLE, &volume);
+    saveVolume();
+    return "Volume: " + std::to_string((int) volume) + "%";
 }
 
-int Mpv::showText(std::string message) {
-    std::string cmd = "show-text \"" + message + "\"";
-    return logged_mpv_command_string(handle, cmd.c_str());
+void Mpv::saveVolume() {
+    double currentVolume = 100.0;
+    mpv_get_property(handle, "volume", MPV_FORMAT_DOUBLE, &currentVolume);
+    lastVolume = currentVolume;
+}
+
+int Mpv::restoreVolume() {
+    if (lastVolume >= 0.0) {
+        std::string cmd = "no-osd set volume " + std::to_string((int)lastVolume);
+        int res = logged_mpv_command_string(handle, cmd.c_str());
+        return res;
+    }
+    return 0;
+}
+
+int Mpv::getOsdWidth() {
+    int64_t res = -1;
+    logged_mpv_get_property(handle, "osd-width", MPV_FORMAT_INT64, &res);
+    return static_cast<int>(res);
+}
+
+int Mpv::getOsdHeight() {
+    int64_t res = -1;
+    logged_mpv_get_property(handle, "osd-height", MPV_FORMAT_INT64, &res);
+    return static_cast<int>(res);
 }
 
 int Mpv::seek(double position) {
@@ -350,15 +411,31 @@ int Mpv::seek(double position) {
     return logged_mpv_command_string(handle, cmd.c_str());
 }
 
-int Mpv::setSpeed(double speed) {
-    std::string cmd = "set speed " + std::to_string(speed);
-    return logged_mpv_command_string(handle, cmd.c_str());
+std::string Mpv::setSpeed(double speed) {
+    std::string cmd = "no-osd set speed " + std::to_string(speed);
+    logged_mpv_command_string(handle, cmd.c_str());
+    double currentSpeed = getSpeed();
+    return "Speed: " + std::to_string((int) (currentSpeed * 100.0)) + "%";
 }
 
 double Mpv::getSpeed() {
     double res = -1;
     logged_mpv_get_property(handle, "speed", MPV_FORMAT_DOUBLE, &res);
     return res;
+}
+
+void Mpv::saveSpeed() {
+    double currentSpeed = 1.0;
+    mpv_get_property(handle, "speed", MPV_FORMAT_DOUBLE, &currentSpeed);
+    lastSpeed = currentSpeed;
+}
+
+int Mpv::restoreSpeed() {
+    if (lastSpeed > 1.0) {
+        std::string cmd = "no-osd set speed " + std::to_string(lastSpeed);
+        return logged_mpv_command_string(handle, cmd.c_str());
+    }
+    return 0;
 }
 
 int Mpv::setVid(int id) {

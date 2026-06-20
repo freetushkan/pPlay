@@ -1,4 +1,4 @@
-name: ps4-release
+name: pplay-release
 
 on:
   workflow_dispatch:
@@ -9,6 +9,109 @@ permissions:
   contents: write
 
 jobs:
+  switch:
+    runs-on: ubuntu-24.04
+    container: devkitpro/devkita64:latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Create build environment
+        run: |
+          sudo apt -yq update || true
+          sudo apt -yq install git build-essential cmake curl git file
+
+          git clone --depth 1 https://github.com/freetushkan/pacman-packages /tmp/pacman-packages
+          useradd -m builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          chown -R builder:builder /tmp/pacman-packages
+
+          git clone https://github.com/cy33hc/libsmb2.git
+          cd libsmb2
+          git checkout switch
+          cd ..
+
+          # Install system and devkitPro dependencies
+          sudo apt -yq update || true
+          sudo apt -yq install git build-essential cmake curl meson ninja-build nasm fakeroot zstd
+
+          # sudo dkp-pacman -S --noconfirm switch-lwext4 switch-ntfs-3g
+
+      - name: Cache for build dependencies
+        id: switch-cache
+        uses: actions/cache@v4
+        with:
+          path: /opt/compiled_libs
+          key: ${{ runner.os }}-switch-v1
+
+      - name: Build libusbhsfs
+        if: steps.switch-cache.outputs.cache-hit != 'true'
+        run: |
+          set -eux
+          mkdir -p /opt/compiled_libs/libusbhsfs
+          chown -R builder:builder /opt/compiled_libs
+          cd /tmp/pacman-packages/switch/libusbhsfs
+          su builder -c "dkp-makepkg --noconfirm --syncdeps --cleanbuild"
+          find ./ -name "*.pkg.tar.*" -exec cp -v {} /opt/compiled_libs/libusbhsfs/ \;
+          find ./ -name "*.pkg.tar.*" -exec sudo dkp-pacman --noconfirm -U {} \;
+
+      - name: Build FFmpeg
+        if: steps.switch-cache.outputs.cache-hit != 'true'
+        run: |
+          set -eux
+          mkdir -p /opt/compiled_libs/ffmpeg
+          chown -R builder:builder /opt/compiled_libs
+          cd /tmp/pacman-packages/switch/ffmpeg
+          su builder -c "dkp-makepkg --noconfirm --syncdeps"
+          find ./ -name "*.pkg.tar.*" -exec cp -v {} /opt/compiled_libs/ffmpeg/ \;
+          find ./ -name "*.pkg.tar.*" -exec sudo dkp-pacman --noconfirm -U {} \;
+
+      - name: Build libmpv
+        if: steps.switch-cache.outputs.cache-hit != 'true'
+        run: |
+          set -eux
+          mkdir -p /opt/compiled_libs/libmpv
+          chown -R builder:builder /opt/compiled_libs
+          cd /tmp/pacman-packages/switch/libmpv
+          su builder -c "dkp-makepkg --noconfirm --syncdeps --cleanbuild"
+          find ./ -name "*.pkg.tar.*" -exec cp -v {} /opt/compiled_libs/libmpv/ \;
+          find ./ -name "*.pkg.tar.*" -exec sudo dkp-pacman --noconfirm -U {} \;
+
+      - name: Install cached libs
+        if: steps.switch-cache.outputs.cache-hit == 'true'
+        run: |
+          find /opt/compiled_libs/ffmpeg -name "*.pkg.tar.*" -exec sudo dkp-pacman --noconfirm -U {} \;
+          find /opt/compiled_libs/libmpv -name "*.pkg.tar.*" -exec sudo dkp-pacman --noconfirm -U {} \;
+          find /opt/compiled_libs/libusbhsfs -name "*.pkg.tar.*" -exec sudo dkp-pacman --noconfirm -U {} \;
+
+      - name: Configure pPlay
+        run: |
+          rm -rf cmake-build
+          mkdir -p pscrap && echo "test" > pscrap/tmdb.key
+          mkdir -p cmake-build && cd cmake-build
+          cmake -G "Unix Makefiles" \
+            -DPLATFORM_SWITCH=ON \
+            -DOPTION_SMB2=ON \
+            -DCMAKE_CXX_FLAGS="-D_GNU_SOURCE=1" \
+            -DCMAKE_C_FLAGS="-D_GNU_SOURCE=1" \
+            -DCMAKE_BUILD_TYPE=Release ..
+
+      - name: Build pPlay
+        run: |
+          cd cmake-build
+          make pplay_switch_release -j$(nproc) VERBOSE=1 --trace
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pPlay-Switch
+          path: "cmake-build/release/*"
+
   ps4:
     runs-on: ubuntu-24.04
     env:
@@ -20,13 +123,14 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Create Build Environment
+      - name: Create build environment
         run: |
-          sudo apt-get update
+          sudo apt-get update || true
           sudo apt-get install -y \
             pacman-package-manager wget cmake git gettext smpq \
-            makepkg libarchive-tools build-essential \
-            autoconf libtool nasm curl
+            makepkg libarchive-tools build-essential autoconf \
+            libtool nasm curl python3-pip libfast-float-dev
+          pip3 install meson glad2 --break-system-packages
 
           sudo tee -a /etc/pacman.conf > /dev/null <<TEXT
           [pacbrew]
@@ -34,10 +138,14 @@ jobs:
           Server = https://pacman.mydedibox.fr/pacbrew/packages/
           TEXT
 
-          git clone --depth 1 https://github.com/PacBrew/ps4-openorbis-portlibs.git /tmp/portlibs
+          git clone --depth 1 https://github.com/freetushkan/ps4-openorbis-portlibs.git /tmp/portlibs
 
-      - name: Setup pacman packages
-        run: |
+          git clone https://github.com/cy33hc/libsmb2.git
+          cd libsmb2
+          git checkout ps4-new
+          cd ..
+
+          # Setup pacman packages
           sudo pacman --noconfirm -Sy
           sudo pacman --noconfirm -S --needed \
             ps4-openorbis ps4-openorbis-portlibs
@@ -46,57 +154,43 @@ jobs:
           sudo mkdir -p /opt/pacbrew/ps4/openorbis/include/sys
           echo '#include <endian.h>' | sudo tee /opt/pacbrew/ps4/openorbis/include/sys/endian.h > /dev/null
 
-      - name: Cache for recompiled PS4 Portlibs
-        id: cache-libs
+      - name: Cache for build dependencies
+        id: ps4-cache
         uses: actions/cache@v4
         with:
           path: /opt/compiled_libs
-          key: ${{ runner.os }}-ps4-libs-v1
+          key: ${{ runner.os }}-ps4-v2
 
-      - name: Rebuild ffmpeg with mbedTLS and https
-        if: steps.cache-libs.outputs.cache-hit != 'true'
+      - name: Build FFmpeg
+        if: steps.ps4-cache.outputs.cache-hit != 'true'
         run: |
           set -eux
           mkdir -p /opt/compiled_libs/ffmpeg
           cd /tmp/portlibs/ffmpeg
-          sed -i "s/'ps4-openorbis-libfribidi' 'ps4-openorbis-freetype'/'ps4-openorbis-libfribidi' 'ps4-openorbis-freetype' 'ps4-openorbis-mbedtls'/" PKGBUILD
-          sed -i 's/--enable-libfribidi/--enable-libfribidi --enable-version3 --enable-mbedtls/' PKGBUILD
-          sed -i 's/--enable-protocol=file,http,ftp,tcp,udp,rtmp/--enable-protocol=file,http,ftp,tcp,udp,rtmp,https/' PKGBUILD
-          grep -q 'ps4-openorbis-mbedtls' PKGBUILD
-          grep -q 'enable-mbedtls' PKGBUILD
-          grep -q 'udp,rtmp,https' PKGBUILD
           makepkg --noconfirm --syncdeps
           ls -l ./
           find ./ -name "*.pkg.tar.*" -exec cp -v {} /opt/compiled_libs/ffmpeg/ \;
           find ./ -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
 
-      - name: Rebuild libmpv with updated ffmpeg
-        if: steps.cache-libs.outputs.cache-hit != 'true'
+      - name: Build libmpv
+        if: steps.ps4-cache.outputs.cache-hit != 'true'
         run: |
           set -eux
           mkdir -p /opt/compiled_libs/libmpv
           cd /tmp/portlibs/libmpv
-          source /opt/pacbrew/ps4/openorbis/ps4vars.sh
           makepkg --noconfirm --syncdeps --cleanbuild
           ls -l ./
           find ./ -name "*.pkg.tar.*" -exec cp -v {} /opt/compiled_libs/libmpv/ \;
           find ./ -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
 
-      - name: Install cached ffmpeg
-        if: steps.cache-libs.outputs.cache-hit == 'true'
+      - name: Install cached libs
+        if: steps.ps4-cache.outputs.cache-hit == 'true'
         run: |
           find /opt/compiled_libs/ffmpeg -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
-
-      - name: Install cached libmpv
-        if: steps.cache-libs.outputs.cache-hit == 'true'
-        run: |
           find /opt/compiled_libs/libmpv -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
 
       - name: Configure pPlay
         run: |
-          MAIN_CPP="src/main.cpp"
-          IO_CPP="src/io.cpp"
-
           # libjbc
           if [ ! -d "src/libjbc" ]; then
             git clone https://github.com/sleirsgoevy/ps4-libjbc.git src/libjbc
@@ -104,18 +198,6 @@ jobs:
 
           # FIX pid_t conflict
           sed -i 's/typedef uint32_t pid_t;/\/\/ typedef uint32_t pid_t;/g' src/libjbc/defs.h
-
-          # Inject libjbc
-          if ! grep -q "libjbc/jailbreak.c" CMakeLists.txt; then
-            echo 'target_sources(pplay PRIVATE src/libjbc/jailbreak.c src/libjbc/kernelrw.c src/libjbc/utils.c)' >> CMakeLists.txt
-            echo 'target_include_directories(pplay PRIVATE src)' >> CMakeLists.txt
-          fi
-
-          # Patch paths
-          if [ -f "$IO_CPP" ]; then
-            sed -i 's|return "/data/";|return "/mnt/disc/";|g' "$IO_CPP"
-            sed -i 's|devices.push_back({"/data/", "DATA", DeviceType::HDD});|devices.push_back({"/mnt/disc/", "NAPED BD", DeviceType::USB});|g' "$IO_CPP"
-          fi
 
           # Build
           rm -rf cmake-build
@@ -131,20 +213,177 @@ jobs:
             -DOPTION_SMB2=ON \
             -DCMAKE_BUILD_TYPE=Release ..
 
-      - name: Build pplay
+      - name: Build pPlay
         run: |
           cd cmake-build
-          make pplay_pkg -j$(nproc)
-          mv *.pkg ../
+          make pplay_ps4_release -j$(nproc) VERBOSE=1
 
-      - name: Upload Artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pPlay-PS4-PKG
-          path: "*.pkg"
+          name: pPlay-PS4
+          path: "cmake-build/release/*"
 
-      - name: Upload to Release
-        uses: softprops/action-gh-release@v2
-        if: github.event_name == 'release'
+  ps5:
+    runs-on: ubuntu-24.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          files: "*.pkg"
+          submodules: recursive
+
+      - name: Create build environment
+        run: |
+          sudo apt update || true
+          sudo apt install -y bash clang-18 lld-18 build-essential \
+            cmake python3-pip ninja-build pacman-package-manager \
+            makepkg libarchive-tools zstd
+          pip3 install meson --break-system-packages
+
+          git clone --depth 1 https://github.com/freetushkan/pacbrew-repo.git /tmp/portlibs
+
+          git clone https://github.com/cy33hc/libsmb2.git
+          cd libsmb2
+          git checkout ps5
+          cd ..
+
+          # Install PS5 Toolchain & Portlibs
+          sudo mkdir -p /opt/ps5-payload-sdk
+          wget -nv https://github.com/ps5-payload-dev/pacbrew-repo/releases/latest/download/ps5-payload-dev.tar.gz
+          sudo tar -xzf ps5-payload-dev.tar.gz -C /
+          echo "PS5_PAYLOAD_SDK=/opt/ps5-payload-sdk" >> $GITHUB_ENV
+
+          # Setup pacman packages
+          sudo mkdir -p /var/lib/pacman
+          sudo pacman-key --init
+          sudo pacman -Sy || true
+
+      - name: Cache for build dependencies
+        id: ps5-cache
+        uses: actions/cache@v4
+        with:
+          path: /opt/compiled_libs
+          key: ${{ runner.os }}-ps5-v1
+
+      - name: Build libplacebo
+        if: steps.ps5-cache.outputs.cache-hit != 'true'
+        run: |
+          set -eux
+          mkdir -p /opt/compiled_libs/libplacebo
+          cd /tmp/portlibs/libplacebo
+          makepkg --nodeps --noconfirm --syncdeps --cleanbuild
+          ls -l ./
+          find ./ -name "*.pkg.tar.*" -exec cp -v {} /opt/compiled_libs/libplacebo/ \;
+          find ./ -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
+
+      - name: Build libmpv
+        if: steps.ps5-cache.outputs.cache-hit != 'true'
+        run: |
+          set -eux
+          mkdir -p /opt/compiled_libs/libmpv
+          cd /tmp/portlibs/libmpv
+          makepkg --nodeps --noconfirm --syncdeps --cleanbuild
+          ls -l ./
+          find ./ -name "*.pkg.tar.*" -exec cp -v {} /opt/compiled_libs/libmpv/ \;
+          find ./ -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
+
+      - name: Install cached libs
+        if: steps.ps5-cache.outputs.cache-hit == 'true'
+        run: |
+          find /opt/compiled_libs/libplacebo -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
+          find /opt/compiled_libs/libmpv -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
+
+      - name: Configure pPlay
+        run: |
+          rm -rf cmake-build
+          mkdir cmake-build && cd cmake-build
+          /opt/ps5-payload-sdk/bin/prospero-cmake \
+            -DPLATFORM_PS5=ON \
+            -DOPTION_SMB2=ON \
+            -DPS5_PAYLOAD_SDK=/opt/ps5-payload-sdk \
+            -DCMAKE_BUILD_TYPE=Release ..
+
+      - name: Build pPlay
+        run: |
+          cd cmake-build
+          make pplay_ps5_release -j$(nproc) VERBOSE=1
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pPlay-PS5
+          path: "cmake-build/release/*"
+
+  linux:
+    runs-on: ubuntu-24.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Create build environment
+        run: |
+          sudo apt-get update || true
+          sudo apt-get install -y build-essential cmake git libmpv-dev \
+            libavfilter-dev libavcodec-dev libavformat-dev libavutil-dev \
+            libswscale-dev libswresample-dev libass-dev libcurl4-openssl-dev libmbedtls-dev \
+            libbz2-dev gettext libconfig-dev libglm-dev libsdl2-dev libgl1-mesa-dev
+
+      - name: Configure pPlay
+        run: |
+          rm -rf cmake-build
+          mkdir -p pscrap && echo "test" > pscrap/tmdb.key
+          mkdir -p cmake-build && cd cmake-build
+          cmake -G "Unix Makefiles" \
+            -DPLATFORM_LINUX=ON \
+            -DOPTION_SMB2=OFF \
+            -DCMAKE_BUILD_TYPE=Release ..
+
+      - name: Build pPlay
+        run: |
+          cd cmake-build
+          make pplay_linux_release -j$(nproc) VERBOSE=1
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pPlay-Linux
+          path: "cmake-build/release/*"
+
+  publish:
+    needs: [ps4, ps5, switch]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pPlay-*
+          path: ./artifacts
+  
+      - name: Pack release assets
+        run: |
+          set -eux
+          rm -rf ./release-assets
+          mkdir -p ./release-assets
+          shopt -s nullglob
+          for artifact_dir in ./artifacts/*; do
+            [ -d "$artifact_dir" ] || continue
+            artifact_name="$(basename "$artifact_dir")"
+            [ "$artifact_name" != "pPlay-Linux" ] || continue
+            cd "./artifacts/${artifact_name}"
+            zip -r "../../release-assets/${artifact_name}.zip" "."
+            cd -
+          done
+          ls -lh ./release-assets
+  
+      - name: Upload assets to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./release-assets/*.zip
+  

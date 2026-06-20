@@ -33,28 +33,28 @@ PlayerOSD::PlayerOSD(Main *m) : GradientRectangle({0, 0, 64, 64}) {
     PlayerOSD::add(progress);
 
     // left buttons
-    btn_pause = new C2DTexture(main->getIo()->getRomFsPath() + "skin/btn_pause.png");
+    btn_pause = new C2DTexture(main->getIo()->getDataPath() + "skin/btn_pause.png");
     btn_pause->setScale(main->getScaling());
     btn_pause->setPosition(64 * 1 * main->getScaling().x, PlayerOSD::getSize().y / 2);
     btn_pause->setOrigin(Origin::Center);
     PlayerOSD::add(btn_pause);
     buttons.push_back(btn_pause);
 
-    btn_play = new C2DTexture(main->getIo()->getRomFsPath() + "skin/btn_play.png");
+    btn_play = new C2DTexture(main->getIo()->getDataPath() + "skin/btn_play.png");
     btn_play->setScale(main->getScaling());
     btn_play->setPosition(buttons.at((size_t) ButtonID::Pause)->getPosition().x, PlayerOSD::getSize().y / 2);
     btn_play->setOrigin(Origin::Center);
     btn_play->setVisibility(Visibility::Hidden);
     PlayerOSD::add(btn_play);
 
-    auto btn = new C2DTexture(main->getIo()->getRomFsPath() + "skin/btn_seek_backward_long.png");
+    auto btn = new C2DTexture(main->getIo()->getDataPath() + "skin/btn_seek_backward_long.png");
     btn->setScale(main->getScaling());
     btn->setPosition(64 * 2 * main->getScaling().x, PlayerOSD::getSize().y / 2);
     btn->setOrigin(Origin::Center);
     PlayerOSD::add(btn);
     buttons.push_back(btn);
 
-    btn = new C2DTexture(main->getIo()->getRomFsPath() + "skin/btn_seek_backward_short.png");
+    btn = new C2DTexture(main->getIo()->getDataPath() + "skin/btn_seek_backward_short.png");
     btn->setScale(main->getScaling());
     btn->setPosition(64 * 3 * main->getScaling().x, PlayerOSD::getSize().y / 2);
     btn->setOrigin(Origin::Center);
@@ -73,21 +73,21 @@ PlayerOSD::PlayerOSD(Main *m) : GradientRectangle({0, 0, 64, 64}) {
             PlayerOSD::getSize().y / 2);
     PlayerOSD::add(duration_text);
 
-    btn = new C2DTexture(main->getIo()->getRomFsPath() + "skin/btn_seek_forward_short.png");
+    btn = new C2DTexture(main->getIo()->getDataPath() + "skin/btn_seek_forward_short.png");
     btn->setScale(main->getScaling());
     btn->setPosition(PlayerOSD::getSize().x - (64 * 3 * main->getScaling().x), PlayerOSD::getSize().y / 2);
     btn->setOrigin(Origin::Center);
     PlayerOSD::add(btn);
     buttons.push_back(btn);
 
-    btn = new C2DTexture(main->getIo()->getRomFsPath() + "skin/btn_seek_forward_long.png");
+    btn = new C2DTexture(main->getIo()->getDataPath() + "skin/btn_seek_forward_long.png");
     btn->setScale(main->getScaling());
     btn->setPosition(PlayerOSD::getSize().x - (64 * 2 * main->getScaling().x), PlayerOSD::getSize().y / 2);
     btn->setOrigin(Origin::Center);
     PlayerOSD::add(btn);
     buttons.push_back(btn);
 
-    btn = new C2DTexture(main->getIo()->getRomFsPath() + "skin/btn_stop.png");
+    btn = new C2DTexture(main->getIo()->getDataPath() + "skin/btn_stop.png");
     btn->setScale(main->getScaling());
     btn->setPosition(PlayerOSD::getSize().x - (64 * 1 * main->getScaling().x), PlayerOSD::getSize().y / 2);
     btn->setOrigin(Origin::Center);
@@ -103,6 +103,8 @@ PlayerOSD::PlayerOSD(Main *m) : GradientRectangle({0, 0, 64, 64}) {
     title->setPosition((20 * main->getScaling().x), (-static_cast<int>(Main::FontSize::XL) * main->getScaling().y));
     title->setSizeMax(PlayerOSD::getSize().x - (20 * main->getScaling().x), 0);
     PlayerOSD::add(title);
+    titleTween = new TweenAlpha(0, 255, 0.5f);
+    title->add(titleTween);
 
     PlayerOSD::add(new TweenPosition({PlayerOSD::getPosition().x, PlayerOSD::getPosition().y},
                                      {PlayerOSD::getPosition().x, PlayerOSD::getPosition().y - PlayerOSD::getSize().y},
@@ -120,6 +122,13 @@ void PlayerOSD::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
         highlight->tweenTo({buttons.at((size_t) index)->getPosition().x, 0});
         if (main->getPlayer() != nullptr) {
             title->setString(encoding::fix(main->getPlayer()->getTitle()));
+        }
+        if (tweenPlay && titleTween) {
+            titleTween->play(TweenDirection::Forward);
+        }
+    } else if (visibility == Visibility::Hidden) {
+        if (tweenPlay && titleTween) {
+            titleTween->play(TweenDirection::Backward);
         }
     }
 
@@ -172,15 +181,10 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
         "PlayerOSD::onInput keys=" + pplay::Utility::getKeysString(keys));
     if (!keys) return true;
 
-    if (keys & (Input::Up | Input::Down)) {
-        int delta = (keys & Input::Up) ? 1 : -1;
-        if (keys & Input::Y) {
-            mpv->changeBrightness(delta);
-        } else {
-            mpv->changeVolume(delta);
-        }
-    } else if (keys & Input::B) {
-        hideOSD();
+    if (keys & Input::B) {
+        if (!player->hasVideo())
+            player->setFullscreen(false);
+        else hideOSD();
     } else if (keys & Input::X) {
         hideOSD();
         main->getMenuVideo()->setVisibility(Visibility::Visible, true);

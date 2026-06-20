@@ -21,6 +21,8 @@ public:
 
     void clearFrame();
 
+    void drawFrame();
+
 private:
 
     void onDraw(c2d::Transform &transform, bool draw = true) override;
@@ -28,6 +30,7 @@ private:
     Main *main;
     c2d::Texture *fade;
     c2d::TweenAlpha *fadeTween;
+    bool forceDraw = false;
 };
 
 #endif //PPLAY_VIDEO_TEXTURE_H

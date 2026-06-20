@@ -5,6 +5,8 @@
 #ifndef PPLAY_PLAYER_OSD_H
 #define PPLAY_PLAYER_OSD_H
 
+#include <string>
+
 #include "cross2d/skeleton/sfml/Rectangle.hpp"
 
 class Main;
@@ -44,6 +46,7 @@ private:
     c2d::Text *progress_text = nullptr;
     c2d::Text *duration_text = nullptr;
     std::vector<c2d::Texture *> buttons;
+    c2d::TweenAlpha *titleTween;
     float position = 0;
     float duration = 0;
     int index = 0;

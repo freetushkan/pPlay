@@ -141,7 +141,7 @@ std::string httpRequest(const std::string &url, int timeout, const std::string &
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-#ifdef __PS4__
+#if defined(__PS4__) || defined(__PS5__)
     curl_easy_setopt(curl, CURLOPT_CAINFO, pplay::Utility::getCertificatesPath().c_str());
 #endif
 

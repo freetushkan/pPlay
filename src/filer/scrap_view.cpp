@@ -24,7 +24,7 @@ ScrapView::ScrapView(Main *m, const c2d::FloatRect &rect) : Rectangle(rect) {
     ScrapView::add(backdrop);
 
     // backdrop fade
-    fade = new C2DTexture(main->getIo()->getRomFsPath() + "skin/fade.png");
+    fade = new C2DTexture(main->getIo()->getDataPath() + "skin/fade.png");
     fade->setOrigin(Origin::BottomRight);
     fade->setPosition(backdrop->getPosition());
     fade->setFillColor(Color::Black);

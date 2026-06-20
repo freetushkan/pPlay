@@ -273,6 +273,7 @@ bool Filer::onInput(c2d::Input::Player *players) {
             enter(item_index);
         } else if (pplay::Utility::isMedia(getSelection())) {
             main->getPlayer()->load(files[item_index]);
+            main->getPlayer()->setFullscreen(true);
         }
     } else if (keys & Input::B) {
 #ifdef PPLAY_ENABLE_SCRAPPING
@@ -304,8 +305,14 @@ void Filer::onUpdate() {
     if (dirty) {
         setSelection(item_index);
         dirty = false;
+    } else {
+        if (files.empty()) {
+            highlight->setVisibility(Visibility::Hidden, true);
+        } else {
+            highlight->setVisibility(Visibility::Visible, true);
+        }
     }
-    highlight->setFillColor(COLOR_HIGHLIGHT);
+    // highlight->setFillColor(COLOR_HIGHLIGHT);
     highlight->setCursorColor(COLOR_ACCENT);
 
     C2DObject::onUpdate();
@@ -398,6 +405,8 @@ bool Filer::getDir(const std::string &p) {
     if (files.empty() || files.at(0).name != "..") {
         Io::File file("..", p + "/..", Io::Type::Directory, 0);
         files.insert(files.begin(), MediaFile{file, MediaInfo(file)});
+        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+            "Filer: empty directory - add dots.");
     }
 
     mutex->unlock();

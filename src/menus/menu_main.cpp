@@ -33,26 +33,27 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
         : Menu(main, rect, "pPlay v" APP_VERSION, items, true) {
     std::vector<MenuItem> it;
 
-    it.emplace_back("Playback mode", "", MenuItem::Position::Top);
-    it.emplace_back("Short seek step", "", MenuItem::Position::Top);
-    it.emplace_back("Long seek step", "", MenuItem::Position::Top);
-    it.emplace_back("Swap controls", "", MenuItem::Position::Top);
-    it.emplace_back("Accent color", "", MenuItem::Position::Top);
-    it.emplace_back("Connection timeout", "", MenuItem::Position::Top);
-    it.emplace_back("Playback retry", "", MenuItem::Position::Top);
-    it.emplace_back("SMB buffer", "", MenuItem::Position::Top);
+    it.emplace_back("Playback mode", "pl_mode.png", MenuItem::Position::Top);
+    it.emplace_back("Short seek step", "short_seek.png", MenuItem::Position::Top);
+    it.emplace_back("Long seek step", "long_seek.png", MenuItem::Position::Top);
+    it.emplace_back("Swap controls", "swap.png", MenuItem::Position::Top);
+    it.emplace_back("Accent color", "color.png", MenuItem::Position::Top);
+    it.emplace_back("Connection timeout", "timeout.png", MenuItem::Position::Top);
+    it.emplace_back("Playback retry", "pl_retry.png", MenuItem::Position::Top);
+#ifdef __SMB2__
+    it.emplace_back("SMB buffer", "buffer.png", MenuItem::Position::Top);
+#endif
 #ifdef PPLAY_ENABLE_SCRAPPING
     it.emplace_back("Scrapping", "", MenuItem::Position::Top);
     it.emplace_back("Cache", "", MenuItem::Position::Top);
 #endif
 #ifdef __SWITCH__
     it.emplace_back("CPU", "cpu.png", MenuItem::Position::Top);
-    it.emplace_back("USB", "usb.png", MenuItem::Position::Top);
 #endif
 #ifdef __PS4__
-    it.emplace_back("Time offset", "", MenuItem::Position::Top);
+    it.emplace_back("Time offset", "time.png", MenuItem::Position::Top);
 #endif
-    it.emplace_back("Logging", "", MenuItem::Position::Top);
+    it.emplace_back("Logging", "log.png", MenuItem::Position::Top);
 
     menuMainOptions = new MenuMainOptions(main, rect, it);
     menuMainOptions->setLayer(2);
@@ -78,31 +79,25 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     addSubmenu("CPU", "CPU", OPT_CPU_BOOST,
                {MenuItem("Disabled", "", MenuItem::Position::Top),
                 MenuItem("Enabled", "", MenuItem::Position::Top)});
-
-    std::string umsPath;
-    it.clear();
-    for (int i = 0; i <= 9; i++) {
-        umsPath = "ums" + std::to_string(i) + ":/";
-        it.emplace_back(umsPath, "", MenuItem::Position::Top);
-    }
-    addSubmenu("USB", "USB", OPT_UMS_DEVICE, it);
 #endif
 
     addSubmenu("Connection timeout", "Connection timeout", OPT_NETWORK_TIMEOUT, makeAdjustItems(),
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 300.0f, 5.0f, "s");
     addSubmenu("Playback retry", "Playback retry", OPT_NETWORK_RETRIES, makeAdjustItems(),
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 10.0f, 1.0f);
+#ifdef __SMB2__
     addSubmenu("SMB buffer", "SMB preload buffer", OPT_SMB_READ_BUFFER_MB, makeAdjustItems(),
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 100.0f, 1.0f, "MB");
+#endif
     addSubmenu("Playback mode", "At playback end..", OPT_AUTOPLAY_MODE,
                makeIntItems({{"Stop", 0}, {"Play next", 1},
                              {"Loop file", 2}, {"Loop directory", 3}}), Submenu::ValueType::Integer);
     addSubmenu("Swap controls", "Triggers and buttons", OPT_SWAP_CONTROLS,
                makeIntItems({{"Normal", 0}, {"Swapped", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Short seek step", "Seek short step", OPT_SEEK_SHORT_SEC, makeAdjustItems(),
-               Submenu::ValueType::Float, Submenu::MenuType::Adjust, 1.0f, 600.0f, 5.0f, "s");
+               Submenu::ValueType::Float, Submenu::MenuType::Adjust, 1.0f, 600.0f, 1.0f, "s");
     addSubmenu("Long seek step", "Seek long step", OPT_SEEK_LONG_SEC, makeAdjustItems(),
-               Submenu::ValueType::Float, Submenu::MenuType::Adjust, 1.0f, 3600.0f, 30.0f, "s");
+               Submenu::ValueType::Float, Submenu::MenuType::Adjust, 10.0f, 3600.0f, 10.0f, "s");
     addSubmenu("Logging", "Log to file", OPT_LOG_LEVEL,
                makeIntItems({{"Off", 0}, {"Error", 1}, {"Info", 2}, {"Debug", 3}, {"Trace", 4}}),
                Submenu::ValueType::Integer);

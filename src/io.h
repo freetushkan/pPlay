@@ -41,28 +41,42 @@ namespace pplay {
 
         DeviceType getDeviceType(const std::string &path);
 
-#ifdef __PS4__
+        void syncRomFs(const std::string &relativePath = "");
 
+#ifdef __PS4__
         std::string getHomePath() {
             return "/data/pplay/";
         }
-
         std::string getDataPath() override {
             return "/data/pplay/";
         }
-
 #ifndef NDEBUG
         std::string getRomFsPath() override {
             return "/data/pplay/";
         }
 #else
-
         std::string getRomFsPath() override {
             return "/app0/";
         }
-
+#endif
 #endif
 
+#ifdef __PS5__
+        std::string getHomePath() {
+            return "/data/homebrew/pplay/";
+        }
+        std::string getDataPath() override {
+            return "/data/homebrew/pplay/";
+        }
+#endif
+
+#ifdef __SWITCH__
+        std::string getHomePath() {
+            return "/switch/pplay/";
+        }
+        std::string getDataPath() override {
+            return "/config/pplay/";
+        }
 #endif
 
     private:

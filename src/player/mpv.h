@@ -40,17 +40,27 @@ public:
 
     int stop();
 
-    int changeBrightness(double delta);
+    std::string changeBrightness(double delta);
 
-    int changeVolume(double delta);
+    std::string changeVolume(double delta);
 
-    int showText(std::string delta);
+    void saveVolume();
+
+    int restoreVolume();
+
+    int getOsdWidth();
+
+    int getOsdHeight();
 
     int seek(double position);
 
-    int setSpeed(double speed);
+    std::string setSpeed(double speed);
 
     double getSpeed();
+
+    void saveSpeed();
+
+    int restoreSpeed();
 
     int setVid(int id);
 
@@ -97,6 +107,8 @@ private:
 
     mpv_handle *handle = nullptr;
     mpv_render_context *context = nullptr;
+    double lastVolume = -1;
+    double lastSpeed = -1;
 };
 
 #endif //PPLAY_MPV_H
