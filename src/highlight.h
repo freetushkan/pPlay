@@ -24,12 +24,16 @@ public:
 
     void tweenTo(const c2d::Vector2f &position);
 
+    void onDraw(c2d::Transform &transform, bool draw = true) override;
+
 private:
 
     c2d::GradientRectangle *gradientRectangle;
     c2d::RectangleShape *cursor;
     c2d::TweenPosition *tween;
     c2d::Color hlFillColor;
+    c2d::Color hlCursorColor;
+    c2d::GradientRectangle::Direction hlDirection;
 
 };
 
