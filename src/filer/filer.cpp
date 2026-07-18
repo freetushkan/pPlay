@@ -272,8 +272,8 @@ bool Filer::onInput(c2d::Input::Player *players) {
 #endif
             enter(item_index);
         } else if (pplay::Utility::isMedia(getSelection())) {
-            main->getPlayer()->load(files[item_index]);
             main->getPlayer()->setFullscreen(true);
+            main->getPlayer()->load(files[item_index]);
         }
     } else if (keys & Input::B) {
 #ifdef PPLAY_ENABLE_SCRAPPING
