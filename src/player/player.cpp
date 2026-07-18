@@ -78,6 +78,7 @@ void Player::showMessage(const std::string &message) {
 }
 
 bool Player::load(const MediaFile &f, bool firstTry, const std::string &options) {
+    stop();
 #ifdef __PS4__
     pausedHttpsStream = false;
 #endif
@@ -339,6 +340,10 @@ void Player::onStopEvent(int reason) {
                     }
                 }
                 if (autoplayMode == 3) {
+                    if (autoplayFiles.size() == 1) {
+                        load(file, true, "pause=yes,start=0");
+                        return;
+                    }
                     for (size_t idx = 0; idx < (size_t) currentIndex; idx++) {
                         if (pplay::Utility::isMedia(autoplayFiles[idx])) {
                             pplay::Utility::log(pplay::Utility::LogLevel::Info,
@@ -355,14 +360,8 @@ void Player::onStopEvent(int reason) {
         int retries = main->getConfig()->getOption(OPT_NETWORK_RETRIES)->getInteger();
         if (retries == 0 || retryCount < retries) {
             retryCount++;
-            pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                "Player::onStopEvent earlyEOF");
-            main->getStatus()->show("Warning...",
-                "Playback interrupted, retry..", true);
-            std::string opts = "pause=yes";
-            if (lastKnownPosition > 0) {
-                opts += ",start=" + std::to_string(lastKnownPosition);
-            }
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent earlyEOF");
+            std::string opts = "pause=yes,start=" + std::to_string(lastKnownPosition);
             if (load(file, false, opts)) {
                 retryCount = 0;
                 return;
@@ -388,14 +387,14 @@ void Player::onUpdate() {
     if (mpv->isAvailable()) {
         long position = mpv->getPosition();
         long duration = mpv->getDuration();
-        if (duration > 0) {
+        if (duration > 0.0) {
             lastKnownDuration = duration;
         }
-        if (position > 0) {
+        if (position > 0.0) {
             lastKnownPosition = position;
         }
         try {
-            if (position > 0 && duration > 300
+            if (position > 0.0 && duration > 300
                 && (position - lastProgressSave) >= 10
                 && (duration - position) >= 60) {
                 mpv->save();
@@ -418,6 +417,8 @@ void Player::onUpdate() {
                     texture->clearFrame();
                     main->getStatus()->show("Please Wait...",
                         "Loading... " + encoding::fix(file.name), true);
+                    startPlaybackPosition = -1;
+                    frameDrawn = false;
                     break;
                 case MPV_EVENT_FILE_LOADED:
                     printf("MPV_EVENT_FILE_LOADED\n");
@@ -434,6 +435,17 @@ void Player::onUpdate() {
                     break;
                 default:
                     break;
+            }
+        }
+        if (!mpv->isStopped()) {
+            if (!frameDrawn && mpv->isAvailable()) {
+                if (position > 0.0 && startPlaybackPosition == -1) {
+                    startPlaybackPosition = position;
+                }
+                if (startPlaybackPosition != -1 && position >= (startPlaybackPosition + 0.5)) {
+                    texture->drawFrame();
+                    frameDrawn = true;
+                }
             }
         }
     }
@@ -595,7 +607,6 @@ void Player::resume() {
     pausedHttpsStream = false;
 #endif
     mpv->resume();
-    texture->drawFrame();
 #ifdef __SWITCH__
     if (main->getConfig()->getOption(OPT_CPU_BOOST)->getString() == "Enabled") {
         pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Max);
@@ -647,13 +658,13 @@ void Player::setFullscreen(bool fs, bool hide) {
         main->getFiler()->setVisibility(Visibility::Visible, true);
         main->getStatusBar()->setVisibility(Visibility::Visible, true);
     } else {
+        main->getFiler()->setVisibility(Visibility::Hidden, true);
+        main->getStatusBar()->setVisibility(Visibility::Visible, true);
+        setVisibility(Visibility::Visible, true);
         tweenScale->play(TweenDirection::Forward);
         tweenPosition->play(TweenDirection::Forward);
         texture->hideFade();
-        main->getFiler()->setVisibility(Visibility::Hidden, true);
-        main->getStatusBar()->setVisibility(Visibility::Visible, true);
         osd->setVisibility(c2d::Visibility::Visible);
-        setVisibility(Visibility::Visible, true);
     }
 }
 
