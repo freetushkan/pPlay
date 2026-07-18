@@ -133,7 +133,10 @@ jobs:
             alien rpm debhelper
           pip3 install meson glad2 --break-system-packages
 
-          sudo alien -i https://rpmfind.net/linux/mageia/distrib/9/x86_64/media/core/release/waf-2.0.25-1.mga9.noarch.rpm
+          wget -q https://rpmfind.net/linux/mageia/distrib/9/x86_64/media/core/release/waf-2.0.25-1.mga9.noarch.rpm -O /tmp/waf.rpm
+          cd /tmp
+          sudo alien --to-deb --scripts waf.rpm
+          sudo dpkg -i waf_*.deb
           sudo ln -sf /usr/bin/waf-3.10 /usr/bin/waf
 
           sudo tee -a /etc/pacman.conf > /dev/null <<TEXT
