@@ -47,7 +47,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/compiled_libs
-          key: ${{ runner.os }}-switch-v1
+          key: switch-v1
 
       - name: Build libusbhsfs
         if: steps.switch-cache.outputs.cache-hit != 'true'
@@ -154,12 +154,15 @@ jobs:
           sudo mkdir -p /opt/pacbrew/ps4/openorbis/include/sys
           echo '#include <endian.h>' | sudo tee /opt/pacbrew/ps4/openorbis/include/sys/endian.h > /dev/null
 
+          # Try "gd" category instead of default "gde" (PS5 test)
+          # sudo find /opt/pacbrew/ps4/openorbis/ -type f -name "*.cmake" -exec sed -i 's/set(category "gde")/set(category "gd")/g' {} + || true
+
       - name: Cache for build dependencies
         id: ps4-cache
         uses: actions/cache@v4
         with:
           path: /opt/compiled_libs
-          key: ${{ runner.os }}-ps4-v2
+          key: ps4-v3
 
       - name: Build FFmpeg
         if: steps.ps4-cache.outputs.cache-hit != 'true'
@@ -191,22 +194,17 @@ jobs:
 
       - name: Configure pPlay
         run: |
-          # libjbc
+          # libjbc and FIX pid_t conflict
           if [ ! -d "src/libjbc" ]; then
             git clone https://github.com/sleirsgoevy/ps4-libjbc.git src/libjbc
           fi
-
-          # FIX pid_t conflict
           sed -i 's/typedef uint32_t pid_t;/\/\/ typedef uint32_t pid_t;/g' src/libjbc/defs.h
 
-          # Build
+          export OPENORBIS=/opt/pacbrew/ps4/openorbis
+          # mkdir -p pscrap && echo "test" > pscrap/tmdb.key
           rm -rf cmake-build
-          mkdir -p pscrap && echo "test" > pscrap/tmdb.key
-
           mkdir -p cmake-build
           cd cmake-build
-
-          export OPENORBIS=/opt/pacbrew/ps4/openorbis
 
           cmake -G "Unix Makefiles" \
             -DPLATFORM_PS4=ON \
@@ -265,7 +263,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/compiled_libs
-          key: ${{ runner.os }}-ps5-v1
+          key: ps5-v1
 
       - name: Build libplacebo
         if: steps.ps5-cache.outputs.cache-hit != 'true'
