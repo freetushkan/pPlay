@@ -191,6 +191,9 @@ static std::string getLeafName(const std::string &path) {
 }
 
 Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
+#ifdef __PS4__
+    sceKernelDebugOutText(0, "[pPlay] Main::init..\n");
+#endif
 
 #ifndef NDEBUG
     Renderer::setPrintStats(true);
@@ -205,6 +208,11 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     // pplayIo->create(pplayIo->getDataPath() + "mpv");
     // create and sync pplay data directory
     pplayIo->create(pplayIo->getDataPath());
+#ifdef __PS4__
+    sceKernelDebugOutText(0, "[pPlay] Main::init pplayIo=ok\n");
+#endif
+    pplay::Utility::log(
+        pplay::Utility::LogLevel::Debug, "Main::init pplayIo=ok");
 #if defined(__PS4__) || defined(__SWITCH__)
     pplayIo->syncRomFs(); 
 #endif
@@ -228,11 +236,18 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     font->loadFromFile(fontPath);
     font->setFilter(Texture::Filter::Point);
     font->setOffset({0, -4.0f});
+#ifdef __PS4__
+    sceKernelDebugOutText(0, "[pPlay] Main::init font=ok\n");
+#endif
+    pplay::Utility::log(
+        pplay::Utility::LogLevel::Debug, "Main::init font=ok");
 
     statusBox = new StatusBox(this, {0, Main::getSize().y - 16});
     statusBox->setOrigin(Origin::BottomLeft);
     statusBox->setLayer(10);
     Main::add(statusBox);
+    pplay::Utility::log(
+        pplay::Utility::LogLevel::Debug, "Main::init statusBox=ok");
 
     // media information cache
     Main::getIo()->create(Main::getIo()->getDataPath() + "cache");
@@ -250,11 +265,15 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     // Without this trick the status bar is not shown on startup..
     statusBar->setVisibility(Visibility::Hidden, false);
     statusBar->setVisibility(Visibility::Visible, true);
+    pplay::Utility::log(
+        pplay::Utility::LogLevel::Debug, "Main::init statusBar=ok");
 
     // ffmpeg player
     player = new Player(this);
     player->setLayer(2);
     Main::add(player);
+    pplay::Utility::log(
+        pplay::Utility::LogLevel::Debug, "Main::init player=ok");
 
     // main menu
     setCurrentModuleIndex(
@@ -276,6 +295,8 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     menu_main->setVisibility(Visibility::Hidden, false);
     menu_main->setLayer(3);
     Main::add(menu_main);
+    pplay::Utility::log(
+        pplay::Utility::LogLevel::Debug, "Main::init menu_main=ok");
 
     // video menu
     items.clear();
@@ -289,6 +310,8 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     menu_video->setVisibility(Visibility::Hidden, false);
     menu_video->setLayer(3);
     Main::add(menu_video);
+    pplay::Utility::log(
+        pplay::Utility::LogLevel::Debug, "Main::init menu_video=ok");
 
     // a messagebox...
     float w = Main::getSize().x / 3;
@@ -305,6 +328,8 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     messageBox->getButton(0)->setOutlineThickness(3);
     messageBox->getButton(1)->setOutlineThickness(3);
     Main::add(messageBox);
+    pplay::Utility::log(
+        pplay::Utility::LogLevel::Debug, "Main::init messageBox=ok");
 
 #ifdef PPLAY_ENABLE_SCRAPPING
     scrapper = new Scrapper(this);
@@ -577,9 +602,13 @@ int main() {
     }
 #elif __PS4__
     sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_NET);
+    sceKernelDebugOutText(0, "[pPlay] started\n");
 #endif
 
     Main *main = new Main(size);
+#ifdef __PS4__
+    sceKernelDebugOutText(0, "[pPlay] main loaded\n");
+#endif
 
 #ifdef __SWITCH__
     appletLockExit();
