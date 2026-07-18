@@ -647,4 +647,11 @@ c2d::Time c2d::PS4Clock::getCurrentTime() const {
     auto micros = std::chrono::duration_cast<std::chrono::microseconds>(now - start_app).count();
     return c2d::microseconds(static_cast<long>(micros));
 }
+
+// c2d::Time c2d::PS4Clock::getCurrentTime() const {
+//     // auto now = std::chrono::steady_clock::now();
+//     auto now = std::chrono::system_clock::now();
+//     auto micros = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
+//     return c2d::microseconds(static_cast<long>(micros));
+// }
 #endif
