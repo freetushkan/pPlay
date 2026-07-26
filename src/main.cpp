@@ -48,6 +48,8 @@ static void on_applet_hook(AppletHookType hook, void *arg) {
 
 #include <orbis/Sysmodule.h>
 
+#include "ps4_platform.h"
+
 extern "C" int sceSystemServiceLoadExec(const char *path, const char *args[]);
 #endif
 
@@ -601,8 +603,12 @@ int main() {
         size = {1920, 1080};
     }
 #elif __PS4__
+    // before anything that may print or fault
+    pplay_ps4_debug_init();
+    pplay_ps4_crashlog_init();
     sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_NET);
     sceKernelDebugOutText(0, "[pPlay] started\n");
+    pplay_ps4_time_probe();
 #endif
 
     Main *main = new Main(size);
@@ -638,20 +644,17 @@ int main() {
 }
 
 #ifdef __PS4__
-#include <chrono>
 #include <cross2d/platforms/ps4/ps4_clock.h>
 
+// libcross2d backs PS4Clock with gettimeofday(), so every c2d clock (input
+// repeat, tweens, animated sprites, the menu text scroller) rides the wall
+// clock and jumps whenever the system time is adjusted. std::chrono's
+// steady_clock is no alternative here: it reads clock_gettime(CLOCK_MONOTONIC),
+// which on this platform resolves to the process cpu time. src/ps4/ps4_time.c
+// explains why and provides the real monotonic clock used below; the pplay link
+// passes --allow-multiple-definition, so this definition wins over the one in
+// libcross2d.
 c2d::Time c2d::PS4Clock::getCurrentTime() const {
-    static const auto start_app = std::chrono::system_clock::now();
-    auto now = std::chrono::system_clock::now();
-    auto micros = std::chrono::duration_cast<std::chrono::microseconds>(now - start_app).count();
-    return c2d::microseconds(static_cast<long>(micros));
+    return c2d::microseconds(static_cast<long>(pplay_ps4_monotonic_us()));
 }
-
-// c2d::Time c2d::PS4Clock::getCurrentTime() const {
-//     // auto now = std::chrono::steady_clock::now();
-//     auto now = std::chrono::system_clock::now();
-//     auto micros = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
-//     return c2d::microseconds(static_cast<long>(micros));
-// }
 #endif

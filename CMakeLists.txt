@@ -127,7 +127,9 @@ elseif (PLATFORM_PS4)
     set(PS4_PKG_TITLE "pPlay @ cpasjuste")
     set(PS4_PKG_TITLE_ID "PPLA00001")
     set(PS4_PKG_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
-    list(APPEND PPLAY_INC)
+    file(GLOB PPLAY_PS4_SRC src/ps4/*.c*)
+    list(APPEND PPLAY_SRC ${PPLAY_PS4_SRC})
+    list(APPEND PPLAY_INC src/ps4)
     list(APPEND PPLAY_LDFLAGS
             archive turbojpeg opus freetype fribidi png bz2
         )
