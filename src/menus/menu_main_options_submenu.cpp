@@ -12,6 +12,10 @@
 #include "utility.h"
 #include "menu_main_options_submenu.h"
 
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
+
 using namespace c2d;
 
 MenuMainOptionsSubmenu::MenuMainOptionsSubmenu(
@@ -39,6 +43,8 @@ MenuMainOptionsSubmenu::MenuMainOptionsSubmenu(
     highlight_selection->setPosition(0, 200 * main->getScaling().y);
     highlight_selection->setLayer(-1);
     MenuMainOptionsSubmenu::add(highlight_selection);
+
+    reload_modules = option_name.rfind("NETWORK", 0) == 0;
 
     refresh();
 }
@@ -135,6 +141,21 @@ void MenuMainOptionsSubmenu::updateSelectionHighlight() {
         return;
     }
 
+    if (menu_type == MenuType::TextInput && !buttons.empty()) {
+        buttons[0]->item.name = main->getConfig()->getOption(option_name)->getString();
+        if (buttons[0]->item.name.empty()) {
+            buttons[0]->item.name = "<empty>";
+        }
+        buttons[0]->name->setString(buttons[0]->item.name);
+        highlight_selection->setVisibility(buttons[0]->isVisible() ? Visibility::Visible : Visibility::Hidden);
+        highlight_selection->tweenTo(buttons[0]->getPosition());
+        return;
+    }
+
+    if (option_name.empty()) {
+        return;
+    }
+
     if (value_type == ValueType::Integer) {
         const int value = (int) getCurrentValue();
         for (auto btn: buttons) {
@@ -180,7 +201,85 @@ void MenuMainOptionsSubmenu::setSelection(const std::string &name) {
     }
 }
 
+bool MenuMainOptionsSubmenu::editTextValue() {
+    auto *option = main->getConfig()->getOption(option_name);
+    const std::string oldValue = option->getString();
+    std::string newValue = oldValue;
+
+#ifdef __SWITCH__
+    char out[512] = {0};
+    SwkbdConfig kbd;
+    swkbdCreate(&kbd, 0);
+    swkbdConfigMakePresetDefault(&kbd);
+    swkbdConfigSetHeaderText(&kbd, option_name.c_str());
+    swkbdConfigSetInitialText(&kbd, oldValue.c_str());
+    const Result rc = swkbdShow(&kbd, out, sizeof(out));
+    swkbdClose(&kbd);
+    if (R_FAILED(rc)) {
+        return false;
+    }
+    newValue = out;
+#elif defined(__PS4__) || defined(__PS5__)
+    if (sceImeDialogInit() < 0) {
+        return false;
+    }
+    char out[512] = {0};
+    SceImeDialogParam param;
+    sceImeDialogParamInit(&param);
+    param.maxTextLength = sizeof(out) - 1;
+    param.inputTextBuffer = out;
+    param.title = option_name.c_str();
+    param.type = SCE_IME_TYPE_DEFAULT;
+    if (!oldValue.empty()) {
+        sceImeDialogSetInitialText(&param, oldValue.c_str()); 
+    }
+    if (sceImeDialogOpen(&param) < 0) {
+        sceImeDialogTerm();
+        return false;
+    }
+    while (sceImeDialogGetStatus() != SCE_IME_DIALOG_STATUS_FINISHED) {
+        sceKernelUsleep(16000);
+    }
+    sceImeDialogTerm();
+    if (param.status != SCE_IME_DIALOG_STATUS_FINISHED) { 
+        return false;
+    }
+    newValue = out;
+#else
+    return false;
+#endif
+
+    if (newValue == oldValue) {
+        return false;
+    }
+
+    option->setType(c2d::config::Option::Type::String);
+    option->setString(newValue);
+    main->getConfig()->save();
+    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                        "Options: " + option_name + " changed from " + oldValue + " to " + newValue);
+    if (reload_modules) {
+        main->reloadMainMenuModules();
+    }
+    refresh();
+    return true;
+}
+
 void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
+    if (menu_type == MenuType::TextInput) {
+        editTextValue();
+        return;
+    }
+
+    if (option_name.empty()) {
+        auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(item->name);
+        if (submenu != nullptr) {
+            setVisibility(Visibility::Hidden, true);
+            submenu->setVisibility(Visibility::Visible, true);
+        }
+        return;
+    }
+
     if (menu_type == MenuType::Adjust) {
         if (item->id != 0) {
             const std::string oldValue = formatValue(getCurrentValue());
@@ -253,6 +352,14 @@ void MenuMainOptionsSubmenu::setVisibility(c2d::Visibility visibility, bool twee
 bool MenuMainOptionsSubmenu::onInput(c2d::Input::Player *players) {
     if (players[0].buttons & Input::Right || players[0].buttons & Input::B) {
         setVisibility(Visibility::Hidden, true);
+        if (option_name.rfind("NETWORK", 0) == 0) {
+            auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(
+                    "Network " + option_name.substr(7, 1));
+            if (submenu != nullptr) {
+                submenu->setVisibility(Visibility::Visible, true);
+                return true;
+            }
+        }
         main->getMenuMain()->getMenuMainOptions()->setVisibility(Visibility::Visible, true);
         return true;
     }

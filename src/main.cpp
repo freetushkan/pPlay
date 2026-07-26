@@ -284,10 +284,9 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     items.emplace_back("Usb", "usb.png", MenuItem::Position::Top, -2);
 #endif
     for (int i = 1; i <= 5; i++) {
-        if (!config->getOption(PPLAYConfig::networkOption(i))->getString().empty()) {
-            items.emplace_back(config->getOption(PPLAYConfig::networkNameOption(i))->getString(),
-                "network.png", MenuItem::Position::Top, i);
-        }
+        const bool enabled = !config->getOption(PPLAYConfig::networkOption(i))->getString().empty();
+        items.emplace_back(config->getOption(PPLAYConfig::networkNameOption(i))->getString(),
+            "network.png", MenuItem::Position::Top, i, enabled);
     }
     items.emplace_back("Settings", "options.png", MenuItem::Position::Top);
     items.emplace_back("Exit", "exit.png", MenuItem::Position::Bottom);
@@ -543,6 +542,12 @@ Player *Main::getPlayer() {
 
 Filer *Main::getFiler() {
     return filer;
+}
+
+void Main::reloadMainMenuModules() {
+    if (menu_main != nullptr) {
+        menu_main->reloadModules();
+    }
 }
 
 MenuMain *Main::getMenuMain() {

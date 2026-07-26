@@ -39,6 +39,13 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     it.emplace_back("Swap controls", "swap.png", MenuItem::Position::Top);
     it.emplace_back("Accent color", "color.png", MenuItem::Position::Top);
     it.emplace_back("Connection timeout", "timeout.png", MenuItem::Position::Top);
+    for (int i = 1; i <= 5; i++) {
+        it.emplace_back("Network " + std::to_string(i), "network.png", MenuItem::Position::Top);
+    }
+    it.emplace_back("Local home path", "home.png", MenuItem::Position::Top);
+#ifdef PPLAY_ENABLE_SCRAPPING
+    it.emplace_back("TMDB language", "home.png", MenuItem::Position::Top);
+#endif
     it.emplace_back("Playback retry", "pl_retry.png", MenuItem::Position::Top);
 #ifdef __SMB2__
     it.emplace_back("SMB buffer", "buffer.png", MenuItem::Position::Top);
@@ -74,6 +81,26 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
         main->add(submenu);
         menuMainOptionsSubmenus[name] = submenu;
     };
+
+    auto addTextSubmenu = [&](const std::string &name, const std::string &title, const std::string &optionName) {
+        addSubmenu(name, title, optionName,
+                   {MenuItem("", "", MenuItem::Position::Top)},
+                   Submenu::ValueType::String, Submenu::MenuType::TextInput);
+    };
+
+    for (int i = 1; i <= 5; i++) {
+        const std::string name = "Network " + std::to_string(i);
+        addSubmenu(name, name, "",
+                   {MenuItem(PPLAYConfig::networkOption(i), "", MenuItem::Position::Top),
+                    MenuItem(PPLAYConfig::networkNameOption(i), "", MenuItem::Position::Top)},
+                   Submenu::ValueType::String);
+        addTextSubmenu(PPLAYConfig::networkOption(i), PPLAYConfig::networkOption(i), PPLAYConfig::networkOption(i));
+        addTextSubmenu(PPLAYConfig::networkNameOption(i), PPLAYConfig::networkNameOption(i), PPLAYConfig::networkNameOption(i));
+    }
+    addTextSubmenu("HOME_PATH", "HOME_PATH", OPT_HOME_PATH);
+#ifdef PPLAY_ENABLE_SCRAPPING
+    addTextSubmenu("TMDB_LANGUAGE", "TMDB_LANGUAGE", OPT_TMDB_LANGUAGE);
+#endif
 
 #ifdef __SWITCH__
     addSubmenu("CPU", "CPU", OPT_CPU_BOOST,
@@ -145,6 +172,35 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     highlight_selection->setPosition(0, 200 * main->getScaling().y);
     highlight_selection->setLayer(-1);
     MenuMain::add(highlight_selection);
+}
+
+void MenuMain::reloadModules() {
+    for (auto &button: buttons) {
+        if (button->item.id < 1 || button->item.id > 5) {
+            continue;
+        }
+
+        const int networkIndex = button->item.id;
+        const std::string url = main->getConfig()->getOption(PPLAYConfig::networkOption(networkIndex))->getString();
+        std::string name = main->getConfig()->getOption(PPLAYConfig::networkNameOption(networkIndex))->getString();
+        if (name.empty()) {
+            name = "Network " + std::to_string(networkIndex);
+        }
+
+        button->item.name = name;
+        button->item.selectable = !url.empty();
+        button->name->setString(name);
+        button->setVisibility(button->item.selectable && isVisible() ? Visibility::Visible : Visibility::Hidden);
+    }
+
+    if (!isButtonSelectable(index)) {
+        reset();
+    } else {
+        updateSelectionState();
+        ensureSelectionVisible();
+    }
+    updateScroll();
+    updateSelectionHighlight();
 }
 
 void MenuMain::setSelection(int moduleId) {

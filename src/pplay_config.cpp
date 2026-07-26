@@ -38,9 +38,6 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
     for (int i = 1; i <= 5; i++) {
         addOption({networkOption(i), ""});
     }
-#ifdef __SWITCH__
-    addOption({OPT_UMS_DEVICE, "ums0:/"});
-#endif
     addOption({OPT_HOME_PATH, main->getIo()->getDataPath()});
     addOption({OPT_LAST_LOCAL_PATH, main->getIo()->getDataPath()});
     for (int i = 1; i <= 5; i++) {

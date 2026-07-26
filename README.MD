@@ -130,7 +130,6 @@ Below is the list of currently supported and maintained configuration parameters
 
 ### Platform-specific
 
-* `UMS_DEVICE` (Switch) — USB device mount path, default `ums0:/`.
 * `CPU_BOOST` (Switch) — `Disabled` / `Enabled` for heavy media playback.
 * `UTC_OFFSET` (PS4) — timezone offset.
 
@@ -172,8 +171,10 @@ ACCENT_COLOR = "#1078C8"
 LOG_LEVEL = 2
 
 # Platform-specific
-UMS_DEVICE = "ums0:/"
+# * Switch
 CPU_BOOST = "Enabled"
+# * PS4
+UTC_OFFSET = 5.0;
 ```
 
 ## MPV configuration

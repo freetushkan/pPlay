@@ -19,7 +19,8 @@ public:
 
     enum class MenuType {
         List,
-        Adjust
+        Adjust,
+        TextInput
     };
 
     MenuMainOptionsSubmenu(Main *main, const c2d::FloatRect &rect,
@@ -51,6 +52,9 @@ private:
 
     void setCurrentValue(float value);
 
+    bool editTextValue();
+
+    bool reload_modules = false;
     Highlight *highlight_selection;
     std::string option_name;
     ValueType value_type;

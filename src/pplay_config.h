@@ -13,7 +13,6 @@
 #define OPT_NETWORK3            "NETWORK3"
 #define OPT_NETWORK4            "NETWORK4"
 #define OPT_NETWORK5            "NETWORK5"
-#define OPT_UMS_DEVICE          "UMS_DEVICE"
 #define OPT_HOME_PATH           "HOME_PATH"
 #define OPT_LAST_LOCAL_PATH     "LAST_LOCAL_PATH"
 #define OPT_LAST_NETWORK_PATH   "NETWORK1_LAST"

@@ -21,6 +21,8 @@ public:
 
     MenuMainOptionsSubmenu *getMenuMainOptionsSubmenu(const std::string &name);
 
+    void reloadModules();
+
     bool isMenuVisible();
 
     void setSelection(int moduleId);

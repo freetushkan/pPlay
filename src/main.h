@@ -94,6 +94,8 @@ public:
     void setRunningStop();
     void syncLastLocation();
 
+    void reloadMainMenuModules();
+
     MenuMain *getMenuMain();
 
     MenuVideo *getMenuVideo();
