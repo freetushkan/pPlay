@@ -129,8 +129,13 @@ jobs:
           sudo apt-get install -y \
             pacman-package-manager wget cmake git gettext smpq \
             makepkg libarchive-tools build-essential autoconf \
-            libtool nasm curl python3-pip libfast-float-dev
+            libtool nasm curl python3-pip libfast-float-dev \
+            alien rpm debhelper
           pip3 install meson glad2 --break-system-packages
+
+          wget -q https://rpmfind.net/linux/mageia/distrib/9/x86_64/media/core/release/waf-2.0.25-1.mga9.noarch.rpm -O /tmp/waf.rpm
+          sudo alien --to-deb --scripts /tmp/waf.rpm
+          sudo dpkg -i waf_*.deb
 
           sudo tee -a /etc/pacman.conf > /dev/null <<TEXT
           [pacbrew]
