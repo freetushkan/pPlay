@@ -16,6 +16,23 @@
 #include <switch.h>
 #endif
 
+#ifdef __PS4__
+  #include <orbis/ImeDialog.h>
+  using ImePlatformType = OrbisImeType;
+#elif __PS5__
+  #include "sceImeDialog.h"
+  #include "sceUserService.h"
+  using ImePlatformType = SceImeDialogType;
+#endif
+
+#if defined(__PS4__) || defined(__PS5__)
+namespace Dialog {
+  int initImeDialog(const char *Title, const char *initialTextBuffer, int max_text_length, ImePlatformType type, float posx, float posy);
+  uint8_t *getImeDialogInputText();
+  int updateImeDialog();
+}
+#endif
+
 using namespace c2d;
 
 MenuMainOptionsSubmenu::MenuMainOptionsSubmenu(
