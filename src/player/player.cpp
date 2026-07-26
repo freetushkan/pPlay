@@ -79,9 +79,6 @@ void Player::showMessage(const std::string &message) {
 
 bool Player::load(const MediaFile &f, bool firstTry, const std::string &options) {
     stop();
-#ifdef __PS4__
-    pausedHttpsStream = false;
-#endif
     file = f;
     std::string opts = options;
     if (!isPlaylistFile()) {
@@ -574,15 +571,6 @@ void Player::changeBrightness(double delta) {
 }
 
 void Player::pause() {
-#ifdef __PS4__
-    std::string streamUrl = pplay::TorrServe::toStreamUrl(mpv->getCurrentPath());
-    pausedHttpsStream = Utility::startWith(streamUrl, "https://");
-    if (pausedHttpsStream) {
-        pauseClock.restart();
-        pplay::Utility::log(pplay::Utility::LogLevel::Info,
-            "Player::pause https stream detected, pause timer started");
-    }
-#endif
     mpv->pause();
     if (lastKnownPosition > 0 && lastKnownDuration > 300
         && (lastKnownDuration - lastKnownPosition) >= 60) {
@@ -598,14 +586,6 @@ void Player::pause() {
 }
 
 void Player::resume() {
-#ifdef __PS4__
-    if (pausedHttpsStream && pauseClock.getElapsedTime().asSeconds() >= 300) {
-        pausedHttpsStream = false;
-        load(file, false, "pause=yes");
-        return;
-    }
-    pausedHttpsStream = false;
-#endif
     mpv->resume();
 #ifdef __SWITCH__
     if (main->getConfig()->getOption(OPT_CPU_BOOST)->getString() == "Enabled") {

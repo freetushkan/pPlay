@@ -103,10 +103,6 @@ private:
     long lastKnownPosition = 0;
     long startPlaybackPosition = -1;
     c2d::C2DClock messageClock;
-#ifdef __PS4__
-    c2d::C2DClock pauseClock;
-    bool pausedHttpsStream = false;
-#endif
     bool frameDrawn = false;
 
     // player
