@@ -219,32 +219,36 @@ bool MenuMainOptionsSubmenu::editTextValue() {
         return false;
     }
     newValue = out;
-#elif defined(__PS4__) || defined(__PS5__)
-    if (sceImeDialogInit() < 0) {
-        return false;
-    }
-    char out[512] = {0};
-    SceImeDialogParam param;
-    sceImeDialogParamInit(&param);
-    param.maxTextLength = sizeof(out) - 1;
-    param.inputTextBuffer = out;
-    param.title = option_name.c_str();
-    param.type = SCE_IME_TYPE_DEFAULT;
-    if (!oldValue.empty()) {
-        sceImeDialogSetInitialText(&param, oldValue.c_str()); 
-    }
-    if (sceImeDialogOpen(&param) < 0) {
-        sceImeDialogTerm();
-        return false;
-    }
-    while (sceImeDialogGetStatus() != SCE_IME_DIALOG_STATUS_FINISHED) {
+#elif __PS4__
+    int res = Dialog::initImeDialog(option_name.c_str(), oldValue.c_str(), 512, (OrbisImeType)0, 0.0f, 0.0f);
+    if (res < 0) return false;
+    int status = 0;
+    while (true) {
+        status = Dialog::updateImeDialog();
+        if (status == 2) { 
+            newValue = reinterpret_cast<char*>(Dialog::getImeDialogInputText());
+            break;
+        }
+        if (status == 3 || status == 0) return false;
         sceKernelUsleep(16000);
     }
-    sceImeDialogTerm();
-    if (param.status != SCE_IME_DIALOG_STATUS_FINISHED) { 
+#elif __PS5__
+    int res = Dialog::initImeDialog(option_name.c_str(), oldValue.c_str(), 1024, (SceImeDialogType)0, 0.0f, 0.0f);
+    if (res < 0) {
         return false;
     }
-    newValue = out;
+    int status = 0;
+    while (true) {
+        status = Dialog::updateImeDialog();
+        if (status == 2) {
+            newValue = reinterpret_cast<char*>(Dialog::getImeDialogInputText());
+            break;
+        }
+        if (status == 3 || status == 0) {
+            return false;
+        }
+        sceKernelUsleep(16000);
+    }
 #else
     return false;
 #endif
