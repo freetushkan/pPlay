@@ -17,9 +17,6 @@
 #endif
 
 #if defined(__PS4__) || defined(__PS5__)
-#define IME_DIALOG_RESULT_NONE 0
-#define IME_DIALOG_RESULT_FINISHED 2
-#define IME_DIALOG_RESULT_CANCELED 3
 
 #ifdef __PS4__
 #include <orbis/ImeDialog.h>
@@ -27,8 +24,12 @@ using ImeType = OrbisImeType;
 #elif __PS5__
 enum SceImeDialogType { SCE_IME_TYPE_DEFAULT, SCE_IME_TYPE_BASIC_LATIN, SCE_IME_TYPE_URL, SCE_IME_TYPE_MAIL, SCE_IME_TYPE_NUMBER };
 using ImeType = SceImeDialogType;
-extern "C" int usleep(unsigned int usec);
+extern "C" int sceKernelUsleep(unsigned int usec);
 #endif
+
+#define IME_DIALOG_RESULT_NONE 0
+#define IME_DIALOG_RESULT_FINISHED 2
+#define IME_DIALOG_RESULT_CANCELED 3
 
 extern "C" namespace Dialog {
     int initImeDialog(const char *Title, const char *initialTextBuffer, int max_text_length, ImeType type, float posx, float posy);
