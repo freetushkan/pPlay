@@ -61,6 +61,7 @@ typedef void (*ime_callback_t)(int ime_result);
 namespace Dialog {
     static int running = 0;
     static uint16_t inBuf[1025];
+    static uint16_t titleBuf[100];
     static uint8_t outBuf[1025];
 
     static void to8(const uint16_t *s, uint8_t *d) {
@@ -88,10 +89,15 @@ namespace Dialog {
 
     int initImeDialog(const char *Title, const char *initialTextBuffer, int max_text_length, ImeType type, float posx, float posy) {
         if (running) return IME_DIALOG_ALREADY_RUNNING;
-        uint16_t title16[100] = {0};
-        memset(inBuf, 0, sizeof(inBuf)); memset(outBuf, 0, sizeof(outBuf));
-        if (initialTextBuffer) to16((uint8_t *)initialTextBuffer, inBuf);
-        if (Title) to16((uint8_t *)Title, title16);
+        if ((initialTextBuffer && strlen(initialTextBuffer) > 1023) || (Title && strlen(Title) > 99)) {
+            return -1;
+        }
+
+        memset(inBuf, 0, sizeof(inBuf));
+        memset(titleBuf, 0, sizeof(titleBuf));
+        memset(outBuf, 0, sizeof(outBuf));
+        if (initialTextBuffer) to16((const uint8_t *)initialTextBuffer, inBuf);
+        if (Title) to16((const uint8_t *)Title, titleBuf);
 
         int uid = 0;
 #ifdef __PS4__
@@ -104,7 +110,7 @@ namespace Dialog {
         p.enterLabel = SCE_IME_ENTER_LABEL_DEFAULT;
 #endif
         p.userId = uid; p.maxTextLength = max_text_length; p.type = type; p.posx = posx; p.posy = posy;
-        p.inputTextBuffer = reinterpret_cast<wchar_t*>(inBuf); p.title = reinterpret_cast<wchar_t*>(title16);
+        p.inputTextBuffer = reinterpret_cast<wchar_t*>(inBuf); p.title = reinterpret_cast<wchar_t*>(titleBuf);
 
         int res = sceImeDialogInit(&p, NULL);
         if (res >= 0) running = 1;
@@ -113,22 +119,41 @@ namespace Dialog {
 
     int updateImeDialog() {
         if (!running) return IME_DIALOG_RESULT_NONE;
+
 #ifdef __PS4__
         int status = sceImeDialogGetStatus();
         if (status == ORBIS_DIALOG_STATUS_STOPPED) {
             OrbisDialogResult r; memset(&r, 0, sizeof(r)); sceImeDialogGetResult(&r);
-            if (r.endstatus == ORBIS_DIALOG_OK) { to8(inBuf, outBuf); running = 0; return IME_DIALOG_RESULT_FINISHED; }
-            sceImeDialogTerm(); running = 0; return IME_DIALOG_RESULT_CANCELED;
+            running = 0;
+            sceImeDialogTerm();
+            if (r.endstatus == ORBIS_DIALOG_OK) {
+                to8(inBuf, outBuf);
+                return IME_DIALOG_RESULT_FINISHED;
+            }
+            return IME_DIALOG_RESULT_CANCELED;
         }
-        if (status == ORBIS_DIALOG_STATUS_NONE) { sceImeDialogTerm(); running = 0; return IME_DIALOG_RESULT_NONE; }
+        if (status == ORBIS_DIALOG_STATUS_NONE) {
+            running = 0;
+            sceImeDialogTerm();
+            return IME_DIALOG_RESULT_NONE;
+        }
 #else
         SceImeDialogStatus status = sceImeDialogGetStatus();
         if (status == SCE_IME_DIALOG_STATUS_FINISHED) {
             SceImeDialogResult r; memset(&r, 0, sizeof(r)); sceImeDialogGetResult(&r);
-            if (r.outcome == SCE_IME_DIALOG_END_STATUS_OK) { to8(inBuf, outBuf); running = 0; return IME_DIALOG_RESULT_FINISHED; }
-            sceImeDialogTerm(); running = 0; return IME_DIALOG_RESULT_CANCELED;
+            running = 0;
+            sceImeDialogTerm();
+            if (r.outcome == SCE_IME_DIALOG_END_STATUS_OK) {
+                to8(inBuf, outBuf);
+                return IME_DIALOG_RESULT_FINISHED;
+            }
+            return IME_DIALOG_RESULT_CANCELED;
         }
-        if (status == SCE_IME_DIALOG_STATUS_NONE) { sceImeDialogTerm(); running = 0; return IME_DIALOG_RESULT_NONE; }
+        if (status == SCE_IME_DIALOG_STATUS_NONE) {
+            running = 0;
+            sceImeDialogTerm();
+            return IME_DIALOG_RESULT_NONE;
+        }
 #endif
         return IME_DIALOG_RESULT_RUNNING;
     }
@@ -338,7 +363,7 @@ bool MenuMainOptionsSubmenu::editTextValue() {
         return false;
     }
     newValue = out;
-#elif __PS4__
+#elif defined(__PS4__)
     int res = Dialog::initImeDialog(option_name.c_str(), oldValue.c_str(), 512, (OrbisImeType)0, 0.0f, 0.0f);
     if (res < 0) return false;
     int status = 0;
@@ -351,7 +376,7 @@ bool MenuMainOptionsSubmenu::editTextValue() {
         if (status == IME_DIALOG_RESULT_CANCELED || status == IME_DIALOG_RESULT_NONE) return false;
         sceKernelUsleep(16000);
     }
-#elif __PS5__
+#elif defined(__PS5__)
     int res = Dialog::initImeDialog(option_name.c_str(), oldValue.c_str(), 1024, (SceImeDialogType)0, 0.0f, 0.0f);
     if (res < 0) return false;
     int status = 0;
