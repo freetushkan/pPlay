@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cctype>
+#include <cstdlib>
 #include <mutex>
 #include <set>
 #include <cstring>
@@ -173,54 +174,47 @@ std::string httpRequest(const std::string &url, int timeout, const std::string &
 
 std::vector<Torrent> getTorrents(const std::string &root, int timeout) {
     std::vector<Torrent> torrents;
-    try {
-        pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                "TorrServe::getTorrents url=" + root + "torrents, timeout=" + std::to_string(timeout));
-        std::string response = httpRequest(root + "torrents", timeout, "{\"action\":\"list\"}");
-        if (response.empty()) {
-            return torrents;
+    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+        "TorrServe::getTorrents url=" + root + "torrents, timeout=" + std::to_string(timeout));
+    std::string response = httpRequest(root + "torrents", timeout, "{\"action\":\"list\"}");
+    if (response.empty()) {
+        return torrents;
+    }
+
+    pplay::Utility::log(pplay::Utility::LogLevel::Trace, "TorrServe::getTorrents response=" + response);
+    nlohmann::json json = nlohmann::json::parse(response, nullptr, false);
+    if (json.is_discarded() || !json.is_array()) {
+        return torrents;
+    }
+
+    for (const auto &item: json) {
+        if (!item.contains("title") || !item["title"].is_string()
+            || !item.contains("hash") || !item["hash"].is_string()) {
+            continue;
         }
 
-        pplay::Utility::log(pplay::Utility::LogLevel::Trace, "TorrServe::getTorrents response=" + response);
-        nlohmann::json json = nlohmann::json::parse(response, nullptr, false);
-        if (!json.is_array()) {
-            return torrents;
-        }
+        Torrent torrent;
+        torrent.title = item["title"].get<std::string>();
+        torrent.hash = item["hash"].get<std::string>();
+        pplay::Utility::log(pplay::Utility::LogLevel::Trace,
+            "TorrServe::getTorrents item=" + torrent.title + ", hash=" + torrent.hash);
 
-        for (const auto &item: json) {
-            if (!item.contains("title") || !item["title"].is_string()
-                || !item.contains("hash") || !item["hash"].is_string()) {
-                continue;
-            }
-
-            Torrent torrent;
-            torrent.title = item["title"].get<std::string>();
-            torrent.hash = item["hash"].get<std::string>();
-            pplay::Utility::log(pplay::Utility::LogLevel::Trace,
-                "TorrServe::getTorrents item=" + torrent.title + ", hash=" + torrent.hash);
-
-            if (item.contains("data") && item["data"].is_string()) {
-                nlohmann::json data = nlohmann::json::parse(item["data"].get<std::string>(), nullptr, false);
-                if (data.contains("TorrServer") && data["TorrServer"].contains("Files")
-                    && data["TorrServer"]["Files"].is_array()) {
-                    for (const auto &file: data["TorrServer"]["Files"]) {
-                        if (!file.contains("id") || !file.contains("path") || !file["path"].is_string()) {
-                            continue;
-                        }
-                        TorrentFile tf;
-                        tf.id = file["id"].get<int>();
-                        tf.path = file["path"].get<std::string>();
-                        torrent.files.push_back(tf);
+        if (item.contains("data") && item["data"].is_string()) {
+            nlohmann::json data = nlohmann::json::parse(item["data"].get<std::string>(), nullptr, false);
+            if (!data.is_discarded() && data.contains("TorrServer") && data["TorrServer"].contains("Files")
+                && data["TorrServer"]["Files"].is_array()) {
+                for (const auto &file: data["TorrServer"]["Files"]) {
+                    if (!file.contains("id") || !file.contains("path") || !file["path"].is_string()) {
+                        continue;
                     }
+                    TorrentFile tf;
+                    tf.id = file["id"].get<int>();
+                    tf.path = file["path"].get<std::string>();
+                    torrent.files.push_back(tf);
                 }
             }
-            torrents.push_back(torrent);
         }
-    } catch (const std::exception &e) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Error,
-            std::string("TorrServe::getTorrents exception: ") + e.what());
-    } catch (...) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Error, "TorrServe::getTorrents unknown exception");
+        torrents.push_back(torrent);
     }
     return torrents;
 }
@@ -253,29 +247,22 @@ namespace pplay::TorrServe {
 
 std::set<int> getViewedRemote(const std::string &root, const std::string &hash, int timeout) {
     std::set<int> viewed;
-    try {
-        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-            "TorrServe::getViewedRemote hash=" + hash);
-        nlohmann::json request;
-        request["action"] = "list";
-        request["hash"] = hash;
-        nlohmann::json response = nlohmann::json::parse(
-                httpRequest(root + "viewed", timeout, request.dump()), nullptr, false);
-        if (!response.is_array()) {
-            return viewed;
-        }
-        for (const auto &item: response) {
-            if (item.contains("file_index") && item["file_index"].is_number_integer()) {
-                viewed.insert(item["file_index"].get<int>());
-            }
-        }
-        forceViewedRefresh = false;
-    } catch (const std::exception &e) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Error,
-            std::string("TorrServe::getViewedRemote exception: ") + e.what());
-    } catch (...) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Error, "TorrServe::getViewedRemote unknown exception");
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+        "TorrServe::getViewedRemote hash=" + hash);
+    nlohmann::json request;
+    request["action"] = "list";
+    request["hash"] = hash;
+    nlohmann::json response = nlohmann::json::parse(
+            httpRequest(root + "viewed", timeout, request.dump()), nullptr, false);
+    if (response.is_discarded() || !response.is_array()) {
+        return viewed;
     }
+    for (const auto &item: response) {
+        if (item.contains("file_index") && item["file_index"].is_number_integer()) {
+            viewed.insert(item["file_index"].get<int>());
+        }
+    }
+    forceViewedRefresh = false;
     return viewed;
 }
 
@@ -424,19 +411,20 @@ bool isFileViewed(const std::string &path) {
         return false;
     }
 
-    try {
-        int index = std::stoi(index_str);
-        std::set<int> viewed = getViewed(apiRoot(path), hash);
-        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-            "TorrServe::isFileViewed finished path=" + path
-                + " root=" + apiRoot(path) + " index=" + index_str);
-        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-            "TorrServe::isFileViewed finished path=" + path
-                + " result=" + std::to_string(viewed.count(index) > 0));
-        return viewed.count(index) > 0;
-    } catch (...) {
+    char *end = nullptr;
+    long parsedIndex = std::strtol(index_str.c_str(), &end, 10);
+    if (end == index_str.c_str() || *end != '\0') {
         return false;
     }
+    int index = static_cast<int>(parsedIndex);
+    std::set<int> viewed = getViewed(apiRoot(path), hash);
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+        "TorrServe::isFileViewed finished path=" + path
+            + " root=" + apiRoot(path) + " index=" + index_str);
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+        "TorrServe::isFileViewed finished path=" + path
+            + " result=" + std::to_string(viewed.count(index) > 0));
+    return viewed.count(index) > 0;
 }
 
 bool remFileViewed(const std::string &path) {
@@ -465,18 +453,19 @@ bool remFileViewed(const std::string &path) {
         return false;
     }
 
-    try {
-        nlohmann::json request;
-        request["action"] = "rem";
-        request["hash"] = hash;
-        request["file_index"] = std::stoi(index_str);
-        httpRequest(apiRoot(path) + "viewed", 5, request.dump());
-        forceViewedRefresh = true;
-        getViewed(apiRoot(path), hash);
-        return true;
-    } catch (...) {
+    char *end = nullptr;
+    long parsedIndex = std::strtol(index_str.c_str(), &end, 10);
+    if (end == index_str.c_str() || *end != '\0') {
         return false;
     }
+    nlohmann::json request;
+    request["action"] = "rem";
+    request["hash"] = hash;
+    request["file_index"] = static_cast<int>(parsedIndex);
+    httpRequest(apiRoot(path) + "viewed", 5, request.dump());
+    forceViewedRefresh = true;
+    getViewed(apiRoot(path), hash);
+    return true;
 }
 
 }

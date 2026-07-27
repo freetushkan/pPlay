@@ -629,11 +629,8 @@ nlohmann::json Browser::post_json(std::string url, const nlohmann::json& send_da
         return nlohmann::json::object();
     }
 
-    try {
-        return nlohmann::json::parse(html_response);
-    } catch (const nlohmann::json::parse_error& e) {
-        return nlohmann::json::object();
-    }
+    nlohmann::json parsed = nlohmann::json::parse(html_response, nullptr, false);
+    return parsed.is_discarded() ? nlohmann::json::object() : parsed;
 }
 ///=================================================================================///
 

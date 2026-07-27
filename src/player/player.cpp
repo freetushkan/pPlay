@@ -393,19 +393,14 @@ void Player::onUpdate() {
         if (position > 0.0) {
             lastKnownPosition = position;
         }
-        try {
-            if (position > 0.0 && duration > 300
-                && (position - lastProgressSave) >= 10
-                && (duration - position) >= 60) {
-                mpv->save();
-                pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-                    "Player::onUpdate::saveProgress position=" + std::to_string(position)
-                    + " duration=" + std::to_string(duration));
-                lastProgressSave = position;
-            }
-        } catch (...) {
-            pplay::Utility::log(pplay::Utility::LogLevel::Error,
-                "Player::onUpdate::saveProgress failed");
+        if (position > 0.0 && duration > 300
+            && (position - lastProgressSave) >= 10
+            && (duration - position) >= 60) {
+            mpv->save();
+            pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+                "Player::onUpdate::saveProgress position=" + std::to_string(position)
+                + " duration=" + std::to_string(duration));
+            lastProgressSave = position;
         }
         mpv_event *event = mpv->getEvent();
         if (event != nullptr) {

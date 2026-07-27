@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <new>
@@ -103,10 +104,14 @@ static SmbUrlParts parseSmbUrl(const std::string &input) {
     size_t colon = hostPort.rfind(':');
     if (colon != std::string::npos) {
         parts.server = hostPort.substr(0, colon);
-        try {
-            parts.port = std::stoi(hostPort.substr(colon + 1));
-        } catch (...) {
-            parts.port = 445;
+        parts.port = 445;
+        const std::string portText = hostPort.substr(colon + 1);
+        if (!portText.empty()) {
+            char *end = nullptr;
+            long parsedPort = std::strtol(portText.c_str(), &end, 10);
+            if (end != portText.c_str() && *end == '\0' && parsedPort > 0 && parsedPort <= 65535) {
+                parts.port = static_cast<int>(parsedPort);
+            }
         }
     } else {
         parts.server = hostPort;
@@ -580,17 +585,7 @@ std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, con
         dir = std::regex_replace(dir, std::regex("%2F"), "/");
         //printf("home: %s | dir: %s\n", home.c_str(), dir.c_str());
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::Browser->open url=" + home + dir);
-        try {
-            browser->open(home + dir, timeout);
-        } catch (const std::exception &e) {
-            pplay::Utility::log(pplay::Utility::LogLevel::Error,
-                std::string("Io::Browser->open exception: ") + e.what());
-            return files;
-        } catch (...) {
-            pplay::Utility::log(pplay::Utility::LogLevel::Error,
-                "Io::Browser->open unknown exception");
-            return files;
-        }
+        browser->open(home + dir, timeout);
         pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Io::Browser->open finished.");
         if (browser->error() || browser->links.size() < 1) {
             return files;
@@ -638,7 +633,6 @@ std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, con
         }
         // split user/pwd/host/port/path
         // TODO: check for nullptr etc..
-        try {
         size_t colon_2 = find_Nth(ftp_path, 2, ":");
         size_t colon_3 = ftp_path.find_last_of(':');
         size_t at = ftp_path.find_last_of('@');
@@ -676,15 +670,6 @@ std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, con
         }
 
         FtpQuit(ftp_con);
-        } catch (const std::exception &e) {
-            pplay::Utility::log(pplay::Utility::LogLevel::Error,
-                std::string("Io::getDirList ftp exception: ") + e.what());
-            return files;
-        } catch (...) {
-            pplay::Utility::log(pplay::Utility::LogLevel::Error,
-                "Io::getDirList ftp unknown exception");
-            return files;
-        }
     }
 #ifdef __SMB2__
     else if (type == DeviceType::Smb) {
