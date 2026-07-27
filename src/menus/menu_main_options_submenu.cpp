@@ -353,9 +353,7 @@ bool MenuMainOptionsSubmenu::editTextValue() {
     }
 #elif __PS5__
     int res = Dialog::initImeDialog(option_name.c_str(), oldValue.c_str(), 1024, (SceImeDialogType)0, 0.0f, 0.0f);
-    if (res < 0) {
-        return false;
-    }
+    if (res < 0) return false;
     int status = 0;
     while (true) {
         status = Dialog::updateImeDialog();
@@ -363,9 +361,7 @@ bool MenuMainOptionsSubmenu::editTextValue() {
             newValue = reinterpret_cast<char*>(Dialog::getImeDialogInputText());
             break;
         }
-        if (status == IME_DIALOG_RESULT_CANCELED || status == IME_DIALOG_RESULT_NONE) {
-            return false;
-        }
+        if (status == IME_DIALOG_RESULT_CANCELED || status == IME_DIALOG_RESULT_NONE) return false;
         sceKernelUsleep(16000);
     }
 #else
