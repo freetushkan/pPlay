@@ -110,6 +110,7 @@ namespace Dialog {
         p.enterLabel = SCE_IME_ENTER_LABEL_DEFAULT;
 #endif
         p.userId = uid;
+        p.supportedLanguages = 0;
         p.maxTextLength = max_text_length;
         p.type = type;
         p.posx = posx;

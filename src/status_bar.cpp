@@ -26,10 +26,18 @@ typedef struct OrbisDateTime {
     uint16_t second;
     uint32_t microsecond;
 } OrbisDateTime;
+
+typedef struct OrbisTick {
+    uint64_t tick;
+} OrbisTick;
+
 extern "C" {
     int sceKernelDlsym(int handle, const char *symbol, void **address);
 }
-static int (*local_sceRtcGetCurrentClockLocalTime)(OrbisDateTime *time) = nullptr;
+
+static int (*sceRtcGetTick)(const OrbisDateTime *inOrbisDateTime, OrbisTick *outTick) = nullptr;
+static int (*sceRtcSetTick)(OrbisDateTime *outOrbisDateTime, const OrbisTick *inputTick) = nullptr;
+static int (*sceRtcConvertUtcToLocalTime)(const OrbisTick *utc, OrbisTick *local_time) = nullptr;
 #endif
 
 using namespace c2d;
@@ -145,22 +153,45 @@ void StatusBar::onUpdate() {
     struct tm *time_struct;
     time_struct = localtime(&time_raw);
 
-    std::ostringstream oss;
-    oss << std::setfill('0') << std::setw(2) << time_struct->tm_hour << ":";
-    oss << std::setfill('0') << std::setw(2) << time_struct->tm_min;
+    int hour = time_struct->tm_hour;
+    int min = time_struct->tm_min;
+
 #ifdef __PS4__
-    if (local_sceRtcGetCurrentClockLocalTime == nullptr) {
+    if (sceRtcGetTick == nullptr) {
         int handle = sceKernelLoadStartModule("/system/common/lib/libSceRtc.sprx", 0, NULL, 0, NULL, NULL);
         if (handle > 0) {
-            sceKernelDlsym(handle, "sceRtcGetCurrentClockLocalTime", (void **)&local_sceRtcGetCurrentClockLocalTime);
+            sceKernelDlsym(handle, "sceRtcGetTick", (void **)&sceRtcGetTick);
+            sceKernelDlsym(handle, "sceRtcSetTick", (void **)&sceRtcSetTick);
+            sceKernelDlsym(handle, "sceRtcConvertUtcToLocalTime", (void **)&sceRtcConvertUtcToLocalTime);
         }
     }
-    OrbisDateTime psTime;
-    if (local_sceRtcGetCurrentClockLocalTime != nullptr && local_sceRtcGetCurrentClockLocalTime(&psTime) == 0) {
-        oss << std::setfill('0') << std::setw(2) << psTime.hour << ":";
-        oss << std::setfill('0') << std::setw(2) << psTime.minute;
+    if (sceRtcGetTick && sceRtcSetTick && sceRtcConvertUtcToLocalTime) {
+        OrbisDateTime gmt;
+        OrbisDateTime lt;
+        OrbisTick utc_tick;
+        OrbisTick local_tick;
+
+        gmt.day = time_struct->tm_mday;
+        gmt.month = time_struct->tm_mon + 1;
+        gmt.year = time_struct->tm_year + 1900;
+        gmt.hour = time_struct->tm_hour;
+        gmt.minute = time_struct->tm_min;
+        gmt.second = time_struct->tm_sec;
+        gmt.microsecond = 0;
+
+        sceRtcGetTick(&gmt, &utc_tick);
+        sceRtcConvertUtcToLocalTime(&utc_tick, &local_tick);
+        if (sceRtcSetTick(&lt, &local_tick) == 0) {
+            hour = lt.hour;
+            min = lt.minute;
+        }
     }
 #endif
+
+    std::ostringstream oss;
+    oss << std::setfill('0') << std::setw(2) << hour << ":";
+    oss << std::setfill('0') << std::setw(2) << min;
+
     timeText->setString(oss.str());
     GradientRectangle::onUpdate();
 }
