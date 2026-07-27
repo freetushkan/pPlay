@@ -16,6 +16,19 @@
 #include <switch.h>
 #endif
 
+#if defined(__PS4__) || defined(__PS5__)
+#define IME_DIALOG_RESULT_NONE 0
+#define IME_DIALOG_RESULT_FINISHED 2
+#define IME_DIALOG_RESULT_CANCELED 3
+extern "C" {
+namespace Dialog {
+  int initImeDialog(const char *Title, const char *initialTextBuffer, int max_text_length, ImePlatformType type, float posx, float posy);
+  uint8_t *getImeDialogInputText();
+  int updateImeDialog();
+}
+}
+#endif
+
 #ifdef __PS4__
   #include <orbis/ImeDialog.h>
   using ImePlatformType = OrbisImeType;
@@ -23,14 +36,6 @@
   #include "sceImeDialog.h"
   #include "sceUserService.h"
   using ImePlatformType = SceImeDialogType;
-#endif
-
-#if defined(__PS4__) || defined(__PS5__)
-namespace Dialog {
-  int initImeDialog(const char *Title, const char *initialTextBuffer, int max_text_length, ImePlatformType type, float posx, float posy);
-  uint8_t *getImeDialogInputText();
-  int updateImeDialog();
-}
 #endif
 
 using namespace c2d;
@@ -242,11 +247,11 @@ bool MenuMainOptionsSubmenu::editTextValue() {
     int status = 0;
     while (true) {
         status = Dialog::updateImeDialog();
-        if (status == 2) { 
+        if (status == IME_DIALOG_RESULT_FINISHED) { 
             newValue = reinterpret_cast<char*>(Dialog::getImeDialogInputText());
             break;
         }
-        if (status == 3 || status == 0) return false;
+        if (status == IME_DIALOG_RESULT_CANCELED || status == IME_DIALOG_RESULT_NONE) return false;
         sceKernelUsleep(16000);
     }
 #elif __PS5__
@@ -257,11 +262,11 @@ bool MenuMainOptionsSubmenu::editTextValue() {
     int status = 0;
     while (true) {
         status = Dialog::updateImeDialog();
-        if (status == 2) {
+        if (status == IME_DIALOG_RESULT_FINISHED) {
             newValue = reinterpret_cast<char*>(Dialog::getImeDialogInputText());
             break;
         }
-        if (status == 3 || status == 0) {
+        if (status == IME_DIALOG_RESULT_CANCELED || status == IME_DIALOG_RESULT_NONE) {
             return false;
         }
         sceKernelUsleep(16000);
