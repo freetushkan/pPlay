@@ -103,7 +103,8 @@ namespace Dialog {
 #ifdef __PS4__
         sceUserServiceGetInitialUser(&uid);
         OrbisImeDialogSetting p; memset(&p, 0, sizeof(p));
-        p.enterLabel = ORBIS_BUTTON_LABEL_DEFAULT;
+        // p.enterLabel = ORBIS_BUTTON_LABEL_DEFAULT;
+        p.enterLabel = ORBIS_BUTTON_LABEL_CROSS; 
 #else
         sceUserServiceGetForegroundUser(&uid);
         SceImeDialogParam p; memset(&p, 0, sizeof(p));
