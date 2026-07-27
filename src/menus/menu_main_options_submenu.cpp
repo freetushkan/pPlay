@@ -31,7 +31,9 @@ extern "C" int sceKernelUsleep(unsigned int usec);
 #define IME_DIALOG_RESULT_FINISHED 2
 #define IME_DIALOG_RESULT_CANCELED 3
 
-extern "C" namespace Dialog {
+typedef void (*ime_callback_t)(int ime_result);
+
+namespace Dialog {
     int initImeDialog(const char *Title, const char *initialTextBuffer, int max_text_length, ImeType type, float posx, float posy);
     uint8_t *getImeDialogInputText();
     int updateImeDialog();
