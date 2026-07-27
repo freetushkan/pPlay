@@ -17,26 +17,121 @@
 #endif
 
 #if defined(__PS4__) || defined(__PS5__)
+#include <string.h>
+#include <stdio.h>
 
 #ifdef __PS4__
-#include <orbis/ImeDialog.h>
-using ImeType = OrbisImeType;
-#elif __PS5__
-enum SceImeDialogType { SCE_IME_TYPE_DEFAULT, SCE_IME_TYPE_BASIC_LATIN, SCE_IME_TYPE_URL, SCE_IME_TYPE_MAIL, SCE_IME_TYPE_NUMBER };
-using ImeType = SceImeDialogType;
-extern "C" int sceKernelUsleep(unsigned int usec);
+  #include <orbis/ImeDialog.h>
+  #include <orbis/UserService.h>
+  using ImeType = OrbisImeType;
+#elif defined(__PS5__)
+  enum SceImeDialogType { SCE_IME_TYPE_DEFAULT, SCE_IME_TYPE_BASIC_LATIN, SCE_IME_TYPE_URL, SCE_IME_TYPE_MAIL, SCE_IME_TYPE_NUMBER };
+  using ImeType = SceImeDialogType;
+  enum SceImeDialogStatus { SCE_IME_DIALOG_STATUS_NONE, SCE_IME_DIALOG_STATUS_RUNNING, SCE_IME_DIALOG_STATUS_FINISHED };
+  enum SceImeDialogEndStatus { SCE_IME_DIALOG_END_STATUS_OK, SCE_IME_DIALOG_END_STATUS_USER_CANCELED };
+  
+  typedef struct {
+      int userId; SceImeDialogType type; uint64_t supportedLanguages; int enterLabel;
+      int inputMethod; void* filter; uint32_t option; uint32_t maxTextLength;
+      wchar_t *inputTextBuffer; float posx; float posy; int halign; int valign;
+      const wchar_t *placeholder; const wchar_t *title; int8_t reserved[16];
+  } SceImeDialogParam;
+
+  typedef struct { SceImeDialogEndStatus outcome; int8_t reserved[12]; } SceImeDialogResult;
+
+  extern "C" {
+      int sceImeDialogInit(const SceImeDialogParam*, void*);
+      int sceImeDialogGetResult(SceImeDialogResult*);
+      int sceImeDialogTerm(void);
+      SceImeDialogStatus sceImeDialogGetStatus(void);
+      int sceUserServiceGetForegroundUser(int*);
+      int sceKernelUsleep(unsigned int usec);
+  }
 #endif
 
 #define IME_DIALOG_RESULT_NONE 0
+#define IME_DIALOG_RESULT_RUNNING 1
 #define IME_DIALOG_RESULT_FINISHED 2
 #define IME_DIALOG_RESULT_CANCELED 3
+#define IME_DIALOG_ALREADY_RUNNING -1
+#define SCE_IME_ENTER_LABEL_DEFAULT 0
 
 typedef void (*ime_callback_t)(int ime_result);
 
 namespace Dialog {
-    int initImeDialog(const char *Title, const char *initialTextBuffer, int max_text_length, ImeType type, float posx, float posy);
-    uint8_t *getImeDialogInputText();
-    int updateImeDialog();
+    static int running = 0;
+    static uint16_t inBuf[1025];
+    static uint8_t outBuf[1025];
+
+    static void to8(const uint16_t *s, uint8_t *d) {
+        for (int i = 0; s[i]; i++) {
+            if ((s[i] & 0xFF80) == 0) *(d++) = s[i] & 0xFF;
+            else if ((s[i] & 0xF800) == 0) { *(d++) = ((s[i] >> 6) & 0xFF) | 0xC0; *(d++) = (s[i] & 0x3F) | 0x80; }
+            else if ((s[i] & 0xFC00) == 0xD800 && (s[i + 1] & 0xFC00) == 0xDC00) {
+                *(d++) = (((s[i] + 64) >> 8) & 0x3) | 0xF0; *(d++) = (((s[i] >> 2) + 16) & 0x3F) | 0x80;
+                *(d++) = ((s[i] >> 4) & 0x30) | 0x80 | ((s[i + 1] << 2) & 0xF); *(d++) = (s[i + 1] & 0x3F) | 0x80; i++;
+            } else { *(d++) = ((s[i] >> 12) & 0xF) | 0xE0; *(d++) = ((s[i] >> 6) & 0x3F) | 0x80; *(d++) = (s[i] & 0x3F) | 0x80; }
+        }
+        *d = '\0';
+    }
+
+    static void to16(const uint8_t *s, uint16_t *d) {
+        for (int i = 0; s[i];) {
+            if ((s[i] & 0xE0) == 0xE0) { *(d++) = ((s[i] & 0x0F) << 12) | ((s[i + 1] & 0x3F) << 6) | (s[i + 2] & 0x3F); i += 3; }
+            else if ((s[i] & 0xC0) == 0xC0) { *(d++) = ((s[i] & 0x1F) << 6) | (s[i + 1] & 0x3F); i += 2; }
+            else { *(d++) = s[i]; i += 1; }
+        }
+        *d = '\0';
+    }
+
+    uint8_t *getImeDialogInputText() { return outBuf; }
+
+    int initImeDialog(const char *Title, const char *initialTextBuffer, int max_text_length, ImeType type, float posx, float posy) {
+        if (running) return IME_DIALOG_ALREADY_RUNNING;
+        uint16_t title16[100] = {0};
+        memset(inBuf, 0, sizeof(inBuf)); memset(outBuf, 0, sizeof(outBuf));
+        if (initialTextBuffer) to16((uint8_t *)initialTextBuffer, inBuf);
+        if (Title) to16((uint8_t *)Title, title16);
+
+        int uid = 0;
+#ifdef __PS4__
+        sceUserServiceGetInitialUser(&uid);
+        OrbisImeDialogSetting p; memset(&p, 0, sizeof(p));
+        p.enterLabel = ORBIS_BUTTON_LABEL_DEFAULT;
+#else
+        sceUserServiceGetForegroundUser(&uid);
+        SceImeDialogParam p; memset(&p, 0, sizeof(p));
+        p.enterLabel = SCE_IME_ENTER_LABEL_DEFAULT;
+#endif
+        p.userId = uid; p.maxTextLength = max_text_length; p.type = type; p.posx = posx; p.posy = posy;
+        p.inputTextBuffer = reinterpret_cast<wchar_t*>(inBuf); p.title = reinterpret_cast<wchar_t*>(title16);
+
+        int res = sceImeDialogInit(&p, NULL);
+        if (res >= 0) running = 1;
+        return res;
+    }
+
+    int updateImeDialog() {
+        if (!running) return IME_DIALOG_RESULT_NONE;
+#ifdef __PS4__
+        int status = sceImeDialogGetStatus();
+        if (status == ORBIS_DIALOG_STATUS_STOPPED) {
+            OrbisDialogResult r; memset(&r, 0, sizeof(r)); sceImeDialogGetResult(&r);
+            if (r.endstatus == ORBIS_DIALOG_OK) { to8(inBuf, outBuf); running = 0; return IME_DIALOG_RESULT_FINISHED; }
+            sceImeDialogTerm(); running = 0; return IME_DIALOG_RESULT_CANCELED;
+        }
+        if (status == ORBIS_DIALOG_STATUS_NONE) { sceImeDialogTerm(); running = 0; return IME_DIALOG_RESULT_NONE; }
+#else
+        SceImeDialogStatus status = sceImeDialogGetStatus();
+        if (status == SCE_IME_DIALOG_STATUS_FINISHED) {
+            SceImeDialogResult r; memset(&r, 0, sizeof(r)); sceImeDialogGetResult(&r);
+            if (r.outcome == SCE_IME_DIALOG_END_STATUS_OK) { to8(inBuf, outBuf); running = 0; return IME_DIALOG_RESULT_FINISHED; }
+            sceImeDialogTerm(); running = 0; return IME_DIALOG_RESULT_CANCELED;
+        }
+        if (status == SCE_IME_DIALOG_STATUS_NONE) { sceImeDialogTerm(); running = 0; return IME_DIALOG_RESULT_NONE; }
+#endif
+        return IME_DIALOG_RESULT_RUNNING;
+    }
 }
 #endif
 
