@@ -607,6 +607,7 @@ int main() {
     }
 #elif __PS4__
     sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_NET);
+    sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_IME_DIALOG);
     sceKernelDebugOutText(0, "[pPlay] started\n");
 #endif
 
