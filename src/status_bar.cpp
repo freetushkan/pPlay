@@ -27,7 +27,6 @@ typedef struct OrbisDateTime {
     uint32_t microsecond;
 } OrbisDateTime;
 extern "C" {
-    int sceKernelLoadStartModule(const char *path, size_t argc, const void *argv, uint32_t flags, void *sys, void *res);
     int sceKernelDlsym(int handle, const char *symbol, void **address);
 }
 static int (*local_sceRtcGetCurrentClockLocalTime)(OrbisDateTime *time) = nullptr;

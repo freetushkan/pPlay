@@ -128,10 +128,9 @@ Below is the list of currently supported and maintained configuration parameters
 * `ACCENT_COLOR` (HEX string, default `#1078C8`) — UI accent color.
 * `LOG_LEVEL` (`0..4`, default `0`) — log verbosity: OFF/ERROR/INFO/DEBUG/TRACE.
 
-### Platform-specific
+### Switch-specific
 
-* `CPU_BOOST` (Switch) — `Disabled` / `Enabled` for heavy media playback.
-* `UTC_OFFSET` (PS4) — timezone offset.
+* `CPU_BOOST` — `Disabled` / `Enabled` for heavy media playback.
 
 ## Example `pplay.cfg`
 
@@ -170,11 +169,8 @@ SWAP_CONTROLS = 0
 ACCENT_COLOR = "#1078C8"
 LOG_LEVEL = 2
 
-# Platform-specific
-# * Switch
+# Switch-specific
 CPU_BOOST = "Enabled"
-# * PS4
-UTC_OFFSET = 5.0;
 ```
 
 ## MPV configuration
