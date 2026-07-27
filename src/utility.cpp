@@ -219,12 +219,12 @@ void Utility::setLogLevel(Utility::LogLevel level) {
 }
 
 void Utility::log(Utility::LogLevel level, const std::string &message) {
-#ifdef __PS4__
-    sceKernelDebugOutText(0, ("[pPlay] " + message + "\n").c_str());
-#endif
     if ((int) level > (int) g_logLevel || g_logLevel == Utility::LogLevel::Off) {
         return;
     }
+#ifdef __PS4__
+    sceKernelDebugOutText(0, ("[pPlay] " + message + "\n").c_str());
+#endif
     std::string path = c2d_renderer->getIo()->getDataPath() + "pplay.log";
     bool writeBom = !c2d_renderer->getIo()->exist(path);
     std::ofstream out(path, std::ios::app);
