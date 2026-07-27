@@ -58,9 +58,6 @@ PPLAYConfig::PPLAYConfig(Main *main, int version)
 #endif
     addOption({OPT_LOG_LEVEL, (int) 0}); // 0 OFF, 1 ERROR, 2 INFO, 3 DEBUG, 4 TRACE
     addOption({OPT_SWAP_CONTROLS, (int) 0});
-#ifdef __PS4__
-    addOption({OPT_UTC_OFFSET, (float) 0.0});
-#endif
     addOption({OPT_SEEK_SHORT_SEC, (float) 30.0});
     addOption({OPT_SEEK_LONG_SEC, (float) 300.0});
 #ifdef __SWITCH__

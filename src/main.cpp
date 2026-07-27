@@ -47,6 +47,8 @@ static void on_applet_hook(AppletHookType hook, void *arg) {
 #elif __PS4__
 
 #include <orbis/Sysmodule.h>
+#include <orbis/SystemService.h>
+#include <orbis/UserService.h>
 
 extern "C" int sceSystemServiceLoadExec(const char *path, const char *args[]);
 #endif
@@ -606,6 +608,8 @@ int main() {
         size = {1920, 1080};
     }
 #elif __PS4__
+    sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_SYSTEM_SERVICE);
+    sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_USER_SERVICE);
     sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_NET);
     sceSysmoduleLoadModuleInternal((enum OrbisSysModuleInternal)ORBIS_SYSMODULE_IME_DIALOG);
     sceKernelDebugOutText(0, "[pPlay] started\n");

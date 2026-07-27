@@ -16,6 +16,21 @@
 
 #include <switch.h>
 
+#elif __PS4__
+typedef struct OrbisDateTime {
+    uint16_t year;
+    uint16_t month;
+    uint16_t day;
+    uint16_t hour;
+    uint16_t minute;
+    uint16_t second;
+    uint32_t microsecond;
+} OrbisDateTime;
+extern "C" {
+    int sceKernelLoadStartModule(const char *path, size_t argc, const void *argv, uint32_t flags, void *sys, void *res);
+    int sceKernelDlsym(int handle, const char *symbol, void **address);
+}
+static int (*local_sceRtcGetCurrentClockLocalTime)(OrbisDateTime *time) = nullptr;
 #endif
 
 using namespace c2d;
@@ -127,23 +142,27 @@ void StatusBar::onUpdate() {
     }
 
     time_t time_raw;
-    struct tm *time_struct;
-
     time(&time_raw);
-    // localtime() cannot handle real offset on PS4.
-#ifdef __PS4__
-    float offset_hours = main->getConfig()->getOption(OPT_UTC_OFFSET)->getFloat();
-    long offset_seconds = static_cast<long>(offset_hours * 3600.0);
-    time_raw += offset_seconds;
-    time_struct = gmtime(&time_raw);
-#else
+    struct tm *time_struct;
     time_struct = localtime(&time_raw);
-#endif
+
     std::ostringstream oss;
     oss << std::setfill('0') << std::setw(2) << time_struct->tm_hour << ":";
     oss << std::setfill('0') << std::setw(2) << time_struct->tm_min;
+#ifdef __PS4__
+    if (local_sceRtcGetCurrentClockLocalTime == nullptr) {
+        int handle = sceKernelLoadStartModule("/system/common/lib/libSceRtc.sprx", 0, NULL, 0, NULL, NULL);
+        if (handle > 0) {
+            sceKernelDlsym(handle, "sceRtcGetCurrentClockLocalTime", (void **)&local_sceRtcGetCurrentClockLocalTime);
+        }
+    }
+    OrbisDateTime psTime;
+    if (local_sceRtcGetCurrentClockLocalTime != nullptr && local_sceRtcGetCurrentClockLocalTime(&psTime) == 0) {
+        oss << std::setfill('0') << std::setw(2) << psTime.hour << ":";
+        oss << std::setfill('0') << std::setw(2) << psTime.minute;
+    }
+#endif
     timeText->setString(oss.str());
-
     GradientRectangle::onUpdate();
 }
 

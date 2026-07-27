@@ -40,9 +40,6 @@
 #endif
 #define OPT_LOG_LEVEL           "LOG_LEVEL"
 #define OPT_SWAP_CONTROLS       "SWAP_CONTROLS"
-#ifdef __PS4__
-#define OPT_UTC_OFFSET          "UTC_OFFSET"
-#endif
 #define OPT_SEEK_SHORT_SEC      "SEEK_SHORT_SEC"
 #define OPT_SEEK_LONG_SEC       "SEEK_LONG_SEC"
 #define OPT_CPU_BOOST           "CPU_BOOST"

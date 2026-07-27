@@ -57,9 +57,6 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
 #ifdef __SWITCH__
     it.emplace_back("CPU", "cpu.png", MenuItem::Position::Top);
 #endif
-#ifdef __PS4__
-    it.emplace_back("Time offset", "time.png", MenuItem::Position::Top);
-#endif
     it.emplace_back("Logging", "log.png", MenuItem::Position::Top);
 
     menuMainOptions = new MenuMainOptions(main, rect, it);
@@ -151,10 +148,6 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                 MenuItem("Deep Red", "", MenuItem::Position::Top, 0, true, "#D63031"),
                 MenuItem("Classic Red", "", MenuItem::Position::Top, 0, true, "#FF0000")},
                Submenu::ValueType::String);
-#ifdef __PS4__
-    addSubmenu("Time offset", "Time offset", OPT_UTC_OFFSET, makeAdjustItems(),
-               Submenu::ValueType::Float, Submenu::MenuType::Adjust, -12.0f, 14.0f, 0.25f, "h");
-#endif
 #ifdef PPLAY_ENABLE_SCRAPPING
     addSubmenu("Scrapping", "Scrape", OPT_ENABLE_SCRAPPING,
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
