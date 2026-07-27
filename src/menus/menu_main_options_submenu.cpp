@@ -99,17 +99,22 @@ namespace Dialog {
         if (initialTextBuffer) to16((const uint8_t *)initialTextBuffer, inBuf);
         if (Title) to16((const uint8_t *)Title, titleBuf);
 
-        // int uid = 0;
+        int uid = 0;
 #ifdef __PS4__
-        // sceUserServiceGetInitialUser(&uid);
+        sceUserServiceGetInitialUser(&uid);
         OrbisImeDialogSetting p; memset(&p, 0, sizeof(p));
         p.enterLabel = ORBIS_BUTTON_LABEL_DEFAULT;
 #else
-        // sceUserServiceGetForegroundUser(&uid);
+        sceUserServiceGetForegroundUser(&uid);
         SceImeDialogParam p; memset(&p, 0, sizeof(p));
         p.enterLabel = SCE_IME_ENTER_LABEL_DEFAULT;
 #endif
-        p.userId = 0xFE; p.maxTextLength = max_text_length; p.type = type; p.posx = posx; p.posy = posy;
+        p.option = 16;
+        p.userId = uid;
+        p.maxTextLength = max_text_length;
+        p.type = type;
+        p.posx = posx;
+        p.posy = posy;
         p.inputTextBuffer = reinterpret_cast<wchar_t*>(inBuf); p.title = reinterpret_cast<wchar_t*>(titleBuf);
 
         int res = sceImeDialogInit(&p, NULL);
