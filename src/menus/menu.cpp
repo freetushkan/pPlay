@@ -411,7 +411,11 @@ void Menu::updateScroll() {
 
     int topIndex = 0;
     for (auto &button: buttons) {
-        if (button->item.enabled && button->item.position == MenuItem::Position::Top) {
+        if (button->item.position == MenuItem::Position::Top) {
+            if (!button->item.enabled) {
+                button->setVisibility(Visibility::Hidden);
+                continue;
+            }
             const float y = top + ((float) (topIndex - startSlot) * spacing);
             button->setPosition(0, y);
 
