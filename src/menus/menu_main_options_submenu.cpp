@@ -104,6 +104,7 @@ namespace Dialog {
         sceUserServiceGetInitialUser(&uid);
         OrbisImeDialogSetting p; memset(&p, 0, sizeof(p));
         p.enterLabel = ORBIS_BUTTON_LABEL_DEFAULT;
+        p.imeParam.enterKeyType = 1;
 #else
         sceUserServiceGetForegroundUser(&uid);
         SceImeDialogParam p; memset(&p, 0, sizeof(p));
