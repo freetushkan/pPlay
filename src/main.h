@@ -54,6 +54,10 @@ inline c2d::Color& COLOR_ACCENT = pplay::Utility::getAccentColor();
 bool paused_on_focus_loss = false;
 #endif
 
+#ifdef __PS4__
+int load_sys_modules();
+#endif
+
 class Main : public c2d::C2DRenderer {
 
 public:

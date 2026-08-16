@@ -21,8 +21,8 @@
 #include <stdio.h>
 
 #ifdef __PS4__
-  #include <orbis/ImeDialog.h>
   #include <orbis/UserService.h>
+  #include <orbis/ImeDialog.h>
   using ImeType = OrbisImeType;
 #elif defined(__PS5__)
   enum SceImeDialogType { SCE_IME_TYPE_DEFAULT, SCE_IME_TYPE_BASIC_LATIN, SCE_IME_TYPE_URL, SCE_IME_TYPE_MAIL, SCE_IME_TYPE_NUMBER };
@@ -115,7 +115,8 @@ namespace Dialog {
         p.type = type;
         p.posx = posx;
         p.posy = posy;
-        p.inputTextBuffer = reinterpret_cast<wchar_t*>(inBuf); p.title = reinterpret_cast<wchar_t*>(titleBuf);
+        p.inputTextBuffer = reinterpret_cast<wchar_t*>(inBuf);
+        p.title = reinterpret_cast<wchar_t*>(titleBuf);
 
         int res = sceImeDialogInit(&p, NULL);
         if (res >= 0) running = 1;

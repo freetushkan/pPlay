@@ -46,11 +46,46 @@ static void on_applet_hook(AppletHookType hook, void *arg) {
 
 #elif __PS4__
 
+#include <orbis/libkernel.h>
 #include <orbis/Sysmodule.h>
 #include <orbis/SystemService.h>
 #include <orbis/UserService.h>
 
 extern "C" int sceSystemServiceLoadExec(const char *path, const char *args[]);
+
+void *sceRtcGetTick, *sceRtcSetTick, *sceRtcConvertLocalTimeToUtc, *sceRtcConvertUtcToLocalTime;
+void *sceRtcGetCurrentClockLocalTime, *sceRtcGetCurrentTick, *sceRtcFormatRFC3339LocalTime;
+void *sceRtcGetTickResolution, *sceShellUIUtilLaunchByUri, *sceShellUIUtilInitialize;
+
+int load_sys_modules()
+{
+    int handle;
+    #define RESOLVE(h, sym) if (sceKernelDlsym(h, #sym, (void **)&sym) < 0 || !sym) return -1;
+
+    handle = sceKernelLoadStartModule("/system/common/lib/libSceRtc.sprx", 0, NULL, 0, NULL, NULL);
+    if (handle <= 0) return -1;
+
+    RESOLVE(handle, sceRtcGetTick);
+    RESOLVE(handle, sceRtcSetTick);
+    RESOLVE(handle, sceRtcConvertLocalTimeToUtc);
+    RESOLVE(handle, sceRtcConvertUtcToLocalTime);
+    RESOLVE(handle, sceRtcGetCurrentClockLocalTime);
+    RESOLVE(handle, sceRtcGetCurrentTick);
+    RESOLVE(handle, sceRtcFormatRFC3339LocalTime);
+    RESOLVE(handle, sceRtcGetTickResolution);
+
+    handle = sceKernelLoadStartModule("/system/common/lib/libSceShellUIUtil.sprx", 0, NULL, 0, NULL, NULL);
+    if (handle <= 0) return -1;
+
+    RESOLVE(handle, sceShellUIUtilInitialize);
+    RESOLVE(handle, sceShellUIUtilLaunchByUri);
+
+    #undef RESOLVE
+
+    if (((int (*)())sceShellUIUtilInitialize)() < 0) return -1;
+
+    return 0;
+}
 #endif
 
 using namespace c2d;
@@ -608,10 +643,13 @@ int main() {
         size = {1920, 1080};
     }
 #elif __PS4__
+    setvbuf(stdout, NULL, _IONBF, 0);
     sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_SYSTEM_SERVICE);
     sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_USER_SERVICE);
     sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_NET);
     sceSysmoduleLoadModuleInternal((enum OrbisSysModuleInternal)ORBIS_SYSMODULE_IME_DIALOG);
+    sceNetPoolCreate("pplay", (5 * 1024 * 1024), 0);
+	if (load_sys_modules() != 0) return 0;
     sceKernelDebugOutText(0, "[pPlay] started\n");
 #endif
 
