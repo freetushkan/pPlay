@@ -16,28 +16,6 @@
 
 #include <switch.h>
 
-#elif __PS4__
-typedef struct OrbisDateTime {
-    uint16_t year;
-    uint16_t month;
-    uint16_t day;
-    uint16_t hour;
-    uint16_t minute;
-    uint16_t second;
-    uint32_t microsecond;
-} OrbisDateTime;
-
-typedef struct OrbisTick {
-    uint64_t tick;
-} OrbisTick;
-
-extern "C" {
-    int sceKernelDlsym(int handle, const char *symbol, void **address);
-}
-
-static int (*sceRtcGetTick)(const OrbisDateTime *inOrbisDateTime, OrbisTick *outTick) = nullptr;
-static int (*sceRtcSetTick)(OrbisDateTime *outOrbisDateTime, const OrbisTick *inputTick) = nullptr;
-static int (*sceRtcConvertUtcToLocalTime)(const OrbisTick *utc, OrbisTick *local_time) = nullptr;
 #endif
 
 using namespace c2d;
@@ -157,14 +135,6 @@ void StatusBar::onUpdate() {
     int min = time_struct->tm_min;
 
 #ifdef __PS4__
-    if (sceRtcGetTick == nullptr) {
-        int handle = sceKernelLoadStartModule("/system/common/lib/libSceRtc.sprx", 0, NULL, 0, NULL, NULL);
-        if (handle > 0) {
-            sceKernelDlsym(handle, "sceRtcGetTick", (void **)&sceRtcGetTick);
-            sceKernelDlsym(handle, "sceRtcSetTick", (void **)&sceRtcSetTick);
-            sceKernelDlsym(handle, "sceRtcConvertUtcToLocalTime", (void **)&sceRtcConvertUtcToLocalTime);
-        }
-    }
     if (sceRtcGetTick && sceRtcSetTick && sceRtcConvertUtcToLocalTime) {
         OrbisDateTime gmt;
         OrbisDateTime lt;
