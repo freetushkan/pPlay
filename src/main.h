@@ -56,7 +56,6 @@ bool paused_on_focus_loss = false;
 
 #ifdef __PS4__
 extern "C" {
-#endif
 
 typedef struct
 {
