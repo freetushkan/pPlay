@@ -66,8 +66,7 @@ unsigned int (*sceRtcGetTickResolution)();
 int (*sceShellUIUtilLaunchByUri)(const char *uri, SceShellUIUtilLaunchByUriParam *param);
 int (*sceShellUIUtilInitialize)();
 
-int load_sys_modules()
-{
+int load_sys_modules() {
     int handle = sceKernelLoadStartModule("/system/common/lib/libSceRtc.sprx", 0, NULL, 0, NULL, NULL);
     if (handle == 0) return -1;
     sceKernelDlsym(handle, "sceRtcGetTick", (void **)&sceRtcGetTick);

@@ -55,6 +55,29 @@ bool paused_on_focus_loss = false;
 #endif
 
 #ifdef __PS4__
+extern "C" {
+#endif
+
+typedef struct
+{
+    unsigned int size;
+    uint32_t userId;
+} SceShellUIUtilLaunchByUriParam;
+
+typedef struct OrbisTick {
+        uint64_t mytick;
+} OrbisTick;
+
+typedef struct OrbisDateTime {
+        unsigned short year;
+        unsigned short month;
+        unsigned short day;
+        unsigned short hour;
+        unsigned short minute;
+        unsigned short second;
+        unsigned int microsecond;
+} OrbisDateTime;
+
 extern int (*sceRtcGetTick)(const OrbisDateTime *inOrbisDateTime, OrbisTick *outTick);
 extern int (*sceRtcSetTick)(OrbisDateTime *outOrbisDateTime, const OrbisTick *inputTick);
 extern int (*sceRtcConvertLocalTimeToUtc)(const OrbisTick *local_time, OrbisTick *utc);
@@ -67,6 +90,7 @@ extern int (*sceShellUIUtilLaunchByUri)(const char *uri, SceShellUIUtilLaunchByU
 extern int (*sceShellUIUtilInitialize)();
 
 int load_sys_modules();
+}
 #endif
 
 class Main : public c2d::C2DRenderer {
