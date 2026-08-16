@@ -54,6 +54,7 @@ namespace {
     inline int topButtonCount(const std::vector<MenuButton *> &buttons) {
         int count = 0;
         for (auto *button: buttons) {
+            if (!button->item.enabled) continue;
             if (button->item.position == MenuItem::Position::Top) {
                 ++count;
             }
@@ -64,6 +65,7 @@ namespace {
     inline int topIndexOfButton(const std::vector<MenuButton *> &buttons, int index) {
         int topIndex = 0;
         for (int i = 0; i < static_cast<int>(buttons.size()); ++i) {
+            if (!buttons[i]->item.enabled) continue;
             if (buttons[i]->item.position != MenuItem::Position::Top) {
                 continue;
             }
