@@ -181,9 +181,10 @@ void MenuMain::reloadModules() {
         }
 
         button->item.name = name;
+        button->item.enabled = !url.empty();
         button->item.selectable = !url.empty();
         button->name->setString(name);
-        button->setVisibility(button->item.selectable && isVisible() ? Visibility::Visible : Visibility::Hidden);
+        button->setVisibility(!url.empty() && button->isVisible() ? Visibility::Visible : Visibility::Hidden);
     }
 
     if (!isButtonSelectable(index)) {

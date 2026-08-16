@@ -22,21 +22,23 @@ public:
     MenuItem() = default;
 
     MenuItem(const std::string &name, const std::string &icon, const Position &position, int id = 0,
-             bool selectable = true, const std::string &data_str = "") {
+             bool selectable = true, const std::string &data_str = "", bool enabled = true) {
         this->name = name;
         this->icon = icon;
         this->position = position;
         this->id = id;
         this->selectable = selectable;
         this->data_str = data_str;
+        this->enabled = data_str;
     }
 
-    int id = 0;
     std::string name;
     std::string icon;
     Position position = Position::Top;
+    int id = 0;
     bool selectable = true;
     std::string data_str;
+    bool enabled = true;
 };
 
 class MenuButton : public c2d::Rectangle {

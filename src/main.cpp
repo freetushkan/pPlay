@@ -331,7 +331,7 @@ Main::Main(const c2d::Vector2f &size) : C2DRenderer(size) {
     for (int i = 1; i <= 5; i++) {
         const bool enabled = !config->getOption(PPLAYConfig::networkOption(i))->getString().empty();
         items.emplace_back(config->getOption(PPLAYConfig::networkNameOption(i))->getString(),
-            "network.png", MenuItem::Position::Top, i, enabled);
+            "network.png", MenuItem::Position::Top, i, true, "", enabled);
     }
     items.emplace_back("Settings", "options.png", MenuItem::Position::Top);
     items.emplace_back("Exit", "exit.png", MenuItem::Position::Bottom);
