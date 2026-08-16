@@ -29,7 +29,7 @@ public:
         this->id = id;
         this->selectable = selectable;
         this->data_str = data_str;
-        this->enabled = data_str;
+        this->enabled = enabled;
     }
 
     std::string name;
