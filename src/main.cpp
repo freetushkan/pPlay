@@ -63,8 +63,8 @@ int (*sceRtcGetCurrentClockLocalTime)(OrbisDateTime *time);
 int (*sceRtcGetCurrentTick)(OrbisTick *outTick);
 int (*sceRtcFormatRFC3339LocalTime)(char *pszDateTime, const OrbisTick *tick);
 unsigned int (*sceRtcGetTickResolution)();
-int (*sceShellUIUtilLaunchByUri)(const char *uri, SceShellUIUtilLaunchByUriParam *param);
-int (*sceShellUIUtilInitialize)();
+// int (*sceShellUIUtilLaunchByUri)(const char *uri, SceShellUIUtilLaunchByUriParam *param);
+// int (*sceShellUIUtilInitialize)();
 
 int load_sys_modules() {
     int handle = sceKernelLoadStartModule("/system/common/lib/libSceRtc.sprx", 0, NULL, 0, NULL, NULL);
@@ -85,13 +85,13 @@ int load_sys_modules() {
     if (sceRtcFormatRFC3339LocalTime == NULL) return -1;
     sceKernelDlsym(handle, "sceRtcGetTickResolution", (void **)&sceRtcGetTickResolution);
     if (sceRtcGetTickResolution == NULL) return -1;
-    handle = sceKernelLoadStartModule("/system/common/lib/libSceShellUIUtil.sprx", 0, NULL, 0, 0, 0);
-    if (handle == 0) return -1;
-    sceKernelDlsym(handle, "sceShellUIUtilInitialize", (void **)&sceShellUIUtilInitialize);
-    if (sceShellUIUtilInitialize == NULL) return -1;
-    sceKernelDlsym(handle, "sceShellUIUtilLaunchByUri", (void **)&sceShellUIUtilLaunchByUri);
-    if (sceShellUIUtilLaunchByUri == NULL) return -1;
-    if (sceShellUIUtilInitialize() < 0) return -1;
+    // handle = sceKernelLoadStartModule("/system/common/lib/libSceShellUIUtil.sprx", 0, NULL, 0, 0, 0);
+    // if (handle == 0) return -1;
+    // sceKernelDlsym(handle, "sceShellUIUtilInitialize", (void **)&sceShellUIUtilInitialize);
+    // if (sceShellUIUtilInitialize == NULL) return -1;
+    // sceKernelDlsym(handle, "sceShellUIUtilLaunchByUri", (void **)&sceShellUIUtilLaunchByUri);
+    // if (sceShellUIUtilLaunchByUri == NULL) return -1;
+    // if (sceShellUIUtilInitialize() < 0) return -1;
     return 0;
 }
 #endif
