@@ -55,37 +55,44 @@ static void on_applet_hook(AppletHookType hook, void *arg) {
 
 extern "C" int sceSystemServiceLoadExec(const char *path, const char *args[]);
 
-void *sceRtcGetTick, *sceRtcSetTick, *sceRtcConvertLocalTimeToUtc, *sceRtcConvertUtcToLocalTime;
-void *sceRtcGetCurrentClockLocalTime, *sceRtcGetCurrentTick, *sceRtcFormatRFC3339LocalTime;
-void *sceRtcGetTickResolution, *sceShellUIUtilLaunchByUri, *sceShellUIUtilInitialize;
+int (*sceRtcGetTick)(const OrbisDateTime *inOrbisDateTime, OrbisTick *outTick);
+int (*sceRtcSetTick)(OrbisDateTime *outOrbisDateTime, const OrbisTick *inputTick);
+int (*sceRtcConvertLocalTimeToUtc)(const OrbisTick *local_time, OrbisTick *utc);
+int (*sceRtcConvertUtcToLocalTime)(const OrbisTick *utc, OrbisTick *local_time);
+int (*sceRtcGetCurrentClockLocalTime)(OrbisDateTime *time);
+int (*sceRtcGetCurrentTick)(OrbisTick *outTick);
+int (*sceRtcFormatRFC3339LocalTime)(char *pszDateTime, const OrbisTick *tick);
+unsigned int (*sceRtcGetTickResolution)();
+int (*sceShellUIUtilLaunchByUri)(const char *uri, SceShellUIUtilLaunchByUriParam *param);
+int (*sceShellUIUtilInitialize)();
 
 int load_sys_modules()
 {
-    int handle;
-    #define RESOLVE(h, sym) if (sceKernelDlsym(h, #sym, (void **)&sym) < 0 || !sym) return -1;
-
-    handle = sceKernelLoadStartModule("/system/common/lib/libSceRtc.sprx", 0, NULL, 0, NULL, NULL);
-    if (handle <= 0) return -1;
-
-    RESOLVE(handle, sceRtcGetTick);
-    RESOLVE(handle, sceRtcSetTick);
-    RESOLVE(handle, sceRtcConvertLocalTimeToUtc);
-    RESOLVE(handle, sceRtcConvertUtcToLocalTime);
-    RESOLVE(handle, sceRtcGetCurrentClockLocalTime);
-    RESOLVE(handle, sceRtcGetCurrentTick);
-    RESOLVE(handle, sceRtcFormatRFC3339LocalTime);
-    RESOLVE(handle, sceRtcGetTickResolution);
-
-    handle = sceKernelLoadStartModule("/system/common/lib/libSceShellUIUtil.sprx", 0, NULL, 0, NULL, NULL);
-    if (handle <= 0) return -1;
-
-    RESOLVE(handle, sceShellUIUtilInitialize);
-    RESOLVE(handle, sceShellUIUtilLaunchByUri);
-
-    #undef RESOLVE
-
-    if (((int (*)())sceShellUIUtilInitialize)() < 0) return -1;
-
+    int handle = sceKernelLoadStartModule("/system/common/lib/libSceRtc.sprx", 0, NULL, 0, NULL, NULL);
+    if (handle == 0) return -1;
+    sceKernelDlsym(handle, "sceRtcGetTick", (void **)&sceRtcGetTick);
+    if (sceRtcGetTick == NULL) return -1;
+    sceKernelDlsym(handle, "sceRtcSetTick", (void **)&sceRtcSetTick);
+    if (sceRtcSetTick == NULL) return -1;
+    sceKernelDlsym(handle, "sceRtcConvertLocalTimeToUtc", (void **)&sceRtcConvertLocalTimeToUtc);
+    if (sceRtcConvertLocalTimeToUtc == NULL) return -1;
+    sceKernelDlsym(handle, "sceRtcConvertUtcToLocalTime", (void **)&sceRtcConvertUtcToLocalTime);
+    if (sceRtcConvertUtcToLocalTime == NULL) return -1;
+    sceKernelDlsym(handle, "sceRtcGetCurrentClockLocalTime", (void **)&sceRtcGetCurrentClockLocalTime);
+    if (sceRtcGetCurrentClockLocalTime == NULL) return -1;
+    sceKernelDlsym(handle, "sceRtcGetCurrentTick", (void **)&sceRtcGetCurrentTick);
+    if (sceRtcGetCurrentTick == NULL) return -1;
+    sceKernelDlsym(handle, "sceRtcFormatRFC3339LocalTime", (void **)&sceRtcFormatRFC3339LocalTime);
+    if (sceRtcFormatRFC3339LocalTime == NULL) return -1;
+    sceKernelDlsym(handle, "sceRtcGetTickResolution", (void **)&sceRtcGetTickResolution);
+    if (sceRtcGetTickResolution == NULL) return -1;
+    handle = sceKernelLoadStartModule("/system/common/lib/libSceShellUIUtil.sprx", 0, NULL, 0, 0, 0);
+    if (handle == 0) return -1;
+    sceKernelDlsym(handle, "sceShellUIUtilInitialize", (void **)&sceShellUIUtilInitialize);
+    if (sceShellUIUtilInitialize == NULL) return -1;
+    sceKernelDlsym(handle, "sceShellUIUtilLaunchByUri", (void **)&sceShellUIUtilLaunchByUri);
+    if (sceShellUIUtilLaunchByUri == NULL) return -1;
+    if (sceShellUIUtilInitialize() < 0) return -1;
     return 0;
 }
 #endif

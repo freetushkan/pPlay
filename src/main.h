@@ -55,6 +55,17 @@ bool paused_on_focus_loss = false;
 #endif
 
 #ifdef __PS4__
+extern int (*sceRtcGetTick)(const OrbisDateTime *inOrbisDateTime, OrbisTick *outTick);
+extern int (*sceRtcSetTick)(OrbisDateTime *outOrbisDateTime, const OrbisTick *inputTick);
+extern int (*sceRtcConvertLocalTimeToUtc)(const OrbisTick *local_time, OrbisTick *utc);
+extern int (*sceRtcConvertUtcToLocalTime)(const OrbisTick *utc, OrbisTick *local_time);
+extern int (*sceRtcGetCurrentClockLocalTime)(OrbisDateTime *time);
+extern int (*sceRtcGetCurrentTick)(OrbisTick *outTick);
+extern int (*sceRtcFormatRFC3339LocalTime)(char *pszDateTime, const OrbisTick *tick);
+extern unsigned int (*sceRtcGetTickResolution)();
+extern int (*sceShellUIUtilLaunchByUri)(const char *uri, SceShellUIUtilLaunchByUriParam *param);
+extern int (*sceShellUIUtilInitialize)();
+
 int load_sys_modules();
 #endif
 
