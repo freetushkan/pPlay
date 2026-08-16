@@ -347,7 +347,7 @@ bool MenuMainOptionsSubmenu::editTextValue() {
     }
     newValue = out;
 #elif defined(__PS4__)
-    int res = Dialog::initImeDialog(option_name.c_str(), oldValue.c_str(), 512, (OrbisImeType)0, 0.0f, 0.0f);
+    int res = Dialog::initImeDialog(option_name.c_str(), oldValue.c_str(), 512, ORBIS_TYPE_DEFAULT, 0.0f, 0.0f);
     if (res < 0) return false;
     int status = 0;
     while (true) {
@@ -360,7 +360,7 @@ bool MenuMainOptionsSubmenu::editTextValue() {
         sceKernelUsleep(16000);
     }
 #elif defined(__PS5__)
-    int res = Dialog::initImeDialog(option_name.c_str(), oldValue.c_str(), 1024, (SceImeDialogType)0, 0.0f, 0.0f);
+    int res = Dialog::initImeDialog(option_name.c_str(), oldValue.c_str(), 1024, SCE_IME_TYPE_DEFAULT, 0.0f, 0.0f);
     if (res < 0) return false;
     int status = 0;
     while (true) {
