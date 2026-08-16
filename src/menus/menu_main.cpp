@@ -88,7 +88,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     for (int i = 1; i <= 5; i++) {
         const std::string name = "Network " + std::to_string(i);
         addSubmenu(name, name, "",
-                   {MenuItem(name + " name" "", MenuItem::Position::Top),
+                   {MenuItem(name + " name", "", MenuItem::Position::Top),
                     MenuItem(name + " url", "", MenuItem::Position::Top)},
                    Submenu::ValueType::String);
         addTextSubmenu(name + " name", name + " name", PPLAYConfig::networkNameOption(i));
