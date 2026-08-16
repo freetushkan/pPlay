@@ -88,11 +88,11 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     for (int i = 1; i <= 5; i++) {
         const std::string name = "Network " + std::to_string(i);
         addSubmenu(name, name, "",
-                   {MenuItem(PPLAYConfig::networkOption(i), "", MenuItem::Position::Top),
-                    MenuItem(PPLAYConfig::networkNameOption(i), "", MenuItem::Position::Top)},
+                   {MenuItem(name + " name" "", MenuItem::Position::Top),
+                    MenuItem(name + " url", "", MenuItem::Position::Top)},
                    Submenu::ValueType::String);
-        addTextSubmenu(PPLAYConfig::networkOption(i), PPLAYConfig::networkOption(i), PPLAYConfig::networkOption(i));
-        addTextSubmenu(PPLAYConfig::networkNameOption(i), PPLAYConfig::networkNameOption(i), PPLAYConfig::networkNameOption(i));
+        addTextSubmenu(name + " name", name + " name", PPLAYConfig::networkNameOption(i));
+        addTextSubmenu(name + " url", name + " url", PPLAYConfig::networkOption(i));
     }
     addTextSubmenu("HOME_PATH", "HOME_PATH", OPT_HOME_PATH);
 #ifdef PPLAY_ENABLE_SCRAPPING
