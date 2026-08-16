@@ -649,7 +649,7 @@ int main() {
     sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_SYSTEM_SERVICE);
     sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_USER_SERVICE);
     sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_NET);
-    sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_PAD);
+    // sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_PAD);
     sceSysmoduleLoadModuleInternal((enum OrbisSysModuleInternal)ORBIS_SYSMODULE_IME_DIALOG);
     // sceNetPoolCreate("pplay", (5 * 1024 * 1024), 0);
 	// if (load_sys_modules() != 0) return 0;
