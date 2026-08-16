@@ -50,6 +50,8 @@ static void on_applet_hook(AppletHookType hook, void *arg) {
 #include <orbis/Sysmodule.h>
 #include <orbis/SystemService.h>
 #include <orbis/UserService.h>
+#include <orbis/Net.h>
+#include <orbis/Pad.h>
 
 extern "C" int sceSystemServiceLoadExec(const char *path, const char *args[]);
 

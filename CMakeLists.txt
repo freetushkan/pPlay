@@ -199,7 +199,7 @@ if (PLATFORM_SWITCH)
     list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509 nx)
 elseif (PLATFORM_PS4)
     list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509
-        SceNet SceImeDialog SceUserService SceSystemService SceSysmodule
+        SceNet SceImeDialog SceUserService SceSystemService SceSysmodule ScePad
     )
 elseif (PLATFORM_PS5)
     list(APPEND PLATFORM_LIBS SceNet SceImeDialog SceUserService SceSystemService)
