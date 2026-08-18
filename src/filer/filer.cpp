@@ -312,7 +312,7 @@ void Filer::onUpdate() {
             highlight->setVisibility(Visibility::Visible, true);
         }
     }
-    // highlight->setFillColor(COLOR_HIGHLIGHT);
+    highlight->setFillColor(COLOR_HIGHLIGHT);
     highlight->setCursorColor(COLOR_ACCENT);
 
     C2DObject::onUpdate();

@@ -376,7 +376,9 @@ void Player::onStopEvent(int reason) {
         texture->clearFrame();
         setFullscreen(false, true);
 #ifdef __SWITCH__
-        pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Min);
+        if (main->getConfig()->getOption(OPT_CPU_BOOST)->getString() == "Enabled") {
+            pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Min);
+        }
         appletSetMediaPlaybackState(false);
 #endif
     }
@@ -587,7 +589,9 @@ void Player::pause() {
             + " lastKnownDuration=" + std::to_string(lastKnownDuration));
     }
 #ifdef __SWITCH__
-    pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Min);
+    if (main->getConfig()->getOption(OPT_CPU_BOOST)->getString() == "Enabled") {
+        pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Min);
+    }
     appletSetMediaPlaybackState(false);
 #endif
 }

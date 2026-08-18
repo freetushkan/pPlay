@@ -492,7 +492,8 @@ void Main::show(MenuType type) {
         std::string root = ensureTrailingSlash(network);
         std::string path = config->getOption(
             PPLAYConfig::networkLastOption(currentModuleIndex))->getString();
-        if (pplayIo->getDeviceType(path) == pplay::Io::DeviceType::Local || path.empty()) {
+        if (pplayIo->getDeviceType(path) == pplay::Io::DeviceType::Local
+            || !c2d::Utility::startWith(path, root) || path.empty()) {
             path = root;
         }
         std::string dirPath = extractDirPath(path);

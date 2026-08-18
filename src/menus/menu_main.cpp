@@ -55,7 +55,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     it.emplace_back("Cache", "", MenuItem::Position::Top);
 #endif
 #ifdef __SWITCH__
-    it.emplace_back("CPU", "cpu.png", MenuItem::Position::Top);
+    it.emplace_back("CPU boost", "cpu.png", MenuItem::Position::Top);
 #endif
     it.emplace_back("Logging", "log.png", MenuItem::Position::Top);
 
@@ -100,7 +100,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
 #endif
 
 #ifdef __SWITCH__
-    addSubmenu("CPU", "CPU", OPT_CPU_BOOST,
+    addSubmenu("CPU boost", "CPU boost", OPT_CPU_BOOST,
                {MenuItem("Disabled", "", MenuItem::Position::Top),
                 MenuItem("Enabled", "", MenuItem::Position::Top)});
 #endif
