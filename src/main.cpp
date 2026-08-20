@@ -52,6 +52,7 @@ static void on_applet_hook(AppletHookType hook, void *arg) {
 #include <orbis/UserService.h>
 #include <orbis/Net.h>
 #include <orbis/Pad.h>
+#include "ps4/orbis_jbc.h"
 
 extern "C" int sceSystemServiceLoadExec(const char *path, const char *args[]);
 
@@ -63,8 +64,8 @@ int (*sceRtcGetCurrentClockLocalTime)(OrbisDateTime *time);
 int (*sceRtcGetCurrentTick)(OrbisTick *outTick);
 int (*sceRtcFormatRFC3339LocalTime)(char *pszDateTime, const OrbisTick *tick);
 unsigned int (*sceRtcGetTickResolution)();
-// int (*sceShellUIUtilLaunchByUri)(const char *uri, SceShellUIUtilLaunchByUriParam *param);
-// int (*sceShellUIUtilInitialize)();
+int (*sceShellUIUtilLaunchByUri)(const char *uri, void *param);
+int (*sceShellUIUtilInitialize)();
 
 int load_sys_modules() {
     int handle = sceKernelLoadStartModule("/system/common/lib/libSceRtc.sprx", 0, NULL, 0, NULL, NULL);
@@ -85,13 +86,13 @@ int load_sys_modules() {
     if (sceRtcFormatRFC3339LocalTime == NULL) return -1;
     sceKernelDlsym(handle, "sceRtcGetTickResolution", (void **)&sceRtcGetTickResolution);
     if (sceRtcGetTickResolution == NULL) return -1;
-    // handle = sceKernelLoadStartModule("/system/common/lib/libSceShellUIUtil.sprx", 0, NULL, 0, 0, 0);
-    // if (handle == 0) return -1;
-    // sceKernelDlsym(handle, "sceShellUIUtilInitialize", (void **)&sceShellUIUtilInitialize);
-    // if (sceShellUIUtilInitialize == NULL) return -1;
-    // sceKernelDlsym(handle, "sceShellUIUtilLaunchByUri", (void **)&sceShellUIUtilLaunchByUri);
-    // if (sceShellUIUtilLaunchByUri == NULL) return -1;
-    // if (sceShellUIUtilInitialize() < 0) return -1;
+    handle = sceKernelLoadStartModule("/system/common/lib/libSceShellUIUtil.sprx", 0, NULL, 0, NULL, NULL);
+    if (handle == 0) return -1;
+    sceKernelDlsym(handle, "sceShellUIUtilInitialize", (void **)&sceShellUIUtilInitialize);
+    if (sceShellUIUtilInitialize == NULL) return -1;
+    sceKernelDlsym(handle, "sceShellUIUtilLaunchByUri", (void **)&sceShellUIUtilLaunchByUri);
+    if (sceShellUIUtilLaunchByUri == NULL) return -1;
+    if (sceShellUIUtilInitialize() < 0) return -1;
     return 0;
 }
 #endif
@@ -653,13 +654,13 @@ int main() {
     }
 #elif __PS4__
     setvbuf(stdout, NULL, _IONBF, 0);
-    sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_SYSTEM_SERVICE);
-    sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_USER_SERVICE);
-    sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_NET);
-    sceSysmoduleLoadModuleInternal((enum OrbisSysModuleInternal)ORBIS_SYSMODULE_IME_DIALOG);
-    sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_PAD);
-    // sceNetPoolCreate("pplay", (5 * 1024 * 1024), 0);
-	// if (load_sys_modules() != 0) return 0;
+    if (!initialize_jbc()) return 0;
+    if (sceSysmoduleLoadModuleInternal((enum OrbisSysModuleInternal)ORBIS_SYSMODULE_IME_DIALOG) < 0) return 0;
+    if (sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_SYSTEM_SERVICE) < 0) return 0;
+    if (sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_USER_SERVICE) < 0) return 0;
+    if (sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_NET) < 0) return 0;
+    if (sceSysmoduleLoadModuleInternal(ORBIS_SYSMODULE_INTERNAL_PAD) < 0) return 0;
+    if (load_sys_modules() != 0) return 0;
     sceKernelDebugOutText(0, "[pPlay] started\n");
 #endif
 
@@ -688,6 +689,7 @@ int main() {
     socketExit();
 #endif
 #elif __PS4__
+    terminate_jbc();
     sceSystemServiceLoadExec((char *) "exit", nullptr);
     while (true) {}
 #endif

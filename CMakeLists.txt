@@ -131,6 +131,7 @@ elseif (PLATFORM_PS4)
     list(APPEND PPLAY_LDFLAGS
             archive turbojpeg opus freetype fribidi png bz2
         )
+    list(APPEND PPLAY_SRC src/ps4/orbis_jbc.c)
     if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/libjbc/jailbreak.c")
         message(STATUS "Found libjbc")
         list(APPEND PPLAY_SRC 
