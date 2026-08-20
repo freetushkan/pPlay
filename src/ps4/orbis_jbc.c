@@ -7,7 +7,7 @@
 #include <sys/uio.h>
 
 #include <orbis/libkernel.h>
-#include <libjbc.h>
+#include <ps4/libjbc.h>
 
 #define SYSCALL(nr, fn) __attribute__((naked)) fn \
 { \
