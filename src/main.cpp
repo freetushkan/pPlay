@@ -64,7 +64,7 @@ int (*sceRtcGetCurrentClockLocalTime)(OrbisDateTime *time);
 int (*sceRtcGetCurrentTick)(OrbisTick *outTick);
 int (*sceRtcFormatRFC3339LocalTime)(char *pszDateTime, const OrbisTick *tick);
 unsigned int (*sceRtcGetTickResolution)();
-int (*sceShellUIUtilLaunchByUri)(const char *uri, void *param);
+int (*sceShellUIUtilLaunchByUri)(const char *uri, SceShellUIUtilLaunchByUriParam *param);
 int (*sceShellUIUtilInitialize)();
 
 int load_sys_modules() {
