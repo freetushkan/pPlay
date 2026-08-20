@@ -56,6 +56,7 @@ file(GLOB PPLAY_SRC
         src/filer/ftplib/*.c*
         src/menus/*.c*
         src/player/*.c*
+        src/ps4/*.c*
     )
 
 # includes
