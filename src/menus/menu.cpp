@@ -99,10 +99,8 @@ namespace {
 #define SCROLL_WAIT_MS 1500
 #define SCROLL_SPEED 90.0f    // pixels per second at 1080p
 #define SCROLL_GAP "     "
-    c2d::C2DClock g_menuScrollClock;
-
     long long scrollNowMs() {
-        return (long long) g_menuScrollClock.getElapsedTime().asMilliseconds();
+        return (long long) c2d_renderer->getElapsedTime().asMilliseconds();
     }
 
     std::string sanitizeText(const std::string &input) {
@@ -142,7 +140,7 @@ void MenuButton::refreshText() {
     name->setString(item.text());
     scrollable = name->getLocalBounds().width > maxTextWidth;
     scrolling = false;
-    scrollStartMs = -1;
+    scrollSelected = false;
     showStatic();
 }
 
@@ -205,16 +203,17 @@ void MenuButton::onUpdate() {
         return;
     }
     if (!selected) {
-        if (scrollStartMs >= 0) {
+        if (scrollSelected) {
             scrolling = false;
-            scrollStartMs = -1;
+            scrollSelected = false;
             showStatic();
         }
         return;
     }
 
     long long now = scrollNowMs();
-    if (scrollStartMs < 0) {
+    if (!scrollSelected) {
+        scrollSelected = true;
         scrollStartMs = now;
         return;
     }

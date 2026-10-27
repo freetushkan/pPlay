@@ -58,9 +58,12 @@ static void on_applet_hook(AppletHookType hook, void *arg) {
 
 extern "C" int sceSystemServiceLoadExec(const char *path, const char *args[]);
 
-// UI clock: monotonic (libcross2d uses gettimeofday)
 c2d::Time c2d::PS4Clock::getCurrentTime() const {
     return c2d::microseconds((long) sceKernelGetProcessTime());
+}
+
+c2d::PS4Clock::PS4Clock() : Clock() {
+    m_startTime = PS4Clock::getCurrentTime();
 }
 
 #elif __PS5__

@@ -74,7 +74,8 @@ private:
     c2d::Rectangle *clip = nullptr;
     bool scrollable = false;
     bool scrolling = false;
-    long long scrollStartMs = -1;
+    bool scrollSelected = false;
+    long long scrollStartMs = 0;
     float scrollCycle = 0;
     float scrollSpeed = 0;
 };
