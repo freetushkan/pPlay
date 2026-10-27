@@ -197,6 +197,7 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     logged_mpv_set_option_string(handle, "audio-normalize-downmix", "yes");
     logged_mpv_set_option_string(handle, "cache-pause", "yes");
     logged_mpv_set_option_string(handle, "cache-secs", "60");
+    logged_mpv_set_option_string(handle, "stream-lavf-o", "reconnect_on_network_error=1");
 
 #if defined(__PS4__) || defined(__PS5__)
     logged_mpv_set_option_string(handle, "dither", "no");
@@ -557,6 +558,26 @@ long Mpv::getPosition() {
     long position = 0;
     logged_mpv_get_property(handle, "playback-time", MPV_FORMAT_INT64, &position);
     return position;
+}
+
+double Mpv::getTime() {
+    double time = -1;
+    if (logged_mpv_get_property(handle, "playback-time", MPV_FORMAT_DOUBLE, &time) < 0) {
+        return -1;
+    }
+    return time;
+}
+
+bool Mpv::isPausedForCache() {
+    int res = 0;
+    logged_mpv_get_property(handle, "paused-for-cache", MPV_FORMAT_FLAG, &res);
+    return res == 1;
+}
+
+long Mpv::getCacheSpeed() {
+    int64_t speed = 0;
+    logged_mpv_get_property(handle, "cache-speed", MPV_FORMAT_INT64, &speed);
+    return (long) speed;
 }
 
 bool Mpv::isAvailable() {

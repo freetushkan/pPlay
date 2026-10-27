@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <cmath>
 #include <sstream>
 #include "main.h"
 #include "player.h"
@@ -14,6 +15,7 @@
 #include "utility.h"
 #include "pplay_config.h"
 #include "encodings.h"
+#include "i18n.h"
 #include "menu_video_submenu.h"
 #ifdef __SMB2__
 #include "smb.h"
@@ -114,7 +116,15 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
         }
     }
 
-    if (firstTry) retryCount = 0;
+    if (firstTry) {
+        retryCount = 0;
+        lastTime = 0;
+        userPaused = false;
+    }
+    reloadPending = false;
+    watchTime = -1;
+    stallClock.restart();
+    progressClock.restart();
     lastProgressSave = 0;
     lastKnownDuration = 0;
     lastKnownPosition = 0;
@@ -269,7 +279,11 @@ void Player::onLoadEvent() {
 }
 
 void Player::onStopEvent(int reason) {
-    main->getStatus()->hide();
+    bool reloading = skipStopEvent && reason == MPV_END_FILE_REASON_STOP;
+    skipStopEvent = false;
+    if (!reloading) {
+        main->getStatus()->hide();
+    }
     main->getMenuVideo()->reset();
     osd->reset();
 
@@ -299,6 +313,10 @@ void Player::onStopEvent(int reason) {
         return;
     }
 
+    if (reloading) {
+        return;
+    }
+
     long duration = mpv->getDuration();
     long position = mpv->getPosition();
     if (duration <= 0) {
@@ -318,12 +336,8 @@ void Player::onStopEvent(int reason) {
         + " retries=" + std::to_string(retryCount));
 
     if (reason == MPV_END_FILE_REASON_ERROR) {
-        int retries = main->getConfig()->getOption(OPT_NETWORK_RETRIES)->getInteger();
-        if (retries == 0 || retryCount < retries) {
-            retryCount++;
-            if (load(file, false)) {
-                return;
-            }
+        if (scheduleReload("error", true)) {
+            return;
         }
         main->getStatus()->show("Error...", "Could not load file");
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
@@ -374,15 +388,8 @@ void Player::onStopEvent(int reason) {
             }
         }
     } else if (reason == MPV_END_FILE_REASON_EOF && !isPlaylistFile()) {
-        int retries = main->getConfig()->getOption(OPT_NETWORK_RETRIES)->getInteger();
-        if (retries == 0 || retryCount < retries) {
-            retryCount++;
-            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent earlyEOF");
-            std::string opts = "pause=yes,start=" + std::to_string(lastKnownPosition);
-            if (load(file, false, opts)) {
-                retryCount = 0;
-                return;
-            }
+        if (scheduleReload("early end of file", true)) {
+            return;
         }
         main->getStatus()->show("Error...", "Unexpected end of file");
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
@@ -401,8 +408,77 @@ void Player::onStopEvent(int reason) {
     }
 }
 
+bool Player::scheduleReload(const std::string &reason, bool counted) {
+    int retries = main->getConfig()->getOption(OPT_NETWORK_RETRIES)->getInteger();
+    if (counted) {
+        if (retries != 0 && retryCount >= retries) {
+            return false;
+        }
+        retryCount++;
+    }
+    reloadPending = true;
+    reloadDelayMs = counted ? std::min(2000 * retryCount, 10000) : 500;
+    reloadPosition = lastTime;
+    reloadPaused = userPaused;
+    reloadClock.restart();
+
+    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                        "Player: reload (" + reason + ") at " + std::to_string((int) reloadPosition)
+                        + " s in " + std::to_string(reloadDelayMs) + " ms, try "
+                        + std::to_string(retryCount) + "/" + (retries ? std::to_string(retries) : "-"));
+    std::string text = pplay::tr("Reconnecting...");
+    if (counted) {
+        text += " (" + std::to_string(retryCount) + (retries ? "/" + std::to_string(retries) : "") + ")";
+    }
+    main->getStatus()->show("Please Wait...", text, true);
+    return true;
+}
+
+void Player::updateWatchdog() {
+    double time = mpv->getTime();
+    if (time < 0) {
+        return;
+    }
+    bool paused = mpv->isPaused();
+    userPaused = paused;
+    if (std::fabs(time - watchTime) > 0.05) {
+        watchTime = time;
+        lastTime = time;
+        stallClock.restart();
+        if (retryCount > 0 && progressClock.getElapsedTime().asSeconds() >= 10) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: playback recovered");
+            retryCount = 0;
+        }
+        return;
+    }
+    // paused by the user, or data still coming (slow source): not stalled
+    if ((paused && !mpv->isPausedForCache()) || mpv->getCacheSpeed() > 0) {
+        stallClock.restart();
+        return;
+    }
+    int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
+    float stallSec = (float) std::max(timeout * 2, 20);
+    if (stallClock.getElapsedTime().asSeconds() >= stallSec) {
+        stallClock.restart();
+        scheduleReload("stalled " + std::to_string((int) stallSec) + " s", false);
+    }
+}
+
 void Player::onUpdate() {
-    //TODO: cache-buffering-state
+    if (reloadPending && reloadClock.getElapsedTime().asMilliseconds() >= reloadDelayMs) {
+        reloadPending = false;
+        // the stalled file stop event is not an end of playback
+        skipStopEvent = !mpv->isStopped();
+        std::string opts;
+        if (reloadPosition > 0) {
+            opts = "start=" + std::to_string(reloadPosition);
+        }
+        if (reloadPaused) {
+            opts += std::string(opts.empty() ? "" : ",") + "pause=yes";
+        }
+        load(file, false, opts);
+    }
+
     if (mpv->isAvailable()) {
         long position = mpv->getPosition();
         long duration = mpv->getDuration();
@@ -456,6 +532,9 @@ void Player::onUpdate() {
             }
         }
         if (!mpv->isStopped()) {
+            if (!reloadPending) {
+                updateWatchdog();
+            }
             if (!frameDrawn && mpv->isAvailable()) {
                 if (position > 0.0 && startPlaybackPosition == -1) {
                     startPlaybackPosition = position;
@@ -482,6 +561,14 @@ bool Player::onInput(c2d::Input::Player *players) {
     unsigned int keys = players[0].buttons;
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
         "Player::onInput keys=" + pplay::Utility::getKeysString(keys));
+
+    if (reloadPending && mpv->isStopped() && (keys & Input::B)) {
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: reload cancelled");
+        stop();
+        texture->clearFrame();
+        setFullscreen(false, true);
+        return true;
+    }
 
     if (mpv->isStopped()
         || main->getFiler()->isVisible()
@@ -619,6 +706,10 @@ void Player::resume() {
 }
 
 void Player::stop() {
+    if (reloadPending) {
+        reloadPending = false;
+        main->getStatus()->hide();
+    }
     mpv->stop();
 }
 

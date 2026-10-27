@@ -135,6 +135,7 @@ Playlist is empty = Плейлист пуст
 Switching playlist item... = Переключение элемента плейлиста...
 Could not load file = Не удалось загрузить файл
 Unexpected end of file = Неожиданный конец файла
+Reconnecting... = Переподключение...
 OK = OK
 The line is too long for the keyboard = Строка слишком длинная для клавиатуры
 

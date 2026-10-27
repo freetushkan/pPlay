@@ -93,6 +93,10 @@ private:
 
     void onStopEvent(int reason);
 
+    bool scheduleReload(const std::string &reason, bool counted);
+
+    void updateWatchdog();
+
     // ui
     Main *main = nullptr;
     PlayerOSD *osd = nullptr;
@@ -114,6 +118,18 @@ private:
     long startPlaybackPosition = -1;
     c2d::C2DClock messageClock;
     bool frameDrawn = false;
+
+    bool reloadPending = false;
+    int reloadDelayMs = 0;
+    double reloadPosition = 0;
+    bool reloadPaused = false;
+    bool skipStopEvent = false;
+    c2d::C2DClock reloadClock;
+    double watchTime = -1;
+    double lastTime = 0;
+    bool userPaused = false;
+    c2d::C2DClock stallClock;
+    c2d::C2DClock progressClock;
 
     // player
     VideoTexture *texture = nullptr;

@@ -89,6 +89,12 @@ public:
 
     long getPosition();
 
+    double getTime();
+
+    bool isPausedForCache();
+
+    long getCacheSpeed();
+
     bool isStopped();
 
     bool isPaused();
