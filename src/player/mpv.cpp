@@ -7,6 +7,9 @@
 #include "mpv.h"
 #include "utility.h"
 #include "io.h"
+#ifdef __SMB2__
+#include "smb.h"
+#endif
 
 extern "C" {
 #include <libavformat/avformat.h>

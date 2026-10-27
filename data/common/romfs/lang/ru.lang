@@ -1,0 +1,148 @@
+# pPlay interface language file (utf-8).
+#   key = translation       (the key is the english text shown by pPlay)
+#   @name = language name   (shown in Settings > Language)
+# Escapes: \n (new line), \t, \\, \= . Lines starting with # are comments.
+# Put your own files (or fixed copies) in the pPlay data directory, "lang" folder:
+# they are listed in Settings > Language and override the bundled ones.
+
+@name = Русский
+
+# Main menu
+Local = Локальные
+Usb = USB
+Settings = Настройки
+Exit = Выход
+Network = Сеть
+
+# Video menu
+Playback mode = Режим воспроизведения
+Playlist = Плейлист
+Audio = Аудио
+Video = Видео
+Subtitles = Субтитры
+Stop = Стоп
+None = Нет
+At playback end.. = По окончании воспроизведения..
+Play next = Следующий файл
+Loop file = Повторять файл
+Loop directory = Повторять папку
+
+# Settings
+Short seek step = Короткая перемотка
+Long seek step = Длинная перемотка
+Seek short step = Шаг короткой перемотки
+Seek long step = Шаг длинной перемотки
+Swap controls = Кнопки управления
+Triggers and buttons = Триггеры и бамперы
+Normal = Обычно
+Swapped = Поменять местами
+Accent color = Цвет акцента
+Connection timeout = Таймаут соединения
+Local home path = Домашняя папка
+TMDB language = Язык TMDB
+Playback retry = Попытки воспроизведения
+SMB buffer = Буфер SMB
+SMB preload buffer = Буфер предзагрузки SMB
+Scrapping = Скрапинг
+Scrape = Скрапинг
+Cache = Кэш
+CPU boost = Разгон CPU
+Disabled = Выключено
+Enabled = Включено
+Preview panel = Панель информации
+Logging = Журнал
+Log to file = Запись журнала в файл
+Off = Выкл
+On = Вкл
+Error = Ошибка
+Info = Инфо
+Debug = Отладка
+Trace = Трассировка
+Language = Язык
+Auto = Авто
+Value = Значение
+
+# Networks
+Name = Имя
+URL = Адрес
+Type = Тип
+<empty> = <пусто>
+
+# Accent colors
+Base Blue = Базовый синий
+Muted Cyan = Приглушённый бирюзовый
+Muted Crimson = Приглушённый малиновый
+Soft Crimson = Мягкий малиновый
+Terracotta Orange = Терракотовый
+Burnt Orange = Жжёный оранжевый
+Ochre Yellow = Охра
+Olive Gold = Оливковое золото
+Olive Lime = Оливковый лайм
+Sage Green = Шалфей
+Soft Emerald = Мягкий изумрудный
+Bright Emerald = Яркий изумрудный
+Deep Turquoise = Глубокий бирюзовый
+Slate Blue = Грифельный синий
+Dark Indigo = Тёмный индиго
+Soft Purple = Мягкий фиолетовый
+Amethyst Purple = Аметистовый
+Plum Violet = Сливовый
+Dusty Rose = Пыльная роза
+Deep Red = Глубокий красный
+Classic Red = Классический красный
+
+# Configuration files editor
+Edit files = Редактор файлов
+Edit whole file = Редактировать весь файл
+Add a line = Добавить строку
+<empty line> = <пустая строка>
+Configuration applied = Настройки применены
+Could not write = Не удалось записать
+Invalid configuration, the changes were discarded = Ошибка в настройках, изменения отменены
+Saved, restart pPlay to apply mpv changes = Сохранено, перезапустите pPlay для применения настроек mpv
+The file is too long for the keyboard, edit it line by line = Файл слишком длинный для клавиатуры, редактируйте по строкам
+
+# Files
+BACK = НАЗАД
+<Empty> = <Пусто>
+Parent directory = Родительская папка
+Directory = Папка
+
+# Information panel
+Category = Категория
+Torrent size = Размер торрента
+Files = Файлы
+Size = Размер
+Duration = Длительность
+Poster = Постер
+unsupported image = неподдерживаемое изображение
+
+# Messages
+Info... = Информация...
+Information... = Информация...
+Error... = Ошибка...
+ERROR = ОШИБКА
+Please Wait... = Подождите...
+Resuming playback... = Продолжение воспроизведения...
+Pausing playback... = Пауза...
+Stopping playback... = Остановка воспроизведения...
+Removing local watch later data... = Удаление локальной позиции просмотра...
+Removing TorrServer watched state... = Удаление отметки просмотра в TorrServer...
+No audio streams found in media = В файле нет аудиодорожек
+No subtitles streams found in media = В файле нет субтитров
+No video streams found in media = В файле нет видеодорожек
+Playlist is empty = Плейлист пуст
+Switching playlist item... = Переключение элемента плейлиста...
+Could not load file = Не удалось загрузить файл
+Unexpected end of file = Неожиданный конец файла
+OK = OK
+The line is too long for the keyboard = Строка слишком длинная для клавиатуры
+
+# Clock check
+Clock = Часы
+The console clock is off by = Часы консоли расходятся с сетевым временем на
+Console = Консоль
+d = д
+h = ч
+min = мин
+Secure connections (HTTPS) may fail: check the date, time and time zone in the system settings. = Защищённые соединения (HTTPS) могут не работать: проверьте дату, время и часовой пояс в настройках системы.

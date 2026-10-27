@@ -5,6 +5,7 @@
 #include "cross2d/c2d.h"
 #include "main.h"
 #include "status_box.h"
+#include "i18n.h"
 #include "player_osd.h"
 #include "utility.h"
 
@@ -57,8 +58,8 @@ StatusBox::~StatusBox() {
 void StatusBox::show(const std::string &title, const std::string &message, bool inf, bool drawNow) {
 
     SDL_LockMutex(mutex);
-    titleText->setString(title);
-    messageText->setString(message);
+    titleText->setString(pplay::tr(title));
+    messageText->setString(pplay::tr(message));
     SDL_UnlockMutex(mutex);
 
     infinite = inf;

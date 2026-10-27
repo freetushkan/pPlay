@@ -10,6 +10,8 @@
 #include "utility.h"
 #include "torrserve.h"
 #include "encodings.h"
+#include "i18n.h"
+#include "filer.h"
 
 using namespace c2d;
 
@@ -33,10 +35,16 @@ void FilerItem::setFile(const MediaFile &f) {
         "FilerItem::setFile name=" + file.name + " path=" + file.path
         + " type=" + std::to_string((int) file.type));
 
-    if (file.name == "..") {
-        textTitle->setString("◀ BACK");
+    if (Filer::isPlaceholder(file)) {
+        textTitle->setString(pplay::tr("<Empty>"));
+        textTitle->setFillColor(COLOR_GRAY);
+        return;
+    } else if (file.name == "..") {
+        textTitle->setString("◀ " + pplay::tr("BACK"));
     } else {
-        textTitle->setString(encoding::fix(file.name));
+        const bool playing = file.type == Io::Type::File && main->getPlayer() != nullptr
+                             && main->getPlayer()->isPlaying(file.path);
+        textTitle->setString((playing ? "▶ " : "") + encoding::fix(file.name));
     }
     uint8_t alpha = textTitle->getAlpha();
     if (file.type == Io::Type::File) {
@@ -48,6 +56,11 @@ void FilerItem::setFile(const MediaFile &f) {
         textTitle->setFillColor(COLOR_ACCENT);
     }
     textTitle->setAlpha(alpha);
+}
+
+void FilerItem::setWidth(float width) {
+    setSize(width, getSize().y);
+    textTitle->setSizeMax(width - 64, 0);
 }
 
 void FilerItem::setTitle(const std::string &title) {

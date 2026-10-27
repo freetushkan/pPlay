@@ -1,0 +1,149 @@
+# pPlay interface language file (utf-8).
+#   key = translation       (the key is the english text shown by pPlay)
+#   @name = language name   (shown in Settings > Language)
+# Escapes: \n (new line), \t, \\, \= . Lines starting with # are comments.
+# Put your own files (or fixed copies) in the pPlay data directory, "lang" folder:
+# they are listed in Settings > Language and override the bundled ones.
+# This file lists every key: copy it to start a new language.
+
+@name = English
+
+# Main menu
+Local = Local
+Usb = Usb
+Settings = Settings
+Exit = Exit
+Network = Network
+
+# Video menu
+Playback mode = Playback mode
+Playlist = Playlist
+Audio = Audio
+Video = Video
+Subtitles = Subtitles
+Stop = Stop
+None = None
+At playback end.. = At playback end..
+Play next = Play next
+Loop file = Loop file
+Loop directory = Loop directory
+
+# Settings
+Short seek step = Short seek step
+Long seek step = Long seek step
+Seek short step = Seek short step
+Seek long step = Seek long step
+Swap controls = Swap controls
+Triggers and buttons = Triggers and buttons
+Normal = Normal
+Swapped = Swapped
+Accent color = Accent color
+Connection timeout = Connection timeout
+Local home path = Local home path
+TMDB language = TMDB language
+Playback retry = Playback retry
+SMB buffer = SMB buffer
+SMB preload buffer = SMB preload buffer
+Scrapping = Scrapping
+Scrape = Scrape
+Cache = Cache
+CPU boost = CPU boost
+Disabled = Disabled
+Enabled = Enabled
+Preview panel = Preview panel
+Logging = Logging
+Log to file = Log to file
+Off = Off
+On = On
+Error = Error
+Info = Info
+Debug = Debug
+Trace = Trace
+Language = Language
+Auto = Auto
+Value = Value
+
+# Networks
+Name = Name
+URL = URL
+Type = Type
+<empty> = <empty>
+
+# Accent colors
+Base Blue = Base Blue
+Muted Cyan = Muted Cyan
+Muted Crimson = Muted Crimson
+Soft Crimson = Soft Crimson
+Terracotta Orange = Terracotta Orange
+Burnt Orange = Burnt Orange
+Ochre Yellow = Ochre Yellow
+Olive Gold = Olive Gold
+Olive Lime = Olive Lime
+Sage Green = Sage Green
+Soft Emerald = Soft Emerald
+Bright Emerald = Bright Emerald
+Deep Turquoise = Deep Turquoise
+Slate Blue = Slate Blue
+Dark Indigo = Dark Indigo
+Soft Purple = Soft Purple
+Amethyst Purple = Amethyst Purple
+Plum Violet = Plum Violet
+Dusty Rose = Dusty Rose
+Deep Red = Deep Red
+Classic Red = Classic Red
+
+# Configuration files editor
+Edit files = Edit files
+Edit whole file = Edit whole file
+Add a line = Add a line
+<empty line> = <empty line>
+Configuration applied = Configuration applied
+Could not write = Could not write
+Invalid configuration, the changes were discarded = Invalid configuration, the changes were discarded
+Saved, restart pPlay to apply mpv changes = Saved, restart pPlay to apply mpv changes
+The file is too long for the keyboard, edit it line by line = The file is too long for the keyboard, edit it line by line
+
+# Files
+BACK = BACK
+<Empty> = <Empty>
+Parent directory = Parent directory
+Directory = Directory
+
+# Information panel
+Category = Category
+Torrent size = Torrent size
+Files = Files
+Size = Size
+Duration = Duration
+Poster = Poster
+unsupported image = unsupported image
+
+# Messages
+Info... = Info...
+Information... = Information...
+Error... = Error...
+ERROR = ERROR
+Please Wait... = Please Wait...
+Resuming playback... = Resuming playback...
+Pausing playback... = Pausing playback...
+Stopping playback... = Stopping playback...
+Removing local watch later data... = Removing local watch later data...
+Removing TorrServer watched state... = Removing TorrServer watched state...
+No audio streams found in media = No audio streams found in media
+No subtitles streams found in media = No subtitles streams found in media
+No video streams found in media = No video streams found in media
+Playlist is empty = Playlist is empty
+Switching playlist item... = Switching playlist item...
+Could not load file = Could not load file
+Unexpected end of file = Unexpected end of file
+OK = OK
+The line is too long for the keyboard = The line is too long for the keyboard
+
+# Clock check
+Clock = Clock
+The console clock is off by = The console clock is off by
+Console = Console
+d = d
+h = h
+min = min
+Secure connections (HTTPS) may fail: check the date, time and time zone in the system settings. = Secure connections (HTTPS) may fail: check the date, time and time zone in the system settings.

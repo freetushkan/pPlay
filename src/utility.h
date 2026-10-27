@@ -28,6 +28,11 @@ namespace pplay {
             Max = 1
         };
 
+        // data directory (trailing slash), set first
+        static void setDataPath(const std::string &path);
+
+        static const std::string &getDataPath();
+
         static std::string getMediaInfoPath(const c2d::Io::File &file);
 
 #ifdef PPLAY_ENABLE_SCRAPPING

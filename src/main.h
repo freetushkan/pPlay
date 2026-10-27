@@ -20,6 +20,7 @@
 #include "io.h"
 #include "usbfs.h"
 #include "utility.h"
+#include "i18n.h"
 
 //#define FULL_TEXTURE_TEST 1
 
@@ -50,8 +51,8 @@ inline c2d::Color& COLOR_ACCENT = pplay::Utility::getAccentColor();
 #define COLOR_RED           Color(0xEB4D4BFF)
 #define COLOR_VIEWED        Color(0x5B6464FF)
 
-#ifdef __SWITCH__
-bool paused_on_focus_loss = false;
+#ifdef __PS4__
+#include "ps4/ps4_compat.h"
 #endif
 
 class Main : public c2d::C2DRenderer {
@@ -77,7 +78,7 @@ public:
         XL = 36
     };
 
-    explicit Main(const c2d::Vector2f &size);
+    Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *config);
 
     ~Main() override;
 
@@ -94,6 +95,8 @@ public:
     void setRunningStop();
     void syncLastLocation();
 
+    void reloadMainMenuModules();
+
     MenuMain *getMenuMain();
 
     MenuVideo *getMenuVideo();
@@ -107,6 +110,9 @@ public:
     c2d::Font *getFont() override;
 
     c2d::MessageBox *getMessageBox();
+
+    int showMessage(const std::string &title, const std::string &message,
+                    const std::string &buttonLeft, const std::string &buttonRight = "");
 
     StatusBox *getStatus();
 
@@ -133,6 +139,11 @@ public:
 
     unsigned int getFontSize(FontSize fontSize);
 
+    // configuration changed (settings, file editor)
+    void applyConfig();
+
+    void setLanguage(const std::string &code);
+
     void quit();
 
 private:
@@ -141,17 +152,25 @@ private:
 
     void onUpdate() override;
 
+    void createFont();
+
+    void createMenus();
+
+    void createMessageBox();
+
+    void retranslate();
+
     pplay::Io *pplayIo;
     c2d::Font *font;
     c2d::Clock *timer;
     c2d::MessageBox *messageBox;
     StatusBox *statusBox;
-    PPLAYConfig *config;
-    Filer *filer;
-    StatusBar *statusBar;
-    Player *player;
-    MenuMain *menu_main;
-    MenuVideo *menu_video;
+    PPLAYConfig *config = nullptr;
+    Filer *filer = nullptr;
+    StatusBar *statusBar = nullptr;
+    Player *player = nullptr;
+    MenuMain *menu_main = nullptr;
+    MenuVideo *menu_video = nullptr;
 #ifdef PPLAY_ENABLE_SCRAPPING
     pplay::Scrapper *scrapper;
 #endif

@@ -6,6 +6,9 @@
 
 #include "main.h"
 #include "menu_main.h"
+#include "menu_file_editor.h"
+#include "io.h"
+#include "i18n.h"
 
 using namespace c2d;
 
@@ -18,6 +21,10 @@ namespace {
         items.emplace_back("-", "", MenuItem::Position::Top, -1);
         items.emplace_back("+", "", MenuItem::Position::Top, 1);
         return items;
+    }
+
+    std::string networkKey(int index) {
+        return "Network " + std::to_string(index);
     }
 
     std::vector<MenuItem> makeIntItems(const std::vector<std::pair<std::string, int>> &values) {
@@ -39,6 +46,15 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     it.emplace_back("Swap controls", "swap.png", MenuItem::Position::Top);
     it.emplace_back("Accent color", "color.png", MenuItem::Position::Top);
     it.emplace_back("Connection timeout", "timeout.png", MenuItem::Position::Top);
+    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+        it.emplace_back(networkKey(i), "network.png", MenuItem::Position::Top);
+    }
+    it.emplace_back("Local home path", "home.png", MenuItem::Position::Top);
+    it.emplace_back("Language", "options.png", MenuItem::Position::Top);
+    it.emplace_back("Edit files", "options.png", MenuItem::Position::Top);
+#ifdef PPLAY_ENABLE_SCRAPPING
+    it.emplace_back("TMDB language", "home.png", MenuItem::Position::Top);
+#endif
     it.emplace_back("Playback retry", "pl_retry.png", MenuItem::Position::Top);
 #ifdef __SMB2__
     it.emplace_back("SMB buffer", "buffer.png", MenuItem::Position::Top);
@@ -48,11 +64,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     it.emplace_back("Cache", "", MenuItem::Position::Top);
 #endif
 #ifdef __SWITCH__
-    it.emplace_back("CPU", "cpu.png", MenuItem::Position::Top);
+    it.emplace_back("CPU boost", "cpu.png", MenuItem::Position::Top);
 #endif
-#ifdef __PS4__
-    it.emplace_back("Time offset", "time.png", MenuItem::Position::Top);
-#endif
+    it.emplace_back("Preview panel", "video.png", MenuItem::Position::Top);
     it.emplace_back("Logging", "log.png", MenuItem::Position::Top);
 
     menuMainOptions = new MenuMainOptions(main, rect, it);
@@ -75,8 +89,42 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
         menuMainOptionsSubmenus[name] = submenu;
     };
 
+    auto addTextSubmenu = [&](const std::string &name, const std::string &title, const std::string &optionName) {
+        addSubmenu(name, title, optionName,
+                   {MenuItem("", "", MenuItem::Position::Top)},
+                   Submenu::ValueType::String, Submenu::MenuType::TextInput);
+    };
+
+    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+        const std::string name = networkKey(i);
+        addSubmenu(name, name, "",
+                   {MenuItem(name + " name", "", MenuItem::Position::Top),
+                    MenuItem(name + " url", "", MenuItem::Position::Top),
+                    MenuItem(name + " type", "", MenuItem::Position::Top)},
+                   Submenu::ValueType::String);
+        addTextSubmenu(name + " name", name + " name", PPLAYConfig::networkNameOption(i));
+        addTextSubmenu(name + " url", name + " url", PPLAYConfig::networkOption(i));
+        std::vector<MenuItem> typeItems;
+        for (auto &typeName: pplay::Io::networkTypeNames()) {
+            typeItems.emplace_back(typeName, "", MenuItem::Position::Top);
+        }
+        addSubmenu(name + " type", name + " type", PPLAYConfig::networkTypeOption(i), typeItems,
+                   Submenu::ValueType::String);
+    }
+    std::vector<MenuItem> languageItems;
+    for (const auto &language: pplay::I18n::list()) {
+        MenuItem item(language.code, "", MenuItem::Position::Top);
+        item.label = language.name;
+        languageItems.push_back(item);
+    }
+    addSubmenu("Language", "Language", OPT_LANGUAGE, languageItems, Submenu::ValueType::String);
+    addTextSubmenu("Local home path", "Local home path", OPT_HOME_PATH);
+#ifdef PPLAY_ENABLE_SCRAPPING
+    addTextSubmenu("TMDB language", "TMDB language", OPT_TMDB_LANGUAGE);
+#endif
+
 #ifdef __SWITCH__
-    addSubmenu("CPU", "CPU", OPT_CPU_BOOST,
+    addSubmenu("CPU boost", "CPU boost", OPT_CPU_BOOST,
                {MenuItem("Disabled", "", MenuItem::Position::Top),
                 MenuItem("Enabled", "", MenuItem::Position::Top)});
 #endif
@@ -98,6 +146,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::ValueType::Float, Submenu::MenuType::Adjust, 1.0f, 600.0f, 1.0f, "s");
     addSubmenu("Long seek step", "Seek long step", OPT_SEEK_LONG_SEC, makeAdjustItems(),
                Submenu::ValueType::Float, Submenu::MenuType::Adjust, 10.0f, 3600.0f, 10.0f, "s");
+    addSubmenu("Preview panel", "Preview panel", OPT_PREVIEW_PANEL,
+               makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Logging", "Log to file", OPT_LOG_LEVEL,
                makeIntItems({{"Off", 0}, {"Error", 1}, {"Info", 2}, {"Debug", 3}, {"Trace", 4}}),
                Submenu::ValueType::Integer);
@@ -124,10 +174,6 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                 MenuItem("Deep Red", "", MenuItem::Position::Top, 0, true, "#D63031"),
                 MenuItem("Classic Red", "", MenuItem::Position::Top, 0, true, "#FF0000")},
                Submenu::ValueType::String);
-#ifdef __PS4__
-    addSubmenu("Time offset", "Time offset", OPT_UTC_OFFSET, makeAdjustItems(),
-               Submenu::ValueType::Float, Submenu::MenuType::Adjust, -12.0f, 14.0f, 0.25f, "h");
-#endif
 #ifdef PPLAY_ENABLE_SCRAPPING
     addSubmenu("Scrapping", "Scrape", OPT_ENABLE_SCRAPPING,
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
@@ -135,11 +181,17 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
 #endif
 
+    fileEditor = new MenuFileEditor(main, rect);
+    fileEditor->setLayer(2);
+    fileEditor->setVisibility(Visibility::Hidden, false);
+    main->add(fileEditor);
+
+    updateNetworkLabels();
+
     // highlight
     highlight_selection = new Highlight({MenuMain::getSize().x, BUTTON_HEIGHT * main->getScaling().y},
                                         Highlight::CursorPosition::Left);
-    highlight_selection->setFillColor(COLOR_ACCENT);
-    highlight_selection->setAlpha(60);
+    highlight_selection->setFillColor(COLOR_ACCENT, 60);
     highlight_selection->setCursorColor(COLOR_ACCENT);
     highlight_selection->setOrigin(Origin::Left);
     highlight_selection->setPosition(0, 200 * main->getScaling().y);
@@ -147,21 +199,97 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     MenuMain::add(highlight_selection);
 }
 
+void MenuMain::updateNetworkLabels() {
+    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+        const std::string key = networkKey(i);
+        const std::string name = main->getConfig()->getOption(PPLAYConfig::networkNameOption(i))->getString();
+        const std::string url = main->getConfig()->getOption(PPLAYConfig::networkOption(i))->getString();
+        const std::string type = main->getConfig()->getOption(PPLAYConfig::networkTypeOption(i))->getString();
+        // the item name stays the menu key
+        std::string label = pplay::tr("Network") + " " + std::to_string(i);
+        if (!url.empty() && !name.empty() && name != key) {
+            label += " (" + name + ")";
+        }
+        for (auto *button: menuMainOptions->getButtons()) {
+            if (button->item.name == key) {
+                button->item.label = label;
+                button->refreshText();
+            }
+        }
+        auto submenu = menuMainOptionsSubmenus.find(key);
+        if (submenu != menuMainOptionsSubmenus.end()) {
+            submenu->second->setTitle(label);
+            for (auto *button: submenu->second->getButtons()) {
+                if (button->item.name == key + " name") {
+                    button->item.label = pplay::tr("Name") + ": " + name;
+                } else if (button->item.name == key + " url") {
+                    button->item.label = pplay::tr("URL") + ": " + (url.empty() ? pplay::tr("<empty>") : url);
+                } else if (button->item.name == key + " type") {
+                    button->item.label = pplay::tr("Type") + ": " + pplay::tr(type);
+                }
+                button->refreshText();
+            }
+        }
+        for (const char *suffix: {" name", " url", " type"}) {
+            auto sub = menuMainOptionsSubmenus.find(key + suffix);
+            if (sub != menuMainOptionsSubmenus.end()) {
+                std::string what = std::string(suffix) == " name" ? "Name" : std::string(suffix) == " url" ? "URL" : "Type";
+                sub->second->setTitle(label + ": " + pplay::tr(what));
+            }
+        }
+    }
+}
+
+MenuFileEditor *MenuMain::getFileEditor() {
+    return fileEditor;
+}
+
+void MenuMain::reloadModules() {
+    updateNetworkLabels();
+    for (auto &button: buttons) {
+        if (button->item.id < 1 || button->item.id > PPLAY_MAX_NETWORKS) {
+            continue;
+        }
+
+        const int networkIndex = button->item.id;
+        const std::string url = main->getConfig()->getOption(PPLAYConfig::networkOption(networkIndex))->getString();
+        std::string name = main->getConfig()->getOption(PPLAYConfig::networkNameOption(networkIndex))->getString();
+        if (name.empty() || name == "Network " + std::to_string(networkIndex)) {
+            name = pplay::tr("Network") + " " + std::to_string(networkIndex);
+        }
+
+        button->item.label = name;
+        button->item.enabled = !url.empty();
+        button->item.selectable = !url.empty();
+        button->refreshText();
+        button->setVisibility(!url.empty() && button->isVisible() ? Visibility::Visible : Visibility::Hidden);
+    }
+
+    if (!isButtonSelectable(index)) {
+        reset();
+    } else {
+        updateSelectionState();
+        ensureSelectionVisible();
+    }
+    updateScroll();
+    updateSelectionHighlight();
+}
+
 void MenuMain::setSelection(int moduleId) {
-    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
         "MenuMain::setSelection moduleId=" + std::to_string(moduleId));
     for (auto &button: buttons) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Info,
+        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
             "MenuMain::setSelection btnId=" + std::to_string(button->item.id));
         if (button->item.id == moduleId) {
             highlight_selection->setVisibility(button->isVisible() ? Visibility::Visible : Visibility::Hidden);
             if (isVisible()) {
-                pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                pplay::Utility::log(pplay::Utility::LogLevel::Debug,
                     "MenuMain::setSelection btnId=" + std::to_string(button->item.id)
                     + " tweenTo()");
                 highlight_selection->tweenTo(button->getPosition());
             } else {
-                pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                pplay::Utility::log(pplay::Utility::LogLevel::Debug,
                     "MenuMain::setSelection btnId=" + std::to_string(button->item.id)
                     + " setPosition()");
                 highlight_selection->setPosition(button->getPosition());
@@ -174,7 +302,7 @@ void MenuMain::setSelection(int moduleId) {
 
 void MenuMain::updateSelectionHighlight() {
     int index = main->getcurrentModuleIndex();
-    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
         "MenuMain::updateSelectionHighlight index=" + std::to_string(index));
     setSelection(index);
 }
@@ -204,7 +332,7 @@ void MenuMain::onOptionSelection(MenuItem *item) {
 
 void MenuMain::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
     int index = main->getcurrentModuleIndex();
-    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
         "MenuMain::setVisibility highlight=" + std::to_string(index));
     Menu::setVisibility(visibility, tweenPlay);
     setSelection(index);
@@ -240,6 +368,9 @@ bool MenuMain::isMenuVisible() {
             return true;
         }
     }
+    if (fileEditor != nullptr && fileEditor->isVisible()) {
+        return true;
+    }
 
     return false;
 }
@@ -259,8 +390,7 @@ MenuMainOptionsSubmenu *MenuMain::getMenuMainOptionsSubmenu(const std::string &n
 }
 
 void MenuMain::onUpdate() {
-    highlight_selection->setFillColor(COLOR_ACCENT);
-    highlight_selection->setAlpha(60);
+    highlight_selection->setFillColor(COLOR_ACCENT, 60);
     highlight_selection->setCursorColor(COLOR_ACCENT);
     Menu::onUpdate();
 }

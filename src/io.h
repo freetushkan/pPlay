@@ -1,5 +1,5 @@
 //
-// Created by cpasjuste on 31/03/19.
+// Local files and network sources (protocols in src/net).
 //
 
 #ifndef PPLAY_IO_H
@@ -8,17 +8,10 @@
 #include "cross2d/c2d.h"
 
 #ifdef __SMB2__
-
-#include "smb2.h"
-#include "libsmb2.h"
-#include "libsmb2-raw.h"
-
-void configure_smb_mpv(int readBufferMB, int timeoutSeconds);
-int register_smb_mpv(void *mpv_ctx);
-
+#include "smb.h"
 #endif
 
-class Browser;
+class PPLAYConfig;
 
 namespace pplay {
 
@@ -32,22 +25,45 @@ namespace pplay {
 
         ~Io() override;
 
+        // the application io
+        static Io *get();
+
         enum class DeviceType {
-            Local, Http, Ftp, Smb, TorrServe
+            Local, Http, Ftp, Smb, TorrServe, WebDav
         };
 
-        std::vector<Io::File> getDirList(const DeviceType &type, const std::vector<std::string> &extensions,
-                                         const std::string &path, int timeout = 5, bool sort = false, bool showHidden = false);
+        // NETWORKx_TYPE
+        enum class NetworkType {
+            Auto, TorrServe, Smb, Ftp, Http, WebDav
+        };
 
+        static NetworkType parseNetworkType(const std::string &name);
+
+        static const std::vector<std::string> &networkTypeNames();
+
+        void setConfig(PPLAYConfig *cfg) { config = cfg; }
+
+        std::vector<Io::File> getDirList(const DeviceType &type, const std::vector<std::string> &extensions,
+                                         const std::string &path, int timeout = 5, bool sort = false,
+                                         bool showHidden = false);
+
+        // type of the network the path belongs to, or from the url scheme
         DeviceType getDeviceType(const std::string &path);
 
-#if defined(__PS4__) || defined(__SWITCH__)
+        // root url of the network the path belongs to, or ""
+        std::string getNetworkRoot(const std::string &path);
+
+        const std::string &getLastError() const { return lastError; }
+
+        // romfs -> data directory (new or changed files)
         void syncRomFs(const std::string &relativePath = "");
-#endif
+
+        bool readText(const std::string &path, std::string &out);
+
+        bool writeText(const std::string &path, const std::string &text);
 
 #ifdef __PS4__
         std::string getDataPath() override {
-            // return "/app0/";
             return "/data/pplay/";
         }
 #endif
@@ -66,11 +82,11 @@ namespace pplay {
 
     private:
 
-        Browser *browser;
-#ifdef __SMB2__
-        smb2_context *smb2;
-#endif
+        // network index of a path, -1 if none
+        int findNetwork(const std::string &path, bool typedOnly);
 
+        PPLAYConfig *config = nullptr;
+        std::string lastError;
     };
 }
 

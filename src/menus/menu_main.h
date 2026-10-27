@@ -11,6 +11,8 @@
 #include "menu_main_options.h"
 #include "menu_main_options_submenu.h"
 
+class MenuFileEditor;
+
 class MenuMain : public Menu {
 
 public:
@@ -20,6 +22,10 @@ public:
     MenuMainOptions *getMenuMainOptions();
 
     MenuMainOptionsSubmenu *getMenuMainOptionsSubmenu(const std::string &name);
+
+    void reloadModules();
+
+    MenuFileEditor *getFileEditor();
 
     bool isMenuVisible();
 
@@ -39,7 +45,11 @@ private:
 
     void updateSelectionHighlight() override;
 
+    // "Network x (name)" labels
+    void updateNetworkLabels();
+
     MenuMainOptions *menuMainOptions;
+    MenuFileEditor *fileEditor = nullptr;
     std::map<std::string, MenuMainOptionsSubmenu *> menuMainOptionsSubmenus;
 };
 

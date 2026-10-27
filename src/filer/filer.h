@@ -16,6 +16,8 @@
 
 class Main;
 
+class PreviewView;
+
 class Filer : public c2d::Rectangle {
 
 public:
@@ -44,7 +46,14 @@ public:
 
     virtual void clearHistory();
 
-    virtual std::string getError() { return ""; };
+    std::string getError();
+
+    void refresh() { dirty = true; }
+
+    void setPreviewEnabled(bool enabled);
+
+    // "<Empty>" entry of an empty directory
+    static bool isPlaceholder(const MediaFile &file);
 
     bool onInput(c2d::Input::Player *players) override;
 
@@ -56,11 +65,18 @@ private:
 
     virtual void exit();
 
+    // local or network root
+    bool isTopLevel(const std::string &path);
+
     Main *main;
     std::string path;
     std::vector<FilerItem *> items;
     std::vector<MediaFile> files;
     Highlight *highlight;
+    PreviewView *preview = nullptr;
+    bool previewEnabled = false;
+    float fullWidth = 0;
+    float listWidth = 0;
 #ifdef PPLAY_ENABLE_SCRAPPING
     ScrapView *scrapView = nullptr;
 #endif

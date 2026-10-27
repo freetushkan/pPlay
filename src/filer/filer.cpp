@@ -4,14 +4,17 @@
 
 #include <algorithm>
 #include "main.h"
+#include "paths.h"
 #include "filer.h"
 #include "utility.h"
 #ifdef PPLAY_ENABLE_SCRAPPING
 #include "p_search.h"
 #endif
 #include "torrserve.h"
+#include "preview_view.h"
 
 #define ITEM_HEIGHT 30
+#define EMPTY_NAME "<Empty>"
 
 using namespace c2d;
 
@@ -40,6 +43,17 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) :
 #else
     size = {rect.width, rect.height - (64 * m->getScaling().y)};
 #endif
+    fullWidth = size.x;
+    listWidth = size.x;
+#ifdef PPLAY_ENABLE_SCRAPPING
+    if (!scrapping_enabled)
+#endif
+    {
+        float panelWidth = 560 * m->getScaling().x;
+        listWidth = size.x - panelWidth;
+        preview = new PreviewView(main, {listWidth, 0, panelWidth, size.y});
+        Filer::add(preview);
+    }
 
     // highlight
     highlight = new Highlight({size.x, (float) ITEM_HEIGHT * m->getScaling().y}, Highlight::CursorPosition::Left);
@@ -57,6 +71,8 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) :
         items.emplace_back(new FilerItem(main, r));
         Filer::add(items[i]);
     }
+
+    setPreviewEnabled(main->getConfig()->getOption(OPT_PREVIEW_PANEL)->getInteger() == 1);
 
     // tween
     Filer::add(new TweenAlpha(0, 255, 0.5f));
@@ -118,6 +134,9 @@ void Filer::setSelection(int index) {
             // set highlight position
             if (index_start + i == (unsigned int) item_index) {
                 highlight->tweenTo(items[i]->getPosition());
+                if (previewEnabled) {
+                    preview->setFile(file);
+                }
 #ifdef PPLAY_ENABLE_SCRAPPING
                 if (scrapping_enabled) {
                     if (file.type == Io::Type::File) {
@@ -312,39 +331,12 @@ void Filer::onUpdate() {
             highlight->setVisibility(Visibility::Visible, true);
         }
     }
-    // highlight->setFillColor(COLOR_HIGHLIGHT);
+    highlight->setFillColor(COLOR_HIGHLIGHT);
     highlight->setCursorColor(COLOR_ACCENT);
 
     C2DObject::onUpdate();
 }
 
-
-static size_t findFirstPathSeparator(const std::string &str, size_t from) {
-    size_t slash = str.find('/', from);
-    size_t backslash = str.find('\\', from);
-    if (slash == std::string::npos) return backslash;
-    if (backslash == std::string::npos) return slash;
-    return std::min(slash, backslash);
-}
-
-static std::string normalizeSmbPathSeparators(const std::string &path) {
-    if (!Utility::startWith(path, "smb://")) {
-        return path;
-    }
-
-    size_t schemeEnd = std::string("smb://").size();
-    size_t at = path.find_last_of('@');
-    size_t hostStart = at != std::string::npos && at >= schemeEnd ? at + 1 : schemeEnd;
-    size_t pathStart = findFirstPathSeparator(path, hostStart);
-    if (pathStart == std::string::npos) {
-        return path;
-    }
-
-    std::string normalized = path.substr(0, pathStart);
-    std::string rest = path.substr(pathStart);
-    std::replace(rest.begin(), rest.end(), '\\', '/');
-    return normalized + rest;
-}
 
 static bool compare(const MediaFile &a, const MediaFile &b) {
     if (a.type == Io::Type::Directory && b.type != Io::Type::Directory) {
@@ -402,11 +394,16 @@ bool Filer::getDir(const std::string &p) {
     // sort after title have been scrapped
     std::sort(files.begin(), files.end(), compare);
 
-    if (files.empty() || files.at(0).name != "..") {
+    files.erase(std::remove_if(files.begin(), files.end(),
+                               [](const MediaFile &f) { return f.name == ".." || f.name == "."; }),
+                files.end());
+    if (!isTopLevel(path)) {
         Io::File file("..", p + "/..", Io::Type::Directory, 0);
         files.insert(files.begin(), MediaFile{file, MediaInfo(file)});
-        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-            "Filer: empty directory - add dots.");
+    }
+    if (files.empty()) {
+        Io::File file(EMPTY_NAME, "", Io::Type::Unknown, 0);
+        files.emplace_back(file, MediaInfo(file));
     }
 
     mutex->unlock();
@@ -420,9 +417,58 @@ bool Filer::getDir(const std::string &p) {
     return true;
 }
 
+bool Filer::isPlaceholder(const MediaFile &file) {
+    return file.type == Io::Type::Unknown && file.path.empty() && file.name == EMPTY_NAME;
+}
+
+bool Filer::isTopLevel(const std::string &p) {
+    if (p.empty() || p == "/" || p.find('/') == std::string::npos) {
+        return true;
+    }
+#ifdef __SWITCH__
+    if (Utility::startWith(p, "ums") && p.find('/') == p.size() - 1) {
+        return true;
+    }
+#endif
+    pplay::Io::DeviceType type = ((pplay::Io *) main->getIo())->getDeviceType(p);
+    if (type == pplay::Io::DeviceType::Local) {
+        return false;
+    }
+    std::string s = pplay::Paths::normalizeSmbPathSeparators(p);
+    if (!Utility::endsWith(s, "/")) {
+        s += "/";
+    }
+    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+        std::string root = main->getConfig()->getOption(PPLAYConfig::networkOption(i))->getString();
+        root = pplay::Paths::normalizeSmbPathSeparators(root);
+        if (!root.empty() && !Utility::endsWith(root, "/")) root += "/";
+        if (!root.empty() && s == root) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void Filer::setPreviewEnabled(bool enabled) {
+    previewEnabled = enabled && preview != nullptr;
+    float width = previewEnabled ? listWidth : fullWidth;
+    if (preview != nullptr) {
+        preview->setVisibility(previewEnabled ? Visibility::Visible : Visibility::Hidden);
+    }
+    highlight->setWidth(width);
+    for (auto *item: items) {
+        item->setWidth(width);
+    }
+    dirty = true;
+}
+
 void Filer::enter(int index) {
     MediaFile file = getSelection();
     bool success;
+
+    if (isPlaceholder(file)) {
+        return;
+    }
 
     if (file.name == "..") {
         exit();
@@ -445,24 +491,8 @@ void Filer::enter(int index) {
 void Filer::exit() {
     std::string p = path;
 
-    if (p == "/" || p.find('/') == std::string::npos) {
+    if (isTopLevel(p)) {
         return;
-    }
-
-    pplay::Io::DeviceType type = ((pplay::Io *) main->getIo())->getDeviceType(p);
-    if (type != pplay::Io::DeviceType::Local) {
-        std::string s = p;
-        if (!Utility::endsWith(s, "/")) {
-            s += "/";
-        }
-        for (int i = 1; i <= 5; i++) {
-            std::string root = main->getConfig()->getOption(PPLAYConfig::networkOption(i))->getString();
-            root = normalizeSmbPathSeparators(root);
-            if (!root.empty() && !Utility::endsWith(root, "/")) root += "/";
-            if (s == root) {
-                return;
-            }
-        }
     }
 
     while (p.back() != '/') {
@@ -486,6 +516,11 @@ void Filer::exit() {
         }
         setSelection(item_index);
     }
+}
+
+std::string Filer::getError() {
+    std::string error = ((pplay::Io *) main->getIo())->getLastError();
+    return error.empty() ? "Could not open: " + path : error;
 }
 
 void Filer::clearHistory() {

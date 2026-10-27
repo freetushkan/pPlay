@@ -126,24 +126,27 @@ void StatusBar::onUpdate() {
         return;
     }
 
-    time_t time_raw;
-    struct tm *time_struct;
-
-    time(&time_raw);
-    // localtime() cannot handle real offset on PS4.
 #ifdef __PS4__
-    float offset_hours = main->getConfig()->getOption(OPT_UTC_OFFSET)->getFloat();
-    long offset_seconds = static_cast<long>(offset_hours * 3600.0);
-    time_raw += offset_seconds;
-    time_struct = gmtime(&time_raw);
-#else
-    time_struct = localtime(&time_raw);
+    // time zone changes
+    if (tzClock.getElapsedTime().asSeconds() >= 30) {
+        ps4_update_timezone();
+        tzClock.restart();
+    }
 #endif
-    std::ostringstream oss;
-    oss << std::setfill('0') << std::setw(2) << time_struct->tm_hour << ":";
-    oss << std::setfill('0') << std::setw(2) << time_struct->tm_min;
-    timeText->setString(oss.str());
 
+    time_t time_raw;
+    time(&time_raw);
+    struct tm time_struct{};
+    localtime_r(&time_raw, &time_struct);
+
+    int hour = time_struct.tm_hour;
+    int min = time_struct.tm_min;
+
+    std::ostringstream oss;
+    oss << std::setfill('0') << std::setw(2) << hour << ":";
+    oss << std::setfill('0') << std::setw(2) << min;
+
+    timeText->setString(oss.str());
     GradientRectangle::onUpdate();
 }
 

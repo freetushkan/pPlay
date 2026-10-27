@@ -22,21 +22,27 @@ public:
     MenuItem() = default;
 
     MenuItem(const std::string &name, const std::string &icon, const Position &position, int id = 0,
-             bool selectable = true, const std::string &data_str = "") {
+             bool selectable = true, const std::string &data_str = "", bool enabled = true) {
         this->name = name;
         this->icon = icon;
         this->position = position;
         this->id = id;
         this->selectable = selectable;
         this->data_str = data_str;
+        this->enabled = enabled;
     }
 
-    int id = 0;
+    // label, or the translated name (the menu key)
+    std::string text() const;
+
     std::string name;
+    std::string label;
     std::string icon;
     Position position = Position::Top;
+    int id = 0;
     bool selectable = true;
     std::string data_str;
+    bool enabled = true;
 };
 
 class MenuButton : public c2d::Rectangle {
@@ -44,6 +50,9 @@ class MenuButton : public c2d::Rectangle {
 public:
 
     MenuButton(Main *main, const MenuItem &item, const c2d::FloatRect &rect);
+
+    // after item.name / item.label changes
+    void refreshText();
 
     void onUpdate() override;
 
@@ -53,6 +62,7 @@ public:
     c2d::Texture *icon = nullptr;
     c2d::Text *name = nullptr;
     bool selected = false;
+    float maxTextWidth = 0;
 };
 
 class Menu : public c2d::RectangleShape {
@@ -62,7 +72,19 @@ public:
     explicit Menu(Main *main, const c2d::FloatRect &rect,
                   const std::string &title, const std::vector<MenuItem> &items, bool left);
 
+    ~Menu() override;
+
+    // all the menus
+    static const std::vector<Menu *> &all();
+
     void reset();
+
+    // language change
+    virtual void retranslate();
+
+    void setTitle(const std::string &title);
+
+    void setItems(const std::vector<MenuItem> &items);
 
     void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
 
@@ -96,6 +118,7 @@ protected:
 
     Main *main;
     c2d::Text *title;
+    std::string titleKey;
     std::vector<MenuButton *> buttons;
     c2d::RectangleShape *menuButton;
     Highlight *highlight;

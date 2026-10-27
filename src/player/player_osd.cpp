@@ -141,8 +141,14 @@ void PlayerOSD::onDraw(c2d::Transform &transform, bool draw) {
     Player *player = main->getPlayer();
     Mpv *mpv = player->getMpv();
 
-    if (mpv->isStopped() || !player->isFullscreen()) {
+    if (!player->isFullscreen()) {
         setVisibility(Visibility::Hidden, false);
+        return;
+    }
+
+    if (mpv->isStopped()) {
+        // (re)loading: keep the OSD state (and its auto hide timer), just don't draw it
+        clock.restart();
         return;
     }
 

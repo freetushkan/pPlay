@@ -97,10 +97,13 @@ fatal_signal(int sig) {
  **/
 static void __attribute__((constructor))
 init_signal(void) {
+  // FreeBSD signal numbers
+  signal(4, fatal_signal);  // SIGILL
   signal(5, fatal_signal);  // SIGTRAP
   signal(6, fatal_signal);  // SIGABRT
   signal(8, fatal_signal);  // SIGFPE
   signal(10, fatal_signal); // SIGBUS
   signal(11, fatal_signal); // SIGSEGV
+  signal(12, fatal_signal); // SIGSYS
 }
 #endif

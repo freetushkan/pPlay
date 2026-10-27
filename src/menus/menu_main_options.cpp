@@ -4,6 +4,7 @@
 
 #include "main.h"
 #include "menu_main_options.h"
+#include "menu_file_editor.h"
 
 using namespace c2d;
 
@@ -12,6 +13,11 @@ MenuMainOptions::MenuMainOptions(Main *main, const c2d::FloatRect &rect, const s
 }
 
 void MenuMainOptions::onOptionSelection(MenuItem *item) {
+    if (item->name == "Edit files") {
+        setVisibility(Visibility::Hidden);
+        main->getMenuMain()->getFileEditor()->setVisibility(Visibility::Visible);
+        return;
+    }
     auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(item->name);
     if (submenu != nullptr) {
         setVisibility(Visibility::Hidden);

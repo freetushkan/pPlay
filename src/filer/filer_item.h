@@ -20,6 +20,8 @@ public:
 
     void setTitle(const std::string &title);
 
+    void setWidth(float width);
+
     void onUpdate();
 
 private:

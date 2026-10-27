@@ -12,9 +12,9 @@ pPlay is a video player, built around **MPV/FFmpeg**, that supports most popular
 
 Supported features:
 - local media playback;
-- network sources (`http://`, `https://`, `ftp://`);
+- network sources (`http://`, `https://`, `ftp://`), WebDAV;
 - SMB/Samba (`smb://`);
-- TorrServer (`ts://` and `tss://`);
+- TorrServer;
 - subtitles and standard playback navigation.
 
 pPlay uses the [MPV](https://mpv.io/) interface to handle FFmpeg interoperability, providing a fast, stable and powerful playback experience.
@@ -23,7 +23,10 @@ Installation
 ----
 
 - **PS4:** just install the `.pkg` file from latest release.
-- **PS5:** extract the `.zip` contents to `/data/homebrew/pplay`.
+- **PS5:** install the `.pkg` file from latest release (a PS4 fpkg, needs `elfldr` listening on port 9021).
+  The package copies pPlay to `/data/homebrew/pplay` (and `libOSMesa.so.8` to `/user/homebrew/lib`), then starts it as the
+  running application.
+  Alternatively, extract the `.zip` contents to `/data/homebrew/pplay` and start `pplay.elf` from the Homebrew Launcher (websrv).
 - **Switch:** put the `.nro` to your launcher root.
 
 Usage
@@ -43,31 +46,69 @@ Fork additions
 
 Below are the main practical improvements and modernizations included in this fork:
 
-1. **Multi-network profiles**: up to 5 independent network sources (`NETWORK1..NETWORK5`) with custom labels (`NETWORKx_NAME`) and remembered last directories (`NETWORKx_LAST`).
+1. **Multi-network profiles**: up to 9 independent network sources (`NETWORK1..NETWORK9`) with custom labels (`NETWORKx_NAME`) and remembered last directories (`NETWORKx_LAST`).
 2. **TorrServer integration**: torrent browsing, files playback and watched-state support.
 3. **Samba/SMB support**: custom `smb://` mpv handler, configurable SMB read buffer.
 4. **Flexible network retry/timeouts**: separate playback retry count and connection timeout settings.
 5. **UX/player options**: settings menu with configurable seek intervals, autoplay-after-finish behavior, swapped controls mode, UI accent color, logging and more.
+6. **Interface languages**: Settings > Language (see below).
+7. **Configuration editor**: Settings > Edit files: `pplay.cfg`, `mpv/mpv.conf`, `mpv/input.conf`, the whole file in the
+   system keyboard (multiline, up to 2048 characters) or line by line. `pplay.cfg` is applied right away (an invalid
+   file is rejected), mpv files on the next start.
+
+Interface languages
+----
+
+Languages are plain text files, `lang/<code>.lang` (utf-8), in the bundled data and in the pPlay data directory
+(a file there adds a language or overrides the bundled one, so fixes don't need a new build).
+Settings > Language lists the files found and applies the choice right away:
+
+```ini
+@name = Русский          # name shown in Settings > Language
+Settings = Настройки     # english text = translation
+```
+
+`lang/en.lang` lists every key: copy it to start a new language.
+
+Keyboard and remotes
+----
+
+Linux keyboard: arrows (or numpad) move, `Enter` = A (ok), `Esc` / `Backspace` = B (back), `X` / `Menu` = X (menu),
+`Y` / `Delete` = Y, `PageUp` / `PageDown` = LB / RB, `[` / `]` = LT / RT (seek), `F1` = Start, `Space` = play/pause.
+Media keys and TV remotes (HDMI-CEC keys exposed as keyboard keys: ok, back, menu, play, pause, stop, next, previous,
+rewind, fast forward, volume) are supported. Unknown keys / buttons are written to the log (`LOG_LEVEL` 2 or more) as
+`Input: unknown ...` lines, ready to be added to `src/app/input_map.cpp`.
+The input devices are listed in the log at startup (`Input: device ...`). Devices other than the first one
+(the PS5 TV remote is a separate controller, devices connected later...) are handled too, with auto repeat:
+buttons as mapped for the first controller (d-pad, A, B, X, Y, LB, RB, Start, Select...) and unused hats.
+
+Network types
+----
+
+Each network has a type (`NETWORKx_TYPE`, also in Settings > Network x > type):
+
+* `TorrServe` — TorrServer api (`http(s)://host:8090/`, may be behind a reverse proxy sub path);
+* `WebDAV` — `http(s)://[user:password@]host/path/` (Nextcloud, nginx dav, rclone serve webdav...).
+* `Auto` (default) — guessed from the url scheme: `http(s)://` directory listing, `ftp://`, `smb://`;
+* `Samba`, `FTP`, `HTTP` — force the protocol;
 
 TorrServer support
 ----
 
-Supported schemes:
-- `ts://` → internally treated as `http://`
-- `tss://` → internally treated as `https://`
-
 Example source:
 
 ```ini
-NETWORK1 = "ts://192.168.1.10:8090/"
+NETWORK1 = "http://192.168.1.10:8090/"
 NETWORK1_NAME = "TorrServer LAN"
-````
+NETWORK1_TYPE = "TorrServe"
+```
 
-Secure source example:
+WebDAV example:
 
 ```ini
-NETWORK2 = "tss://my-torr.example.com:8091/"
-NETWORK2_NAME = "TorrServer HTTPS"
+NETWORK2 = "https://user:password@cloud.example.com/remote.php/dav/files/user/Movies/"
+NETWORK2_NAME = "Cloud"
+NETWORK2_TYPE = "WebDAV"
 ```
 
 Important notes:
@@ -103,15 +144,16 @@ Below is the list of currently supported and maintained configuration parameters
 
 ### Network sources
 
-* `NETWORK1..NETWORK5` — up to 5 network URLs (http/https/ftp/smb/ts/tss).
-* `NETWORK1_NAME..NETWORK5_NAME` — source labels shown in UI.
-* `NETWORK1_LAST..NETWORK5_LAST` — last opened directory for each source.
+* `NETWORK1..NETWORK9` — up to 9 network URLs (http/https/ftp/smb).
+* `NETWORK1_TYPE..NETWORK9_TYPE` — `Auto`, `TorrServe`, `Samba`, `FTP`, `HTTP`, `WebDAV`.
+* `NETWORK1_NAME..NETWORK9_NAME` — source labels shown in UI.
+* `NETWORK1_LAST..NETWORK9_LAST` — last opened directory for each source.
 
 ### Local paths and state
 
 * `HOME_PATH` — default home directory.
 * `LAST_LOCAL_PATH` — last opened local directory.
-* `LAST_MODULE` — last active module (`LOCAL`, `NETWORK1..NETWORK5`, `USB`, etc.).
+* `LAST_MODULE` — last active module (`LOCAL`, `NETWORK1..NETWORK9`, `USB`, etc.).
 
 ### Network and playback
 
@@ -126,13 +168,14 @@ Below is the list of currently supported and maintained configuration parameters
 * `SEEK_LONG_SEC` (float, default `300`) — long seek interval.
 * `SWAP_CONTROLS` (`0/1`, default `0`) — swap seek/control button mapping.
 * `ACCENT_COLOR` (HEX string, default `#1078C8`) — UI accent color.
+* `PREVIEW_PANEL` (`0/1`, default `1`) — right side panel with the selection information (poster, sizes, media info).
+* `LANGUAGE` (default `en`) — interface language (`lang/<code>.lang` file).
 * `LOG_LEVEL` (`0..4`, default `0`) — log verbosity: OFF/ERROR/INFO/DEBUG/TRACE.
+  On PS4, fatal crashes are also written to `/data/pplay/crash.log`.
 
-### Platform-specific
+### Switch-specific
 
-* `UMS_DEVICE` (Switch) — USB device mount path, default `ums0:/`.
-* `CPU_BOOST` (Switch) — `Disabled` / `Enabled` for heavy media playback.
-* `UTC_OFFSET` (PS4) — timezone offset.
+* `CPU_BOOST` — `Disabled` / `Enabled` for heavy media playback.
 
 ## Example `pplay.cfg`
 
@@ -147,11 +190,13 @@ NETWORK2_NAME = "FTP Server"
 NETWORK3 = "smb://DOMAIN.user:password@192.168.1.50/media/"
 NETWORK3_NAME = "NAS Samba"
 
-NETWORK4 = "ts://192.168.1.10:8090/"
+NETWORK4 = "http://192.168.1.10:8090/"
 NETWORK4_NAME = "TorrServer"
+NETWORK4_TYPE = "TorrServe"
 
-NETWORK5 = "tss://user:password@192.168.1.10:8091/"
+NETWORK5 = "https://user:password@192.168.1.10:8091/"
 NETWORK5_NAME = "TorrServer HTTPS Auth"
+NETWORK5_TYPE = "TorrServe"
 
 # Paths/state
 HOME_PATH = "/data/pplay/"
@@ -171,8 +216,7 @@ SWAP_CONTROLS = 0
 ACCENT_COLOR = "#1078C8"
 LOG_LEVEL = 2
 
-# Platform-specific
-UMS_DEVICE = "ums0:/"
+# Switch-specific
 CPU_BOOST = "Enabled"
 ```
 

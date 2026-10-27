@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cctype>
+#include <cstdlib>
 #include <mutex>
 #include <set>
 #include <cstring>
@@ -12,8 +13,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include <curl/curl.h>
 #include <json.hpp>
+#include "main.h"
+#include "io.h"
+#include "net_http.h"
 #include "torrserve.h"
 #include "utility.h"
 
@@ -29,8 +32,16 @@ struct TorrentFile {
 struct Torrent {
     std::string title;
     std::string hash;
+    std::string poster;
+    std::string category;
+    int64_t size = 0;
     std::vector<TorrentFile> files;
 };
+
+bool isTorrServe(const std::string &path) {
+    auto *io = pplay::Io::get();
+    return io != nullptr && io->getDeviceType(path) == pplay::Io::DeviceType::TorrServe;
+}
 
 std::string replaceScheme(const std::string &path) {
     if (c2d::Utility::startWith(path, "tss://")) {
@@ -42,7 +53,20 @@ std::string replaceScheme(const std::string &path) {
     return path;
 }
 
+// TorrServer root: the configured network url (may have a sub path), with a trailing slash
 std::string rootOf(const std::string &path) {
+    auto *io = pplay::Io::get();
+    std::string root = io != nullptr ? io->getNetworkRoot(path) : std::string();
+    if (!root.empty()) {
+        // keep the path spelling (user info, case...)
+        if (path.size() >= root.size()) {
+            std::string r = path.substr(0, root.size());
+            if (c2d::Utility::endsWith(r, "/")) {
+                return r;
+            }
+        }
+        return root;
+    }
     size_t scheme = path.find("://");
     if (scheme == std::string::npos) {
         return path;
@@ -55,15 +79,11 @@ std::string rootOf(const std::string &path) {
 }
 
 std::string relativeOf(const std::string &path) {
-    size_t scheme = path.find("://");
-    if (scheme == std::string::npos) {
+    std::string root = rootOf(path);
+    if (path.size() <= root.size()) {
         return {};
     }
-    size_t slash = path.find('/', scheme + 3);
-    if (slash == std::string::npos || slash + 1 >= path.size()) {
-        return {};
-    }
-    std::string relative = path.substr(slash + 1);
+    std::string relative = path.substr(root.size());
     size_t query = relative.find('?');
     if (query != std::string::npos) {
         relative.erase(query);
@@ -76,18 +96,7 @@ std::string apiRoot(const std::string &path) {
 }
 
 std::string escapeSegment(const std::string &value) {
-    static const char *hex = "0123456789ABCDEF";
-    std::string out;
-    for (unsigned char c: value) {
-        if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
-            out += (char) c;
-        } else {
-            out += '%';
-            out += hex[c >> 4];
-            out += hex[c & 15];
-        }
-    }
-    return out;
+    return pplay::Http::escape(value);
 }
 
 std::string unescapeSegment(const std::string &value) {
@@ -119,110 +128,83 @@ std::vector<std::string> splitPath(const std::string &path) {
     return parts;
 }
 
-size_t writeToString(void *ptr, size_t size, size_t count, void *userdata) {
-    auto *response = static_cast<std::string *>(userdata);
-    response->append(static_cast<char *>(ptr), size * count);
-    return size * count;
-}
-
 std::string httpRequest(const std::string &url, int timeout, const std::string &postBody = {}) {
-    CURL *curl = curl_easy_init();
-    if (!curl) {
-        return {};
-    }
-
-    std::string response;
-    char errbuf[CURL_ERROR_SIZE];
-    std::memset(errbuf, 0, sizeof(errbuf));
-
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeToString);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-#if defined(__PS4__) || defined(__PS5__)
-    curl_easy_setopt(curl, CURLOPT_CAINFO, pplay::Utility::getCertificatesPath().c_str());
-#endif
-
-    struct curl_slist *headers = nullptr;
-    if (!postBody.empty()) {
-        headers = curl_slist_append(headers, "Content-Type: application/json");
-        headers = curl_slist_append(headers, "Accept: application/json");
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-        curl_easy_setopt(curl, CURLOPT_POST, 1L);
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postBody.c_str());
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long) postBody.length());
-    }
-
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "TorrServe::request url=" + url);
-    CURLcode result = curl_easy_perform(curl);
-    if (headers) {
-        curl_slist_free_all(headers);
-    }
-    curl_easy_cleanup(curl);
-
-    if (result != CURLE_OK) {
+    pplay::Http::Response response = pplay::Http::postJson(url, postBody, timeout);
+    if (!response.ok()) {
         pplay::Utility::log(pplay::Utility::LogLevel::Error,
-                            std::string("TorrServe::request failed=") + curl_easy_strerror(result)
-                            + ", errbuf=" + errbuf);
+                            "TorrServe::request " + url + " failed: "
+                            + (response.error.empty() ? "HTTP " + std::to_string(response.status) : response.error));
         return {};
     }
-    return response;
+    return response.body;
 }
 
 std::vector<Torrent> getTorrents(const std::string &root, int timeout) {
     std::vector<Torrent> torrents;
-    try {
-        pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                "TorrServe::getTorrents url=" + root + "torrents, timeout=" + std::to_string(timeout));
-        std::string response = httpRequest(root + "torrents", timeout, "{\"action\":\"list\"}");
-        if (response.empty()) {
-            return torrents;
+    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+        "TorrServe::getTorrents url=" + root + "torrents, timeout=" + std::to_string(timeout));
+    std::string response = httpRequest(root + "torrents", timeout, "{\"action\":\"list\"}");
+    if (response.empty()) {
+        return torrents;
+    }
+
+    pplay::Utility::log(pplay::Utility::LogLevel::Trace, "TorrServe::getTorrents response=" + response);
+    nlohmann::json json = nlohmann::json::parse(response, nullptr, false);
+    if (json.is_discarded() || !json.is_array()) {
+        return torrents;
+    }
+
+    for (const auto &item: json) {
+        if (!item.contains("title") || !item["title"].is_string()
+            || !item.contains("hash") || !item["hash"].is_string()) {
+            continue;
         }
 
-        pplay::Utility::log(pplay::Utility::LogLevel::Trace, "TorrServe::getTorrents response=" + response);
-        nlohmann::json json = nlohmann::json::parse(response, nullptr, false);
-        if (!json.is_array()) {
-            return torrents;
+        Torrent torrent;
+        torrent.title = item["title"].get<std::string>();
+        torrent.hash = item["hash"].get<std::string>();
+        if (item.contains("poster") && item["poster"].is_string()) {
+            torrent.poster = item["poster"].get<std::string>();
         }
+        if (item.contains("category") && item["category"].is_string()) {
+            torrent.category = item["category"].get<std::string>();
+        }
+        if (item.contains("torrent_size") && item["torrent_size"].is_number()) {
+            torrent.size = item["torrent_size"].get<int64_t>();
+        }
+        pplay::Utility::log(pplay::Utility::LogLevel::Trace,
+            "TorrServe::getTorrents item=" + torrent.title + ", hash=" + torrent.hash);
 
-        for (const auto &item: json) {
-            if (!item.contains("title") || !item["title"].is_string()
-                || !item.contains("hash") || !item["hash"].is_string()) {
-                continue;
-            }
-
-            Torrent torrent;
-            torrent.title = item["title"].get<std::string>();
-            torrent.hash = item["hash"].get<std::string>();
-            pplay::Utility::log(pplay::Utility::LogLevel::Trace,
-                "TorrServe::getTorrents item=" + torrent.title + ", hash=" + torrent.hash);
-
-            if (item.contains("data") && item["data"].is_string()) {
-                nlohmann::json data = nlohmann::json::parse(item["data"].get<std::string>(), nullptr, false);
-                if (data.contains("TorrServer") && data["TorrServer"].contains("Files")
-                    && data["TorrServer"]["Files"].is_array()) {
-                    for (const auto &file: data["TorrServer"]["Files"]) {
-                        if (!file.contains("id") || !file.contains("path") || !file["path"].is_string()) {
-                            continue;
-                        }
-                        TorrentFile tf;
-                        tf.id = file["id"].get<int>();
-                        tf.path = file["path"].get<std::string>();
-                        torrent.files.push_back(tf);
+        if (item.contains("data") && item["data"].is_string()) {
+            nlohmann::json data = nlohmann::json::parse(item["data"].get<std::string>(), nullptr, false);
+            if (!data.is_discarded() && data.contains("TorrServer") && data["TorrServer"].contains("Files")
+                && data["TorrServer"]["Files"].is_array()) {
+                for (const auto &file: data["TorrServer"]["Files"]) {
+                    if (!file.contains("id") || !file.contains("path") || !file["path"].is_string()) {
+                        continue;
                     }
+                    TorrentFile tf;
+                    tf.id = file["id"].get<int>();
+                    tf.path = file["path"].get<std::string>();
+                    if (file.contains("length") && file["length"].is_number()) {
+                        tf.length = file["length"].get<int64_t>();
+                    }
+                    torrent.files.push_back(tf);
                 }
             }
-            torrents.push_back(torrent);
         }
-    } catch (const std::exception &e) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Error,
-            std::string("TorrServe::getTorrents exception: ") + e.what());
-    } catch (...) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Error, "TorrServe::getTorrents unknown exception");
+        torrents.push_back(torrent);
     }
     return torrents;
+}
+
+// last torrents list per server (preview panel)
+std::mutex g_cacheMutex;
+std::unordered_map<std::string, std::vector<Torrent>> g_torrentsCache;
+
+void cacheTorrents(const std::string &root, const std::vector<Torrent> &torrents) {
+    std::lock_guard<std::mutex> lock(g_cacheMutex);
+    g_torrentsCache[root] = torrents;
 }
 
 bool hasPrefix(const std::vector<std::string> &path, const std::vector<std::string> &prefix) {
@@ -253,29 +235,22 @@ namespace pplay::TorrServe {
 
 std::set<int> getViewedRemote(const std::string &root, const std::string &hash, int timeout) {
     std::set<int> viewed;
-    try {
-        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-            "TorrServe::getViewedRemote hash=" + hash);
-        nlohmann::json request;
-        request["action"] = "list";
-        request["hash"] = hash;
-        nlohmann::json response = nlohmann::json::parse(
-                httpRequest(root + "viewed", timeout, request.dump()), nullptr, false);
-        if (!response.is_array()) {
-            return viewed;
-        }
-        for (const auto &item: response) {
-            if (item.contains("file_index") && item["file_index"].is_number_integer()) {
-                viewed.insert(item["file_index"].get<int>());
-            }
-        }
-        forceViewedRefresh = false;
-    } catch (const std::exception &e) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Error,
-            std::string("TorrServe::getViewedRemote exception: ") + e.what());
-    } catch (...) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Error, "TorrServe::getViewedRemote unknown exception");
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+        "TorrServe::getViewedRemote hash=" + hash);
+    nlohmann::json request;
+    request["action"] = "list";
+    request["hash"] = hash;
+    nlohmann::json response = nlohmann::json::parse(
+            httpRequest(root + "viewed", timeout, request.dump()), nullptr, false);
+    if (response.is_discarded() || !response.is_array()) {
+        return viewed;
     }
+    for (const auto &item: response) {
+        if (item.contains("file_index") && item["file_index"].is_number_integer()) {
+            viewed.insert(item["file_index"].get<int>());
+        }
+    }
+    forceViewedRefresh = false;
     return viewed;
 }
 
@@ -319,13 +294,16 @@ std::set<int> getViewed(const std::string &root, const std::string &hash) {
     return getViewedCached(root, hash);
 }
 
-std::vector<c2d::Io::File> getDirList(Browser *browser, const std::string &path, int timeout) {
+std::vector<c2d::Io::File> getDirList(const std::string &path, int timeout, std::string *error) {
     std::vector<c2d::Io::File> files;
     std::string root = rootOf(path);
     std::string httpRoot = apiRoot(path);
     std::vector<std::string> parts = splitPath(relativeOf(path));
-    (void) browser;
     std::vector<Torrent> torrents = getTorrents(httpRoot, timeout);
+    if (torrents.empty() && error) {
+        *error = "TorrServer: no torrent (or server not reachable)";
+    }
+    cacheTorrents(httpRoot, torrents);
 
     if (parts.empty()) {
         for (const auto &torrent: torrents) {
@@ -339,7 +317,7 @@ std::vector<c2d::Io::File> getDirList(Browser *browser, const std::string &path,
         return torrent.title == parts[0];
     });
     if (torrentIt == torrents.end()) {
-        return getDirList(browser, root, timeout);
+        return getDirList(root, timeout, error);
     }
 
     std::vector<std::string> prefix(parts.begin() + 1, parts.end());
@@ -363,14 +341,19 @@ std::vector<c2d::Io::File> getDirList(Browser *browser, const std::string &path,
                                       + "?link=" + escapeSegment(torrentIt->hash)
                                       + "&index=" + std::to_string(torrentFile.id)
                                       + "&dummy=" + escapeSegment(basename(torrentFile.path));
-            files.emplace_back(name, virtualPath, c2d::Io::Type::File, torrentFile.length);
+            files.emplace_back(name, virtualPath, c2d::Io::Type::File, (size_t) torrentFile.length);
         }
     }
     return files;
 }
 
 std::string toStreamUrl(const std::string &path) {
-    if (!c2d::Utility::startWith(path, "ts://") && !c2d::Utility::startWith(path, "tss://")) {
+    if (!isTorrServe(path)) {
+        auto *io = pplay::Io::get();
+        auto type = io != nullptr ? io->getDeviceType(path) : pplay::Io::DeviceType::Local;
+        if (type == pplay::Io::DeviceType::Http || type == pplay::Io::DeviceType::WebDav) {
+            return pplay::Http::normalize(path);
+        }
         return path;
     }
 
@@ -398,7 +381,7 @@ std::string toStreamUrl(const std::string &path) {
 }
 
 bool isFileViewed(const std::string &path) {
-    if (!c2d::Utility::startWith(path, "ts://") && !c2d::Utility::startWith(path, "tss://")) {
+    if (!isTorrServe(path)) {
         return false;
     }
 
@@ -424,23 +407,24 @@ bool isFileViewed(const std::string &path) {
         return false;
     }
 
-    try {
-        int index = std::stoi(index_str);
-        std::set<int> viewed = getViewed(apiRoot(path), hash);
-        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-            "TorrServe::isFileViewed finished path=" + path
-                + " root=" + apiRoot(path) + " index=" + index_str);
-        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-            "TorrServe::isFileViewed finished path=" + path
-                + " result=" + std::to_string(viewed.count(index) > 0));
-        return viewed.count(index) > 0;
-    } catch (...) {
+    char *end = nullptr;
+    long parsedIndex = std::strtol(index_str.c_str(), &end, 10);
+    if (end == index_str.c_str() || *end != '\0') {
         return false;
     }
+    int index = static_cast<int>(parsedIndex);
+    std::set<int> viewed = getViewed(apiRoot(path), hash);
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+        "TorrServe::isFileViewed finished path=" + path
+            + " root=" + apiRoot(path) + " index=" + index_str);
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+        "TorrServe::isFileViewed finished path=" + path
+            + " result=" + std::to_string(viewed.count(index) > 0));
+    return viewed.count(index) > 0;
 }
 
 bool remFileViewed(const std::string &path) {
-    if (!c2d::Utility::startWith(path, "ts://") && !c2d::Utility::startWith(path, "tss://")) {
+    if (!isTorrServe(path)) {
         return false;
     }
 
@@ -465,18 +449,72 @@ bool remFileViewed(const std::string &path) {
         return false;
     }
 
-    try {
-        nlohmann::json request;
-        request["action"] = "rem";
-        request["hash"] = hash;
-        request["file_index"] = std::stoi(index_str);
-        httpRequest(apiRoot(path) + "viewed", 5, request.dump());
-        forceViewedRefresh = true;
-        getViewed(apiRoot(path), hash);
-        return true;
-    } catch (...) {
+    char *end = nullptr;
+    long parsedIndex = std::strtol(index_str.c_str(), &end, 10);
+    if (end == index_str.c_str() || *end != '\0') {
         return false;
     }
+    nlohmann::json request;
+    request["action"] = "rem";
+    request["hash"] = hash;
+    request["file_index"] = static_cast<int>(parsedIndex);
+    httpRequest(apiRoot(path) + "viewed", 5, request.dump());
+    forceViewedRefresh = true;
+    getViewed(apiRoot(path), hash);
+    return true;
+}
+
+bool getInfo(const std::string &path, Info &info) {
+    if (!isTorrServe(path)) {
+        return false;
+    }
+    std::vector<std::string> parts = splitPath(relativeOf(path));
+    if (parts.empty()) {
+        return false;
+    }
+
+    std::lock_guard<std::mutex> lock(g_cacheMutex);
+    auto it = g_torrentsCache.find(apiRoot(path));
+    if (it == g_torrentsCache.end()) {
+        return false;
+    }
+    auto torrent = std::find_if(it->second.begin(), it->second.end(), [&parts](const Torrent &t) {
+        return t.title == parts[0];
+    });
+    if (torrent == it->second.end()) {
+        return false;
+    }
+
+    info = Info{};
+    info.title = torrent->title;
+    info.hash = torrent->hash;
+    info.poster = torrent->poster;
+    info.category = torrent->category;
+    info.torrentSize = torrent->size;
+    info.fileCount = torrent->files.size();
+    for (auto &f: torrent->files) {
+        info.filesSize += f.length;
+    }
+
+    size_t query = path.find('?');
+    if (query != std::string::npos) {
+        std::stringstream ss(path.substr(query + 1));
+        std::string param;
+        while (std::getline(ss, param, '&')) {
+            if (param.rfind("index=", 0) == 0) {
+                int index = std::atoi(param.substr(6).c_str());
+                for (auto &f: torrent->files) {
+                    if (f.id == index) {
+                        info.fileIndex = index;
+                        info.fileName = basename(f.path);
+                        info.fileSize = f.length;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return true;
 }
 
 }

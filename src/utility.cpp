@@ -40,26 +40,38 @@
 using namespace pplay;
 static Utility::LogLevel g_logLevel = Utility::LogLevel::Info;
 static c2d::Color g_accentColor = c2d::Color(16, 120, 200, 255);
+static std::string g_dataPath;
+
+void Utility::setDataPath(const std::string &path) {
+    g_dataPath = path;
+    if (!g_dataPath.empty() && g_dataPath.back() != '/') {
+        g_dataPath += "/";
+    }
+}
+
+const std::string &Utility::getDataPath() {
+    return g_dataPath;
+}
 
 std::string Utility::getMediaInfoPath(const c2d::Io::File &file) {
     std::string hash = std::to_string(std::hash<std::string>()(file.path));
-    return c2d_renderer->getIo()->getDataPath() + "cache/" + hash + ".info";
+    return getDataPath() + "cache/" + hash + ".info";
 }
 
 #ifdef PPLAY_ENABLE_SCRAPPING
 std::string Utility::getMediaScrapPath(const c2d::Io::File &file) {
     std::string hash = std::to_string(std::hash<std::string>()(file.path));
-    return c2d_renderer->getIo()->getDataPath() + "cache/" + hash + ".scrap";
+    return getDataPath() + "cache/" + hash + ".scrap";
 }
 
 std::string Utility::getMediaPosterPath(const c2d::Io::File &file) {
     std::string hash = std::to_string(std::hash<std::string>()(file.path));
-    return c2d_renderer->getIo()->getDataPath() + "cache/" + hash + "-poster.jpg";
+    return getDataPath() + "cache/" + hash + "-poster.jpg";
 }
 
 std::string Utility::getMediaBackdropPath(const c2d::Io::File &file) {
     std::string hash = std::to_string(std::hash<std::string>()(file.path));
-    return c2d_renderer->getIo()->getDataPath() + "cache/" + hash + "-backdrop.jpg";
+    return getDataPath() + "cache/" + hash + "-backdrop.jpg";
 }
 #endif
 
@@ -219,14 +231,17 @@ void Utility::setLogLevel(Utility::LogLevel level) {
 }
 
 void Utility::log(Utility::LogLevel level, const std::string &message) {
-#ifdef __PS4__
-    sceKernelDebugOutText(0, ("[pPlay] " + message + "\n").c_str());
-#endif
     if ((int) level > (int) g_logLevel || g_logLevel == Utility::LogLevel::Off) {
         return;
     }
-    std::string path = c2d_renderer->getIo()->getDataPath() + "pplay.log";
-    bool writeBom = !c2d_renderer->getIo()->exist(path);
+#ifdef __PS4__
+    sceKernelDebugOutText(0, ("[pPlay] " + message + "\n").c_str());
+#endif
+    if (g_dataPath.empty()) {
+        return;
+    }
+    std::string path = g_dataPath + "pplay.log";
+    bool writeBom = !fileExists(path);
     std::ofstream out(path, std::ios::app);
     if (!out.is_open()) {
         return;
@@ -310,7 +325,7 @@ std::string Utility::getWatchLater(const std::string &video_path) {
 #endif
     std::string hash = pplay::Utility::md5hash(mpvPath);
     std::transform(hash.begin(), hash.end(), hash.begin(), ::toupper);
-    std::string path = c2d_renderer->getIo()->getDataPath() + "mpv/watch_later/" + hash;
+    std::string path = getDataPath() + "mpv/watch_later/" + hash;
     log(LogLevel::Debug, "Utility::getWatchLater video_path=" + video_path + " mpv_path=" + mpvPath + " wl_path=" + path);
     return path;
 }
@@ -330,10 +345,7 @@ bool Utility::deleteWatchLater(const std::string &video_path) {
 
 #if defined(__PS4__) || defined(__PS5__)
 std::string Utility::getCertificatesPath() {
-    // std::string customCA = c2d_renderer->getIo()->getDataPath() + "cacert.pem";
-    // std::string defaultCA = c2d_renderer->getIo()->getRomFsPath() + "cacert.pem";
-    // return fileExists(customCA) ? customCA : defaultCA;
-    return c2d_renderer->getIo()->getDataPath() + "cacert.pem";
+    return getDataPath() + "cacert.pem";
 }
 #endif
 

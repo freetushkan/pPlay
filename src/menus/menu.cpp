@@ -9,6 +9,7 @@
 #include "main.h"
 #include "menu.h"
 #include "utility.h"
+#include "i18n.h"
 
 using namespace c2d;
 
@@ -54,6 +55,7 @@ namespace {
     inline int topButtonCount(const std::vector<MenuButton *> &buttons) {
         int count = 0;
         for (auto *button: buttons) {
+            if (!button->item.enabled) continue;
             if (button->item.position == MenuItem::Position::Top) {
                 ++count;
             }
@@ -64,6 +66,7 @@ namespace {
     inline int topIndexOfButton(const std::vector<MenuButton *> &buttons, int index) {
         int topIndex = 0;
         for (int i = 0; i < static_cast<int>(buttons.size()); ++i) {
+            if (!buttons[i]->item.enabled) continue;
             if (buttons[i]->item.position != MenuItem::Position::Top) {
                 continue;
             }
@@ -129,6 +132,35 @@ namespace {
     }
 }
 
+static std::vector<Menu *> &menuRegistry() {
+    // never destroyed: menus are deleted late, by the renderer destructor
+    static auto *menus = new std::vector<Menu *>();
+    return *menus;
+}
+
+std::string MenuItem::text() const {
+    return label.empty() ? pplay::tr(name) : label;
+}
+
+void MenuButton::refreshText() {
+    // scroll the text when it doesn't fit
+    name->setSizeMax(0, 0);
+    name->setString(item.text());
+    bool tooLong = name->getLocalBounds().width > maxTextWidth;
+    name->setSizeMax(maxTextWidth, MenuButton::getSize().y);
+    auto it = g_btnScrolls.find(this);
+    if (tooLong) {
+        if (it == g_btnScrolls.end()) {
+            g_btnScrolls[this] = TextScroll();
+        } else {
+            it->second.startMs = 0;
+            it->second.isWaiting = true;
+        }
+    } else if (it != g_btnScrolls.end()) {
+        g_btnScrolls.erase(it);
+    }
+}
+
 MenuButton::MenuButton(Main *main, const MenuItem &item, const FloatRect &rect) : Rectangle(rect) {
 
     this->item = item;
@@ -138,12 +170,12 @@ MenuButton::MenuButton(Main *main, const MenuItem &item, const FloatRect &rect) 
         icon = new C2DTexture(main->getIo()->getDataPath() + "skin/" + item.icon);
         icon->setOrigin(Origin::Left);
         icon->setPosition(16 * main->getScaling().x, MenuButton::getSize().y / 2);
-        icon->setScale(main->getScaled(main->getSize().x / 1920, main->getSize().y / 1080));
+        icon->setScale(main->getScaling()); // same size as before at 1080p, linear with the resolution
         icon->setFillColor(COLOR_FONT);
         MenuButton::add(icon);
     }
 
-    name = new Text(item.name, main->getFontSize(Main::FontSize::Medium), main->getFont());
+    name = new Text(item.text(), main->getFontSize(Main::FontSize::Medium), main->getFont());
     name->setOrigin(Origin::Left);
     if (pplay::Utility::isValidHexColor(item.data_str)) {
         name->setFillColor(pplay::Utility::hexToColor(item.data_str));
@@ -157,6 +189,7 @@ MenuButton::MenuButton(Main *main, const MenuItem &item, const FloatRect &rect) 
     float rightPadding = 16.0f * main->getScaling().x;
     float maxWidth = std::max(0.0f, MenuButton::getSize().x - textX - rightPadding);
 
+    maxTextWidth = maxWidth;
     name->setPosition(textX, MenuButton::getSize().y / 2);
     if (name->getLocalBounds().width > maxWidth) {
         TextScroll scroll;
@@ -179,24 +212,24 @@ void MenuButton::onUpdate() {
     long long raw_ms = g_menuScrollClock.getElapsedTime().asMilliseconds();
     if (!this->selected) {
         if (!s.isWaiting || s.startMs != 0) {
-            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+            pplay::Utility::log(pplay::Utility::LogLevel::Trace,
                 "MenuButton::onUpdate: focus lost.");
         }
         s.isWaiting = true;
         s.startMs = 0;
-        name->setString(this->item.name);
+        name->setString(this->item.text());
     } else {
         if (s.startMs == 0) {
-            s.scrolledText = sanitizeText(this->item.name) + "     ";
+            s.scrolledText = sanitizeText(this->item.text()) + "     ";
             s.startMs = raw_ms;
             s.lastCharMs = raw_ms;
-            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+            pplay::Utility::log(pplay::Utility::LogLevel::Trace,
                 "MenuButton::onUpdate: focused.");
         } 
         else if (s.isWaiting && (raw_ms - s.startMs) >= s.waitTimer) {
             s.isWaiting = false;
             s.lastCharMs = raw_ms;
-            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+            pplay::Utility::log(pplay::Utility::LogLevel::Trace,
                 "MenuButton::onUpdate: scrolling started.");
         } 
         else if (!s.isWaiting && (raw_ms - s.lastCharMs) >= 200) {
@@ -210,7 +243,7 @@ void MenuButton::onUpdate() {
                     s.scrolledText.erase(0, charLen);
                     s.scrolledText += first_char;
                     name->setString(s.scrolledText);
-                    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                    pplay::Utility::log(pplay::Utility::LogLevel::Trace,
                         "MenuButton::onUpdate: [Scroll Tick] Delta: "
                         + std::to_string(delta));
                 }
@@ -239,38 +272,18 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title,
     Menu::add(highlight);
 
     // title
-    title = new Text(_title, main->getFontSize(Main::FontSize::Big), main->getFont());
+    // title, on several lines when needed
+    titleKey = _title;
+    title = new Text(pplay::tr(_title), main->getFontSize(Main::FontSize::Big), main->getFont());
     title->setPosition(main->getScaled(32, 32));
     title->setFillColor(COLOR_FONT);
+    title->setOverflow(Text::NewLine);
+    title->setSizeMax(Menu::getSize().x - main->getScaled(48, 0).x,
+                      menuTop(main) - main->getScaled(0, 32 + 24).y);
     Menu::add(title);
+    menuRegistry().push_back(this);
 
-    // options
-    FloatRect top = {0, menuTop(main),
-                     Menu::getSize().x, BUTTON_HEIGHT * main->getScaling().y};
-    FloatRect bottom = {0, Menu::getSize().y - (32 * main->getScaling().y),
-                        Menu::getSize().x, BUTTON_HEIGHT * main->getScaling().y};
-
-    for (auto &item: items) {
-        if (item.position == MenuItem::Position::Top) {
-            auto *option = new MenuButton(main, item, top);
-            add(option);
-            buttons.push_back(option);
-            top.top += menuSpacing(main);
-        } else {
-            auto *option = new MenuButton(main, item, bottom);
-            Menu::add(option);
-            buttons.push_back(option);
-            bottom.top -= menuSpacing(main);
-        }
-    }
-
-    index = findFirstSelectableIndex();
-    updateSelectionState();
-    g_scrollStates[this] = {};
-    updateScroll();
-    if (!buttons.empty()) {
-        highlight->setPosition(0, buttons[index]->getPosition().y);
-    }
+    setItems(items);
 
     // tween!
     if (left) {
@@ -279,6 +292,16 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title,
         Menu::add(new TweenPosition({main->getSize().x, 0},
                                     {main->getSize().x - Menu::getSize().x, 0}, 0.2f));
     }
+}
+
+const std::vector<Menu *> &Menu::all() {
+    return menuRegistry();
+}
+
+Menu::~Menu() {
+    auto &menus = menuRegistry();
+    menus.erase(std::remove(menus.begin(), menus.end(), this), menus.end());
+    g_scrollStates.erase(this);
 }
 
 bool Menu::onInput(c2d::Input::Player *players) {
@@ -412,6 +435,10 @@ void Menu::updateScroll() {
     int topIndex = 0;
     for (auto &button: buttons) {
         if (button->item.position == MenuItem::Position::Top) {
+            if (!button->item.enabled) {
+                button->setVisibility(Visibility::Hidden);
+                continue;
+            }
             const float y = top + ((float) (topIndex - startSlot) * spacing);
             button->setPosition(0, y);
 
@@ -487,6 +514,53 @@ void Menu::onUpdate() {
     highlight->setFillColor(COLOR_HIGHLIGHT);
     highlight->setCursorColor(COLOR_ACCENT);
     RectangleShape::onUpdate();
+}
+
+void Menu::setItems(const std::vector<MenuItem> &items) {
+    for (auto *button: buttons) {
+        delete (button);
+    }
+    buttons.clear();
+
+    FloatRect top = {0, menuTop(main),
+                     Menu::getSize().x, BUTTON_HEIGHT * main->getScaling().y};
+    FloatRect bottom = {0, Menu::getSize().y - (32 * main->getScaling().y),
+                        Menu::getSize().x, BUTTON_HEIGHT * main->getScaling().y};
+
+    for (auto &item: items) {
+        if (item.position == MenuItem::Position::Top) {
+            auto *option = new MenuButton(main, item, top);
+            Menu::add(option);
+            buttons.push_back(option);
+            top.top += menuSpacing(main);
+        } else {
+            auto *option = new MenuButton(main, item, bottom);
+            Menu::add(option);
+            buttons.push_back(option);
+            bottom.top -= menuSpacing(main);
+        }
+    }
+
+    index = findFirstSelectableIndex();
+    updateSelectionState();
+    scrollOffset = 0.0f;
+    g_scrollStates[this] = {};
+    updateScroll();
+    if (!buttons.empty()) {
+        highlight->setPosition(0, buttons[index]->getPosition().y);
+    }
+}
+
+void Menu::setTitle(const std::string &_title) {
+    titleKey = _title;
+    title->setString(pplay::tr(titleKey));
+}
+
+void Menu::retranslate() {
+    title->setString(pplay::tr(titleKey));
+    for (auto *button: buttons) {
+        button->refreshText();
+    }
 }
 
 void Menu::reset() {

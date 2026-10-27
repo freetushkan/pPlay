@@ -5,28 +5,18 @@
 #ifndef PPLAY_CONFIG_H
 #define PPLAY_CONFIG_H
 
+#include <string>
+#include <vector>
+#include "cross2d/c2d.h"
 #include "cross2d/skeleton/config.h"
 
+// NETWORKx, NETWORKx_LAST, NETWORKx_NAME, NETWORKx_TYPE
+#define PPLAY_MAX_NETWORKS      9
 #define OPT_NETWORK             "NETWORK1"
 #define OPT_NETWORK1            "NETWORK1"
-#define OPT_NETWORK2            "NETWORK2"
-#define OPT_NETWORK3            "NETWORK3"
-#define OPT_NETWORK4            "NETWORK4"
-#define OPT_NETWORK5            "NETWORK5"
-#define OPT_UMS_DEVICE          "UMS_DEVICE"
 #define OPT_HOME_PATH           "HOME_PATH"
 #define OPT_LAST_LOCAL_PATH     "LAST_LOCAL_PATH"
 #define OPT_LAST_NETWORK_PATH   "NETWORK1_LAST"
-#define OPT_NETWORK1_LAST       "NETWORK1_LAST"
-#define OPT_NETWORK2_LAST       "NETWORK2_LAST"
-#define OPT_NETWORK3_LAST       "NETWORK3_LAST"
-#define OPT_NETWORK4_LAST       "NETWORK4_LAST"
-#define OPT_NETWORK5_LAST       "NETWORK5_LAST"
-#define OPT_NETWORK1_NAME       "NETWORK1_NAME"
-#define OPT_NETWORK2_NAME       "NETWORK2_NAME"
-#define OPT_NETWORK3_NAME       "NETWORK3_NAME"
-#define OPT_NETWORK4_NAME       "NETWORK4_NAME"
-#define OPT_NETWORK5_NAME       "NETWORK5_NAME"
 #define OPT_LAST_MODULE         "LAST_MODULE"
 #define OPT_NETWORK_TIMEOUT     "NETWORK_TIMEOUT"
 #define OPT_NETWORK_RETRIES     "NETWORK_RETRIES"
@@ -41,25 +31,38 @@
 #endif
 #define OPT_LOG_LEVEL           "LOG_LEVEL"
 #define OPT_SWAP_CONTROLS       "SWAP_CONTROLS"
-#ifdef __PS4__
-#define OPT_UTC_OFFSET          "UTC_OFFSET"
-#endif
 #define OPT_SEEK_SHORT_SEC      "SEEK_SHORT_SEC"
 #define OPT_SEEK_LONG_SEC       "SEEK_LONG_SEC"
 #define OPT_CPU_BOOST           "CPU_BOOST"
 #define OPT_ACCENT_COLOR        "ACCENT_COLOR"
+#define OPT_PREVIEW_PANEL       "PREVIEW_PANEL"
+#define OPT_LANGUAGE            "LANGUAGE"
 
-class Main;
+namespace pplay {
+    class Io;
+}
 
 class PPLAYConfig : public c2d::config::Config {
 
 public:
 
-    explicit PPLAYConfig(Main *main, int version = 1);
+    explicit PPLAYConfig(pplay::Io *io, int version = 1);
+
+    // re-read the file, false on a parse error
+    bool reload();
+
 
     static const char *networkOption(int index);
     static const char *networkLastOption(int index);
     static const char *networkNameOption(int index);
+    static const char *networkTypeOption(int index);
+
+private:
+
+    // fix invalid values, apply the accent color
+    void sanitize();
+
+    pplay::Io *io;
 };
 
 #endif //PPLAY_CONFIG_H

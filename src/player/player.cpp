@@ -2,16 +2,22 @@
 // Created by cpasjuste on 03/10/18.
 //
 
+#include <algorithm>
 #include <sstream>
 #include "main.h"
 #include "player.h"
 #include "torrserve.h"
 #include "player_osd.h"
+#include "paths.h"
+#include "input_map.h"
 #include "video_texture.h"
 #include "utility.h"
 #include "pplay_config.h"
 #include "encodings.h"
 #include "menu_video_submenu.h"
+#ifdef __SMB2__
+#include "smb.h"
+#endif
 
 using namespace c2d;
 
@@ -38,8 +44,6 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
 #endif
 
     mpv = new Mpv(main->getIo()->getDataPath() + "mpv", true);
-    mpv_command_string(mpv->getHandle(), ("set network-timeout " +
-            std::to_string(main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger())).c_str());
 
 #ifndef FULL_TEXTURE_TEST
     texture = new VideoTexture(main, pos);
@@ -54,6 +58,8 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
 
     osd = new PlayerOSD(main);
     Player::add(osd);
+
+    applyConfig();
 
     // OSD message
     message_text = new Text("", main->getFontSize(Main::FontSize::Bigger), main->getFont());
@@ -77,11 +83,22 @@ void Player::showMessage(const std::string &message) {
     messageClock.restart();
 }
 
+// path as given to mpv, comparable
+static std::string playingKeyOf(const std::string &path) {
+    std::string key = pplay::TorrServe::toStreamUrl(pplay::Paths::normalizeSmbPathSeparators(path));
+    std::replace(key.begin(), key.end(), '\\', '/');
+    while (key.size() > 1 && key.back() == '/') {
+        key.pop_back();
+    }
+    return key;
+}
+
+bool Player::isPlaying(const std::string &path) {
+    return !playingKey.empty() && !path.empty() && playingKeyOf(path) == playingKey;
+}
+
 bool Player::load(const MediaFile &f, bool firstTry, const std::string &options) {
     stop();
-#ifdef __PS4__
-    pausedHttpsStream = false;
-#endif
     file = f;
     std::string opts = options;
     if (!isPlaylistFile()) {
@@ -376,7 +393,9 @@ void Player::onStopEvent(int reason) {
         texture->clearFrame();
         setFullscreen(false, true);
 #ifdef __SWITCH__
-        pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Min);
+        if (main->getConfig()->getOption(OPT_CPU_BOOST)->getString() == "Enabled") {
+            pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Min);
+        }
         appletSetMediaPlaybackState(false);
 #endif
     }
@@ -393,19 +412,14 @@ void Player::onUpdate() {
         if (position > 0.0) {
             lastKnownPosition = position;
         }
-        try {
-            if (position > 0.0 && duration > 300
-                && (position - lastProgressSave) >= 10
-                && (duration - position) >= 60) {
-                mpv->save();
-                pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-                    "Player::onUpdate::saveProgress position=" + std::to_string(position)
-                    + " duration=" + std::to_string(duration));
-                lastProgressSave = position;
-            }
-        } catch (...) {
-            pplay::Utility::log(pplay::Utility::LogLevel::Error,
-                "Player::onUpdate::saveProgress failed");
+        if (position > 0.0 && duration > 300
+            && (position - lastProgressSave) >= 10
+            && (duration - position) >= 60) {
+            mpv->save();
+            pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+                "Player::onUpdate::saveProgress position=" + std::to_string(position)
+                + " duration=" + std::to_string(duration));
+            lastProgressSave = position;
         }
         mpv_event *event = mpv->getEvent();
         if (event != nullptr) {
@@ -419,6 +433,8 @@ void Player::onUpdate() {
                         "Loading... " + encoding::fix(file.name), true);
                     startPlaybackPosition = -1;
                     frameDrawn = false;
+                    playingKey = playingKeyOf(file.path);
+                    main->getFiler()->refresh();
                     break;
                 case MPV_EVENT_FILE_LOADED:
                     printf("MPV_EVENT_FILE_LOADED\n");
@@ -431,7 +447,9 @@ void Player::onUpdate() {
                     printf("MPV_EVENT_END_FILE\n");
                     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
                         "Player::onUpdate::event MPV_EVENT_END_FILE");
+                    playingKey.clear();
                     onStopEvent(((mpv_event_end_file *) event->data)->reason);
+                    main->getFiler()->refresh();
                     break;
                 default:
                     break;
@@ -574,15 +592,6 @@ void Player::changeBrightness(double delta) {
 }
 
 void Player::pause() {
-#ifdef __PS4__
-    std::string streamUrl = pplay::TorrServe::toStreamUrl(mpv->getCurrentPath());
-    pausedHttpsStream = Utility::startWith(streamUrl, "https://");
-    if (pausedHttpsStream) {
-        pauseClock.restart();
-        pplay::Utility::log(pplay::Utility::LogLevel::Info,
-            "Player::pause https stream detected, pause timer started");
-    }
-#endif
     mpv->pause();
     if (lastKnownPosition > 0 && lastKnownDuration > 300
         && (lastKnownDuration - lastKnownPosition) >= 60) {
@@ -592,20 +601,14 @@ void Player::pause() {
             + " lastKnownDuration=" + std::to_string(lastKnownDuration));
     }
 #ifdef __SWITCH__
-    pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Min);
+    if (main->getConfig()->getOption(OPT_CPU_BOOST)->getString() == "Enabled") {
+        pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Min);
+    }
     appletSetMediaPlaybackState(false);
 #endif
 }
 
 void Player::resume() {
-#ifdef __PS4__
-    if (pausedHttpsStream && pauseClock.getElapsedTime().asSeconds() >= 300) {
-        pausedHttpsStream = false;
-        load(file, false, "pause=yes");
-        return;
-    }
-    pausedHttpsStream = false;
-#endif
     mpv->resume();
 #ifdef __SWITCH__
     if (main->getConfig()->getOption(OPT_CPU_BOOST)->getString() == "Enabled") {
@@ -722,4 +725,40 @@ PlayerOSD *Player::getOSD() {
 
 Mpv *Player::getMpv() {
     return mpv;
+}
+
+void Player::applyConfig() {
+    const int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
+#ifdef __SMB2__
+    configure_smb_mpv(main->getConfig()->getOption(OPT_SMB_READ_BUFFER_MB)->getInteger(), timeout);
+#endif
+    mpv_command_string(mpv->getHandle(), ("set network-timeout " + std::to_string(timeout)).c_str());
+    texture->setOutlineColor(COLOR_ACCENT);
+}
+
+void Player::onMediaKeys(unsigned int keys) {
+    if (mpv->isStopped()) {
+        return;
+    }
+    const float seekShort = main->getConfig()->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
+    const float seekLong = main->getConfig()->getOption(OPT_SEEK_LONG_SEC)->getFloat();
+
+    if (keys & pplay::InputMap::PlayPause) {
+        bool paused = mpv->isPaused();
+        main->getStatus()->show("Info...", paused ? "Resuming playback..." : "Pausing playback...");
+        paused ? resume() : pause();
+        osd->btn_play->setVisibility(paused ? Visibility::Hidden : Visibility::Visible);
+        osd->btn_pause->setVisibility(paused ? Visibility::Visible : Visibility::Hidden);
+    } else if (keys & pplay::InputMap::Stop) {
+        main->getStatus()->show("Info...", "Stopping playback...");
+        stop();
+    } else if (keys & (pplay::InputMap::FastForward | pplay::InputMap::Rewind)) {
+        osd->setVisibility(Visibility::Visible, true);
+        mpv->seek((keys & pplay::InputMap::Rewind) ? -seekShort : seekShort);
+    } else if (keys & (pplay::InputMap::Next | pplay::InputMap::Previous)) {
+        osd->setVisibility(Visibility::Visible, true);
+        mpv->seek((keys & pplay::InputMap::Previous) ? -seekLong : seekLong);
+    } else if (keys & (pplay::InputMap::VolumeUp | pplay::InputMap::VolumeDown)) {
+        changeVolume((keys & pplay::InputMap::VolumeUp) ? 1 : -1);
+    }
 }

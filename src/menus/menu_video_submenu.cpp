@@ -19,8 +19,7 @@ MenuVideoSubmenu::MenuVideoSubmenu(
     // highlight
     highlight_selection = new Highlight({MenuVideoSubmenu::getSize().x, BUTTON_HEIGHT * main->getScaling().y},
                                         Highlight::CursorPosition::Left);
-    highlight_selection->setFillColor(COLOR_ACCENT);
-    highlight_selection->setAlpha(60);
+    highlight_selection->setFillColor(COLOR_ACCENT, 60);
     highlight_selection->setCursorColor(COLOR_ACCENT);
     highlight_selection->setOrigin(Origin::Left);
     highlight_selection->setPosition(0, 200 * main->getScaling().y);
@@ -123,7 +122,6 @@ bool MenuVideoSubmenu::onInput(c2d::Input::Player *players) {
 
 void MenuVideoSubmenu::onUpdate() {
     Menu::onUpdate();
-    highlight_selection->setFillColor(COLOR_ACCENT);
-    highlight_selection->setAlpha(60);
+    highlight_selection->setFillColor(COLOR_ACCENT, 60);
     highlight_selection->setCursorColor(COLOR_ACCENT);
 }

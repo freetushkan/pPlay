@@ -12,6 +12,9 @@
 #include "utility.h"
 #include "menu_main_options_submenu.h"
 
+#include "keyboard.h"
+#include "i18n.h"
+
 using namespace c2d;
 
 MenuMainOptionsSubmenu::MenuMainOptionsSubmenu(
@@ -32,8 +35,7 @@ MenuMainOptionsSubmenu::MenuMainOptionsSubmenu(
     // highlight
     highlight_selection = new Highlight({MenuMainOptionsSubmenu::getSize().x, BUTTON_HEIGHT * main->getScaling().y},
                                         Highlight::CursorPosition::Left);
-    highlight_selection->setFillColor(COLOR_ACCENT);
-    highlight_selection->setAlpha(60);
+    highlight_selection->setFillColor(COLOR_ACCENT, 60);
     highlight_selection->setCursorColor(COLOR_ACCENT);
     highlight_selection->setOrigin(Origin::Left);
     highlight_selection->setPosition(0, 200 * main->getScaling().y);
@@ -51,33 +53,11 @@ namespace {
         oss << min << ":" << std::setfill('0') << std::setw(2) << sec;
         return oss.str();
     }
-
-#ifdef __PS4__
-    std::string formatUTCOffset(float hours) {
-        bool isNegative = hours < 0.0f;
-        float absHours = std::abs(hours);
-        int h = static_cast<int>(absHours);
-        int m = static_cast<int>(std::round((absHours - h) * 60.0f));
-        if (m == 60) {
-            h += 1;
-            m = 0;
-        }
-        std::ostringstream oss;
-        oss << (isNegative ? "-" : "+")
-            << h << ":"
-            << std::setfill('0') << std::setw(2) << m;
-        return oss.str();
-    }
-#endif
 }
 
 std::string MenuMainOptionsSubmenu::formatValue(float value) const {
     std::ostringstream oss;
-#ifdef __PS4__
-    if (option_name == OPT_UTC_OFFSET) {
-        return formatUTCOffset(value);
-    }
-#endif
+
     if (option_name == OPT_SEEK_SHORT_SEC
         || option_name == OPT_SEEK_LONG_SEC
         || option_name == OPT_NETWORK_TIMEOUT) {
@@ -135,6 +115,21 @@ void MenuMainOptionsSubmenu::updateSelectionHighlight() {
         return;
     }
 
+    if (menu_type == MenuType::TextInput && !buttons.empty()) {
+        buttons[0]->item.name = main->getConfig()->getOption(option_name)->getString();
+        if (buttons[0]->item.name.empty()) {
+            buttons[0]->item.name = "<empty>";
+        }
+        buttons[0]->refreshText();
+        highlight_selection->setVisibility(buttons[0]->isVisible() ? Visibility::Visible : Visibility::Hidden);
+        highlight_selection->tweenTo(buttons[0]->getPosition());
+        return;
+    }
+
+    if (option_name.empty()) {
+        return;
+    }
+
     if (value_type == ValueType::Integer) {
         const int value = (int) getCurrentValue();
         for (auto btn: buttons) {
@@ -152,16 +147,16 @@ void MenuMainOptionsSubmenu::updateSelectionHighlight() {
 void MenuMainOptionsSubmenu::refresh() {
     if (menu_type == MenuType::Adjust && buttons.size() >= 3) {
         highlight_selection->setVisibility(Visibility::Hidden);
-        buttons[0]->item.name = "Value: " + formatValue(getCurrentValue());
-        buttons[0]->name->setString(buttons[0]->item.name);
+        buttons[0]->item.name = pplay::tr("Value") + ": " + formatValue(getCurrentValue());
+        buttons[0]->refreshText();
         std::string stepStr = formatValue(step_value);
         if (stepStr[0] == '+' || stepStr[0] == '-') {
             stepStr = stepStr.substr(1);
         }
         buttons[1]->item.name = "-" + stepStr;
-        buttons[1]->name->setString(buttons[1]->item.name);
+        buttons[1]->refreshText();
         buttons[2]->item.name = "+" + stepStr;
-        buttons[2]->name->setString(buttons[2]->item.name);
+        buttons[2]->refreshText();
         return;
     }
 
@@ -180,7 +175,40 @@ void MenuMainOptionsSubmenu::setSelection(const std::string &name) {
     }
 }
 
+bool MenuMainOptionsSubmenu::editTextValue() {
+    auto *option = main->getConfig()->getOption(option_name);
+    const std::string oldValue = option->getString();
+    std::string newValue = oldValue;
+
+    if (!pplay::Keyboard::edit(title->getString(), newValue) || newValue == oldValue) {
+        return false;
+    }
+
+    option->setType(c2d::config::Option::Type::String);
+    option->setString(newValue);
+    main->getConfig()->save();
+    pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                        "Options: " + option_name + " changed from " + oldValue + " to " + newValue);
+    main->applyConfig();
+    refresh();
+    return true;
+}
+
 void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
+    if (menu_type == MenuType::TextInput) {
+        editTextValue();
+        return;
+    }
+
+    if (option_name.empty()) {
+        auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(item->name);
+        if (submenu != nullptr) {
+            setVisibility(Visibility::Hidden, true);
+            submenu->setVisibility(Visibility::Visible, true);
+        }
+        return;
+    }
+
     if (menu_type == MenuType::Adjust) {
         if (item->id != 0) {
             const std::string oldValue = formatValue(getCurrentValue());
@@ -189,6 +217,7 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
                                 "Options: " + option_name + " changed from " + oldValue
                                 + " to " + formatValue(getCurrentValue()));
+            main->applyConfig();
             refresh();
         }
         return;
@@ -215,6 +244,7 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
                                 "Options: " + option_name + " changed from " + oldValue
                                 + " to " + option->getString());
         }
+        main->applyConfig();
         refresh();
         return;
     }
@@ -240,6 +270,7 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
     main->getConfig()->save();
     pplay::Utility::log(pplay::Utility::LogLevel::Info,
         "Options: " + option_name + " changed from " + oldValue + " to " + newValue);
+    main->applyConfig();
     setSelection(item->name);
 }
 
@@ -253,6 +284,14 @@ void MenuMainOptionsSubmenu::setVisibility(c2d::Visibility visibility, bool twee
 bool MenuMainOptionsSubmenu::onInput(c2d::Input::Player *players) {
     if (players[0].buttons & Input::Right || players[0].buttons & Input::B) {
         setVisibility(Visibility::Hidden, true);
+        if (option_name.rfind("NETWORK", 0) == 0) {
+            auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(
+                    "Network " + option_name.substr(7, 1));
+            if (submenu != nullptr) {
+                submenu->setVisibility(Visibility::Visible, true);
+                return true;
+            }
+        }
         main->getMenuMain()->getMenuMainOptions()->setVisibility(Visibility::Visible, true);
         return true;
     }
@@ -263,8 +302,7 @@ bool MenuMainOptionsSubmenu::onInput(c2d::Input::Player *players) {
 }
 
 void MenuMainOptionsSubmenu::onUpdate() {
-    highlight_selection->setFillColor(COLOR_ACCENT);
-    highlight_selection->setAlpha(60);
+    highlight_selection->setFillColor(COLOR_ACCENT, 60);
     highlight_selection->setCursorColor(COLOR_ACCENT);
     Menu::onUpdate();
 }

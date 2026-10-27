@@ -9,21 +9,29 @@
 
 using namespace c2d;
 
+// setAlpha() (parents fade) multiplies the base colors alpha instead of replacing it.
+static uint8_t scaleAlpha(uint8_t base, uint8_t factor) {
+    return (uint8_t) (((unsigned int) base * (unsigned int) factor + 127) / 255);
+}
+
 Highlight::Highlight(const c2d::Vector2f &size, const CursorPosition &pos) : Rectangle(size) {
-
+    hlDirection = pos == CursorPosition::Left ?
+                        GradientRectangle::Direction::Right :
+                        GradientRectangle::Direction::Left;
     gradientRectangle = new GradientRectangle({0, 0, size.x, size.y});
-    gradientRectangle->setColor(COLOR_HIGHLIGHT, Color::Transparent,
-                                pos == CursorPosition::Left ? GradientRectangle::Direction::Right
-                                                            : GradientRectangle::Direction::Left);
     Highlight::add(gradientRectangle);
-    hlFillColor = COLOR_HIGHLIGHT;
 
-    cursor = new RectangleShape(Vector2f{6, size.y});
-    cursor->setFillColor(COLOR_ACCENT);
+    cursorPosition = pos;
+    float cursorWidth = 6;
+    cursor = new RectangleShape(Vector2f{cursorWidth, size.y});
     if (pos == CursorPosition::Right) {
-        cursor->move(size.x - 4, 0);
+        cursor->move(size.x - cursorWidth, 0);
     }
     Highlight::add(cursor);
+
+    hlFillColor = COLOR_HIGHLIGHT;
+    hlCursorColor = COLOR_ACCENT;
+    applyColors();
 
     tween = new TweenPosition(Highlight::getPosition(),
                               Highlight::getPosition(), (float) INPUT_DELAY / 2);
@@ -31,22 +39,53 @@ Highlight::Highlight(const c2d::Vector2f &size, const CursorPosition &pos) : Rec
     Highlight::add(tween);
 }
 
-void Highlight::setAlpha(uint8_t alpha, bool  /*recursive*/) {
-    if (alpha <= COLOR_HIGHLIGHT.a) {
-        gradientRectangle->setAlpha(alpha);
+void Highlight::applyColors() {
+    c2d::Color fill = hlFillColor;
+    fill.a = scaleAlpha(hlFillColor.a, hlAlpha);
+    gradientRectangle->setColor(fill, Color::Transparent, hlDirection);
+
+    c2d::Color cur = hlCursorColor;
+    cur.a = scaleAlpha(hlCursorColor.a, hlAlpha);
+    cursor->setFillColor(cur);
+}
+
+void Highlight::setAlpha(uint8_t alpha, bool /*recursive*/) {
+    if (alpha != hlAlpha) {
+        hlAlpha = alpha;
+        applyColors();
     }
-    cursor->setAlpha(alpha);
+}
+
+uint8_t Highlight::getAlpha() {
+    return hlAlpha;
 }
 
 void Highlight::setFillColor(const c2d::Color &color) {
-    if (hlFillColor != color) {
+    if (color != hlFillColor) {
         hlFillColor = color;
-        gradientRectangle->setColor(color, Color::Transparent);
+        applyColors();
     }
 }
 
+void Highlight::setFillColor(const c2d::Color &color, uint8_t alpha) {
+    c2d::Color c = color;
+    c.a = alpha;
+    setFillColor(c);
+}
+
 void Highlight::setCursorColor(const c2d::Color &color) {
-    cursor->setFillColor(color);
+    if (color != hlCursorColor) {
+        hlCursorColor = color;
+        applyColors();
+    }
+}
+
+void Highlight::setWidth(float width) {
+    setSize(width, getSize().y);
+    gradientRectangle->setSize(width, getSize().y);
+    if (cursorPosition == CursorPosition::Right) {
+        cursor->setPosition(width - cursor->getSize().x, 0);
+    }
 }
 
 void Highlight::tweenTo(const c2d::Vector2f &position) {

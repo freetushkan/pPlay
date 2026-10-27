@@ -25,11 +25,20 @@ public:
 
     bool load(const MediaFile &file, bool firstTry = true, const std::string &options = "pause=yes");
 
+    // file opened in the player? (paths may be spelled differently)
+    bool isPlaying(const std::string &path);
+
     void pause();
 
     void resume();
 
     void stop();
+
+    // settings changed
+    void applyConfig();
+
+    // pplay::InputMap media buttons
+    void onMediaKeys(unsigned int keys);
 
     void setSpeed(double speed);
 
@@ -96,6 +105,7 @@ private:
     MenuVideoSubmenu *menuPlaylist = nullptr;
     MenuVideoSubmenu *menuPlaybackMode = nullptr;
     MediaFile file;
+    std::string playingKey;
     std::vector<MediaFile> autoplayFiles;
     int retryCount = 0;
     long lastProgressSave = 0;
@@ -103,10 +113,6 @@ private:
     long lastKnownPosition = 0;
     long startPlaybackPosition = -1;
     c2d::C2DClock messageClock;
-#ifdef __PS4__
-    c2d::C2DClock pauseClock;
-    bool pausedHttpsStream = false;
-#endif
     bool frameDrawn = false;
 
     // player

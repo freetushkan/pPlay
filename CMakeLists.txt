@@ -56,6 +56,8 @@ file(GLOB PPLAY_SRC
         src/filer/ftplib/*.c*
         src/menus/*.c*
         src/player/*.c*
+        src/app/*.c*
+        src/net/*.c*
     )
 
 # includes
@@ -66,6 +68,8 @@ set(PPLAY_INC
         src/filer/ftplib
         src/menus
         src/player
+        src/app
+        src/net
         ${MPV_INCLUDE_DIRS}
         ${ASS_INCLUDE_DIRS}
         ${FFMPEG_INCLUDE_DIRS}
@@ -131,15 +135,28 @@ elseif (PLATFORM_PS4)
     list(APPEND PPLAY_LDFLAGS
             archive turbojpeg opus freetype fribidi png bz2
         )
-    if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/libjbc/jailbreak.c")
-        message(STATUS "Found libjbc")
-        list(APPEND PPLAY_SRC 
-            src/libjbc/jailbreak.c 
-            src/libjbc/kernelrw.c 
-            src/libjbc/utils.c
-        )
-        list(APPEND PPLAY_INC src)
-    endif()
+    # clock ids, socket flags, timezone
+    list(APPEND PPLAY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/ps4/ps4_compat.c)
+    # /data/pplay/crash.log
+    list(APPEND PPLAY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/ps4/crashlog.c)
+    # param.sfo ATTRIBUTE 0x20: system enter button in the common dialogs (IME)
+    set(PS4_PKG_ATTRIBUTE "32" CACHE STRING "PS4 param.sfo ATTRIBUTE (decimal)")
+    set(PS4_PKG_CATEGORY "gde" CACHE STRING "PS4 param.sfo CATEGORY")
+    # optional: root credentials (libjbc)
+    set(OPTION_PS4_JAILBREAK OFF CACHE BOOL "PS4: jailbreak the process at startup (needs src/libjbc)")
+    if (OPTION_PS4_JAILBREAK)
+        if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/libjbc/jailbreak.c")
+            message(FATAL_ERROR "OPTION_PS4_JAILBREAK needs libjbc sources in src/libjbc")
+        endif ()
+        message(STATUS "PS4: jailbreak enabled (libjbc)")
+        list(APPEND PPLAY_SRC
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/ps4/orbis_jbc.c
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/libjbc/jailbreak.c
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/libjbc/kernelrw.c
+                ${CMAKE_CURRENT_SOURCE_DIR}/src/libjbc/utils.c
+            )
+        list(APPEND PPLAY_CFLAGS -DPPLAY_PS4_JAILBREAK)
+    endif ()
 elseif (PLATFORM_PS5)
     #####################
     # PS5 PLATORM
@@ -151,6 +168,12 @@ elseif (PLATFORM_PS5)
             ass fribidi freetype fontconfig harfbuzz png bz2 lzma
             curl psl ssl crypto m
         )
+    # full static link line from pkg-config (portlibs dependencies change with the SDK)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(PS5_PC REQUIRED
+            mpv libavdevice libavfilter libavformat libavcodec
+            libswscale libswresample libavutil libass libcurl)
+    list(APPEND PPLAY_LDFLAGS ${PS5_PC_STATIC_LIBRARIES})
 elseif (PLATFORM_LINUX)
     #####################
     # LINUX PLATORM
@@ -188,14 +211,30 @@ add_executable(${CMAKE_PROJECT_NAME} ${PPLAY_SRC})
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${PPLAY_INC})
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE ${PPLAY_CFLAGS})
 target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>)
+if (PLATFORM_PS4 OR PLATFORM_PS5)
+    target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>)
+    if (TARGET cross2d)
+        target_compile_options(cross2d PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>)
+    endif ()
+endif ()
 set(PLATFORM_LIBS)
 if (PLATFORM_SWITCH)
     list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509 nx)
 elseif (PLATFORM_PS4)
-    list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509 SceNet)
+    list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509
+        SceNet SceImeDialog SceUserService SceSystemService SceSysmodule ScePad
+    )
 elseif (PLATFORM_PS5)
+    list(APPEND PLATFORM_LIBS SceNet SceImeDialog SceUserService SceSystemService)
     set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES SUFFIX ".elf")
     set(CMAKE_EXECUTABLE_SUFFIX ".elf")
+    # payload started by the launcher package (ps5/launcher)
+    set(PS5_PKG_TITLE_ID "PPLA00005" CACHE STRING "PS5 launcher package title id")
+    add_executable(pplay_loader ps5/loader/loader.c
+        ps5/loader/hbldr/hbldr.c ps5/loader/hbldr/elfldr.c ps5/loader/hbldr/pt.c)
+    set_target_properties(pplay_loader PROPERTIES SUFFIX ".elf")
+    target_link_libraries(pplay_loader zstd kernel_sys SceSystemService SceUserService)
+    target_compile_definitions(pplay_loader PRIVATE PPLAY_TITLE_ID="${PS5_PKG_TITLE_ID}")
 elseif (PLATFORM_LINUX)
     list(APPEND PLATFORM_LIBS mbedtls mbedcrypto)
 endif ()
@@ -209,6 +248,21 @@ if(NOT MSVC)
         target_link_options(${CMAKE_PROJECT_NAME} PRIVATE "LINKER:--error-limit=0")
     endif()
 endif()
+if (PLATFORM_PS4)
+    # see src/ps4/ps4_compat.c
+    target_link_options(${CMAKE_PROJECT_NAME} PRIVATE
+            "LINKER:--wrap=clock_gettime"
+            "LINKER:--wrap=clock_getres"
+            "LINKER:--wrap=pthread_condattr_setclock"
+            "LINKER:--wrap=send"
+            "LINKER:--wrap=recv"
+            "LINKER:--wrap=sendto"
+            "LINKER:--wrap=recvfrom")
+    # libcross2d calls add_pkg() without attribute/category: forward ours
+    function(add_pkg project pkgdir title_id title version)
+        _add_pkg(${project} ${pkgdir} ${title_id} "${title}" ${version} ${PS4_PKG_ATTRIBUTE} ${PS4_PKG_CATEGORY})
+    endfunction()
+endif ()
 
 #####################
 # targets

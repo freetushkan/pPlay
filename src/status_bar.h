@@ -25,6 +25,9 @@ public:
 private:
 
     Main *main;
+#ifdef __PS4__
+    c2d::C2DClock tzClock;
+#endif
 };
 
 #endif //PPLAY_STATUSBAR_H
