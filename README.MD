@@ -31,17 +31,22 @@ Installation
   - **Manual:** extract `pPlay-PS5.zip` to `/data/homebrew/pplay` and start `pplay.elf` from the Homebrew Launcher (websrv).
 - **Switch:** put the `.nro` file from latest `pPlay-Switch.zip` to your launcher root.
 
-Usage
+Usage and controls
 -----
+| Action | Keyboard / Remote | PS5 Controller | Switch Controller |
+| :--- | :--- | :--- | :--- |
+| Move / Switch windows | Arrows (or Numpad) | Analog Sticks / D-Pad | Analog Sticks / D-Pad |
+| Confirm (OK) / Pause | `Enter` / `Space` | `CROSS` | `A` |
+| Back / Minimize player | `Esc` / `Backspace` | `CIRCLE` | `B` |
+| Menu / Track selection | `X` / `Menu` | `SQUARE` | `Y` |
+| Secondary action | `Y` / `Delete` | `TRIANGLE` | `X` |
+| Rewind / Speed (`LT`/`RT`) | `[` / `]` | `L2` / `R2` | `ZL` / `ZR` |
+| Previous / Next (`LB`/`RB`) | `PageUp` / `PageDown` | `L1` / `R1` | `L` / `R` |
+| Start | `F1` | `Options` | `+` |
+| Volume control (in player) | — | `UP` / `DOWN` | `UP` / `DOWN` |
+| Brightness control (in player) | — | `TRIANGLE` + `UP`/`DOWN` | `X` + `UP`/`DOWN` |
 
-- Use `LEFT/RIGHT` to switch interface sections and windows.
-- During playback:
-  - `LT/RT` / `LB/RB` — rewind/speed (can be swaped in settings);
-  - `UP/DOWN` — volume control;
-  - `CROSS` — pause playback;
-  - `SQUARE` — open video/audio/subtitle track selection;
-  - `CIRCLE` — minimize player;
-  - `TRIANGLE` + `UP/DOWN` — brightness control;
+Media keys and TV remotes are supported (PS5).
 
 Fork additions
 ----
@@ -71,18 +76,6 @@ Settings = Настройки     # english text = translation
 ```
 
 `lang/en.lang` lists every key: copy it to start a new language.
-
-Keyboard and remotes
-----
-
-Linux keyboard: arrows (or numpad) move, `Enter` = A (ok), `Esc` / `Backspace` = B (back), `X` / `Menu` = X (menu),
-`Y` / `Delete` = Y, `PageUp` / `PageDown` = LB / RB, `[` / `]` = LT / RT (seek), `F1` = Start, `Space` = play/pause.
-Media keys and TV remotes (HDMI-CEC keys exposed as keyboard keys: ok, back, menu, play, pause, stop, next, previous,
-rewind, fast forward, volume) are supported. Unknown keys / buttons are written to the log (`LOG_LEVEL` 2 or more) as
-`Input: unknown ...` lines, ready to be added to `src/app/input_map.cpp`.
-The input devices are listed in the log at startup (`Input: device ...`). Devices other than the first one
-(the PS5 TV remote is a separate controller, devices connected later...) are handled too, with auto repeat:
-buttons as mapped for the first controller (d-pad, A, B, X, Y, LB, RB, Start, Select...) and unused hats.
 
 Network types
 ----
