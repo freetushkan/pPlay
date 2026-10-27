@@ -117,6 +117,8 @@ namespace pplay::Platform {
 #ifdef NDEBUG
         socketInitializeDefault();
 #endif
+        // mbedTLS entropy (ffmpeg TLS)
+        csrngInitialize();
         appletMainLoop();
 #elif __PS5__
         signal(SIGPIPE, SIG_IGN);
@@ -178,6 +180,7 @@ namespace pplay::Platform {
 #ifdef NDEBUG
         socketExit();
 #endif
+        csrngExit();
 #elif __PS4__
 #ifdef PPLAY_PS4_JAILBREAK
         terminate_jbc();

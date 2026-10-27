@@ -47,7 +47,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/compiled_libs
-          key: switch-v1
+          key: switch-v2
 
       - name: Build libusbhsfs
         if: steps.switch-cache.outputs.cache-hit != 'true'

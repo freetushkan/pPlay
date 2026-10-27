@@ -219,7 +219,7 @@ if (PLATFORM_PS4 OR PLATFORM_PS5)
 endif ()
 set(PLATFORM_LIBS)
 if (PLATFORM_SWITCH)
-    list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509 nx)
+    list(APPEND PLATFORM_LIBS mbedtls mbedx509 mbedcrypto nx)
 elseif (PLATFORM_PS4)
     list(APPEND PLATFORM_LIBS mbedtls mbedcrypto mbedx509
         SceNet SceImeDialog SceUserService SceSystemService SceSysmodule ScePad
