@@ -38,8 +38,8 @@ Usage and controls
 | Move / Switch windows | Analog Sticks / D-Pad | Analog Sticks / D-Pad | Arrows (or Numpad) |
 | Confirm (OK) / Pause | `CROSS` | `A` | `Enter` / `Space` |
 | Back / Minimize player | `CIRCLE` | `B` | `Esc` / `Backspace` |
-| Menu / Track selection | `SQUARE` | `Y` | `X` / `Menu` |
-| Secondary action | `TRIANGLE` | `X` | `Y` / `Delete` |
+| Menu / Track selection | `SQUARE` | `X` | `X` / `Menu` |
+| Secondary action | `TRIANGLE` | `Y` | `Y` / `Delete` |
 | Rewind / Speed (`LT`/`RT`) | `L2` / `R2` | `ZL` / `ZR` | `[` / `]` |
 | Previous / Next (`LB`/`RB`) | `L1` / `R1` | `L` / `R` | `PageUp` / `PageDown` |
 | Start | `Options` | `+` | `F1` |
