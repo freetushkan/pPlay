@@ -53,6 +53,8 @@ namespace pplay {
 
         static std::string formatSize(size_t size);
 
+        static LogLevel getLogLevel();
+
         static void setLogLevel(LogLevel level);
         
         static void log(LogLevel level, const std::string &message);

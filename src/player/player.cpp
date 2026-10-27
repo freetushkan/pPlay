@@ -437,6 +437,30 @@ bool Player::scheduleReload(const std::string &reason, bool counted) {
     return true;
 }
 
+void Player::updateMpvLog() {
+    auto level = (int) pplay::Utility::getLogLevel();
+    if (level == mpvLogLevel) {
+        return;
+    }
+    mpvLogLevel = level;
+    // Error: errors, Info: warnings, Debug: verbose (network, streams), Trace: debug
+    static const char *levels[] = {"no", "error", "warn", "v", "debug"};
+    mpv_request_log_messages(mpv->getHandle(), levels[std::max(0, std::min(level, 4))]);
+}
+
+void Player::onMpvLog(const mpv_event_log_message *message) {
+    std::string text = message->text ? message->text : "";
+    while (!text.empty() && (text.back() == '\n' || text.back() == '\r')) {
+        text.pop_back();
+    }
+    auto level = message->log_level <= MPV_LOG_LEVEL_ERROR ? pplay::Utility::LogLevel::Error
+               : message->log_level <= MPV_LOG_LEVEL_WARN ? pplay::Utility::LogLevel::Info
+               : message->log_level <= MPV_LOG_LEVEL_V ? pplay::Utility::LogLevel::Debug
+               : pplay::Utility::LogLevel::Trace;
+    pplay::Utility::log(level, std::string("mpv[") + (message->prefix ? message->prefix : "") + "] "
+                               + (message->level ? message->level : "") + ": " + text);
+}
+
 void Player::updateWatchdog() {
     double time = mpv->getTime();
     if (time < 0) {
@@ -532,8 +556,13 @@ void Player::onUpdate() {
                 + " duration=" + std::to_string(duration));
             lastProgressSave = position;
         }
-        mpv_event *event = mpv->getEvent();
-        if (event != nullptr) {
+        updateMpvLog();
+        // all the queued events (log messages may come by many)
+        for (int count = 0; count < 128; count++) {
+            mpv_event *event = mpv->getEvent();
+            if (event == nullptr || event->event_id == MPV_EVENT_NONE) {
+                break;
+            }
             switch (event->event_id) {
                 case MPV_EVENT_START_FILE:
                     printf("MPV_EVENT_START_FILE\n");
@@ -561,6 +590,9 @@ void Player::onUpdate() {
                     playingKey.clear();
                     onStopEvent(((mpv_event_end_file *) event->data)->reason);
                     main->getFiler()->refresh();
+                    break;
+                case MPV_EVENT_LOG_MESSAGE:
+                    onMpvLog((mpv_event_log_message *) event->data);
                     break;
                 default:
                     break;

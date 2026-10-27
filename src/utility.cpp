@@ -230,6 +230,10 @@ void Utility::setLogLevel(Utility::LogLevel level) {
     g_logLevel = level;
 }
 
+Utility::LogLevel Utility::getLogLevel() {
+    return g_logLevel;
+}
+
 void Utility::log(Utility::LogLevel level, const std::string &message) {
     if ((int) level > (int) g_logLevel || g_logLevel == Utility::LogLevel::Off) {
         return;

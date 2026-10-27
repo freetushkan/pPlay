@@ -97,6 +97,10 @@ private:
 
     void updateWatchdog();
 
+    void updateMpvLog();
+
+    void onMpvLog(const mpv_event_log_message *message);
+
     // ui
     Main *main = nullptr;
     PlayerOSD *osd = nullptr;
@@ -125,6 +129,7 @@ private:
     bool reloadPaused = false;
     bool skipStopEvent = false;
     c2d::C2DClock reloadClock;
+    int mpvLogLevel = -1;
     double watchTime = -1;
     long watchFrame = -1;
     double watchCache = -1;
