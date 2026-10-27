@@ -33,18 +33,19 @@ Installation
 
 Usage and controls
 -----
-| Action | Keyboard / Remote | PS5 Controller | Switch Controller |
+| Action | PS4 / PS5 | Switch | Keyboard / Remote |
 | :--- | :--- | :--- | :--- |
-| Move / Switch windows | Arrows (or Numpad) | Analog Sticks / D-Pad | Analog Sticks / D-Pad |
-| Confirm (OK) / Pause | `Enter` / `Space` | `CROSS` | `A` |
-| Back / Minimize player | `Esc` / `Backspace` | `CIRCLE` | `B` |
-| Menu / Track selection | `X` / `Menu` | `SQUARE` | `Y` |
-| Secondary action | `Y` / `Delete` | `TRIANGLE` | `X` |
-| Rewind / Speed (`LT`/`RT`) | `[` / `]` | `L2` / `R2` | `ZL` / `ZR` |
-| Previous / Next (`LB`/`RB`) | `PageUp` / `PageDown` | `L1` / `R1` | `L` / `R` |
-| Start | `F1` | `Options` | `+` |
-| Volume control (in player) | — | `UP` / `DOWN` | `UP` / `DOWN` |
-| Brightness control (in player) | — | `TRIANGLE` + `UP`/`DOWN` | `X` + `UP`/`DOWN` |
+| Move / Switch windows | Analog Sticks / D-Pad | Analog Sticks / D-Pad | Arrows (or Numpad) |
+| Confirm (OK) / Pause | `CROSS` | `A` | `Enter` / `Space` |
+| Back / Minimize player | `CIRCLE` | `B` | `Esc` / `Backspace` |
+| Menu / Track selection | `SQUARE` | `Y` | `X` / `Menu` |
+| Secondary action | `TRIANGLE` | `X` | `Y` / `Delete` |
+| Rewind / Speed (`LT`/`RT`) | `L2` / `R2` | `ZL` / `ZR` | `[` / `]` |
+| Previous / Next (`LB`/`RB`) | `L1` / `R1` | `L` / `R` | `PageUp` / `PageDown` |
+| Start | `Options` | `+` | `F1` |
+| Volume control (in player) | `UP` / `DOWN` | `UP` / `DOWN` | — |
+| Brightness control (in player) | `TRIANGLE` + `UP`/`DOWN` | `X` + `UP`/`DOWN` | — |
+
 
 Media keys and TV remotes are supported (PS5).
 
