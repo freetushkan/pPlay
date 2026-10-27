@@ -95,6 +95,15 @@ public:
 
     long getCacheSpeed();
 
+    // buffered ahead (seconds), -1 if none
+    double getCacheDuration();
+
+    // displayed video frame, -1 if none
+    long getFrameNumber();
+
+    // a video track, not a cover picture
+    bool hasMovingVideo();
+
     bool isStopped();
 
     bool isPaused();

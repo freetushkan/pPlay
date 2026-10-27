@@ -126,6 +126,9 @@ private:
     bool skipStopEvent = false;
     c2d::C2DClock reloadClock;
     double watchTime = -1;
+    long watchFrame = -1;
+    double watchCache = -1;
+    c2d::C2DClock watchLogClock;
     double lastTime = 0;
     bool userPaused = false;
     c2d::C2DClock stallClock;

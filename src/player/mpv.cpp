@@ -580,6 +580,32 @@ long Mpv::getCacheSpeed() {
     return (long) speed;
 }
 
+double Mpv::getCacheDuration() {
+    double duration = -1;
+    if (logged_mpv_get_property(handle, "demuxer-cache-duration", MPV_FORMAT_DOUBLE, &duration) < 0) {
+        return -1;
+    }
+    return duration;
+}
+
+long Mpv::getFrameNumber() {
+    int64_t frame = -1;
+    if (logged_mpv_get_property(handle, "estimated-frame-number", MPV_FORMAT_INT64, &frame) < 0) {
+        return -1;
+    }
+    return (long) frame;
+}
+
+bool Mpv::hasMovingVideo() {
+    int64_t id = -1;
+    if (logged_mpv_get_property(handle, "current-tracks/video/id", MPV_FORMAT_INT64, &id) < 0) {
+        return false;
+    }
+    int albumArt = 0;
+    logged_mpv_get_property(handle, "current-tracks/video/albumart", MPV_FORMAT_FLAG, &albumArt);
+    return albumArt == 0;
+}
+
 bool Mpv::isAvailable() {
     return handle != nullptr;
 }

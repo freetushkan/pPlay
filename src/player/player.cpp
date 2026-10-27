@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <sstream>
 #include "main.h"
 #include "player.h"
@@ -123,6 +124,8 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     }
     reloadPending = false;
     watchTime = -1;
+    watchFrame = -1;
+    watchCache = -1;
     stallClock.restart();
     progressClock.restart();
     lastProgressSave = 0;
@@ -440,10 +443,34 @@ void Player::updateWatchdog() {
         return;
     }
     bool paused = mpv->isPaused();
+    bool cachePaused = mpv->isPausedForCache();
+    double cache = mpv->getCacheDuration();
+    long frame = mpv->getFrameNumber();
+    bool video = mpv->hasMovingVideo();
     userPaused = paused;
-    if (std::fabs(time - watchTime) > 0.05) {
+
+    auto state = [&]() {
+        char buf[192];
+        snprintf(buf, sizeof(buf), "time=%.2f frame=%ld video=%d pause=%d cache-pause=%d cache=%.1fs cache-speed=%ld",
+                 time, frame, video ? 1 : 0, paused ? 1 : 0, cachePaused ? 1 : 0, cache, mpv->getCacheSpeed());
+        return std::string(buf);
+    };
+    if (watchLogClock.getElapsedTime().asSeconds() >= 5) {
+        watchLogClock.restart();
+        pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Player: watch " + state());
+    }
+
+    // progress: the time moves, and the frames too for a video (a stuck decoder
+    // or video output can leave the time running)
+    bool timeMoved = std::fabs(time - watchTime) > 0.05;
+    bool frameMoved = !video || frame != watchFrame;
+    if (timeMoved) {
         watchTime = time;
         lastTime = time;
+    }
+    watchFrame = frame;
+    if (timeMoved && frameMoved) {
+        watchCache = cache;
         stallClock.restart();
         if (retryCount > 0 && progressClock.getElapsedTime().asSeconds() >= 10) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: playback recovered");
@@ -451,8 +478,15 @@ void Player::updateWatchdog() {
         }
         return;
     }
-    // paused by the user, or data still coming (slow source): not stalled
-    if ((paused && !mpv->isPausedForCache()) || mpv->getCacheSpeed() > 0) {
+    if (paused && !cachePaused) {
+        stallClock.restart();
+        return;
+    }
+
+    // data still coming (slow source): the buffer grows. Not "cache-speed": the
+    // demuxer thread updates it, it keeps its last value while a read hangs.
+    if (cache > watchCache + 0.1) {
+        watchCache = cache;
         stallClock.restart();
         return;
     }
@@ -460,6 +494,7 @@ void Player::updateWatchdog() {
     float stallSec = (float) std::max(timeout * 2, 20);
     if (stallClock.getElapsedTime().asSeconds() >= stallSec) {
         stallClock.restart();
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: stalled, " + state());
         scheduleReload("stalled " + std::to_string((int) stallSec) + " s", false);
     }
 }
