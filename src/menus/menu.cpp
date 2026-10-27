@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <cmath>
 #include <unordered_map>
 
 #include "cross2d/c2d.h"
@@ -10,6 +11,7 @@
 #include "menu.h"
 #include "utility.h"
 #include "i18n.h"
+#include "clip_rect.h"
 
 using namespace c2d;
 
@@ -92,22 +94,15 @@ namespace {
 }
 
 namespace {
-    struct TextScroll {
-        std::string scrolledText;
-        long long waitTimer = 1500;
-        long long startMs = 0;
-        long long lastCharMs = 0;
-        bool isWaiting = true;
-    };
-    std::unordered_map<MenuButton*, TextScroll> g_btnScrolls;
+    // the selected item text scrolls (by pixel) when it doesn't fit: pause, one
+    // turn, pause...
+#define SCROLL_WAIT_MS 1500
+#define SCROLL_SPEED 90.0f    // pixels per second at 1080p
+#define SCROLL_GAP "     "
     c2d::C2DClock g_menuScrollClock;
 
-    size_t getLen(unsigned char ch) {
-        if ((ch & 0x80) == 0) return 1;
-        if ((ch & 0xE0) == 0xC0) return 2;
-        if ((ch & 0xF0) == 0xE0) return 3;
-        if ((ch & 0xF4) == 0xF0) return 4;
-        return 1;
+    long long scrollNowMs() {
+        return (long long) g_menuScrollClock.getElapsedTime().asMilliseconds();
     }
 
     std::string sanitizeText(const std::string &input) {
@@ -143,22 +138,29 @@ std::string MenuItem::text() const {
 }
 
 void MenuButton::refreshText() {
-    // scroll the text when it doesn't fit
     name->setSizeMax(0, 0);
     name->setString(item.text());
-    bool tooLong = name->getLocalBounds().width > maxTextWidth;
+    scrollable = name->getLocalBounds().width > maxTextWidth;
+    scrolling = false;
+    scrollStartMs = -1;
+    showStatic();
+}
+
+void MenuButton::showStatic() {
+    // cut by character, as before
+    name->setString(item.text());
     name->setSizeMax(maxTextWidth, MenuButton::getSize().y);
-    auto it = g_btnScrolls.find(this);
-    if (tooLong) {
-        if (it == g_btnScrolls.end()) {
-            g_btnScrolls[this] = TextScroll();
-        } else {
-            it->second.startMs = 0;
-            it->second.isWaiting = true;
-        }
-    } else if (it != g_btnScrolls.end()) {
-        g_btnScrolls.erase(it);
-    }
+    name->setPosition(0, clip->getSize().y / 2);
+}
+
+void MenuButton::startScroll() {
+    // text, gap, text: at one turn (text + gap width) it looks like the start
+    std::string text = sanitizeText(item.text());
+    name->setSizeMax(0, 0);
+    name->setString(text);
+    float single = name->getLocalBounds().width;
+    name->setString(text + SCROLL_GAP + text);
+    scrollCycle = std::max(1.0f, name->getLocalBounds().width - single);
 }
 
 MenuButton::MenuButton(Main *main, const MenuItem &item, const FloatRect &rect) : Rectangle(rect) {
@@ -190,71 +192,47 @@ MenuButton::MenuButton(Main *main, const MenuItem &item, const FloatRect &rect) 
     float maxWidth = std::max(0.0f, MenuButton::getSize().x - textX - rightPadding);
 
     maxTextWidth = maxWidth;
-    name->setPosition(textX, MenuButton::getSize().y / 2);
-    if (name->getLocalBounds().width > maxWidth) {
-        TextScroll scroll;
-        scroll.scrolledText = "";
-        scroll.startMs = 0;
-        scroll.lastCharMs = 0;
-        g_btnScrolls[this] = scroll;
-    }
-    name->setSizeMax(maxWidth, MenuButton::getSize().y);
-    MenuButton::add(name);
+    scrollSpeed = SCROLL_SPEED * main->getScaling().x;
+    clip = new pplay::ClipRect({textX, 0, maxWidth, MenuButton::getSize().y});
+    clip->add(name);
+    MenuButton::add(clip);
+    refreshText();
 }
 
 void MenuButton::onUpdate() {
     Rectangle::onUpdate();
-    auto it = g_btnScrolls.find(this);
-    if (!this->isVisible() || it == g_btnScrolls.end()) {
+    if (!scrollable || !isVisible()) {
         return;
     }
-    TextScroll &s = it->second;
-    long long raw_ms = g_menuScrollClock.getElapsedTime().asMilliseconds();
-    if (!this->selected) {
-        if (!s.isWaiting || s.startMs != 0) {
-            pplay::Utility::log(pplay::Utility::LogLevel::Trace,
-                "MenuButton::onUpdate: focus lost.");
+    if (!selected) {
+        if (scrollStartMs >= 0) {
+            scrolling = false;
+            scrollStartMs = -1;
+            showStatic();
         }
-        s.isWaiting = true;
-        s.startMs = 0;
-        name->setString(this->item.text());
-    } else {
-        if (s.startMs == 0) {
-            s.scrolledText = sanitizeText(this->item.text()) + "     ";
-            s.startMs = raw_ms;
-            s.lastCharMs = raw_ms;
-            pplay::Utility::log(pplay::Utility::LogLevel::Trace,
-                "MenuButton::onUpdate: focused.");
-        } 
-        else if (s.isWaiting && (raw_ms - s.startMs) >= s.waitTimer) {
-            s.isWaiting = false;
-            s.lastCharMs = raw_ms;
-            pplay::Utility::log(pplay::Utility::LogLevel::Trace,
-                "MenuButton::onUpdate: scrolling started.");
-        } 
-        else if (!s.isWaiting && (raw_ms - s.lastCharMs) >= 200) {
-            long long delta = raw_ms - s.lastCharMs;
-            s.lastCharMs = raw_ms;
-            if (!s.scrolledText.empty()) {
-                size_t charLen = getLen(
-                    static_cast<unsigned char>(s.scrolledText[0]));
-                if (charLen <= s.scrolledText.length()) {
-                    std::string first_char = s.scrolledText.substr(0, charLen);
-                    s.scrolledText.erase(0, charLen);
-                    s.scrolledText += first_char;
-                    name->setString(s.scrolledText);
-                    pplay::Utility::log(pplay::Utility::LogLevel::Trace,
-                        "MenuButton::onUpdate: [Scroll Tick] Delta: "
-                        + std::to_string(delta));
-                }
-            }
-        }
+        return;
     }
+
+    long long now = scrollNowMs();
+    if (scrollStartMs < 0) {
+        scrollStartMs = now;
+        return;
+    }
+    long long elapsed = now - scrollStartMs - SCROLL_WAIT_MS;
+    if (elapsed < 0) {
+        return;
+    }
+    if (!scrolling) {
+        startScroll();
+        scrolling = true;
+    }
+    auto turnMs = (long long) (scrollCycle / scrollSpeed * 1000.0f);
+    long long phase = elapsed % (turnMs + SCROLL_WAIT_MS);
+    float offset = phase < turnMs ? (float) phase * scrollSpeed / 1000.0f : 0;
+    name->setPosition(-std::round(offset), clip->getSize().y / 2);
 }
 
-MenuButton::~MenuButton() {
-    g_btnScrolls.erase(this);
-}
+MenuButton::~MenuButton() = default;
 
 Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title,
            const std::vector<MenuItem> &items, bool left) : RectangleShape(rect) {

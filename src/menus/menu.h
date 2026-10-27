@@ -63,6 +63,20 @@ public:
     c2d::Text *name = nullptr;
     bool selected = false;
     float maxTextWidth = 0;
+
+private:
+
+    void showStatic();
+
+    void startScroll();
+
+    // the text, clipped at maxTextWidth
+    c2d::Rectangle *clip = nullptr;
+    bool scrollable = false;
+    bool scrolling = false;
+    long long scrollStartMs = -1;
+    float scrollCycle = 0;
+    float scrollSpeed = 0;
 };
 
 class Menu : public c2d::RectangleShape {
