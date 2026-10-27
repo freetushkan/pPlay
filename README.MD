@@ -11,23 +11,25 @@ pPlay
 pPlay is a video player, built around **MPV/FFmpeg**, that supports most popular video format, subtitles, network streaming and more
 
 Supported features:
-- local media playback;
-- network sources (`http://`, `https://`, `ftp://`), WebDAV;
-- SMB/Samba (`smb://`);
-- TorrServer;
-- subtitles and standard playback navigation.
+- Local and network media playback;
+- Subtitles, audio, and video tracks selection;
+- Playback modes and standard navigation;
+- SSL verification support.
+
+Supported protocols & networks:
+- HTTP(S), FTP, WebDAV, and SMB/Samba (`smb://`);
+- TorrServer client integration.
 
 pPlay uses the [MPV](https://mpv.io/) interface to handle FFmpeg interoperability, providing a fast, stable and powerful playback experience.
 
 Installation
 ----
-
-- **PS4:** just install the `.pkg` file from latest release.
-- **PS5:** install the `.pkg` file from latest release (a PS4 fpkg, needs `elfldr` listening on port 9021).
-  The package copies pPlay to `/data/homebrew/pplay` (and `libOSMesa.so.8` to `/user/homebrew/lib`), then starts it as the
-  running application.
-  Alternatively, extract the `.zip` contents to `/data/homebrew/pplay` and start `pplay.elf` from the Homebrew Launcher (websrv).
-- **Switch:** put the `.nro` to your launcher root.
+- **PS4:** just install the `.pkg` file from latest `pPlay-PS4.zip`.
+- **PS5:** choose one of the following methods:
+  - **PKG:** install the `.pkg` from latest `pPlay-PS5-PKG.zip` (a PS4 fpkg, needs `elfldr` on port 9021).
+    It copies pPlay to `/data/homebrew/pplay` and `libOSMesa.so.8` to `/user/homebrew/lib` if missing, then starts application.
+  - **Manual:** extract `pPlay-PS5.zip` to `/data/homebrew/pplay` and start `pplay.elf` from the Homebrew Launcher (websrv).
+- **Switch:** put the `.nro` file from latest `pPlay-Switch.zip` to your launcher root.
 
 Usage
 -----
