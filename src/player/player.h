@@ -6,8 +6,10 @@
 #define PPLAY_PLAYER_H
 
 #include "menus/menu_video_submenu.h"
+#include <atomic>
 #include "media_file.h"
 #include "mpv.h"
+#include "external_tracks.h"
 
 class Main;
 
@@ -85,6 +87,9 @@ public:
 
     bool onInput(c2d::Input::Player *players) override;
 
+    // "Add file..." of the audio / subtitles menus: pick a file in the filer
+    void pickExternalTrack(bool audio);
+
 private:
 
     void onUpdate() override;
@@ -100,6 +105,26 @@ private:
     void updateMpvLog();
 
     void onMpvLog(const mpv_event_log_message *message);
+
+    // preferred track languages (settings, or mpv.conf)
+    void applyLanguages();
+
+    // audio / subtitles selection menus
+    void buildTrackMenus();
+
+    // external tracks: user bindings, then the files found next to the video
+    void startExternalTracks();
+
+    static int externalFindThread(void *data);
+
+    void updateExternalTracks();
+
+    void addExternalTrack(const pplay::ExternalTracks::Track &track);
+
+    void onExternalTracksAdded();
+
+    // a track chosen in a menu: remembered if external
+    void rememberSelection(bool audio, int trackId);
 
     // ui
     Main *main = nullptr;
@@ -138,6 +163,26 @@ private:
     bool userPaused = false;
     c2d::C2DClock stallClock;
     c2d::C2DClock progressClock;
+
+    // external tracks
+    std::string confAudioLang;
+    std::string confSubLang;
+    std::string appliedAudioLang = "\x01";
+    std::string appliedSubLang = "\x01";
+    bool hadWatchLater = false;
+    int externalGeneration = 0;
+    int externalPending = 0;
+    std::vector<std::string> externalAdded;
+    std::vector<pplay::ExternalTracks::Track> externalBindings;
+    std::vector<pplay::ExternalTracks::Track> externalAll;
+    std::string externalSelect[2];  // url to select once added (audio, subtitles)
+    c2d::C2DThread *externalThread = nullptr;
+    std::atomic<bool> externalDone{false};
+    bool externalRestart = false;
+    int externalJobGeneration = 0;
+    std::string externalJobPath;
+    std::string externalJobName;
+    std::vector<pplay::ExternalTracks::Track> externalFound;
 
     // player
     VideoTexture *texture = nullptr;

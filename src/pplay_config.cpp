@@ -87,6 +87,9 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_ACCENT_COLOR, "#1078C8"});
     addOption({OPT_PREVIEW_PANEL, (int) 1});
     addOption({OPT_LANGUAGE, "en"});
+    addOption({OPT_AUDIO_LANGUAGE, "Auto"});
+    addOption({OPT_SUB_LANGUAGE, "Off"});
+    addOption({OPT_EXTERNAL_TRACKS, (int) 1});
 
     // load the configuration from file, overwriting default values
     load();

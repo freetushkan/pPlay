@@ -51,11 +51,33 @@ Io::NetworkType Io::parseNetworkType(const std::string &name) {
 std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, const std::vector<std::string> &extensions,
                                           const std::string &path, int timeout, bool sort, bool showHidden) {
 
-    std::vector<c2d::Io::File> files;
-
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::getDirList path=" + path);
     lastError.clear();
 
+    std::vector<c2d::Io::File> files = list(type, path, timeout, &lastError, sort, showHidden);
+    if (sort && type != DeviceType::Local) {
+        std::sort(files.begin(), files.end(), compare);
+    }
+
+    // remove items by extensions, if provided
+    if (!extensions.empty()) {
+        files.erase(
+                std::remove_if(files.begin(), files.end(), [extensions](const Io::File &file) {
+                    for (auto &ext: extensions) {
+                        if (c2d::Utility::endsWith(file.name, ext, false)) {
+                            return false;
+                        }
+                    }
+                    return file.type == c2d::Io::Type::File;
+                }), files.end());
+    }
+
+    return files;
+}
+
+std::vector<c2d::Io::File> Io::list(const DeviceType &type, const std::string &path, int timeout,
+                                    std::string *error, bool sort, bool showHidden) {
+    std::vector<c2d::Io::File> files;
     if (type == DeviceType::Local) {
 #ifdef __SWITCH__
         if (path == "ums_list") {
@@ -71,39 +93,20 @@ std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, con
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::Local path=" + path
                                                             + " entries=" + std::to_string(files.size()));
     } else if (type == DeviceType::Http || type == DeviceType::WebDav) {
-        files = type == DeviceType::Http ? Http::listIndex(path, timeout, &lastError)
-                                         : Http::listWebDav(path, timeout, &lastError);
-        if (sort) {
-            std::sort(files.begin(), files.end(), compare);
-        }
+        files = type == DeviceType::Http ? Http::listIndex(path, timeout, error)
+                                         : Http::listWebDav(path, timeout, error);
     } else if (type == DeviceType::TorrServe) {
-        files = pplay::TorrServe::getDirList(path, timeout, &lastError);
-        if (sort) {
-            std::sort(files.begin(), files.end(), compare);
-        }
+        files = pplay::TorrServe::getDirList(path, timeout, error);
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::TorrServe path=" + path
                                                             + " entries=" + std::to_string(files.size()));
     } else if (type == DeviceType::Ftp) {
-        files = Ftp::list(path, timeout, &lastError);
+        files = Ftp::list(path, timeout, error);
     }
 #ifdef __SMB2__
     else if (type == DeviceType::Smb) {
-        files = Smb::list(path, timeout, &lastError);
+        files = Smb::list(path, timeout, error);
     }
 #endif
-    // remove items by extensions, if provided
-    if (!extensions.empty()) {
-        files.erase(
-                std::remove_if(files.begin(), files.end(), [extensions](const Io::File &file) {
-                    for (auto &ext: extensions) {
-                        if (c2d::Utility::endsWith(file.name, ext, false)) {
-                            return false;
-                        }
-                    }
-                    return file.type == c2d::Io::Type::File;
-                }), files.end());
-    }
-
     return files;
 }
 

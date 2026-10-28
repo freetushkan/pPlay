@@ -5,6 +5,7 @@
 #ifndef NXFILER_FILER_H
 #define NXFILER_FILER_H
 
+#include <functional>
 #include "cross2d/c2d.h"
 #include "pplay_config.h"
 #include "filer_item.h"
@@ -59,7 +60,16 @@ public:
 
     void onUpdate() override;
 
+    // file picker: files with these extensions listed too, A picks one, X cancels;
+    // the previous directory comes back after
+    void startPick(const std::vector<std::string> &extensions, const std::string &dir,
+                   const std::string &hint, std::function<void(const MediaFile &)> onPick);
+
+    bool isPicking() const { return picking; }
+
 private:
+
+    void endPick();
 
     virtual void enter(int index);
 
@@ -87,6 +97,12 @@ private:
     c2d::C2DMutex *mutex;
 
     bool dirty = false;
+
+    bool picking = false;
+    std::vector<std::string> pickExtensions;
+    std::function<void(const MediaFile &)> pickCallback;
+    std::string pickPrevPath;
+    std::string pickPrevSelection;
 #ifdef PPLAY_ENABLE_SCRAPPING
     bool scrapping_enabled = false;
 #endif

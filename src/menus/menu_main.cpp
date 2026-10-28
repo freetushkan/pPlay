@@ -27,6 +27,28 @@ namespace {
         return "Network " + std::to_string(index);
     }
 
+    // mpv language lists (alang / slang), the first item keeps mpv.conf
+    std::vector<MenuItem> makeTrackLanguageItems(const std::string &none) {
+        static const std::pair<const char *, const char *> languages[] = {
+                {"Russian",    "rus,ru,russian"},
+                {"English",    "eng,en,english"},
+                {"Ukrainian",  "ukr,uk,ukrainian"},
+                {"German",     "ger,deu,de,german"},
+                {"French",     "fre,fra,fr,french"},
+                {"Spanish",    "spa,es,spanish"},
+                {"Italian",    "ita,it,italian"},
+                {"Japanese",   "jpn,ja,japanese"},
+                {"Korean",     "kor,ko,korean"},
+                {"Chinese",    "chi,zho,zh,chinese"},
+        };
+        std::vector<MenuItem> items;
+        items.emplace_back(none, "", MenuItem::Position::Top);
+        for (const auto &language: languages) {
+            items.emplace_back(language.first, "", MenuItem::Position::Top, 0, true, language.second);
+        }
+        return items;
+    }
+
     std::vector<MenuItem> makeIntItems(const std::vector<std::pair<std::string, int>> &values) {
         std::vector<MenuItem> items;
         for (auto &value: values) {
@@ -67,6 +89,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     it.emplace_back("CPU boost", "cpu.png", MenuItem::Position::Top);
 #endif
     it.emplace_back("Preview panel", "video.png", MenuItem::Position::Top);
+    it.emplace_back("Audio language", "options.png", MenuItem::Position::Top);
+    it.emplace_back("Subtitles language", "options.png", MenuItem::Position::Top);
+    it.emplace_back("External tracks", "options.png", MenuItem::Position::Top);
     it.emplace_back("Logging", "log.png", MenuItem::Position::Top);
 
     menuMainOptions = new MenuMainOptions(main, rect, it);
@@ -147,6 +172,12 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     addSubmenu("Long seek step", "Seek long step", OPT_SEEK_LONG_SEC, makeAdjustItems(),
                Submenu::ValueType::Float, Submenu::MenuType::Adjust, 10.0f, 3600.0f, 10.0f, "s");
     addSubmenu("Preview panel", "Preview panel", OPT_PREVIEW_PANEL,
+               makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
+    addSubmenu("Audio language", "Audio language", OPT_AUDIO_LANGUAGE,
+               makeTrackLanguageItems("Auto"), Submenu::ValueType::String);
+    addSubmenu("Subtitles language", "Subtitles language", OPT_SUB_LANGUAGE,
+               makeTrackLanguageItems("Off"), Submenu::ValueType::String);
+    addSubmenu("External tracks", "External audio and subtitles", OPT_EXTERNAL_TRACKS,
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Logging", "Log to file", OPT_LOG_LEVEL,
                makeIntItems({{"Off", 0}, {"Error", 1}, {"Info", 2}, {"Debug", 3}, {"Trace", 4}}),

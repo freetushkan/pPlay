@@ -147,3 +147,23 @@ d = д
 h = ч
 min = мин
 Secure connections (HTTPS) may fail: check the date, time and time zone in the system settings. = Защищённые соединения (HTTPS) могут не работать: проверьте дату, время и часовой пояс в настройках системы.
+
+# Track languages and external tracks
+Audio language = Язык аудио
+Subtitles language = Язык субтитров
+External tracks = Внешние дорожки
+External audio and subtitles = Внешнее аудио и субтитры
+Russian = Русский
+English = Английский
+Ukrainian = Украинский
+German = Немецкий
+French = Французский
+Spanish = Испанский
+Italian = Итальянский
+Japanese = Японский
+Korean = Корейский
+Chinese = Китайский
+Add file... = Добавить файл...
+Choose an audio file = Выберите аудиофайл
+Choose a subtitles file = Выберите файл субтитров
+X: cancel = X: отмена

@@ -47,6 +47,10 @@ namespace pplay {
                                          const std::string &path, int timeout = 5, bool sort = false,
                                          bool showHidden = false);
 
+        // listing without the Io state (lastError): usable from another thread
+        std::vector<Io::File> list(const DeviceType &type, const std::string &path, int timeout,
+                                   std::string *error, bool sort = false, bool showHidden = false);
+
         // type of the network the path belongs to, or from the url scheme
         DeviceType getDeviceType(const std::string &path);
 

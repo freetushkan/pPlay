@@ -260,11 +260,11 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
 #endif
     auto *option = main->getConfig()->getOption(option_name);
     const std::string oldValue = option->getString();
-    std::string newValue = item->name;
+    // the item value, if any (accent color, track languages), or its name
+    std::string newValue = item->data_str.empty() ? item->name : item->data_str;
     option->setType(c2d::config::Option::Type::String);
     if (option_name == OPT_ACCENT_COLOR) {
         pplay::Utility::setAccentColor(item->data_str);
-        newValue = item->data_str;
     }
     option->setString(newValue);
     main->getConfig()->save();

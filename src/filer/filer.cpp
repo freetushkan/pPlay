@@ -258,6 +258,36 @@ bool Filer::onInput(c2d::Input::Player *players) {
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
         "Filer::onInput keys=" + pplay::Utility::getKeysString(keys));
 
+    if (picking) {
+        if (keys & (c2d::Input::LB | c2d::Input::RB | Input::Left | Input::Y)) {
+            return true;
+        }
+        if (keys & (Input::X | Input::Right)) {
+            endPick();
+            main->getPlayer()->setFullscreen(true);
+            return true;
+        }
+        if (keys & Input::A) {
+            if (filesSize == 0 || isPlaceholder(getSelection())) {
+                return true;
+            }
+            MediaFile selection = getSelection();
+            if (selection.type == Io::Type::Directory) {
+                enter(item_index);
+            } else {
+                for (auto &ext: pickExtensions) {
+                    if (Utility::endsWith(selection.name, ext, false)) {
+                        auto callback = pickCallback;
+                        endPick();
+                        callback(selection);
+                        break;
+                    }
+                }
+            }
+            return true;
+        }
+    }
+
     if (keys & c2d::Input::LB || keys & c2d::Input::RB) {
         main->getMenuMain()->setVisibility(Visibility::Visible, true);
     } else if (keys & Input::Up) {
@@ -320,6 +350,29 @@ bool Filer::onInput(c2d::Input::Player *players) {
     return true;
 }
 
+void Filer::startPick(const std::vector<std::string> &extensions, const std::string &dir,
+                      const std::string &hint, std::function<void(const MediaFile &)> onPick) {
+    pickPrevPath = path;
+    pickPrevSelection = files.empty() ? "" : getSelection().path;
+    pickExtensions = extensions;
+    pickCallback = std::move(onPick);
+    picking = true;
+    main->getStatus()->show("Info...", hint, true);
+    if (!getDir(dir)) {
+        getDir(pickPrevPath);
+    }
+}
+
+void Filer::endPick() {
+    picking = false;
+    pickCallback = nullptr;
+    main->getStatus()->hide();
+    // listed again without the picked extensions
+    if (getDir(pickPrevPath) && !pickPrevSelection.empty()) {
+        selectByPath(pickPrevSelection);
+    }
+}
+
 void Filer::onUpdate() {
     if (dirty) {
         setSelection(item_index);
@@ -369,6 +422,9 @@ bool Filer::getDir(const std::string &p) {
     }
 
     std::vector<std::string> ext = pplay::Utility::getMediaExtensions();
+    if (picking) {
+        ext.insert(ext.end(), pickExtensions.begin(), pickExtensions.end());
+    }
     pplay::Io::DeviceType type = ((pplay::Io *) main->getIo())->getDeviceType(p);
     int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
     std::vector<Io::File> _files =

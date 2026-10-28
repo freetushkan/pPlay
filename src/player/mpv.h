@@ -7,6 +7,7 @@
 
 #include <cstdio>
 #include <string>
+#include <vector>
 
 #include <mpv/client.h>
 #include <mpv/render_gl.h>
@@ -117,6 +118,16 @@ public:
     mpv_render_context *getContext();
 
     MediaInfo getMediaInfo(const c2d::Io::File &file);
+
+    struct TrackEntry {
+        int id = -1;
+        std::string type;       // "video", "audio", "sub"
+        std::string lang;
+        bool external = false;
+        std::string filename;   // external file url
+    };
+
+    std::vector<TrackEntry> getTrackList();
 
 private:
 

@@ -37,6 +37,11 @@
 #define OPT_ACCENT_COLOR        "ACCENT_COLOR"
 #define OPT_PREVIEW_PANEL       "PREVIEW_PANEL"
 #define OPT_LANGUAGE            "LANGUAGE"
+// preferred track languages: mpv alang / slang list, "Auto" / "Off" (mpv.conf)
+#define OPT_AUDIO_LANGUAGE      "AUDIO_LANGUAGE"
+#define OPT_SUB_LANGUAGE        "SUB_LANGUAGE"
+// external audio / subtitles files found next to the video
+#define OPT_EXTERNAL_TRACKS     "EXTERNAL_TRACKS"
 
 namespace pplay {
     class Io;

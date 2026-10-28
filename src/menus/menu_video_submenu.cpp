@@ -64,6 +64,11 @@ void MenuVideoSubmenu::updateSelectionHighlight() {
 }
 
 void MenuVideoSubmenu::onOptionSelection(MenuItem *item) {
+    if (item->id == MENU_TRACK_ADD && (type == MENU_VIDEO_TYPE_AUD || type == MENU_VIDEO_TYPE_SUB)) {
+        setVisibility(Visibility::Hidden, true);
+        main->getPlayer()->pickExternalTrack(type == MENU_VIDEO_TYPE_AUD);
+        return;
+    }
     if (item->position == MenuItem::Position::Top) {
         std::string name = item->name;
         std::replace(name.begin(), name.end(), '\n', ' ');

@@ -634,6 +634,39 @@ mpv_render_context *Mpv::getContext() {
     return context;
 }
 
+std::vector<Mpv::TrackEntry> Mpv::getTrackList() {
+    std::vector<TrackEntry> tracks;
+    mpv_node node;
+    if (!isAvailable() || logged_mpv_get_property(handle, "track-list", MPV_FORMAT_NODE, &node) < 0) {
+        return tracks;
+    }
+    if (node.format == MPV_FORMAT_NODE_ARRAY) {
+        for (int i = 0; i < node.u.list->num; i++) {
+            const mpv_node &entry = node.u.list->values[i];
+            if (entry.format != MPV_FORMAT_NODE_MAP) {
+                continue;
+            }
+            TrackEntry track;
+            for (int n = 0; n < entry.u.list->num; n++) {
+                std::string key = entry.u.list->keys[n];
+                const mpv_node &value = entry.u.list->values[n];
+                if (value.format == MPV_FORMAT_STRING) {
+                    if (key == "type") track.type = value.u.string;
+                    else if (key == "lang") track.lang = value.u.string;
+                    else if (key == "external-filename") track.filename = value.u.string;
+                } else if (value.format == MPV_FORMAT_INT64 && key == "id") {
+                    track.id = (int) value.u.int64;
+                } else if (value.format == MPV_FORMAT_FLAG && key == "external") {
+                    track.external = value.u.flag != 0;
+                }
+            }
+            tracks.push_back(track);
+        }
+    }
+    mpv_free_node_contents(&node);
+    return tracks;
+}
+
 MediaInfo Mpv::getMediaInfo(const c2d::Io::File &file) {
     MediaInfo mediaInfo(file);
     std::vector<MediaInfo::Track> streams;
