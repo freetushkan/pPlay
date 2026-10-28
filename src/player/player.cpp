@@ -134,6 +134,11 @@ bool Player::isPlaying(const std::string &path) {
     return !playingKey.empty() && !path.empty() && playingKeyOf(path) == playingKey;
 }
 
+void Player::forgetProgress() {
+    progressForgotten = true;
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::forgetProgress: " + playingKey);
+}
+
 bool Player::load(const MediaFile &f, bool firstTry, const std::string &options) {
     stop();
     file = f;
@@ -155,6 +160,7 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
         retryCount = 0;
         lastTime = 0;
         userPaused = false;
+        progressForgotten = false;
     }
     reloadPending = false;
     watchTime = -1;
@@ -851,7 +857,7 @@ void Player::onUpdate() {
         if (position > 0.0) {
             lastKnownPosition = position;
         }
-        if (position > 0.0 && duration > 300
+        if (position > 0.0 && duration > 300 && !progressForgotten
             && (position - lastProgressSave) >= 10
             && (duration - position) >= 60) {
             mpv->save();
@@ -1232,7 +1238,7 @@ void Player::changeBrightness(double delta) {
 
 void Player::pause() {
     mpv->pause();
-    if (lastKnownPosition > 0 && lastKnownDuration > 300
+    if (lastKnownPosition > 0 && lastKnownDuration > 300 && !progressForgotten
         && (lastKnownDuration - lastKnownPosition) >= 60) {
         mpv->save();
         pplay::Utility::log(pplay::Utility::LogLevel::Info,

@@ -30,6 +30,9 @@ public:
     // file opened in the player? (paths may be spelled differently)
     bool isPlaying(const std::string &path);
 
+    // progress reset by the user: don't write it back for the current playback
+    void forgetProgress();
+
     // comparable key of a path (as given to mpv): playing mark, history
     static std::string keyOf(const std::string &path);
 
@@ -145,6 +148,7 @@ private:
     std::vector<MediaFile> autoplayFiles;
     int retryCount = 0;
     long lastProgressSave = 0;
+    bool progressForgotten = false;
     long lastKnownDuration = 0;
     long lastKnownPosition = 0;
     long startPlaybackPosition = -1;

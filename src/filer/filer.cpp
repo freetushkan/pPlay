@@ -336,6 +336,10 @@ bool Filer::onInput(c2d::Input::Player *players) {
         }
 #endif
     } else if (keys & Input::Y) {
+        // the opened file would write its position back (periodic / pause save)
+        if (main->getPlayer()->isPlaying(files[item_index].path)) {
+            main->getPlayer()->forgetProgress();
+        }
         if (pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(files[item_index].path))) {
             main->getStatus()->show("Info...", "Removing local watch later data...");
             pplay::Utility::deleteWatchLater(pplay::TorrServe::toStreamUrl(files[item_index].path));

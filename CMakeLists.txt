@@ -40,6 +40,24 @@ set(PROJECT_AUTHOR "Cpasjuste")
 set(TITLE_ID "PPLAY0001")
 set(APP_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
 
+# short commit hash, shown in the logs and the interface only (packages keep APP_VERSION)
+set(APP_COMMIT "")
+find_package(Git QUIET)
+if (GIT_FOUND)
+    execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --short=7 HEAD
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            OUTPUT_VARIABLE APP_COMMIT OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+endif ()
+if (NOT APP_COMMIT AND DEFINED ENV{GITHUB_SHA})
+    string(SUBSTRING "$ENV{GITHUB_SHA}" 0 7 APP_COMMIT)
+endif ()
+if (APP_COMMIT)
+    set(APP_VERSION_FULL "${APP_VERSION}-${APP_COMMIT}")
+else ()
+    set(APP_VERSION_FULL "${APP_VERSION}")
+endif ()
+message(STATUS "pPlay version: ${APP_VERSION_FULL}")
+
 # deps
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 find_package(BZip2 REQUIRED)
@@ -242,6 +260,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
     APP_VERSION="${APP_VERSION}"
 )
+target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE APP_VERSION_FULL="${APP_VERSION_FULL}")
 if(NOT MSVC)
     target_link_options(${CMAKE_PROJECT_NAME} PRIVATE "LINKER:--allow-multiple-definition")
     if(CMAKE_LINKER MATCHES "lld")

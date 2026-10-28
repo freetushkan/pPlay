@@ -161,7 +161,8 @@ void MenuMainOptionsSubmenu::refresh() {
         return;
     }
 
-    highlight_selection->setVisibility(Visibility::Visible);
+    // shown on the current value only (none in groups / categories)
+    highlight_selection->setVisibility(Visibility::Hidden);
 
     updateSelectionHighlight();
 }

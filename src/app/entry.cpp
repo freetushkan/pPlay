@@ -28,7 +28,7 @@ int main() {
     auto *config = new PPLAYConfig(io);
     io->setConfig(config);
     pplay::Utility::setLogLevel((pplay::Utility::LogLevel) config->getOption(OPT_LOG_LEVEL)->getInteger());
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "pPlay " APP_VERSION " starting");
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "pPlay " APP_VERSION_FULL " starting");
 
     // bundled languages, then the user ones
     pplay::I18n::setSearchPaths({io->getRomFsPath() + "lang", io->getDataPath() + "lang"});

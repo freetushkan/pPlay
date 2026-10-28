@@ -98,7 +98,7 @@ namespace {
 }
 
 MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<MenuItem> &items)
-        : Menu(main, rect, "pPlay v" APP_VERSION, items, true) {
+        : Menu(main, rect, "pPlay v" APP_VERSION_FULL, items, true) {
     using Pos = MenuItem::Position;
     // settings by category (menu key, items)
     std::vector<std::pair<std::string, std::vector<MenuItem>>> categories;

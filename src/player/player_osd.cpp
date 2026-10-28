@@ -30,12 +30,12 @@ PlayerOSD::PlayerOSD(Main *m) : GradientRectangle({0, 0, 64, 64}) {
 
     progress = new Progress({0, 0, PlayerOSD::getSize().x, 6 * main->getScaling().y});
     progress->setFgColor(COLOR_ACCENT);
-    progress->setBgColor(COLOR_GRAY);
+    progress->setBgColor(Color(64, 68, 72, 255));
     PlayerOSD::add(progress);
 
     // buffered (cache) part, under the played one
     buffered = new RectangleShape({1, 1, 0, progress->getSize().y - 2});
-    buffered->setFillColor({255, 255, 255, 110});
+    buffered->setFillColor({255, 255, 255, 120});
     progress->add(buffered);
     buffered->setLayer(-1); // sorted once added
 
