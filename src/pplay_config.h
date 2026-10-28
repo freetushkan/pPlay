@@ -46,6 +46,16 @@
 #define OPT_AUDIO_NORMALIZE     "AUDIO_NORMALIZE"
 // last volume (-1: mpv.conf)
 #define OPT_VOLUME              "VOLUME"
+// network cache: read ahead (seconds), memory (MB)
+#define OPT_CACHE_SECS          "CACHE_SECS"
+#define OPT_CACHE_MB            "CACHE_MB"
+// 0 best (mpv.conf), 1 balanced, 2 fast (see Mpv::setQualityPreset)
+#define OPT_VIDEO_QUALITY       "VIDEO_QUALITY"
+#ifdef __SWITCH__
+#define CACHE_MB_MAX            500
+#else
+#define CACHE_MB_MAX            1000
+#endif
 
 namespace pplay {
     class Io;

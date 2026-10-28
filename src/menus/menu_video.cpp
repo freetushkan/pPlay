@@ -48,6 +48,11 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
             main->getPlayer()->getMenuPlaybackMode()->setVisibility(Visibility::Visible, true);
             setVisibility(Visibility::Hidden, true);
         }
+    } else if (item->name == "Volume normalization") {
+        if (main->getPlayer()->getMenuNormalize()) {
+            main->getPlayer()->getMenuNormalize()->setVisibility(Visibility::Visible, true);
+            setVisibility(Visibility::Hidden, true);
+        }
     } else if (item->name == "Stop") {
         main->getPlayer()->stop();
         setVisibility(Visibility::Hidden, true);

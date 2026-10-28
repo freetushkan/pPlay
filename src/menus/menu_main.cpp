@@ -189,13 +189,6 @@ namespace {
 MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<MenuItem> &items)
         : Menu(main, rect, "pPlay v" APP_VERSION, items, true) {
     using Pos = MenuItem::Position;
-    // commit hash after the version, dimmed (full version: Settings > About)
-    if (APP_COMMIT[0] != '\0') {
-        auto *commit = new Text("-" APP_COMMIT, main->getFontSize(Main::FontSize::Big), main->getFont());
-        commit->setFillColor(Color(230, 230, 230, 100));
-        commit->setPosition(title->getPosition().x + title->getLocalBounds().width, title->getPosition().y);
-        MenuMain::add(commit);
-    }
     // settings by category (menu key, items)
     std::vector<std::pair<std::string, std::vector<MenuItem>>> categories;
     categories.push_back({"Playback", {
@@ -207,6 +200,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
             MenuItem("Subtitles language", "options.png", Pos::Top),
             MenuItem("External tracks", "options.png", Pos::Top),
             MenuItem("Volume normalization", "options.png", Pos::Top),
+            MenuItem("Video quality", "video.png", Pos::Top),
+            MenuItem("Buffer length", "buffer.png", Pos::Top),
+            MenuItem("Buffer memory", "buffer.png", Pos::Top),
     }});
     categories.push_back({"Interface", {
             MenuItem("Language", "options.png", Pos::Top),
@@ -347,6 +343,12 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Volume normalization", "Volume normalization", OPT_AUDIO_NORMALIZE,
                makeIntItems({{"Off", 0}, {"Normalize", 1}, {"Night mode", 2}}), Submenu::ValueType::Integer);
+    addSubmenu("Video quality", "Video quality", OPT_VIDEO_QUALITY,
+               makeIntItems({{"Best", 0}, {"Balanced", 1}, {"Fast", 2}}), Submenu::ValueType::Integer);
+    addSubmenu("Buffer length", "Network buffer length", OPT_CACHE_SECS, makeAdjustItems(),
+               Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 10.0f, 600.0f, 10.0f, "s");
+    addSubmenu("Buffer memory", "Network buffer memory", OPT_CACHE_MB, makeAdjustItems(),
+               Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 50.0f, (float) CACHE_MB_MAX, 50.0f, "MB");
     addSubmenu("Logging", "Log to file", OPT_LOG_LEVEL,
                makeIntItems({{"Off", 0}, {"Error", 1}, {"Info", 2}, {"Debug", 3}, {"Trace", 4}}),
                Submenu::ValueType::Integer);

@@ -92,6 +92,9 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_EXTERNAL_TRACKS, (int) 1});
     addOption({OPT_AUDIO_NORMALIZE, (int) 0});
     addOption({OPT_VOLUME, (int) -1});
+    addOption({OPT_CACHE_SECS, (int) 60});
+    addOption({OPT_CACHE_MB, (int) 150});
+    addOption({OPT_VIDEO_QUALITY, (int) 0});
 
     // load the configuration from file, overwriting default values
     load();
@@ -147,6 +150,16 @@ void PPLAYConfig::sanitize() {
         getOption(OPT_SMB_READ_BUFFER_MB)->setString("100");
     }
 #endif
+
+    auto clamp = [this](const char *name, int min, int max) {
+        int value = getOption(name)->getInteger();
+        if (value < min || value > max) {
+            getOption(name)->setString(std::to_string(value < min ? min : max));
+        }
+    };
+    clamp(OPT_CACHE_SECS, 10, 600);
+    clamp(OPT_CACHE_MB, 50, CACHE_MB_MAX);
+    clamp(OPT_VIDEO_QUALITY, 0, 2);
 
 #ifdef PPLAY_ENABLE_SCRAPPING
     if (getOption(OPT_TMDB_LANGUAGE)->getString().empty()) {

@@ -6,6 +6,7 @@
 #define PPLAY_MPV_H
 
 #include <cstdio>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -141,7 +142,17 @@ public:
 
     long getInt(const char *name, long fallback = -1);
 
+    // 0 best (mpv.conf values), 1 balanced, 2 fast; decoder options apply on decoder start
+    void setQualityPreset(int preset);
+
+    // network cache: read ahead seconds, memory
+    void setCache(int seconds, int megabytes);
+
 private:
+
+    static const std::vector<const char *> &qualityOptions();
+
+    std::map<std::string, std::string> qualityDefaults;
 
     mpv_handle *handle = nullptr;
     mpv_render_context *context = nullptr;

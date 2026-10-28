@@ -21,6 +21,9 @@
 #include "filer.h"
 #include "io.h"
 #include "menu_video_submenu.h"
+
+// appliedAudioFilter of a new file: a @pplaynorm filter may be there (old watch_later)
+#define AUDIO_FILTER_UNKNOWN "?"
 #ifdef __SMB2__
 #include "smb.h"
 #endif
@@ -268,6 +271,18 @@ void Player::onLoadEvent() {
         menuPlaylist->setVisibility(Visibility::Hidden, false);
         menuPlaylist->setLayer(3);
         add(menuPlaylist);
+    }
+
+    if (menuNormalize == nullptr) {
+        menuNormalize = new MenuVideoSubmenu(
+                main, main->getMenuVideo()->getGlobalBounds(), "Volume normalization",
+                {MenuItem("Off", "", MenuItem::Position::Top, 0),
+                 MenuItem("Normalize", "", MenuItem::Position::Top, 1),
+                 MenuItem("Night mode", "", MenuItem::Position::Top, 2)},
+                MENU_VIDEO_TYPE_NORMALIZE);
+        menuNormalize->setLayer(3);
+        menuNormalize->setVisibility(Visibility::Hidden, false);
+        add(menuNormalize);
     }
 
     if (menuPlaybackMode == nullptr) {
@@ -610,6 +625,10 @@ void Player::onStopEvent(int reason) {
             delete (menuPlaybackMode);
             menuPlaybackMode = nullptr;
         }
+        if (menuNormalize != nullptr) {
+            delete (menuNormalize);
+            menuNormalize = nullptr;
+        }
         main->setRunningStop();
         return;
     }
@@ -883,8 +902,8 @@ void Player::onUpdate() {
                     if (!appliedAudioFilter.empty()) {
                         const char *remove[] = {"af", "remove", "@pplaynorm", nullptr};
                         mpv_command(mpv->getHandle(), remove);
-                        appliedAudioFilter.clear();
                     }
+                    appliedAudioFilter = AUDIO_FILTER_UNKNOWN;
                     main->getStatus()->show("Please Wait...",
                         "Loading... " + encoding::fix(file.name), true);
                     startPlaybackPosition = -1;
@@ -1109,6 +1128,9 @@ void Player::updateInfo() {
         out << "\n    " << pplay::tr("Dropped frames") << ": " << mpv->getInt("frame-drop-count", 0)
             << " / " << mpv->getInt("decoder-frame-drop-count", 0)
             << ", " << pplay::tr("Render") << ": " << mpv->getOsdWidth() << "x" << mpv->getOsdHeight() << "\n";
+        static const char *qualities[] = {"Best", "Balanced", "Fast"};
+        int quality = std::max(0, std::min(2, (int) main->getConfig()->getOption(OPT_VIDEO_QUALITY)->getInteger()));
+        out << "    " << pplay::tr("Video quality") << ": " << pplay::tr(qualities[quality]) << "\n";
     }
     std::string acodec = mpv->getString("current-tracks/audio/codec");
     if (!acodec.empty()) {
@@ -1131,6 +1153,19 @@ void Player::updateInfo() {
     out.precision(2);
     out << mpv->getSpeed();
     info_text->setString(out.str());
+}
+
+void Player::setAudioNormalize(int mode) {
+    auto *option = main->getConfig()->getOption(OPT_AUDIO_NORMALIZE);
+    if (option->getInteger() == mode) {
+        return;
+    }
+    const std::string oldValue = option->getString();
+    option->setInteger(mode);
+    main->getConfig()->save();
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Options: " + std::string(OPT_AUDIO_NORMALIZE)
+                                                        + " changed from " + oldValue + " to " + option->getString());
+    applyAudioFilter();
 }
 
 void Player::applyAudioFilter() {
@@ -1307,6 +1342,12 @@ void Player::setFullscreen(bool fs, bool hide) {
         if (menuPlaylist != nullptr) {
             menuPlaylist->setVisibility(Visibility::Hidden, true);
         }
+        if (menuPlaybackMode != nullptr) {
+            menuPlaybackMode->setVisibility(Visibility::Hidden, true);
+        }
+        if (menuNormalize != nullptr) {
+            menuNormalize->setVisibility(Visibility::Hidden, true);
+        }
         main->getFiler()->setVisibility(Visibility::Visible, true);
         main->getStatusBar()->setVisibility(Visibility::Visible, true);
     } else {
@@ -1338,6 +1379,10 @@ MenuVideoSubmenu *Player::getMenuPlaylist() {
 
 MenuVideoSubmenu *Player::getMenuPlaybackMode() {
     return menuPlaybackMode;
+}
+
+MenuVideoSubmenu *Player::getMenuNormalize() {
+    return menuNormalize;
 }
 
 const std::string &Player::getTitle() const {
@@ -1384,6 +1429,20 @@ void Player::applyConfig() {
     configure_smb_mpv(main->getConfig()->getOption(OPT_SMB_READ_BUFFER_MB)->getInteger(), timeout);
 #endif
     mpv_command_string(mpv->getHandle(), ("set network-timeout " + std::to_string(timeout)).c_str());
+    mpv->setCache(main->getConfig()->getOption(OPT_CACHE_SECS)->getInteger(),
+                  main->getConfig()->getOption(OPT_CACHE_MB)->getInteger());
+    const int quality = main->getConfig()->getOption(OPT_VIDEO_QUALITY)->getInteger();
+    if (quality != appliedQuality) {
+        const bool restart = appliedQuality >= 0;
+        appliedQuality = quality;
+        mpv->setQualityPreset(quality);
+        // decoder options: restart the video decoder of the playing file
+        long vid = mpv->getInt("vid", -1);
+        if (restart && !mpv->isStopped() && vid > 0) {
+            mpv_set_property_string(mpv->getHandle(), "vid", "no");
+            mpv_set_property_string(mpv->getHandle(), "vid", std::to_string(vid).c_str());
+        }
+    }
     texture->setOutlineColor(COLOR_ACCENT);
 }
 

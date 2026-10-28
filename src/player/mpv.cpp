@@ -198,6 +198,9 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     logged_mpv_set_option_string(handle, "cache-pause", "yes");
     logged_mpv_set_option_string(handle, "cache-secs", "60");
     logged_mpv_set_option_string(handle, "stream-lavf-o", "reconnect_on_network_error=1");
+    // pPlay sets these itself (normalization filter, remembered volume): not per file
+    logged_mpv_set_option_string(handle, "watch-later-options-remove", "af");
+    logged_mpv_set_option_string(handle, "watch-later-options-remove", "volume");
 
 #if defined(__PS4__) || defined(__PS5__)
     logged_mpv_set_option_string(handle, "dither", "no");
@@ -293,6 +296,15 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
         mpv_free(mpvVersion);
     }
 
+    // quality preset "best": the values after mpv.conf
+    for (const char *name: qualityOptions()) {
+        char *value = mpv_get_property_string(handle, name);
+        if (value) {
+            qualityDefaults[name] = value;
+            mpv_free(value);
+        }
+    }
+
     auto in_protos = get_ffmpeg_protocols(false);
     auto out_protos = get_ffmpeg_protocols(true);
     std::string log = "FFmpeg protocols:\n  Input: " + join_protocols(in_protos) +
@@ -348,6 +360,53 @@ int Mpv::load(const std::string &file, LoadType loadType, const std::string &opt
     }
 
     return -1;
+}
+
+const std::vector<const char *> &Mpv::qualityOptions() {
+    static const std::vector<const char *> names = {
+            "scale", "dscale", "cscale", "correct-downscaling", "linear-downscaling", "sigmoid-upscaling",
+            "deband", "hdr-compute-peak", "vd-lavc-skiploopfilter", "vd-lavc-fast", "framedrop"
+    };
+    return names;
+}
+
+void Mpv::setQualityPreset(int preset) {
+    if (!isAvailable()) {
+        return;
+    }
+    // balanced: cheap scaling (the renderer may be software: PS5 OSMesa), loop filter skipped on
+    // non reference frames; fast: loop filter skipped, fast decoding, late frames not decoded
+    std::map<std::string, std::string> values = qualityDefaults;
+    if (preset >= 1) {
+        for (const char *name: {"scale", "dscale", "cscale"}) {
+            values[name] = "bilinear";
+        }
+        for (const char *name: {"correct-downscaling", "linear-downscaling", "sigmoid-upscaling",
+                                "deband", "hdr-compute-peak"}) {
+            values[name] = "no";
+        }
+        values["vd-lavc-skiploopfilter"] = preset >= 2 ? "all" : "nonref";
+    }
+    if (preset >= 2) {
+        values["vd-lavc-fast"] = "yes";
+        values["framedrop"] = "decoder+vo";
+    }
+    for (auto &value: values) {
+        int res = mpv_set_property_string(handle, value.first.c_str(), value.second.c_str());
+        if (res < 0) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Mpv::setQualityPreset: " + value.first
+                                                                 + "=" + value.second + ": " + mpv_error_string(res));
+        }
+    }
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Mpv::setQualityPreset: " + std::to_string(preset));
+}
+
+void Mpv::setCache(int seconds, int megabytes) {
+    if (!isAvailable()) {
+        return;
+    }
+    mpv_set_property_string(handle, "cache-secs", std::to_string(seconds).c_str());
+    mpv_set_property_string(handle, "demuxer-max-bytes", (std::to_string(megabytes) + "MiB").c_str());
 }
 
 int Mpv::save() {

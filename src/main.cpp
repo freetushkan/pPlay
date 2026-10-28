@@ -135,6 +135,7 @@ void Main::createMenus() {
     items.emplace_back("Audio", "audio.png", MenuItem::Position::Top);
     items.emplace_back("Video", "video.png", MenuItem::Position::Top);
     items.emplace_back("Subtitles", "subtitles.png", MenuItem::Position::Top);
+    items.emplace_back("Volume normalization", "audio.png", MenuItem::Position::Top);
     items.emplace_back("Stop", "exit.png", MenuItem::Position::Bottom);
     menu_video = new MenuVideo(this, {Main::getSize().x, 0, 250 * scaling.x, Main::getSize().y}, items);
     menu_video->setVisibility(Visibility::Hidden, false);

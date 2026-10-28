@@ -86,6 +86,11 @@ public:
 
     MenuVideoSubmenu *getMenuPlaybackMode();
 
+    MenuVideoSubmenu *getMenuNormalize();
+
+    // volume normalization changed (settings or player menu)
+    void setAudioNormalize(int mode);
+
     const std::string &getTitle() const;
     bool hasVideo() const;
     bool isPlaylistFile() const;
@@ -143,6 +148,8 @@ private:
     MenuVideoSubmenu *menuSubtitlesStreams = nullptr;
     MenuVideoSubmenu *menuPlaylist = nullptr;
     MenuVideoSubmenu *menuPlaybackMode = nullptr;
+    MenuVideoSubmenu *menuNormalize = nullptr;
+    int appliedQuality = -1;
     MediaFile file;
     std::string playingKey;
     std::vector<MediaFile> autoplayFiles;
@@ -177,7 +184,8 @@ private:
 
     void updateInfo();
 
-    // volume normalization (lavfi, labelled @pplaynorm), by the decoded channels
+    // volume normalization (lavfi, labelled @pplaynorm), by the decoded channels;
+    // AUDIO_FILTER_UNKNOWN: a new file (an old watch_later may have restored one)
     std::string appliedAudioFilter;
 
     void applyAudioFilter();

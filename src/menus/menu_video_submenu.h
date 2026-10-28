@@ -12,6 +12,7 @@
 #define MENU_VIDEO_TYPE_SUB 2
 #define MENU_VIDEO_TYPE_PLAYLIST 3
 #define MENU_VIDEO_TYPE_PL_MODE 4
+#define MENU_VIDEO_TYPE_NORMALIZE 5
 // "Add file..." item of the audio / subtitles menus
 #define MENU_TRACK_ADD (-100)
 
