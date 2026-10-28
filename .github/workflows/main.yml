@@ -47,7 +47,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/compiled_libs
-          key: switch-v2
+          key: switch-v3
 
       - name: Build libusbhsfs
         if: steps.switch-cache.outputs.cache-hit != 'true'
@@ -165,7 +165,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/compiled_libs
-          key: ps4-v3
+          key: ps4-v4
 
       - name: Build FFmpeg
         if: steps.ps4-cache.outputs.cache-hit != 'true'
@@ -275,7 +275,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/compiled_libs
-          key: ps5-${{ env.PS5_SDK_VERSION }}-v1
+          key: ps5-${{ env.PS5_SDK_VERSION }}-v2
 
       - name: Build libplacebo
         if: steps.ps5-cache.outputs.cache-hit != 'true'
