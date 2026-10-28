@@ -1,10 +1,12 @@
 pPlay
 ======
 
-> **Important:** this repository is a fork of the long-unmaintained original **pPlay** project by **cpasjuste**, while intentionally preserving the original name.
+**English** | [Русский](README_RU.MD)
+
+> This repository is a fork of the long-unmaintained original **pPlay** project by **cpasjuste**.
 > The project continues to evolve in this fork, while the original architecture and core remain the work of the original author.
 
-|                            Filer view                             |                            Player view                             |
+| Filer view | Player view |
 |:-----------------------------------------------------------------:|:------------------------------------------------------------------:|
 | ![](https://github.com/freetushkan/pPlay/raw/master/screenshot.jpg) | ![](https://github.com/freetushkan/pPlay/raw/master/screenshot2.jpg) |
 
@@ -63,12 +65,14 @@ Below are the main practical improvements and modernizations included in this fo
 7. **Configuration editor**: Settings > Edit files: `pplay.cfg`, `mpv/mpv.conf`, `mpv/input.conf`, the whole file in the
    system keyboard (multiline, up to 2048 characters) or line by line. `pplay.cfg` is applied right away (an invalid
    file is rejected), mpv files on the next start.
+8. **Playback**: preferred audio/subtitles languages, external audio and subtitles files, volume normalization
+   (normalize, night mode), network buffer settings, video quality presets, fast seeking in `.mkv` files without index.
 
 Interface languages
 ----
 
 Languages are plain text files, `lang/<code>.lang` (utf-8), in the bundled data and in the pPlay data directory
-(a file there adds a language or overrides the bundled one, so fixes don't need a new build).
+(a file there adds a language or overrides the bundled one).
 Settings > Language lists the files found and applies the choice right away:
 
 ```ini
@@ -81,7 +85,7 @@ Settings = Настройки     # english text = translation
 Network types
 ----
 
-Each network has a type (`NETWORKx_TYPE`, also in Settings > Network x > type):
+Each network has a type (`NETWORKx_TYPE`, also in Settings > Networks > Network x > Type):
 
 * `TorrServe` — TorrServer api (`http(s)://host:8090/`, may be behind a reverse proxy sub path);
 * `WebDAV` — `http(s)://[user:password@]host/path/` (Nextcloud, nginx dav, rclone serve webdav...).
@@ -131,8 +135,7 @@ Recommendations:
 
 ## Known issues
 
-* Long playback start time when resuming from a saved position (SMB).
-* Playlist position resets to the first item when resuming after a long pause (M3U with HTTPS links).
+* Nothing found yet, but the future is full of surprises.
 
 ## Current `pplay.cfg` parameters
 
@@ -157,6 +160,14 @@ Below is the list of currently supported and maintained configuration parameters
 * `NETWORK_RETRIES` (int, default `3`) — playback retry attempts.
 * `SMB_READ_BUFFER_MB` (int, `1..100`, default `10`) — SMB pre-buffer size.
 * `AUTOPLAY_MODE` (int, default `1`) — behavior after playback ends.
+* `CACHE_SECS` (int, `10..600`, default `60`) — network buffer length, seconds.
+* `CACHE_MB` (int, `50..1000`, `50..500` on Switch, default `150`) — network buffer memory, MB.
+* `VIDEO_QUALITY` (`0..2`, default `0`) — video quality preset: best, balanced, fast (see below).
+* `AUDIO_LANGUAGE` (default `Auto`) / `SUB_LANGUAGE` (default `Off`) — preferred tracks languages
+  (mpv `alang` / `slang` list, like `rus,ru`), `Auto` / `Off` keep `mpv.conf` ones.
+* `EXTERNAL_TRACKS` (`0/1`, default `1`) — audio and subtitles files found next to the video.
+* `AUDIO_NORMALIZE` (`0..2`, default `0`) — volume normalization: off, normalize, night mode.
+* `VOLUME` (int, default `-1`: `mpv.conf` one) — last volume, saved by the player.
 
 ### Controls and UI
 
@@ -224,3 +235,19 @@ See:
 
 * [MPV configuration files](https://mpv.io/manual/master/#configuration-files)
 * [MPV options](https://mpv.io/manual/master/#options)
+
+### Video quality presets
+
+Settings > Playback > Video quality (`VIDEO_QUALITY`) overrides a few mpv options only, the rest of `mpv.conf`
+always applies:
+
+| Option | Best (default) | Balanced | Fast |
+| :--- | :--- | :--- | :--- |
+| `scale`, `dscale`, `cscale` | `mpv.conf` | `bilinear` | `bilinear` |
+| `correct-downscaling`, `linear-downscaling`, `sigmoid-upscaling`, `deband`, `hdr-compute-peak` | `mpv.conf` | `no` | `no` |
+| `vd-lavc-skiploopfilter` | `mpv.conf` | `nonref` | `all` |
+| `vd-lavc-fast`, `framedrop` | `mpv.conf` | `mpv.conf` | `yes`, `decoder+vo` |
+
+"Best" restores the values read at start (`mpv.conf`, or pPlay defaults when not set there), so `mpv.conf` changes
+apply to it after a restart. Conditional profiles (`profile-cond`) setting these options override the preset for
+the files they match.
