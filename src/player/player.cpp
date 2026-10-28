@@ -1067,7 +1067,8 @@ bool Player::onInput(c2d::Input::Player *players) {
         || (getMenuAudioStreams() != nullptr && getMenuAudioStreams()->isVisible())
         || (getMenuSubtitlesStreams() != nullptr && getMenuSubtitlesStreams()->isVisible())
         || (getMenuPlaylist() != nullptr && getMenuPlaylist()->isVisible())
-        || (getMenuPlaybackMode() != nullptr && getMenuPlaybackMode()->isVisible())) {
+        || (getMenuPlaybackMode() != nullptr && getMenuPlaybackMode()->isVisible())
+        || (getMenuNormalize() != nullptr && getMenuNormalize()->isVisible())) {
         return C2DObject::onInput(players);
     }
 
