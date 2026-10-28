@@ -10,7 +10,7 @@
 using namespace c2d;
 
 MenuVideo::MenuVideo(Main *main, const c2d::FloatRect &rect, const std::vector<MenuItem> &items)
-        : Menu(main, rect, "Video options", items, false) {
+        : Menu(main, rect, "Playback options", items, false) {
 }
 
 void MenuVideo::onOptionSelection(MenuItem *item) {
