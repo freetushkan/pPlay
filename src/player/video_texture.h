@@ -23,6 +23,10 @@ public:
 
     void drawFrame();
 
+    // new file loading: the frames rendered (mpv waits for them) are not shown,
+    // mpv would draw the previous file last frame until the new one starts
+    void setWaiting(bool wait);
+
 private:
 
     void onDraw(c2d::Transform &transform, bool draw = true) override;
@@ -31,6 +35,7 @@ private:
     c2d::Texture *fade;
     c2d::TweenAlpha *fadeTween;
     bool forceDraw = false;
+    bool waiting = false;
 };
 
 #endif //PPLAY_VIDEO_TEXTURE_H

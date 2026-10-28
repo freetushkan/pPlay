@@ -314,6 +314,9 @@ void Player::onLoadEvent() {
     resume();
 
     startExternalTracks();
+    if (externalPending == 0) {
+        selectAudioIfNone();
+    }
 }
 
 void Player::buildTrackMenus() {
@@ -488,20 +491,20 @@ void Player::onExternalTracksAdded() {
             // preferred language, if the current track is not
             std::string preferred = main->getConfig()->getOption(
                     audio ? OPT_AUDIO_LANGUAGE : OPT_SUB_LANGUAGE)->getString();
-            if (preferred.empty() || preferred == "Auto" || preferred == "Off") {
-                continue;
-            }
-            bool currentOk = false;
-            for (auto &track: tracks) {
-                if (track.type == type && track.id == current
-                    && pplay::ExternalTracks::matchLanguage(preferred, track.lang)) {
-                    currentOk = true;
+            if (!preferred.empty() && preferred != "Auto" && preferred != "Off") {
+                bool currentOk = false;
+                for (auto &track: tracks) {
+                    if (track.type == type && track.id == current
+                        && pplay::ExternalTracks::matchLanguage(preferred, track.lang)) {
+                        currentOk = true;
+                    }
                 }
-            }
-            for (auto &track: tracks) {
-                if (!currentOk && track.type == type && pplay::ExternalTracks::matchLanguage(preferred, track.lang)) {
-                    target = track.id;
-                    break;
+                for (auto &track: tracks) {
+                    if (!currentOk && track.type == type
+                        && pplay::ExternalTracks::matchLanguage(preferred, track.lang)) {
+                        target = track.id;
+                        break;
+                    }
                 }
             }
         }
@@ -511,6 +514,52 @@ void Player::onExternalTracksAdded() {
             audio ? mpv->setAid(target) : mpv->setSid(target);
         }
     }
+    selectAudioIfNone();
+}
+
+void Player::selectAudioIfNone() {
+    // an old watch later may hold an external track id (not added yet / another one):
+    // mpv then plays without audio, the first track instead (internal ones first)
+    std::vector<Mpv::TrackEntry> tracks = mpv->getTrackList();
+    int target = -1;
+    bool targetExternal = true;
+    for (auto &track: tracks) {
+        if (track.type != "audio") {
+            continue;
+        }
+        if (track.selected) {
+            return;
+        }
+        if (target < 0 || (targetExternal && !track.external)) {
+            target = track.id;
+            targetExternal = track.external;
+        }
+    }
+    if (target >= 0) {
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: no audio selected, track "
+                                                            + std::to_string(target));
+        mpv->setAid(target);
+    }
+}
+
+void Player::saveProgress() {
+    // external tracks ids depend on the order they are added: not in watch later
+    // (a stale id leaves the file without audio / with other subtitles)
+    std::vector<Mpv::TrackEntry> tracks = mpv->getTrackList();
+    for (int t = 0; t < 2; t++) {
+        const std::string type = t == 0 ? "audio" : "sub";
+        bool external = false;
+        for (auto &track: tracks) {
+            external |= track.type == type && track.selected && track.external;
+        }
+        if (external != watchLaterSkip[t]) {
+            watchLaterSkip[t] = external;
+            const char *cmd[] = {"change-list", "watch-later-options", external ? "remove" : "append",
+                                 t == 0 ? "aid" : "sid", nullptr};
+            mpv_command(mpv->getHandle(), cmd);
+        }
+    }
+    mpv->save();
 }
 
 void Player::rememberSelection(bool audio, int trackId) {
@@ -654,6 +703,11 @@ void Player::onStopEvent(int reason) {
         + " playbackCompleted=" + std::to_string(playbackCompleted ? 1 : 0)
         + " isPlaylist=" + std::to_string(isPlaylistFile() ? 1 : 0)
         + " retries=" + std::to_string(retryCount));
+
+    if (stalledStop) {
+        stalledStop = false;
+        main->getStatus()->show("Error...", "Playback stalled");
+    }
 
     if (reason == MPV_END_FILE_REASON_ERROR) {
         if (scheduleReload("error", true)) {
@@ -831,12 +885,19 @@ void Player::updateWatchdog() {
         stallClock.restart();
         return;
     }
+    // not started yet: the first position can take long (a mkv without index (cues)
+    // is read up to the resume position, through the network), a reload starts it again
     int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
-    float stallSec = (float) std::max(timeout * 2, 20);
+    float stallSec = playbackStarted ? (float) std::max(timeout * 2, 20) : (float) std::max(timeout * 10, 300);
     if (stallClock.getElapsedTime().asSeconds() >= stallSec) {
         stallClock.restart();
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: stalled, " + state());
-        scheduleReload("stalled " + std::to_string((int) stallSec) + " s", false);
+        // counted: "recovered" (progress) resets the count, a file never playing ends
+        if (!scheduleReload("stalled " + std::to_string((int) stallSec) + " s", true)) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: stalled, no retry left");
+            stalledStop = true;
+            stop();
+        }
     }
 }
 
@@ -879,7 +940,7 @@ void Player::onUpdate() {
         if (position > 0.0 && duration > 300 && !progressForgotten
             && (position - lastProgressSave) >= 10
             && (duration - position) >= 60) {
-            mpv->save();
+            saveProgress();
             pplay::Utility::log(pplay::Utility::LogLevel::Debug,
                 "Player::onUpdate::saveProgress position=" + std::to_string(position)
                 + " duration=" + std::to_string(duration));
@@ -898,6 +959,7 @@ void Player::onUpdate() {
                     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
                         "Player::onUpdate::event MPV_EVENT_START_FILE");
                     texture->clearFrame();
+                    texture->setWaiting(true);
                     // the previous file filter may not fit (channels): set again on audio start
                     if (!appliedAudioFilter.empty()) {
                         const char *remove[] = {"af", "remove", "@pplaynorm", nullptr};
@@ -908,6 +970,7 @@ void Player::onUpdate() {
                         "Loading... " + encoding::fix(file.name), true);
                     startPlaybackPosition = -1;
                     frameDrawn = false;
+                    playbackStarted = false;
                     playingKey = playingKeyOf(file.path);
                     main->getFiler()->refresh();
                     break;
@@ -917,7 +980,7 @@ void Player::onUpdate() {
                         "Player::onUpdate::event MPV_EVENT_FILE_LOADED");
                     onLoadEvent();
                     pplay::History::touch(playingKey);
-                    main->getStatus()->hide();
+                    // "Loading..." kept until the playback starts (resume position may be long)
                     break;
                 case MPV_EVENT_END_FILE:
                     printf("MPV_EVENT_END_FILE\n");
@@ -929,6 +992,14 @@ void Player::onUpdate() {
                     break;
                 case MPV_EVENT_AUDIO_RECONFIG:
                     applyAudioFilter();
+                    break;
+                case MPV_EVENT_PLAYBACK_RESTART:
+                    // the new file first frame is shown (mpv waits for it): visible again
+                    texture->setWaiting(false);
+                    if (!playbackStarted) {
+                        playbackStarted = true;
+                        main->getStatus()->hide();
+                    }
                     break;
                 case MPV_EVENT_COMMAND_REPLY:
                     if (event->reply_userdata == EXTERNAL_REPLY + (uint64_t) externalGeneration) {
@@ -1275,7 +1346,7 @@ void Player::pause() {
     mpv->pause();
     if (lastKnownPosition > 0 && lastKnownDuration > 300 && !progressForgotten
         && (lastKnownDuration - lastKnownPosition) >= 60) {
-        mpv->save();
+        saveProgress();
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
             "Player::pause::saveProgress lastKnownPosition=" + std::to_string(lastKnownPosition)
             + " lastKnownDuration=" + std::to_string(lastKnownDuration));

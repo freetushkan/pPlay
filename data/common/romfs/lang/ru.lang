@@ -137,6 +137,7 @@ Switching playlist item... = Переключение элемента плей�
 Could not load file = Не удалось загрузить файл
 Unexpected end of file = Неожиданный конец файла
 Reconnecting... = Переподключение...
+Playback stalled = Воспроизведение остановилось
 OK = OK
 The line is too long for the keyboard = Текст слишком длинный для клавиатуры
 

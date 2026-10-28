@@ -743,6 +743,8 @@ std::vector<Mpv::TrackEntry> Mpv::getTrackList() {
                     track.id = (int) value.u.int64;
                 } else if (value.format == MPV_FORMAT_FLAG && key == "external") {
                     track.external = value.u.flag != 0;
+                } else if (value.format == MPV_FORMAT_FLAG && key == "selected") {
+                    track.selected = value.u.flag != 0;
                 }
             }
             tracks.push_back(track);

@@ -137,6 +137,12 @@ private:
     // a track chosen in a menu: remembered if external
     void rememberSelection(bool audio, int trackId);
 
+    // watch later save (aid / sid left out while an external track is selected)
+    void saveProgress();
+
+    void selectAudioIfNone();
+    bool watchLaterSkip[2] = {false, false};
+
     // ui
     Main *main = nullptr;
     PlayerOSD *osd = nullptr;
@@ -161,6 +167,10 @@ private:
     long startPlaybackPosition = -1;
     c2d::C2DClock messageClock;
     bool frameDrawn = false;
+    // the file playback restart event seen (first frame / position reached)
+    bool playbackStarted = false;
+    // stopped by the watchdog, retries exhausted
+    bool stalledStop = false;
 
     bool reloadPending = false;
     int reloadDelayMs = 0;

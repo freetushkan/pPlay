@@ -130,6 +130,7 @@ public:
         std::string type;       // "video", "audio", "sub"
         std::string lang;
         bool external = false;
+        bool selected = false;
         std::string filename;   // external file url
     };
 

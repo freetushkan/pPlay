@@ -49,6 +49,13 @@ void VideoTexture::drawFrame() {
     forceDraw = true;
 }
 
+void VideoTexture::setWaiting(bool wait) {
+    if (waiting && !wait) {
+        forceDraw = true;
+    }
+    waiting = wait;
+}
+
 void VideoTexture::onDraw(c2d::Transform &transform, bool draw) {
     if (draw) {
         mpv_render_context *ctx = main->getPlayer()->getMpv()->getContext();
@@ -69,6 +76,9 @@ void VideoTexture::onDraw(c2d::Transform &transform, bool draw) {
                         {MPV_RENDER_PARAM_INVALID,    nullptr}
                 };
                 mpv_render_context_render(ctx, r_params);
+                if (waiting) {
+                    clearFrame();
+                }
 #ifdef FULL_TEXTURE_TEST
                 // mpv change viewport, restore
                 glViewport(0, 0, (GLsizei) main->getSize().x, (GLsizei) main->getSize().y);

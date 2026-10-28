@@ -64,13 +64,18 @@ PreviewView::PreviewView(Main *m, const c2d::FloatRect &rect) : Rectangle(rect) 
     details->setSizeMax(textWidth, rect.height - top);
     PreviewView::add(details);
 
-    // bottom: the progress reset button
+    // screen bottom (under the files list height): the progress reset button, a separator line above
     hint = new C2DText("", main->getFontSize(Main::FontSize::Small), main->getFont());
     hint->setFillColor(COLOR_GRAY_LIGHT);
     hint->setOrigin(Origin::BottomLeft);
-    hint->setPosition(margin, rect.height - margin);
+    hint->setPosition(margin, main->getSize().y - margin);
     hint->setVisibility(Visibility::Hidden);
     PreviewView::add(hint);
+
+    separator = new RectangleShape({textWidth, std::max(1.0f, main->getScaling().y)});
+    separator->setFillColor(Color(255, 255, 255, 50));
+    separator->setVisibility(Visibility::Hidden);
+    PreviewView::add(separator);
 
     hidePoster();
 }
@@ -109,9 +114,16 @@ void PreviewView::layout() {
     details->setPosition(margin, y);
     float bottom = getSize().y - margin;
     if (hint->isVisible()) {
-        bottom -= hint->getLocalBounds().height + margin;
+        // fixed at the screen bottom: hint, separator, then the details above
+        float lineHeight = (float) main->getFontSize(Main::FontSize::Small);
+        float separatorY = hint->getPosition().y - lineHeight * 1.2f - margin * 0.6f;
+        separator->setPosition(margin, separatorY);
+        bottom = separatorY - margin * 0.6f;
     }
-    details->setSizeMax(getSize().x - margin * 2, std::max(0.0f, bottom - y));
+    separator->setVisibility(hint->isVisible() ? Visibility::Visible : Visibility::Hidden);
+    // the last line descenders are drawn under its maximum height
+    float descent = (float) main->getFontSize(Main::FontSize::Small) * 0.35f;
+    details->setSizeMax(getSize().x - margin * 2, std::max(0.0f, bottom - y - descent));
 }
 
 void PreviewView::showPoster(const std::string &url) {
