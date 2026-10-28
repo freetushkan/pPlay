@@ -30,6 +30,9 @@ public:
     // file opened in the player? (paths may be spelled differently)
     bool isPlaying(const std::string &path);
 
+    // comparable key of a path (as given to mpv): playing mark, history
+    static std::string keyOf(const std::string &path);
+
     void pause();
 
     void resume();
@@ -163,6 +166,23 @@ private:
     bool userPaused = false;
     c2d::C2DClock stallClock;
     c2d::C2DClock progressClock;
+
+    // playback information (Start toggles it), updated while shown
+    c2d::Text *info_text = nullptr;
+    c2d::C2DClock infoClock;
+
+    void updateInfo();
+
+    // volume normalization (lavfi, labelled @pplaynorm), by the decoded channels
+    std::string appliedAudioFilter;
+
+    void applyAudioFilter();
+
+    // volume saved in the settings, a bit after the last change
+    bool volumeDirty = false;
+    c2d::C2DClock volumeClock;
+
+    void saveVolume();
 
     // external tracks
     std::string confAudioLang;

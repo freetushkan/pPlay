@@ -33,13 +33,52 @@ namespace {
                 {"Russian",    "rus,ru,russian"},
                 {"English",    "eng,en,english"},
                 {"Ukrainian",  "ukr,uk,ukrainian"},
+                {"Belarusian", "bel,be,belarusian"},
+                {"Kazakh",     "kaz,kk,kazakh"},
+                {"Uzbek",      "uzb,uz,uzbek"},
+                {"Georgian",   "geo,kat,ka,georgian"},
+                {"Armenian",   "arm,hye,hy,armenian"},
+                {"Azerbaijani", "aze,az,azerbaijani"},
+                {"Polish",     "pol,pl,polish"},
+                {"Czech",      "cze,ces,cs,czech"},
+                {"Slovak",     "slo,slk,sk,slovak"},
+                {"Bulgarian",  "bul,bg,bulgarian"},
+                {"Serbian",    "srp,sr,serbian"},
+                {"Croatian",   "hrv,hr,croatian"},
+                {"Slovenian",  "slv,sl,slovenian"},
+                {"Romanian",   "rum,ron,ro,romanian"},
+                {"Hungarian",  "hun,hu,hungarian"},
+                {"Greek",      "gre,ell,el,greek"},
+                {"Lithuanian", "lit,lt,lithuanian"},
+                {"Latvian",    "lav,lv,latvian"},
+                {"Estonian",   "est,et,estonian"},
+                {"Finnish",    "fin,fi,finnish"},
+                {"Swedish",    "swe,sv,swedish"},
+                {"Norwegian",  "nor,nob,nno,no,nb,nn,norwegian"},
+                {"Danish",     "dan,da,danish"},
+                {"Icelandic",  "ice,isl,is,icelandic"},
+                {"Dutch",      "dut,nld,nl,dutch"},
                 {"German",     "ger,deu,de,german"},
                 {"French",     "fre,fra,fr,french"},
                 {"Spanish",    "spa,es,spanish"},
+                {"Catalan",    "cat,ca,catalan"},
+                {"Portuguese", "por,pt,portuguese"},
                 {"Italian",    "ita,it,italian"},
+                {"Turkish",    "tur,tr,turkish"},
+                {"Hebrew",     "heb,he,hebrew"},
+                {"Arabic",     "ara,ar,arabic"},
+                {"Persian",    "per,fas,fa,persian"},
+                {"Hindi",      "hin,hi,hindi"},
+                {"Bengali",    "ben,bn,bengali"},
+                {"Tamil",      "tam,ta,tamil"},
+                {"Thai",       "tha,th,thai"},
+                {"Vietnamese", "vie,vi,vietnamese"},
+                {"Indonesian", "ind,id,indonesian"},
+                {"Malay",      "may,msa,ms,malay"},
+                {"Filipino",   "fil,tgl,tl,filipino"},
                 {"Japanese",   "jpn,ja,japanese"},
                 {"Korean",     "kor,ko,korean"},
-                {"Chinese",    "chi,zho,zh,chinese"},
+                {"Chinese",    "chi,zho,zh,cmn,yue,chinese"},
         };
         std::vector<MenuItem> items;
         items.emplace_back(none, "", MenuItem::Position::Top);
@@ -60,39 +99,55 @@ namespace {
 
 MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<MenuItem> &items)
         : Menu(main, rect, "pPlay v" APP_VERSION, items, true) {
-    std::vector<MenuItem> it;
-
-    it.emplace_back("Playback mode", "pl_mode.png", MenuItem::Position::Top);
-    it.emplace_back("Short seek step", "short_seek.png", MenuItem::Position::Top);
-    it.emplace_back("Long seek step", "long_seek.png", MenuItem::Position::Top);
-    it.emplace_back("Swap controls", "swap.png", MenuItem::Position::Top);
-    it.emplace_back("Accent color", "color.png", MenuItem::Position::Top);
-    it.emplace_back("Connection timeout", "timeout.png", MenuItem::Position::Top);
+    using Pos = MenuItem::Position;
+    // settings by category (menu key, items)
+    std::vector<std::pair<std::string, std::vector<MenuItem>>> categories;
+    categories.push_back({"Playback", {
+            MenuItem("Playback mode", "pl_mode.png", Pos::Top),
+            MenuItem("Short seek step", "short_seek.png", Pos::Top),
+            MenuItem("Long seek step", "long_seek.png", Pos::Top),
+            MenuItem("Playback retry", "pl_retry.png", Pos::Top),
+            MenuItem("Audio language", "options.png", Pos::Top),
+            MenuItem("Subtitles language", "options.png", Pos::Top),
+            MenuItem("External tracks", "options.png", Pos::Top),
+            MenuItem("Volume normalization", "options.png", Pos::Top),
+    }});
+    categories.push_back({"Interface", {
+            MenuItem("Language", "options.png", Pos::Top),
+            MenuItem("Accent color", "color.png", Pos::Top),
+            MenuItem("Preview panel", "video.png", Pos::Top),
+            MenuItem("Swap controls", "swap.png", Pos::Top),
+    }});
+    std::vector<MenuItem> networks;
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
-        it.emplace_back(networkKey(i), "network.png", MenuItem::Position::Top);
+        networks.emplace_back(networkKey(i), "network.png", Pos::Top);
     }
-    it.emplace_back("Local home path", "home.png", MenuItem::Position::Top);
-    it.emplace_back("Language", "options.png", MenuItem::Position::Top);
-    it.emplace_back("Edit files", "options.png", MenuItem::Position::Top);
-#ifdef PPLAY_ENABLE_SCRAPPING
-    it.emplace_back("TMDB language", "home.png", MenuItem::Position::Top);
-#endif
-    it.emplace_back("Playback retry", "pl_retry.png", MenuItem::Position::Top);
+    networks.emplace_back("Connection timeout", "timeout.png", Pos::Top);
 #ifdef __SMB2__
-    it.emplace_back("SMB buffer", "buffer.png", MenuItem::Position::Top);
+    networks.emplace_back("SMB buffer", "buffer.png", Pos::Top);
 #endif
+    categories.push_back({"Networks", networks});
+    std::vector<MenuItem> system = {
+            MenuItem("Local home path", "home.png", Pos::Top),
+            MenuItem("Edit files", "options.png", Pos::Top),
+    };
 #ifdef PPLAY_ENABLE_SCRAPPING
-    it.emplace_back("Scrapping", "", MenuItem::Position::Top);
-    it.emplace_back("Cache", "", MenuItem::Position::Top);
+    system.emplace_back("TMDB language", "home.png", Pos::Top);
+    system.emplace_back("Scrapping", "", Pos::Top);
+    system.emplace_back("Cache", "", Pos::Top);
 #endif
 #ifdef __SWITCH__
-    it.emplace_back("CPU boost", "cpu.png", MenuItem::Position::Top);
+    system.emplace_back("CPU boost", "cpu.png", Pos::Top);
 #endif
-    it.emplace_back("Preview panel", "video.png", MenuItem::Position::Top);
-    it.emplace_back("Audio language", "options.png", MenuItem::Position::Top);
-    it.emplace_back("Subtitles language", "options.png", MenuItem::Position::Top);
-    it.emplace_back("External tracks", "options.png", MenuItem::Position::Top);
-    it.emplace_back("Logging", "log.png", MenuItem::Position::Top);
+    system.emplace_back("Logging", "log.png", Pos::Top);
+    categories.push_back({"System", system});
+
+    std::vector<MenuItem> it = {
+            MenuItem("Playback", "pl_mode.png", Pos::Top),
+            MenuItem("Interface", "color.png", Pos::Top),
+            MenuItem("Networks", "network.png", Pos::Top),
+            MenuItem("System", "options.png", Pos::Top),
+    };
 
     menuMainOptions = new MenuMainOptions(main, rect, it);
     menuMainOptions->setLayer(2);
@@ -109,10 +164,18 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                                    valueType, menuType, minValue, maxValue, stepValue, unit);
         submenu->setLayer(2);
         submenu->setVisibility(Visibility::Hidden, false);
+        submenu->setKey(name);
         submenu->refresh();
         main->add(submenu);
         menuMainOptionsSubmenus[name] = submenu;
     };
+
+    for (auto &category: categories) {
+        addSubmenu(category.first, category.first, "", category.second);
+        for (auto &item: category.second) {
+            parents[item.name] = category.first;
+        }
+    }
 
     auto addTextSubmenu = [&](const std::string &name, const std::string &title, const std::string &optionName) {
         addSubmenu(name, title, optionName,
@@ -127,6 +190,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                     MenuItem(name + " url", "", MenuItem::Position::Top),
                     MenuItem(name + " type", "", MenuItem::Position::Top)},
                    Submenu::ValueType::String);
+        parents[name + " name"] = name;
+        parents[name + " url"] = name;
+        parents[name + " type"] = name;
         addTextSubmenu(name + " name", name + " name", PPLAYConfig::networkNameOption(i));
         addTextSubmenu(name + " url", name + " url", PPLAYConfig::networkOption(i));
         std::vector<MenuItem> typeItems;
@@ -179,6 +245,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeTrackLanguageItems("Off"), Submenu::ValueType::String);
     addSubmenu("External tracks", "External audio and subtitles", OPT_EXTERNAL_TRACKS,
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
+    addSubmenu("Volume normalization", "Volume normalization", OPT_AUDIO_NORMALIZE,
+               makeIntItems({{"Off", 0}, {"Normalize", 1}, {"Night mode", 2}}), Submenu::ValueType::Integer);
     addSubmenu("Logging", "Log to file", OPT_LOG_LEVEL,
                makeIntItems({{"Off", 0}, {"Error", 1}, {"Info", 2}, {"Debug", 3}, {"Trace", 4}}),
                Submenu::ValueType::Integer);
@@ -241,7 +309,7 @@ void MenuMain::updateNetworkLabels() {
         if (!url.empty() && !name.empty() && name != key) {
             label += " (" + name + ")";
         }
-        for (auto *button: menuMainOptions->getButtons()) {
+        for (auto *button: getMenuMainOptionsSubmenu("Networks")->getButtons()) {
             if (button->item.name == key) {
                 button->item.label = label;
                 button->refreshText();
@@ -408,6 +476,16 @@ bool MenuMain::isMenuVisible() {
 
 MenuMainOptions *MenuMain::getMenuMainOptions() {
     return menuMainOptions;
+}
+
+void MenuMain::showParent(const std::string &key) {
+    auto parent = parents.find(key);
+    MenuMainOptionsSubmenu *submenu = parent != parents.end() ? getMenuMainOptionsSubmenu(parent->second) : nullptr;
+    if (submenu != nullptr) {
+        submenu->setVisibility(Visibility::Visible, true);
+    } else {
+        menuMainOptions->setVisibility(Visibility::Visible, true);
+    }
 }
 
 MenuMainOptionsSubmenu *MenuMain::getMenuMainOptionsSubmenu(const std::string &name) {

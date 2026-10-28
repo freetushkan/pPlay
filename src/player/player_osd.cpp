@@ -2,6 +2,7 @@
 // Created by cpasjuste on 12/12/18.
 //
 
+#include <algorithm>
 #include "main.h"
 #include "utility.h"
 #include "player_osd.h"
@@ -31,6 +32,12 @@ PlayerOSD::PlayerOSD(Main *m) : GradientRectangle({0, 0, 64, 64}) {
     progress->setFgColor(COLOR_ACCENT);
     progress->setBgColor(COLOR_GRAY);
     PlayerOSD::add(progress);
+
+    // buffered (cache) part, under the played one
+    buffered = new RectangleShape({1, 1, 0, progress->getSize().y - 2});
+    buffered->setFillColor({255, 255, 255, 110});
+    progress->add(buffered);
+    buffered->setLayer(-1); // sorted once added
 
     // left buttons
     btn_pause = new C2DTexture(main->getIo()->getDataPath() + "skin/btn_pause.png");
@@ -162,7 +169,14 @@ void PlayerOSD::onDraw(c2d::Transform &transform, bool draw) {
 
     position = (float) mpv->getPosition();
     duration = (float) mpv->getDuration();
-    progress->setProgress(position / duration);
+    progress->setProgress(duration > 0 ? position / duration : 0);
+    if (duration > 0) {
+        double cacheEnd = std::max(0.0, mpv->getTime()) + std::max(0.0, mpv->getCacheDuration());
+        float width = (float) std::min(1.0, cacheEnd / duration) * (progress->getSize().x - 2);
+        buffered->setSize(width, buffered->getSize().y);
+    } else {
+        buffered->setSize(0, buffered->getSize().y);
+    }
     progress->setFgColor(COLOR_ACCENT);
     progress_text->setString(pplay::Utility::formatTime(position));
     duration_text->setString(pplay::Utility::formatTime(duration));

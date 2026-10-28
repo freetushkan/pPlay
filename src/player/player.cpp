@@ -17,6 +17,7 @@
 #include "pplay_config.h"
 #include "encodings.h"
 #include "i18n.h"
+#include "history.h"
 #include "filer.h"
 #include "io.h"
 #include "menu_video_submenu.h"
@@ -56,6 +57,11 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
             *lang = value ? value : "";
             mpv_free(value);
         }
+        // last volume, set on the next file
+        int volume = main->getConfig()->getOption(OPT_VOLUME)->getInteger();
+        if (volume >= 0) {
+            mpv->setLastVolume(volume);
+        }
     }
 
 #ifndef FULL_TEXTURE_TEST
@@ -84,6 +90,16 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
     message_text->setVisibility(Visibility::Hidden);
     message_text->setLayer(3);
     add(message_text);
+
+    info_text = new Text("", main->getFontSize(Main::FontSize::Medium), main->getFont());
+    info_text->setFillColor(COLOR_FONT);
+    info_text->setOutlineColor(COLOR_GRAY_DARK);
+    info_text->setOutlineThickness(3.0f);
+    info_text->setLineSpacingModifier((int) (4 * main->getScaling().y));
+    info_text->setPosition((20 * main->getScaling().x), (60 * main->getScaling().y));
+    info_text->setVisibility(Visibility::Hidden);
+    info_text->setLayer(3);
+    add(info_text);
 }
 
 Player::~Player() {
@@ -108,6 +124,10 @@ static std::string playingKeyOf(const std::string &path) {
         key.pop_back();
     }
     return key;
+}
+
+std::string Player::keyOf(const std::string &path) {
+    return playingKeyOf(path);
 }
 
 bool Player::isPlaying(const std::string &path) {
@@ -514,7 +534,7 @@ void Player::pickExternalTrack(bool audio) {
     }
     setFullscreen(false);
     std::string hint = pplay::tr(audio ? "Choose an audio file" : "Choose a subtitles file")
-                       + "\n" + pplay::tr("X: cancel");
+                       + "\n" + pplay::InputMap::buttonName(c2d::Input::Button::X) + ": " + pplay::tr("cancel");
     main->getFiler()->startPick(
             audio ? pplay::ExternalTracks::audioExtensions() : pplay::ExternalTracks::subtitleExtensions(),
             pplay::Paths::extractDirPath(file.path), hint,
@@ -577,6 +597,9 @@ void Player::onStopEvent(int reason) {
     }
 
     if (main->isExiting()) {
+        if (volumeDirty) {
+            saveVolume();
+        }
         if (menuPlaybackMode != nullptr) {
             delete (menuPlaybackMode);
             menuPlaybackMode = nullptr;
@@ -794,6 +817,16 @@ void Player::updateWatchdog() {
 
 void Player::onUpdate() {
     updateExternalTracks();
+    if (volumeDirty && volumeClock.getElapsedTime().asSeconds() >= 2) {
+        saveVolume();
+    }
+    if (info_text->isVisible()) {
+        if (mpv->isStopped()) {
+            info_text->setVisibility(Visibility::Hidden);
+        } else if (infoClock.getElapsedTime().asMilliseconds() >= 500) {
+            updateInfo();
+        }
+    }
 
     if (reloadPending && reloadClock.getElapsedTime().asMilliseconds() >= reloadDelayMs) {
         reloadPending = false;
@@ -840,6 +873,12 @@ void Player::onUpdate() {
                     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
                         "Player::onUpdate::event MPV_EVENT_START_FILE");
                     texture->clearFrame();
+                    // the previous file filter may not fit (channels): set again on audio start
+                    if (!appliedAudioFilter.empty()) {
+                        const char *remove[] = {"af", "remove", "@pplaynorm", nullptr};
+                        mpv_command(mpv->getHandle(), remove);
+                        appliedAudioFilter.clear();
+                    }
                     main->getStatus()->show("Please Wait...",
                         "Loading... " + encoding::fix(file.name), true);
                     startPlaybackPosition = -1;
@@ -852,6 +891,7 @@ void Player::onUpdate() {
                     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
                         "Player::onUpdate::event MPV_EVENT_FILE_LOADED");
                     onLoadEvent();
+                    pplay::History::touch(playingKey);
                     main->getStatus()->hide();
                     break;
                 case MPV_EVENT_END_FILE:
@@ -861,6 +901,9 @@ void Player::onUpdate() {
                     playingKey.clear();
                     onStopEvent(((mpv_event_end_file *) event->data)->reason);
                     main->getFiler()->refresh();
+                    break;
+                case MPV_EVENT_AUDIO_RECONFIG:
+                    applyAudioFilter();
                     break;
                 case MPV_EVENT_COMMAND_REPLY:
                     if (event->reply_userdata == EXTERNAL_REPLY + (uint64_t) externalGeneration) {
@@ -949,11 +992,12 @@ bool Player::onInput(c2d::Input::Player *players) {
         osd->setVisibility(c2d::Visibility::Visible);
         getMpv()->seek(((keys & btnSeekBack) ? -seek : seek));
     } else if (keys & Input::Start) {
-        int width = getMpv()->getOsdWidth();
-        int height = getMpv()->getOsdHeight();
-        std::string message = "Render: " +
-                        std::to_string(width) + "x" + std::to_string(height);
-        showMessage(message);
+        if (info_text->isVisible()) {
+            info_text->setVisibility(Visibility::Hidden);
+        } else {
+            updateInfo();
+            info_text->setVisibility(Visibility::Visible);
+        }
     } else if (keys & (Input::Up | Input::Down)) {
         int delta = (keys & Input::Up) ? 1 : -1;
         if (keys & Input::Y)
@@ -1023,8 +1067,163 @@ void Player::setSpeed(double speed) {
     showMessage(mpv->setSpeed(speed));
 }
 
+void Player::updateInfo() {
+    infoClock.restart();
+    std::ostringstream out;
+    out.setf(std::ios::fixed);
+    auto bitrate = [](double bps) {
+        std::ostringstream b;
+        b.setf(std::ios::fixed);
+        if (bps >= 1000000) {
+            b.precision(1);
+            b << bps / 1000000 << " Mb/s";
+        } else {
+            b.precision(0);
+            b << bps / 1000 << " kb/s";
+        }
+        return b.str();
+    };
+
+    out << encoding::fix(file.name) << "\n";
+    std::string vcodec = mpv->getString("current-tracks/video/codec");
+    if (!vcodec.empty() && hasVideo()) {
+        out.precision(3);
+        out << pplay::tr("Video") << ": " << vcodec << " " << mpv->getInt("video-params/w", 0) << "x"
+            << mpv->getInt("video-params/h", 0);
+        double fps = mpv->getDouble("container-fps", 0);
+        if (fps > 0) {
+            out << " " << fps << " fps";
+        }
+        std::string hwdec = mpv->getString("hwdec-current");
+        out << ", hwdec: " << (hwdec.empty() ? "no" : hwdec);
+        double vbit = mpv->getDouble("video-bitrate", 0);
+        if (vbit > 0) {
+            out << ", " << bitrate(vbit);
+        }
+        out << "\n    " << pplay::tr("Dropped frames") << ": " << mpv->getInt("frame-drop-count", 0)
+            << " / " << mpv->getInt("decoder-frame-drop-count", 0)
+            << ", " << pplay::tr("Render") << ": " << mpv->getOsdWidth() << "x" << mpv->getOsdHeight() << "\n";
+    }
+    std::string acodec = mpv->getString("current-tracks/audio/codec");
+    if (!acodec.empty()) {
+        out.precision(0);
+        out << pplay::tr("Audio") << ": " << acodec << " " << mpv->getString("audio-params/channels") << " "
+            << mpv->getInt("audio-params/samplerate", 0) / 1000.0 << " kHz -> "
+            << mpv->getString("audio-out-params/channels");
+        double abit = mpv->getDouble("audio-bitrate", 0);
+        if (abit > 0) {
+            out << ", " << bitrate(abit);
+        }
+        static const char *modes[] = {"Off", "Normalize", "Night mode"};
+        int mode = std::max(0, std::min(2, main->getConfig()->getOption(OPT_AUDIO_NORMALIZE)->getInteger()));
+        out << "\n    " << pplay::tr("Volume") << ": " << (int) mpv->getDouble("volume", 0) << "%, "
+            << pplay::tr("Volume normalization") << ": " << pplay::tr(modes[mode]) << "\n";
+    }
+    out.precision(1);
+    out << pplay::tr("Cache") << ": " << std::max(0.0, mpv->getDouble("demuxer-cache-duration", 0)) << " s, "
+        << mpv->getCacheSpeed() / 1048576.0 << " MB/s, " << pplay::tr("Speed") << ": ";
+    out.precision(2);
+    out << mpv->getSpeed();
+    info_text->setString(out.str());
+}
+
+void Player::applyAudioFilter() {
+    if (!mpv->isAvailable()) {
+        return;
+    }
+    int mode = main->getConfig()->getOption(OPT_AUDIO_NORMALIZE)->getInteger();
+    std::string chain;
+    if (mode > 0) {
+        // decoded channels ("5.1(side)", "stereo"... or "fl-fr-fc-lfe-sl-sr")
+        std::string layout = mpv->getString("audio-params/channels");
+        if (layout.empty()) {
+            return; // audio not started yet: on its reconfig event
+        }
+        static const std::pair<const char *, const char *> layouts[] = {
+                {"mono", "fc"}, {"stereo", "fl-fr"}, {"2.1", "fl-fr-lfe"}, {"3.0", "fl-fr-fc"},
+                {"3.0(back)", "fl-fr-bc"}, {"4.0", "fl-fr-fc-bc"}, {"quad", "fl-fr-bl-br"},
+                {"quad(side)", "fl-fr-sl-sr"}, {"3.1", "fl-fr-fc-lfe"}, {"5.0", "fl-fr-fc-bl-br"},
+                {"5.0(side)", "fl-fr-fc-sl-sr"}, {"4.1", "fl-fr-fc-lfe-bc"}, {"5.1", "fl-fr-fc-lfe-bl-br"},
+                {"5.1(side)", "fl-fr-fc-lfe-sl-sr"}, {"6.0", "fl-fr-fc-bc-sl-sr"},
+                {"6.1", "fl-fr-fc-lfe-bc-sl-sr"}, {"7.0", "fl-fr-fc-bl-br-sl-sr"},
+                {"7.1", "fl-fr-fc-lfe-bl-br-sl-sr"}, {"7.1(wide)", "fl-fr-fc-lfe-bl-br-flc-frc"},
+                {"7.1(wide-side)", "fl-fr-fc-lfe-flc-frc-sl-sr"},
+        };
+        std::string speakers = layout;
+        for (auto &known: layouts) {
+            if (layout == known.first) {
+                speakers = known.second;
+            }
+        }
+        auto has = [&speakers](const char *name) {
+            std::string s = "-" + speakers + "-";
+            return s.find(std::string("-") + name + "-") != std::string::npos;
+        };
+        int channels = 0;
+        for (char c: speakers) {
+            channels += c == '-';
+        }
+        channels++;
+
+        if (mode == 2 && channels > 2 && has("fc") && has("fl") && has("fr")) {
+            // night mode downmix: dialogue (center) up, surrounds down, no LFE
+            auto side = [&](const char *front, const char *back, const char *sideName, const char *wide) {
+                // "<": gains renormalized (no clipping)
+                std::string out = std::string(front) + "<1.0*FC+0.6*" + front;
+                for (const char *extra: {back, sideName, wide}) {
+                    std::string lower = extra;
+                    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+                    if (has(lower.c_str())) {
+                        out += std::string("+0.35*") + extra;
+                    }
+                }
+                return out;
+            };
+            chain = "pan=stereo|" + side("FL", "BL", "SL", "FLC") + "|" + side("FR", "BR", "SR", "FRC") + ",";
+        }
+        if (mode == 2) {
+            // fast peaks down, then the level evened out
+            chain += "acompressor=threshold=0.063:ratio=6:attack=5:release=300:makeup=4,"
+                     "dynaudnorm=f=200:g=11:p=0.6:m=10";
+        } else {
+            chain += "dynaudnorm=f=250:g=15:p=0.9:m=8";
+        }
+    }
+
+    if (chain == appliedAudioFilter) {
+        return;
+    }
+    if (!appliedAudioFilter.empty()) {
+        const char *remove[] = {"af", "remove", "@pplaynorm", nullptr};
+        mpv_command(mpv->getHandle(), remove);
+    }
+    appliedAudioFilter = chain;
+    if (!chain.empty()) {
+        std::string filter = "@pplaynorm:lavfi=[" + chain + "]";
+        const char *add[] = {"af", "add", filter.c_str(), nullptr};
+        int res = mpv_command(mpv->getHandle(), add);
+        pplay::Utility::log(res < 0 ? pplay::Utility::LogLevel::Error : pplay::Utility::LogLevel::Info,
+                            "Player: audio filter " + chain + (res < 0 ? std::string(": ") + mpv_error_string(res) : ""));
+        if (res < 0) {
+            appliedAudioFilter.clear();
+        }
+    }
+}
+
 void Player::changeVolume(double delta) {
     showMessage(mpv->changeVolume(delta));
+    volumeDirty = true;
+    volumeClock.restart();
+}
+
+void Player::saveVolume() {
+    volumeDirty = false;
+    int volume = (int) mpv->getLastVolume();
+    auto *option = main->getConfig()->getOption(OPT_VOLUME);
+    if (volume >= 0 && option->getInteger() != volume) {
+        option->setInteger(volume);
+        main->getConfig()->save();
+    }
 }
 
 void Player::changeBrightness(double delta) {
@@ -1173,6 +1372,7 @@ Mpv *Player::getMpv() {
 
 void Player::applyConfig() {
     applyLanguages();
+    applyAudioFilter();
     const int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
 #ifdef __SMB2__
     configure_smb_mpv(main->getConfig()->getOption(OPT_SMB_READ_BUFFER_MB)->getInteger(), timeout);

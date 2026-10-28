@@ -16,6 +16,9 @@
 #include "i18n.h"
 #include "encodings.h"
 #include "image.h"
+#include "history.h"
+#include "input_map.h"
+#include "player.h"
 
 using namespace c2d;
 
@@ -61,6 +64,14 @@ PreviewView::PreviewView(Main *m, const c2d::FloatRect &rect) : Rectangle(rect) 
     details->setSizeMax(textWidth, rect.height - top);
     PreviewView::add(details);
 
+    // bottom: the progress reset button
+    hint = new C2DText("", main->getFontSize(Main::FontSize::Small), main->getFont());
+    hint->setFillColor(COLOR_GRAY_LIGHT);
+    hint->setOrigin(Origin::BottomLeft);
+    hint->setPosition(margin, rect.height - margin);
+    hint->setVisibility(Visibility::Hidden);
+    PreviewView::add(hint);
+
     hidePoster();
 }
 
@@ -96,7 +107,11 @@ void PreviewView::layout() {
         y += titleHeight + gap;
     }
     details->setPosition(margin, y);
-    details->setSizeMax(getSize().x - margin * 2, std::max(0.0f, getSize().y - y - margin));
+    float bottom = getSize().y - margin;
+    if (hint->isVisible()) {
+        bottom -= hint->getLocalBounds().height + margin;
+    }
+    details->setSizeMax(getSize().x - margin * 2, std::max(0.0f, bottom - y));
 }
 
 void PreviewView::showPoster(const std::string &url) {
@@ -235,6 +250,23 @@ void PreviewView::setFile(const MediaFile &file) {
             info << pplay::tr("Size") << ": " << pplay::Utility::formatSize(file.size) << "\n";
         }
     }
+
+    bool media = file.type == Io::Type::File && !Filer::isPlaceholder(file);
+    if (media) {
+        time_t last = pplay::History::lastPlayed(Player::keyOf(file.path));
+        if (last > 0) {
+            struct tm tm{};
+            localtime_r(&last, &tm);
+            char date[32];
+            strftime(date, sizeof(date), "%d.%m.%Y %H:%M", &tm);
+            info << pplay::tr("Last played") << ": " << date << "\n";
+        }
+    }
+    // watch later / TorrServer viewed state: Y resets it (filer)
+    bool resettable = media && (pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path))
+                                || pplay::TorrServe::isFileViewed(file.path));
+    hint->setString(pplay::InputMap::buttonName(Input::Button::Y) + " " + pplay::tr("Reset progress"));
+    hint->setVisibility(resettable ? Visibility::Visible : Visibility::Hidden);
 
     const MediaInfo &mi = file.mediaInfo;
     if (file.type == Io::Type::File && (mi.duration > 0 || !mi.videos.empty() || !mi.audios.empty())) {

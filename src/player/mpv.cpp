@@ -634,6 +634,32 @@ mpv_render_context *Mpv::getContext() {
     return context;
 }
 
+std::string Mpv::getString(const char *name) {
+    char *value = nullptr;
+    if (!isAvailable() || logged_mpv_get_property(handle, name, MPV_FORMAT_STRING, &value) < 0 || !value) {
+        return "";
+    }
+    std::string out = value;
+    mpv_free(value);
+    return out;
+}
+
+double Mpv::getDouble(const char *name, double fallback) {
+    double value = fallback;
+    if (!isAvailable() || logged_mpv_get_property(handle, name, MPV_FORMAT_DOUBLE, &value) < 0) {
+        return fallback;
+    }
+    return value;
+}
+
+long Mpv::getInt(const char *name, long fallback) {
+    int64_t value = fallback;
+    if (!isAvailable() || logged_mpv_get_property(handle, name, MPV_FORMAT_INT64, &value) < 0) {
+        return fallback;
+    }
+    return (long) value;
+}
+
 std::vector<Mpv::TrackEntry> Mpv::getTrackList() {
     std::vector<TrackEntry> tracks;
     mpv_node node;

@@ -40,6 +40,9 @@ public:
 
     void refresh();
 
+    // name in MenuMain (back navigation)
+    void setKey(const std::string &k) { key = k; }
+
 private:
 
     void onOptionSelection(MenuItem *item) override;
@@ -62,6 +65,7 @@ private:
     float max_value;
     float step_value;
     std::string value_unit;
+    std::string key;
 };
 
 #endif //PPLAY_MENU_MAIN_OPTIONS_SUBMENU_H

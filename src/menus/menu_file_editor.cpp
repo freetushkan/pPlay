@@ -216,7 +216,7 @@ bool MenuFileEditor::onInput(c2d::Input::Player *players) {
             return true;
         }
         setVisibility(Visibility::Hidden, true);
-        main->getMenuMain()->getMenuMainOptions()->setVisibility(Visibility::Visible, true);
+        main->getMenuMain()->showParent("Edit files");
         return true;
     }
     return Menu::onInput(players);

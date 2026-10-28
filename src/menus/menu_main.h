@@ -23,6 +23,9 @@ public:
 
     MenuMainOptionsSubmenu *getMenuMainOptionsSubmenu(const std::string &name);
 
+    // back from a settings menu: its category (or group), else the settings
+    void showParent(const std::string &key);
+
     void reloadModules();
 
     MenuFileEditor *getFileEditor();
@@ -51,6 +54,7 @@ private:
     MenuMainOptions *menuMainOptions;
     MenuFileEditor *fileEditor = nullptr;
     std::map<std::string, MenuMainOptionsSubmenu *> menuMainOptionsSubmenus;
+    std::map<std::string, std::string> parents;
 };
 
 

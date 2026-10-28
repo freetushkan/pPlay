@@ -48,6 +48,7 @@ private:
     c2d::RectangleShape *posterFrame;
     c2d::Text *title;
     c2d::Text *details;
+    c2d::Text *hint;
 
     // poster loading (debounced, threaded download to data/cache/posters)
     std::string wantedPoster;

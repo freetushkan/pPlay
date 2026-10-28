@@ -11,6 +11,7 @@
 #include "main.h"
 #include "utility.h"
 #include "menu_main_options_submenu.h"
+#include "menu_file_editor.h"
 
 #include "keyboard.h"
 #include "i18n.h"
@@ -201,6 +202,11 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
     }
 
     if (option_name.empty()) {
+        if (item->name == "Edit files") {
+            setVisibility(Visibility::Hidden, true);
+            main->getMenuMain()->getFileEditor()->setVisibility(Visibility::Visible);
+            return;
+        }
         auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(item->name);
         if (submenu != nullptr) {
             setVisibility(Visibility::Hidden, true);
@@ -284,15 +290,7 @@ void MenuMainOptionsSubmenu::setVisibility(c2d::Visibility visibility, bool twee
 bool MenuMainOptionsSubmenu::onInput(c2d::Input::Player *players) {
     if (players[0].buttons & Input::Right || players[0].buttons & Input::B) {
         setVisibility(Visibility::Hidden, true);
-        if (option_name.rfind("NETWORK", 0) == 0) {
-            auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(
-                    "Network " + option_name.substr(7, 1));
-            if (submenu != nullptr) {
-                submenu->setVisibility(Visibility::Visible, true);
-                return true;
-            }
-        }
-        main->getMenuMain()->getMenuMainOptions()->setVisibility(Visibility::Visible, true);
+        main->getMenuMain()->showParent(key);
         return true;
     }
 

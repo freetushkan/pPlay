@@ -47,6 +47,11 @@ public:
 
     void saveVolume();
 
+    // restored on the next file (-1: mpv.conf one)
+    void setLastVolume(double volume) { lastVolume = volume; }
+
+    double getLastVolume() const { return lastVolume; }
+
     int restoreVolume();
 
     int getOsdWidth();
@@ -128,6 +133,13 @@ public:
     };
 
     std::vector<TrackEntry> getTrackList();
+
+    // any property ("" / fallback if unavailable)
+    std::string getString(const char *name);
+
+    double getDouble(const char *name, double fallback = -1);
+
+    long getInt(const char *name, long fallback = -1);
 
 private:
 

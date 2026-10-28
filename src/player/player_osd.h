@@ -41,6 +41,7 @@ private:
 
     Main *main;
     Highlight *highlight = nullptr;
+    c2d::RectangleShape *buffered = nullptr;
     c2d::Progress *progress = nullptr;
     c2d::Text *title = nullptr;
     c2d::Text *progress_text = nullptr;

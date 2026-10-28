@@ -43,6 +43,9 @@ namespace pplay::InputMap {
     int repeatDelay(int heldMs);
 
     std::string toString(unsigned int buttons);
+
+    // the button as printed on the platform pad (PlayStation symbols), for hints
+    std::string buttonName(unsigned int button);
 }
 
 #endif //PPLAY_INPUT_MAP_H

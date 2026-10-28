@@ -349,6 +349,25 @@ namespace pplay::InputMap {
         return pending;
     }
 
+    std::string buttonName(unsigned int button) {
+#if defined(__PS4__) || defined(__PS5__)
+        switch (button) {
+            case Input::Button::A: return "\u2715";      // cross
+            case Input::Button::B: return "\u25CB";      // circle
+            case Input::Button::X: return "\u25A1";      // square
+            case Input::Button::Y: return "\u25B3";      // triangle
+            default: break;
+        }
+#endif
+        switch (button) {
+            case Input::Button::A: return "A";
+            case Input::Button::B: return "B";
+            case Input::Button::X: return "X";
+            case Input::Button::Y: return "Y";
+            default: return "?";
+        }
+    }
+
     std::string toString(unsigned int buttons) {
         static const std::pair<unsigned int, const char *> names[] = {
                 {PlayPause, "PlayPause"}, {Stop, "Stop"}, {Next, "Next"}, {Previous, "Previous"},
