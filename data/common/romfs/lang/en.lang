@@ -138,7 +138,7 @@ Could not load file = Could not load file
 Unexpected end of file = Unexpected end of file
 Reconnecting... = Reconnecting...
 OK = OK
-The line is too long for the keyboard = The line is too long for the keyboard
+The line is too long for the keyboard = The text is too long for the keyboard
 
 # Clock check
 Clock = Clock
@@ -178,7 +178,7 @@ Volume normalization = Volume normalization
 Normalize = Normalize
 Night mode = Night mode
 Last played = Last played
-Reset progress = Reset progress
+Reset progress = : Reset progress and playback data
 Dropped frames = Dropped frames
 Render = Render
 Volume = Volume

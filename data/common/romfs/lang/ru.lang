@@ -8,7 +8,7 @@
 @name = Русский
 
 # Main menu
-Local = Локальные
+Local = На устройстве
 Usb = USB
 Settings = Настройки
 Exit = Выход
@@ -137,7 +137,7 @@ Could not load file = Не удалось загрузить файл
 Unexpected end of file = Неожиданный конец файла
 Reconnecting... = Переподключение...
 OK = OK
-The line is too long for the keyboard = Строка слишком длинная для клавиатуры
+The line is too long for the keyboard = Текст слишком длинный для клавиатуры
 
 # Clock check
 Clock = Часы
@@ -177,7 +177,7 @@ Volume normalization = Нормализация громкости
 Normalize = Нормализация
 Night mode = Ночной режим
 Last played = Последний просмотр
-Reset progress = Сбросить прогресс
+Reset progress = : Сбросить данные о просмотре
 Dropped frames = Пропущено кадров
 Render = Рендер
 Volume = Громкость
