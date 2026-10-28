@@ -272,6 +272,7 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
 
     char *mpvVersion = logged_mpv_get_property_string(handle, "mpv-version");
     std::string versionStr = mpvVersion ? mpvVersion : "unknown";
+    pplay::Utility::setMpvVersion(versionStr);
     mpv_node node;
     std::string protoList = "unknown";
     if (logged_mpv_get_property(handle, "protocol-list", MPV_FORMAT_NODE, &node) >= 0) {

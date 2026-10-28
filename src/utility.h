@@ -77,6 +77,8 @@ namespace pplay {
 
         static std::string getWatchLater(const std::string &video_path);
 
+        static void setMpvVersion(const std::string &version);
+
         static bool isWatchLaterExist(const std::string &video_path);
 
         static bool deleteWatchLater(const std::string &video_path);

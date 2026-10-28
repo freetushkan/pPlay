@@ -313,6 +313,40 @@ bool Utility::fileExists(const std::string &path) {
     return false;
 }
 
+// mpv 0.39 names the urls watch later files by their base name too, with
+// ignore-path-in-watch-later-config (its url check is made on an unset string)
+#ifdef __PS5__
+static bool watchLaterUrlBaseName = true;
+#else
+static bool watchLaterUrlBaseName = false;
+#endif
+
+void Utility::setMpvVersion(const std::string &version) {
+    // "mpv 0.39.0", "mpv v0.39.0-..."
+    int major = -1, minor = -1;
+    size_t digit = version.find_first_of("0123456789");
+    if (digit != std::string::npos) {
+        sscanf(version.c_str() + digit, "%d.%d", &major, &minor);
+    }
+    watchLaterUrlBaseName = major == 0 && minor == 39;
+    log(LogLevel::Info, "Utility: watch later url base name: " + std::to_string(watchLaterUrlBaseName ? 1 : 0));
+}
+
+// mpv mp_is_url: "proto://", proto made of letters, digits, '+', '-', '.'
+static bool isMpvUrl(const std::string &path) {
+    size_t sep = path.find("://");
+    if (sep == std::string::npos || sep == 0) {
+        return false;
+    }
+    for (size_t i = 0; i < sep; i++) {
+        unsigned char c = path[i];
+        if (!isalnum(c) && c != '+' && c != '-' && c != '.') {
+            return false;
+        }
+    }
+    return true;
+}
+
 std::string Utility::getWatchLater(const std::string &video_path) {
     std::string mpvPath = video_path;
 #ifdef __SMB2__
@@ -322,8 +356,9 @@ std::string Utility::getWatchLater(const std::string &video_path) {
     }
 #endif
 #if defined(__PS4__) || defined(__PS5__)
-    // ignore-path-in-watch-later-config: mpv hashes the part after the last slash, urls included
-    const bool basename = true;
+    // ignore-path-in-watch-later-config: mpv hashes the part after the last slash
+    // (urls: full, but mpv 0.39)
+    const bool basename = !isMpvUrl(mpvPath) || watchLaterUrlBaseName;
 #else
     const bool basename = !mpvPath.empty() && mpvPath[0] == '/';
 #endif
