@@ -9,6 +9,8 @@
 #include "menu_file_editor.h"
 #include "io.h"
 #include "i18n.h"
+#include "player.h"
+#include "mpv.h"
 
 using namespace c2d;
 
@@ -88,6 +90,93 @@ namespace {
         return items;
     }
 
+    const char *platformName() {
+#if defined(__SWITCH__)
+        return "Nintendo Switch";
+#elif defined(__PS4__)
+        return "PlayStation 4";
+#elif defined(__PS5__)
+        return "PlayStation 5";
+#else
+        return "Linux";
+#endif
+    }
+
+    // the people and projects pPlay is built with
+    std::vector<std::string> credits() {
+        std::vector<std::string> list = {
+                "Cpasjuste — pPlay, libcross2d",
+                "freetushkan — pPlay fork",
+                "mpv contributors — mpv",
+                "FFmpeg developers — FFmpeg",
+                "libass contributors — libass",
+        };
+#if defined(__SWITCH__) || defined(__PS5__)
+        list.emplace_back("Niklas Haas — libplacebo");
+#endif
+#ifdef __SWITCH__
+        list.emplace_back("VideoLAN — dav1d");
+#endif
+        list.emplace_back("Daniel Stenberg — curl");
+#ifdef __SMB2__
+        list.emplace_back("Ronnie Sahlberg, cy33hc — libsmb2");
+#endif
+        list.emplace_back("Thomas Pfau — ftplib");
+        list.emplace_back("D. J. Bernstein — ftpparse");
+        list.emplace_back("Niels Lohmann — JSON for Modern C++");
+        list.emplace_back("YouROK — TorrServer");
+#ifdef __PS5__
+        list.emplace_back("OpenSSL Project — OpenSSL");
+        list.emplace_back("Mesa developers — OSMesa");
+#else
+        list.emplace_back("Trusted Firmware — Mbed TLS");
+#endif
+        list.emplace_back("FreeType, FriBidi, libpng, libjpeg-turbo, libarchive, zstd, bzip2");
+#if defined(__SWITCH__)
+        list.emplace_back("devkitPro — devkitA64");
+        list.emplace_back("Switchbrew — libnx");
+        list.emplace_back("DarkMatterCore — libusbhsfs");
+        list.emplace_back("ntfs-3g, lwext4");
+#elif defined(__PS4__)
+        list.emplace_back("OpenOrbis — PS4 toolchain");
+#ifdef PPLAY_PS4_JAILBREAK
+        list.emplace_back("sleirsgoevy, bucanero, cy33hc — libjbc");
+#endif
+#elif defined(__PS5__)
+        list.emplace_back("John Törnblom — ps5-payload-sdk");
+        list.emplace_back("OpenOrbis — PS4 toolchain (launcher)");
+#endif
+        return list;
+    }
+
+    std::vector<MenuItem> makeAboutItems(Main *main) {
+        using Pos = MenuItem::Position;
+        std::vector<MenuItem> items;
+        // dynamic texts are labels, the names stay menu keys
+        MenuItem version("About version", "", Pos::Top);
+        version.label = "pPlay v" APP_VERSION_FULL;
+        items.push_back(version);
+        MenuItem build("About build", "", Pos::Top);
+        build.label = std::string(platformName()) + " · " + __DATE__;
+        items.push_back(build);
+        std::string mpvVersion, ffmpegVersion;
+        if (main->getPlayer() != nullptr && main->getPlayer()->getMpv() != nullptr) {
+            mpvVersion = main->getPlayer()->getMpv()->getString("mpv-version");
+            ffmpegVersion = main->getPlayer()->getMpv()->getString("ffmpeg-version");
+        }
+        if (!mpvVersion.empty()) {
+            MenuItem libs("About libs", "", Pos::Top);
+            libs.label = mpvVersion + (ffmpegVersion.empty() ? "" : " · FFmpeg " + ffmpegVersion);
+            items.push_back(libs);
+        }
+        // section title, not selectable
+        items.emplace_back("Thanks", "", Pos::Top, 0, false, "#95A5A6");
+        for (const auto &credit: credits()) {
+            items.emplace_back(credit, "", Pos::Top);
+        }
+        return items;
+    }
+
     std::vector<MenuItem> makeIntItems(const std::vector<std::pair<std::string, int>> &values) {
         std::vector<MenuItem> items;
         for (auto &value: values) {
@@ -98,8 +187,15 @@ namespace {
 }
 
 MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<MenuItem> &items)
-        : Menu(main, rect, "pPlay v" APP_VERSION_FULL, items, true) {
+        : Menu(main, rect, "pPlay v" APP_VERSION, items, true) {
     using Pos = MenuItem::Position;
+    // commit hash after the version, dimmed (full version: Settings > About)
+    if (APP_COMMIT[0] != '\0') {
+        auto *commit = new Text("-" APP_COMMIT, main->getFontSize(Main::FontSize::Big), main->getFont());
+        commit->setFillColor(Color(230, 230, 230, 100));
+        commit->setPosition(title->getPosition().x + title->getLocalBounds().width, title->getPosition().y);
+        MenuMain::add(commit);
+    }
     // settings by category (menu key, items)
     std::vector<std::pair<std::string, std::vector<MenuItem>>> categories;
     categories.push_back({"Playback", {
@@ -147,6 +243,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
             MenuItem("Interface", "color.png", Pos::Top),
             MenuItem("Networks", "network.png", Pos::Top),
             MenuItem("System", "options.png", Pos::Top),
+            MenuItem("About", "log.png", Pos::Top),
     };
 
     menuMainOptions = new MenuMainOptions(main, rect, it);
@@ -169,6 +266,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
         main->add(submenu);
         menuMainOptionsSubmenus[name] = submenu;
     };
+
+    // no submenus behind these items: A does nothing, the selection scrolls long texts
+    addSubmenu("About", "About", "", makeAboutItems(main));
 
     for (auto &category: categories) {
         addSubmenu(category.first, category.first, "", category.second);
