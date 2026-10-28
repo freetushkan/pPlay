@@ -188,6 +188,18 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
         opts += ",hr-seek=no";
     }
 #endif
+    // http(s) with "user:password@": credentials sent with the first request (ffmpeg
+    // waits for the 401 answer otherwise, a request more on each open / seek, or fails
+    // when the server sends no challenge). Not set for all: an empty "Basic" header then.
+    size_t scheme = path.find("://");
+    if (scheme != std::string::npos
+        && (Utility::startWith(path, "http://") || Utility::startWith(path, "https://"))) {
+        size_t hostEnd = path.find_first_of("/?#", scheme + 3);
+        size_t at = path.find('@', scheme + 3);
+        if (at != std::string::npos && (hostEnd == std::string::npos || at < hostEnd)) {
+            opts += std::string(opts.empty() ? "" : ",") + "stream-lavf-o-append=auth_type=basic";
+        }
+    }
 
     applyLanguages();
     // no subtitles by default without a preferred language (a watch_later choice still applies)
@@ -205,7 +217,7 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     hadWatchLater = pplay::Utility::isWatchLaterExist(path);
 
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "Player::load effective_url=" + path);
+        "Player::load effective_url=" + path + " options=" + opts);
     int res = mpv->load(path, Mpv::LoadType::Replace, opts);
     if (res != 0) {
         pplay::Utility::log(pplay::Utility::LogLevel::Error,
