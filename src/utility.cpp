@@ -315,18 +315,22 @@ bool Utility::fileExists(const std::string &path) {
 
 std::string Utility::getWatchLater(const std::string &video_path) {
     std::string mpvPath = video_path;
-    if (!mpvPath.empty() && mpvPath[0] == '/') {
-        size_t last_slash = mpvPath.find_last_of('/');
-        if (last_slash != std::string::npos) {
-            mpvPath = mpvPath.substr(last_slash + 1);
-        }
-    }
 #ifdef __SMB2__
-    else if (c2d::Utility::startWith(mpvPath, "smb://")) {
+    if (c2d::Utility::startWith(mpvPath, "smb://")) {
         std::replace(mpvPath.begin(), mpvPath.end(), '\\', '/');
         mpvPath.replace(0, strlen("smb://"), "smb2://");
     }
 #endif
+#if defined(__PS4__) || defined(__PS5__)
+    // ignore-path-in-watch-later-config: mpv hashes the part after the last slash, urls included
+    const bool basename = true;
+#else
+    const bool basename = !mpvPath.empty() && mpvPath[0] == '/';
+#endif
+    size_t last_slash = mpvPath.find_last_of('/');
+    if (basename && last_slash != std::string::npos) {
+        mpvPath = mpvPath.substr(last_slash + 1);
+    }
     std::string hash = pplay::Utility::md5hash(mpvPath);
     std::transform(hash.begin(), hash.end(), hash.begin(), ::toupper);
     std::string path = getDataPath() + "mpv/watch_later/" + hash;
