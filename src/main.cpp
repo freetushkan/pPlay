@@ -72,7 +72,12 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
 void Main::createFont() {
     font = new Font();
     font->loadFromFile(pplayIo->getDataPath() + "skin/font.ttf");
+#ifdef __LINUX__
+    // the ui is scaled to the window: smoother glyphs (on whole pixels, see text_snap.cpp)
+    font->setFilter(Texture::Filter::Linear);
+#else
     font->setFilter(Texture::Filter::Point);
+#endif
     font->setOffset({0, -4.0f});
 }
 

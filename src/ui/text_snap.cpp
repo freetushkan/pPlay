@@ -20,12 +20,12 @@ namespace c2d {
         if (draw) {
             Transform combined = transform * getTransform();
             const float *m = combined.getMatrix();
-            // not scaled / rotated (tweens): snap the glyphs origin to the pixel grid
-            if (m[0] == 1.f && m[5] == 1.f && m[1] == 0.f && m[4] == 0.f) {
+            // not rotated: snap the glyphs origin to the pixel grid (the window scale too)
+            if (m[1] == 0.f && m[4] == 0.f) {
                 const float scale = (float) m_characterSize / (float) C2D_DEFAULT_CHAR_SIZE;
                 const Vector2f offset = m_font->getOffset();
-                const float x = m[12] + offset.x * scale;
-                const float y = m[13] + offset.y * scale;
+                const float x = m[12] + offset.x * scale * m[0];
+                const float y = m[13] + offset.y * scale * m[5];
                 Transform snap;
                 snap.translate(std::round(x) - x, std::round(y) - y);
                 combined = snap * combined;

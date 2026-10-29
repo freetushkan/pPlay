@@ -37,6 +37,9 @@ void pplay::DesktopWindow::setup(Main *main) {
         SDL_SetWindowSize(w, (int) (g_ui.x * scale), (int) (g_ui.y * scale));
         SDL_SetWindowPosition(w, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
     }
+    // mapped again: some window managers update the decorations (close button) on map only
+    SDL_HideWindow(w);
+    SDL_ShowWindow(w);
     update(main);
 }
 
