@@ -2,15 +2,20 @@
 // Media information without playing (see media_probe.h).
 //
 
+#include <chrono>
 #include <cstring>
+#include <thread>
 
 #include "av_open.h"
 #include "cover.h"
+#include "io.h"
 #include "media_probe.h"
 #include "torrserve.h"
 #include "utility.h"
 
 #define SETTLE_MS 400
+// TorrServer marks the streamed files viewed
+#define UNVIEW_DELAY_MS 2000
 
 namespace {
     std::string tag(AVDictionary *metadata, const char *key) {
@@ -120,6 +125,11 @@ void MediaProbe::reset() {
 
 bool MediaProbe::poll(MediaFile *file) {
     bool finished = false;
+    if (thread != nullptr && probed && !delivered) {
+        delivered = true;
+        *file = job;
+        finished = true;
+    }
     if (thread != nullptr && done) {
         thread->join();
         delete (thread);
@@ -131,7 +141,7 @@ bool MediaProbe::poll(MediaFile *file) {
         pending = false;
         tried.insert(wanted.path);
         job = wanted;
-        done = false;
+        probed = done = delivered = false;
         thread = new c2d::C2DThread(run, this);
     }
     return finished;
@@ -140,6 +150,8 @@ bool MediaProbe::poll(MediaFile *file) {
 int MediaProbe::run(void *data) {
     auto *self = (MediaProbe *) data;
     std::string url = pplay::TorrServe::toStreamUrl(self->job.path);
+    bool torrent = pplay::Io::get()->getDeviceType(self->job.path) == pplay::Io::DeviceType::TorrServe;
+    bool viewed = torrent && pplay::TorrServe::isFileViewed(self->job.path);
     std::string error;
     MediaInfo info;
     AVFormatContext *ctx = pplay::AvOpen::open(url, &error);
@@ -160,6 +172,11 @@ int MediaProbe::run(void *data) {
                                                                 + " (" + std::to_string(info.videos.size()) + "v "
                                                                 + std::to_string(info.audios.size()) + "a "
                                                                 + std::to_string(info.subtitles.size()) + "s)");
+    self->probed = true;
+    if (torrent && !viewed) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(UNVIEW_DELAY_MS));
+        pplay::TorrServe::remFileViewed(self->job.path);
+    }
     self->done = true;
     return 0;
 }

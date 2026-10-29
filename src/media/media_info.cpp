@@ -8,7 +8,7 @@
 #include "media_info.h"
 #include "utility.h"
 
-#define MEDIA_INFO_VERSION "pplay-media 2"
+#define MEDIA_INFO_VERSION "pplay-media 3"
 
 namespace {
     // tab separated fields, these escaped
@@ -104,7 +104,7 @@ void MediaInfo::save(const c2d::Io::File &file) {
             out << "track\t" << t.type << "\t" << t.id << "\t" << escape(t.title) << "\t" << escape(t.language) << "\t"
                 << escape(t.codec) << "\t" << t.channels << "\t" << escape(t.layout) << "\t" << t.sample_rate << "\t"
                 << t.width << "\t" << t.height << "\t" << t.fps << "\t" << t.bit_rate << "\t" << (t.isDefault ? 1 : 0)
-                << "\t" << (t.forced ? 1 : 0) << "\t\t\n";
+                << "\t" << (t.forced ? 1 : 0) << "\t" << (t.albumart ? 1 : 0) << "\t\n";
         }
     }
 }

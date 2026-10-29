@@ -52,6 +52,11 @@ int KeyHints::neighbor(int index, int direction) {
     return best;
 }
 
+bool KeyHints::sameRow(int a, int b) const {
+    int n = (int) items.size();
+    return a >= 0 && b >= 0 && a < n && b < n && items[a]->getPosition().y == items[b]->getPosition().y;
+}
+
 void KeyHints::setHints(const std::vector<Hint> &list) {
     // the same, unless the language changed
     if (list == hints && language == pplay::I18n::current()) {

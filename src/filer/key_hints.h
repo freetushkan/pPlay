@@ -45,6 +45,8 @@ public:
     // the closest item of the row above (-1) or below (1), -1 if none
     int neighbor(int index, int direction);
 
+    bool sameRow(int a, int b) const;
+
     float getHeight() const { return height; }
 
     void onUpdate() override;

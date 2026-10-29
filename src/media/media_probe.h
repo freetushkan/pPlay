@@ -23,7 +23,8 @@ public:
     // probed once the selection settles; known files and the others skipped
     void request(const MediaFile &file);
 
-    // each frame: true for a finished probe, its file with the information
+    // each frame: true for a finished probe, its file with the information (again once
+    // its TorrServer viewed state is restored)
     bool poll(MediaFile *file);
 
     // the cache was cleared
@@ -40,7 +41,9 @@ private:
 
     c2d::C2DThread *thread = nullptr;
     MediaFile job;
+    std::atomic<bool> probed{false};
     std::atomic<bool> done{false};
+    bool delivered = false;
 };
 
 #endif //PPLAY_MEDIA_PROBE_H

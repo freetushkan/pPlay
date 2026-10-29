@@ -57,6 +57,27 @@ void Filer::endPick() {
     }
 }
 
+namespace {
+    const char *COVER_NAMES[] = {"cover", "folder", "poster", "front"};
+    const char *COVER_EXTENSIONS[] = {".jpg", ".jpeg", ".png", ".webp"};
+
+    // cover.jpg and the like: its order in COVER_NAMES, -1 if not one
+    int coverRank(const Io::File &file) {
+        if (file.type != Io::Type::File) {
+            return -1;
+        }
+        std::string name = Utility::toLower(file.name);
+        for (int i = 0; i < 4; i++) {
+            for (auto *ext: COVER_EXTENSIONS) {
+                if (name == std::string(COVER_NAMES[i]) + ext) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+}
+
 static bool compare(const MediaFile &a, const MediaFile &b) {
     if (a.type == Io::Type::Directory && b.type != Io::Type::Directory) {
         return true;
@@ -85,14 +106,32 @@ bool Filer::getDir(const std::string &p) {
     if (picking) {
         ext.insert(ext.end(), pickExtensions.begin(), pickExtensions.end());
     }
+    // the pictures too, for the directory cover
+    std::vector<std::string> listed = ext;
+    listed.insert(listed.end(), std::begin(COVER_EXTENSIONS), std::end(COVER_EXTENSIONS));
     pplay::Io::DeviceType type = ((pplay::Io *) main->getIo())->getDeviceType(p);
     int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
-    std::vector<Io::File> _files = ((pplay::Io *) main->getIo())->getDirList(type, ext, path, timeout, false);
+    std::vector<Io::File> _files = ((pplay::Io *) main->getIo())->getDirList(type, listed, path, timeout, false);
 
+    int rank = -1;
+    std::string cover;
     for (auto &file: _files) {
-        MediaFile mf(file, MediaInfo(file));
-        files.emplace_back(mf);
+        int r = coverRank(file);
+        if (r >= 0 && (rank < 0 || r < rank)) {
+            rank = r;
+            cover = file.path;
+        }
+        bool wanted = file.type != Io::Type::File;
+        for (auto &e: ext) {
+            wanted = wanted || Utility::endsWith(file.name, e, false);
+        }
+        if (wanted) {
+            files.emplace_back(file, MediaInfo(file));
+        }
     }
+    // smb:// is opened by mpv only
+    bool smb = Utility::startWith(cover, "smb");
+    details->setFolderCover(cover.empty() || smb ? "" : "dir:" + cover);
 
     std::sort(files.begin(), files.end(), compare);
 

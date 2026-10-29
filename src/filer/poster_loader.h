@@ -20,7 +20,8 @@ public:
 
     ~PosterLoader();
 
-    // http(s) url, "embedded:<media url>" for the file cover, "" for none
+    // http(s) url, "embedded:<media url>" for the file cover, "dir:<path>" for a directory
+    // picture, "" for none
     void request(const std::string &url);
 
     // each frame: true once the requested poster is done, with a texture (owned by

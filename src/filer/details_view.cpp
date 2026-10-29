@@ -94,10 +94,14 @@ void DetailsView::setFile(const MediaFile &f) {
     pplay::DetailsInfo info = pplay::DetailsInfo::of(file);
     heading = info.title;
     details = info.details;
-    // the embedded cover first, the torrent one if none / it fails
-    coverUrl = info.cover;
-    fallbackUrl = info.poster;
-    std::string wanted = !coverUrl.empty() && failedCovers.count(coverUrl) == 0 ? coverUrl : fallbackUrl;
+    // the file own cover, the directory one, the torrent one: the next one if it fails
+    posterUrls.clear();
+    for (auto &url: {info.cover, file.type == Io::Type::File ? folderCover : "", info.poster}) {
+        if (!url.empty()) {
+            posterUrls.push_back(url);
+        }
+    }
+    std::string wanted = nextPoster();
     if (wanted != shownPoster) {
         hidePoster();
     }
@@ -105,6 +109,15 @@ void DetailsView::setFile(const MediaFile &f) {
     loader->request(posterUrl == shownPoster ? "" : posterUrl);
     updateHints();
     layout();
+}
+
+std::string DetailsView::nextPoster() const {
+    for (auto &url: posterUrls) {
+        if (failedPosters.count(url) == 0) {
+            return url;
+        }
+    }
+    return "";
 }
 
 void DetailsView::setFocused(bool value) {
@@ -316,12 +329,13 @@ DetailsView::Action DetailsView::onKeys(unsigned int keys) {
             int below = hints->neighbor(button, 1);
             button = below >= 0 ? below : button;
         } else if (keys & Input::Left) {
-            if (button == 0) {
+            // the row start: out of the panel
+            if (!hints->sameRow(button, button - 1)) {
                 return Action::Files;
             }
             button--;
         } else if (keys & Input::Right) {
-            button = std::min(button + 1, hints->count() - 1);
+            button = hints->sameRow(button, button + 1) ? button + 1 : button;
         } else if (keys & Input::A) {
             return (Action) hints->idAt(button);
         }
@@ -339,13 +353,16 @@ void DetailsView::onUpdate() {
     if (loader->poll({(int) width, (int) width * 3}, &texture, &error)) {
         if (texture != nullptr) {
             showPoster(texture);
-        } else if (!coverUrl.empty() && posterUrl == coverUrl) {
-            failedCovers.insert(coverUrl);
-            posterUrl = fallbackUrl;
-            loader->request(posterUrl);
         } else {
-            posterError = error;
-            layout();
+            failedPosters.insert(posterUrl);
+            std::string next = nextPoster();
+            if (!next.empty()) {
+                posterUrl = next;
+                loader->request(posterUrl);
+            } else {
+                posterError = error;
+                layout();
+            }
         }
     }
 

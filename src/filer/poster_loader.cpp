@@ -7,10 +7,13 @@
 #include "main.h"
 #include "image.h"
 #include "net_http.h"
+#include "av_open.h"
 #include "cover.h"
 #include "poster_loader.h"
+#include "torrserve.h"
 
 #define SETTLE_MS 250
+#define MAX_SIZE (8 * 1024 * 1024)
 
 namespace {
     const char *imageFormat(const std::string &data) {
@@ -37,6 +40,36 @@ namespace {
             return "avif"; // avif / heif
         }
         return nullptr;
+    }
+
+    bool httpGet(const std::string &url, std::string *body, std::string *error) {
+        pplay::Http::Request request;
+        request.url = url;
+        request.timeout = 15;
+        request.maxSize = MAX_SIZE;
+        request.headers = {"Accept: image/jpeg,image/png;q=0.9,image/*;q=0.5,*/*;q=0.1",
+                           "User-Agent: Mozilla/5.0 (PlayStation; pPlay) AppleWebKit/605.1.15 (KHTML, like Gecko)"};
+        pplay::Http::Response response = pplay::Http::perform(request);
+        if (!response.ok()) {
+            *error = response.error.empty() ? "HTTP " + std::to_string(response.status) : response.error;
+            return false;
+        }
+        *body = std::move(response.body);
+        return true;
+    }
+
+    // the directory picture (cover.jpg...): http(s) or what libavformat reads (ftp)
+    bool dirGet(const std::string &path, std::string *body, std::string *error) {
+        std::string url = pplay::TorrServe::toStreamUrl(path);
+        bool torrent = pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::TorrServe;
+        // streaming marks it viewed
+        bool viewed = torrent && pplay::TorrServe::isFileViewed(path);
+        bool ok = c2d::Utility::startWith(url, "http") ? httpGet(url, body, error)
+                                                       : pplay::AvOpen::read(url, MAX_SIZE, body, error);
+        if (torrent && !viewed) {
+            pplay::TorrServe::remFileViewed(path);
+        }
+        return ok;
     }
 }
 
@@ -84,13 +117,17 @@ bool PosterLoader::poll(const c2d::Vector2i &maxSize, c2d::Texture **texture, st
         return false;
     }
 
-    std::string path = cachePath(wanted);
+    // a local directory picture: read as is
+    bool local = c2d::Utility::startWith(wanted, "dir:") && wanted.find("://") == std::string::npos;
+    std::string path = local ? wanted.substr(4) : cachePath(wanted);
     if (main->getIo()->exist(path)) {
         std::string decodeError;
         done = wanted;
         *texture = pplay::Image::load(path, maxSize, &decodeError);
         if (*texture == nullptr) {
-            pplay::Utility::deleteFile(path);
+            if (!local) {
+                pplay::Utility::deleteFile(path);
+            }
             failed = wanted;
             *error = pplay::tr("unsupported image") + " (" + decodeError + ")";
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
@@ -100,6 +137,11 @@ bool PosterLoader::poll(const c2d::Vector2i &maxSize, c2d::Texture **texture, st
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
                             "Details: poster " + wanted + " " + std::to_string((*texture)->getTextureSize().x) + "x"
                                     + std::to_string((*texture)->getTextureSize().y));
+        return true;
+    }
+    if (local) {
+        done = failed = wanted;
+        *error = "not found";
         return true;
     }
 
@@ -125,23 +167,16 @@ int PosterLoader::downloadThread(void *data) {
         self->downloadDone = true;
         return 0;
     }
-    pplay::Http::Request request;
-    request.url = self->downloadUrl;
-    request.timeout = 15;
-    request.maxSize = 8 * 1024 * 1024;
-    request.headers = {"Accept: image/jpeg,image/png;q=0.9,image/*;q=0.5,*/*;q=0.1",
-                       "User-Agent: Mozilla/5.0 (PlayStation; pPlay) AppleWebKit/605.1.15 (KHTML, like Gecko)"};
-    pplay::Http::Response response = pplay::Http::perform(request);
-
-    std::string error;
-    bool ok = false;
-    if (!response.ok()) {
-        error = response.error.empty() ? "HTTP " + std::to_string(response.status) : response.error;
-    } else if (imageFormat(response.body) == nullptr) {
+    std::string body, error;
+    bool dir = c2d::Utility::startWith(self->downloadUrl, "dir:");
+    bool ok = dir ? dirGet(self->downloadUrl.substr(4), &body, &error) : httpGet(self->downloadUrl, &body, &error);
+    if (ok && imageFormat(body) == nullptr) {
+        ok = false;
         error = "not an image";
-    } else {
+    }
+    if (ok) {
         FILE *f = fopen(self->downloadPath.c_str(), "wb");
-        ok = f != nullptr && fwrite(response.body.data(), 1, response.body.size(), f) == response.body.size();
+        ok = f != nullptr && fwrite(body.data(), 1, body.size(), f) == body.size();
         if (f) {
             fclose(f);
         }
@@ -151,8 +186,8 @@ int PosterLoader::downloadThread(void *data) {
         }
     }
     pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                        "Details: poster download " + self->downloadUrl + " status=" + std::to_string(response.status)
-                                + " size=" + std::to_string(response.body.size()) + (ok ? " ok" : " failed: " + error));
+                        "Details: poster download " + self->downloadUrl + " size=" + std::to_string(body.size())
+                                + (ok ? " ok" : " failed: " + error));
     self->downloadError = error;
     self->downloadOk = ok;
     self->downloadDone = true;

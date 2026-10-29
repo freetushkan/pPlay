@@ -8,6 +8,7 @@
 
 #include <set>
 #include <string>
+#include <vector>
 #include "cross2d/c2d.h"
 #include "media_file.h"
 
@@ -43,6 +44,9 @@ public:
 
     void setFile(const MediaFile &file);
 
+    // the directory picture (PosterLoader url) of the next files, "" for none
+    void setFolderCover(const std::string &url) { folderCover = url; }
+
     // watch later / TorrServer viewed state to reset
     static bool isResettable(const MediaFile &file);
 
@@ -62,6 +66,8 @@ private:
 
     void updateHints();
 
+    std::string nextPoster() const;
+
     void showPoster(c2d::Texture *texture);
 
     void hidePoster();
@@ -75,9 +81,9 @@ private:
     Main *main;
     MediaFile file;
     std::string posterUrl;
-    std::string coverUrl;
-    std::string fallbackUrl;
-    std::set<std::string> failedCovers;
+    std::vector<std::string> posterUrls;
+    std::set<std::string> failedPosters;
+    std::string folderCover;
     std::string shownPoster;
     std::string posterError;
     std::string heading;
