@@ -12,6 +12,7 @@
 #include "encodings.h"
 #include "i18n.h"
 #include "filer.h"
+#include "clip_rect.h"
 #include "skin.h"
 #include "external_tracks.h"
 
@@ -43,7 +44,6 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
     textTitle = new Text(file.name.empty() ? "AjIilp" : file.name, main->getFontSize(Main::FontSize::Bigger),
                          main->getFont());
     textTitle->setOrigin(Origin::Left);
-    FilerItem::add(textTitle);
 
     iconSize = std::round(FilerItem::getSize().y * 0.7f);
     icon = new Sprite();
@@ -51,9 +51,19 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
     icon->setPosition(16 * main->getScaling().x, FilerItem::getSize().y / 2);
     icon->setVisibility(Visibility::Hidden);
     FilerItem::add(icon);
+
+    // clipped on pixels (not characters), the end faded
     float textX = 16 * main->getScaling().x + iconSize + 12 * main->getScaling().x;
-    textTitle->setPosition(textX, FilerItem::getSize().y / 2);
-    textTitle->setSizeMax(FilerItem::getSize().x - textX - 16 * main->getScaling().x, 0);
+    float textWidth = FilerItem::getSize().x - textX - 16 * main->getScaling().x;
+    clip = new pplay::ClipRect({textX, 0, textWidth, FilerItem::getSize().y});
+    textTitle->setPosition(0, FilerItem::getSize().y / 2);
+    clip->add(textTitle);
+    FilerItem::add(clip);
+    float fadeWidth = 48 * main->getScaling().x;
+    fade = new pplay::FadeEdge({textX + textWidth - fadeWidth, 0, fadeWidth, FilerItem::getSize().y});
+    fade->setBackground(COLOR_BG);
+    fade->setVisibility(Visibility::Hidden);
+    FilerItem::add(fade);
 }
 
 void FilerItem::setIcon(const std::string &name) {
@@ -88,6 +98,7 @@ void FilerItem::setFile(const MediaFile &f) {
 
     if (Filer::isPlaceholder(file)) {
         textTitle->setString(pplay::tr("<Empty>"));
+        fade->setVisibility(Visibility::Hidden);
         setIcon("");
         setColor(COLOR_GRAY);
         return;
@@ -102,6 +113,8 @@ void FilerItem::setFile(const MediaFile &f) {
         setIcon(playing ? "file_playing.png" : iconName(file));
     }
     setColor(color());
+    fade->setVisibility(textTitle->getLocalBounds().width > clip->getSize().x ? Visibility::Visible
+                                                                              : Visibility::Hidden);
 }
 
 c2d::Color FilerItem::color() {

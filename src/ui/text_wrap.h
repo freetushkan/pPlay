@@ -18,7 +18,8 @@ namespace pplay::TextWrap {
     std::string noBreak(const std::string &text);
 
     // lines no wider than maxWidth: broken at spaces, long words after "." "_" "-"...
-    std::string wrap(c2d::Font *font, unsigned int size, const std::string &text, float maxWidth);
+    // continuation lines indented (hanging) unless told otherwise
+    std::string wrap(c2d::Font *font, unsigned int size, const std::string &text, float maxWidth, bool hanging = true);
 }
 
 #endif //PPLAY_TEXT_WRAP_H

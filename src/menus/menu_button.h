@@ -7,6 +7,7 @@
 
 #include <string>
 #include "cross2d/c2d.h"
+#include "clip_rect.h"
 
 class Main;
 
@@ -65,6 +66,7 @@ private:
     float maxTextWidth = 0;
     // the text, clipped at maxTextWidth; scrolled when selected and too long
     c2d::Rectangle *clip = nullptr;
+    pplay::FadeEdge *fade = nullptr;
     bool scrollable = false;
     bool scrolling = false;
     bool scrollSelected = false;

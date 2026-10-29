@@ -65,7 +65,8 @@ float pplay::TextWrap::width(c2d::Font *font, unsigned int size, const std::stri
     return x;
 }
 
-std::string pplay::TextWrap::wrap(c2d::Font *font, unsigned int size, const std::string &text, float maxWidth) {
+std::string pplay::TextWrap::wrap(c2d::Font *font, unsigned int size, const std::string &text, float maxWidth,
+                                  bool hanging) {
     if (font == nullptr || maxWidth <= 0) {
         return text;
     }
@@ -83,7 +84,10 @@ std::string pplay::TextWrap::wrap(c2d::Font *font, unsigned int size, const std:
             indent += paragraph.substr(i, n);
             i += n;
         }
-        indent += "\u00A0\u00A0\u00A0";
+        indent += hanging ? "\u00A0\u00A0\u00A0" : "";
+        if (!hanging) {
+            indent.clear();
+        }
         const float indentWidth = width(font, size, indent);
 
         std::string line;

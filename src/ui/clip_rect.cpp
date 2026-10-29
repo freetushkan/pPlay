@@ -29,3 +29,17 @@ void pplay::ClipRect::onDraw(Transform &transform, bool draw) {
     Rectangle::onDraw(transform, draw);
     glDisable(GL_SCISSOR_TEST);
 }
+
+pplay::FadeEdge::FadeEdge(const FloatRect &rect) : GradientRectangle(rect) {
+    setBackground(Color::Black);
+}
+
+void pplay::FadeEdge::setBackground(const Color &color) {
+    if (color == background) {
+        return;
+    }
+    background = color;
+    Color transparent = color;
+    transparent.a = 0;
+    setColor(transparent, color, Direction::Right);
+}

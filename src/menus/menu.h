@@ -30,6 +30,9 @@ public:
 
     void setTitle(const std::string &title);
 
+    // the title, wrapped
+    void setTitleText(const std::string &text);
+
     void setItems(const std::vector<MenuItem> &items);
 
     // smaller texts and items (long lists)

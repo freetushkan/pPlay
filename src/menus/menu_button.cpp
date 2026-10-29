@@ -72,17 +72,21 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
                                                                       : COLOR_FONT);
 
     float textX = 16.0f * main->getScaling().x + (item.icon.empty() ? 0 : iconSize + 16.0f * main->getScaling().x);
-    maxTextWidth = std::max(0.0f, MenuButton::getSize().x - textX - 16.0f * main->getScaling().x);
+    // up to the button edge (the highlight cursor), long texts faded there
+    maxTextWidth = std::max(0.0f, MenuButton::getSize().x - textX - 6.0f);
     scrollSpeed = SCROLL_SPEED * main->getScaling().x;
     clip = new pplay::ClipRect({textX, 0, maxTextWidth, MenuButton::getSize().y});
     clip->add(name);
     MenuButton::add(clip);
+    float fadeWidth = std::min(48.0f * main->getScaling().x, maxTextWidth / 3);
+    fade = new pplay::FadeEdge({textX + maxTextWidth - fadeWidth, 0, fadeWidth, MenuButton::getSize().y});
+    MenuButton::add(fade);
     refreshText();
 }
 
 void MenuButton::refreshText() {
     name->setSizeMax(0, 0);
-    name->setString(item.text());
+    name->setString(oneLine(item.text()));
     scrollable = name->getLocalBounds().width > maxTextWidth;
     scrolling = false;
     scrollSelected = false;
@@ -90,8 +94,7 @@ void MenuButton::refreshText() {
 }
 
 void MenuButton::showStatic() {
-    name->setString(item.text());
-    name->setSizeMax(maxTextWidth, MenuButton::getSize().y);
+    name->setString(oneLine(item.text()));
     name->setPosition(0, clip->getSize().y / 2);
 }
 
@@ -107,6 +110,16 @@ void MenuButton::startScroll() {
 
 void MenuButton::onUpdate() {
     Rectangle::onUpdate();
+    // the selection highlight is the strongest at the right end
+    Color background = COLOR_BG;
+    if (selected) {
+        uint8_t a = COLOR_HIGHLIGHT.a;
+        background = {(uint8_t) (background.r + (255 - background.r) * a / 255),
+                      (uint8_t) (background.g + (255 - background.g) * a / 255),
+                      (uint8_t) (background.b + (255 - background.b) * a / 255), 255};
+    }
+    fade->setBackground(background);
+    fade->setVisibility(scrollable ? Visibility::Visible : Visibility::Hidden);
     if (!scrollable || !isVisible()) {
         return;
     }

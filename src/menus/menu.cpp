@@ -7,6 +7,7 @@
 
 #include "main.h"
 #include "menu.h"
+#include "text_wrap.h"
 
 using namespace c2d;
 
@@ -40,11 +41,10 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title, const
 
     // on several lines when needed
     titleKey = _title;
-    title = new Text(pplay::tr(_title), main->getFontSize(Main::FontSize::Big), main->getFont());
+    title = new Text("", main->getFontSize(Main::FontSize::Big), main->getFont());
     title->setPosition(main->getScaled(32, 32));
     title->setFillColor(COLOR_FONT);
-    title->setOverflow(Text::NewLine);
-    title->setSizeMax(Menu::getSize().x - main->getScaled(48, 0).x, menuTop() - main->getScaled(0, 32 + 24).y);
+    setTitleText(pplay::tr(_title));
     Menu::add(title);
     menuRegistry().push_back(this);
 
@@ -349,11 +349,30 @@ void Menu::setCompact(bool value) {
 
 void Menu::setTitle(const std::string &_title) {
     titleKey = _title;
-    title->setString(pplay::tr(titleKey));
+    setTitleText(pplay::tr(titleKey));
+}
+
+void Menu::setTitleText(const std::string &text) {
+    // the same margins on both sides
+    float width = getSize().x - 32 * main->getScaling().x * 2;
+    // smaller when a word doesn't fit (not cut)
+    unsigned int size = main->getFontSize(Main::FontSize::Big);
+    unsigned int minSize = main->getFontSize(Main::FontSize::Small);
+    for (bool fits = false; !fits && size > minSize; size -= fits ? 0 : 1) {
+        fits = true;
+        size_t start = 0;
+        while (start <= text.size() && fits) {
+            size_t end = std::min(text.find(' ', start), text.size());
+            fits = pplay::TextWrap::width(main->getFont(), size, text.substr(start, end - start)) <= width;
+            start = end + 1;
+        }
+    }
+    title->setCharacterSize(size);
+    title->setString(pplay::TextWrap::wrap(main->getFont(), size, text, width, false));
 }
 
 void Menu::retranslate() {
-    title->setString(pplay::tr(titleKey));
+    setTitleText(pplay::tr(titleKey));
     for (auto *button: buttons) {
         button->refreshText();
     }

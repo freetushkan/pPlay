@@ -214,7 +214,7 @@ void DetailsView::layout() {
 
     // title, the poster with the details right of it (narrow) or below
     float y = 0;
-    title->setString(pplay::TextWrap::wrap(main->getFont(), title->getCharacterSize(), heading, width));
+    title->setString(pplay::TextWrap::wrap(main->getFont(), title->getCharacterSize(), heading, width, false));
     title->setPosition(margin, y);
     if (!heading.empty()) {
         y += title->getLocalBounds().top + title->getLocalBounds().height + gap;

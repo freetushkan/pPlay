@@ -7,6 +7,7 @@
 
 #include "cross2d/skeleton/sfml/RectangleShape.hpp"
 #include "media_file.h"
+#include "clip_rect.h"
 
 class Main;
 
@@ -37,6 +38,8 @@ private:
 
     c2d::Text *textTitle;
     c2d::Sprite *icon;
+    c2d::Rectangle *clip;
+    pplay::FadeEdge *fade;
     float iconSize = 0;
 
     bool lastFullscreen = false;

@@ -18,6 +18,20 @@ namespace pplay {
 
         void onDraw(c2d::Transform &transform, bool draw = true) override;
     };
+
+    // the right end of a clipped text faded to the background: a gradient over it
+    class FadeEdge : public c2d::GradientRectangle {
+
+    public:
+
+        explicit FadeEdge(const c2d::FloatRect &rect);
+
+        void setBackground(const c2d::Color &color);
+
+    private:
+
+        c2d::Color background;
+    };
 }
 
 #endif //PPLAY_CLIP_RECT_H
