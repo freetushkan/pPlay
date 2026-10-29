@@ -113,6 +113,9 @@ namespace pplay::MenuMainItems {
         list.emplace_back("D. J. Bernstein — ftpparse");
         list.emplace_back("Niels Lohmann — JSON for Modern C++");
         list.emplace_back("YouROK — TorrServer");
+        list.emplace_back("Google — Material Design Icons");
+        list.emplace_back("Anthropic — Claude");
+        list.emplace_back("OpenAI — Codex");
 #ifdef __PS5__
         list.emplace_back("OpenSSL Project — OpenSSL");
         list.emplace_back("Mesa developers — OSMesa");

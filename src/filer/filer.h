@@ -11,7 +11,7 @@
 #include "filer_item.h"
 #include "media_file.h"
 #include "highlight.h"
-#include "preview_view.h"
+#include "details_view.h"
 
 class Main;
 
@@ -65,7 +65,7 @@ private:
     void pick();
 
     // a key (or a panel button) action
-    void run(PreviewView::Action action);
+    void run(DetailsView::Action action);
 
     void resetProgress(const MediaFile &file);
 
@@ -81,7 +81,7 @@ private:
     std::vector<FilerItem *> items;
     std::vector<MediaFile> files;
     Highlight *highlight;
-    PreviewView *preview = nullptr;
+    DetailsView *details = nullptr;
     float listWidth = 0;
     float item_height;
     int item_max;

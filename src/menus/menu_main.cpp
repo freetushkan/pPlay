@@ -27,17 +27,17 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Short seek step", "short_seek.png", Pos::Top),
                                   MenuItem("Long seek step", "long_seek.png", Pos::Top),
                                   MenuItem("Playback retry", "pl_retry.png", Pos::Top),
-                                  MenuItem("Audio language", "options.png", Pos::Top),
-                                  MenuItem("Subtitles language", "options.png", Pos::Top),
-                                  MenuItem("External tracks", "options.png", Pos::Top),
-                                  MenuItem("Volume normalization", "options.png", Pos::Top),
-                                  MenuItem("Video quality", "video.png", Pos::Top),
+                                  MenuItem("Audio language", "audio.png", Pos::Top),
+                                  MenuItem("Subtitles language", "subtitles.png", Pos::Top),
+                                  MenuItem("External tracks", "external.png", Pos::Top),
+                                  MenuItem("Volume normalization", "normalize.png", Pos::Top),
+                                  MenuItem("Video quality", "quality.png", Pos::Top),
                                   MenuItem("Buffer length", "buffer.png", Pos::Top),
                                   MenuItem("Buffer memory", "buffer.png", Pos::Top),
                           }});
     categories.push_back({"Interface",
                           {
-                                  MenuItem("Language", "options.png", Pos::Top),
+                                  MenuItem("Language", "translate.png", Pos::Top),
                                   MenuItem("Accent color", "color.png", Pos::Top),
                                   MenuItem("Swap controls", "swap.png", Pos::Top),
                           }});
@@ -52,7 +52,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     categories.push_back({"Networks", networks});
     std::vector<MenuItem> system = {
             MenuItem("Local home path", "home.png", Pos::Top),
-            MenuItem("Edit files", "options.png", Pos::Top),
+            MenuItem("Edit files", "edit.png", Pos::Top),
     };
 #ifdef __SWITCH__
     system.emplace_back("CPU boost", "cpu.png", Pos::Top);
@@ -61,9 +61,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     categories.push_back({"System", system});
 
     std::vector<MenuItem> it = {
-            MenuItem("Playback", "pl_mode.png", Pos::Top), MenuItem("Interface", "color.png", Pos::Top),
-            MenuItem("Networks", "network.png", Pos::Top), MenuItem("System", "options.png", Pos::Top),
-            MenuItem("About", "log.png", Pos::Top),
+            MenuItem("Playback", "pl_mode.png", Pos::Top), MenuItem("Interface", "interface.png", Pos::Top),
+            MenuItem("Networks", "network.png", Pos::Top), MenuItem("System", "system.png", Pos::Top),
+            MenuItem("About", "info.png", Pos::Top),
     };
 
     menuMainOptions = new MenuMainOptions(main, rect, it);

@@ -15,12 +15,16 @@ class PlayerOSD : public c2d::GradientRectangle {
 
 public:
 
+    // the navigation order
     enum class ButtonID {
-        Pause,
+        Previous,
         SeekBackwardLong,
         SeekBackwardShort,
+        Pause,
         SeekForwardShort,
         SeekForwardLong,
+        Next,
+        Settings,
         Stop
     };
 

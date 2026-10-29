@@ -9,15 +9,24 @@
 
 using namespace c2d;
 
+static std::string trackItem(const MediaInfo::Track &track) {
+    return "#" + std::to_string(track.id) + " " + encoding::fix(MediaInfo::describe(track));
+}
+
+// value, -, +, reset
+static std::vector<MenuItem> adjustItems() {
+    return {MenuItem("Value", "", MenuItem::Position::Top, MENU_ADJUST_VALUE, false),
+            MenuItem("-", "", MenuItem::Position::Top, -1), MenuItem("+", "", MenuItem::Position::Top, 1),
+            MenuItem("Reset", "", MenuItem::Position::Top, 0)};
+}
+
 void Player::buildMenus() {
     // build video track selection menu
     if (!file.mediaInfo.videos.empty()) {
         // videos menu options
         std::vector<MenuItem> items;
         for (auto &stream: file.mediaInfo.videos) {
-            items.emplace_back(stream.title + "\n" + stream.language + " " + stream.codec + " "
-                                       + std::to_string(stream.width) + "x" + std::to_string(stream.height),
-                               "", MenuItem::Position::Top, stream.id);
+            items.emplace_back(trackItem(stream), "", MenuItem::Position::Top, stream.id);
         }
         menuVideoStreams = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Video", items,
                                                 MENU_VIDEO_TYPE_VID);
@@ -63,6 +72,21 @@ void Player::buildMenus() {
         add(menuNormalize);
     }
 
+    if (menuSpeed == nullptr) {
+        menuSpeed = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Speed", adjustItems(),
+                                         MENU_VIDEO_TYPE_SPEED);
+        menuSpeed->setLayer(3);
+        menuSpeed->setVisibility(Visibility::Hidden, false);
+        add(menuSpeed);
+    }
+    if (menuBrightness == nullptr) {
+        menuBrightness = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Brightness",
+                                              adjustItems(), MENU_VIDEO_TYPE_BRIGHTNESS);
+        menuBrightness->setLayer(3);
+        menuBrightness->setVisibility(Visibility::Hidden, false);
+        add(menuBrightness);
+    }
+
     if (menuPlaybackMode == nullptr) {
         menuPlaybackMode = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "At playback end..",
                                                 {MenuItem("Stop", "", MenuItem::Position::Top, 0),
@@ -92,10 +116,7 @@ void Player::buildTrackMenus() {
     if (!file.mediaInfo.audios.empty() || hasVideo()) {
         std::vector<MenuItem> items;
         for (auto &stream: file.mediaInfo.audios) {
-            items.emplace_back(stream.title + "\n" + stream.language + " " + stream.codec + " "
-                                       + std::to_string(stream.channels) + "ch "
-                                       + std::to_string(stream.sample_rate / 1000) + " Khz",
-                               "", MenuItem::Position::Top, stream.id);
+            items.emplace_back(trackItem(stream), "", MenuItem::Position::Top, stream.id);
         }
         items.emplace_back("Add file...", "", MenuItem::Position::Top, MENU_TRACK_ADD);
         menuAudioStreams = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Audio", items,
@@ -110,7 +131,7 @@ void Player::buildTrackMenus() {
         std::vector<MenuItem> items;
         items.emplace_back("None", "", MenuItem::Position::Top, -1);
         for (auto &stream: file.mediaInfo.subtitles) {
-            items.emplace_back(stream.title + "\nLang: " + stream.language, "", MenuItem::Position::Top, stream.id);
+            items.emplace_back(trackItem(stream), "", MenuItem::Position::Top, stream.id);
         }
         items.emplace_back("Add file...", "", MenuItem::Position::Top, MENU_TRACK_ADD);
         menuSubtitlesStreams = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Subtitles", items,
@@ -123,8 +144,8 @@ void Player::buildTrackMenus() {
 
 std::vector<MenuVideoSubmenu *> Player::menus() const {
     std::vector<MenuVideoSubmenu *> list;
-    for (auto *menu:
-         {menuVideoStreams, menuAudioStreams, menuSubtitlesStreams, menuPlaylist, menuPlaybackMode, menuNormalize}) {
+    for (auto *menu: {menuVideoStreams, menuAudioStreams, menuSubtitlesStreams, menuPlaylist, menuPlaybackMode,
+                      menuNormalize, menuSpeed, menuBrightness}) {
         if (menu != nullptr) {
             list.push_back(menu);
         }
@@ -153,9 +174,11 @@ void Player::hideMenus() {
 
 void Player::deleteMenus(bool all) {
     for (auto **menu: {&menuVideoStreams, &menuAudioStreams, &menuSubtitlesStreams, &menuPlaylist, &menuPlaybackMode,
-                       &menuNormalize}) {
-        // the playback mode and normalization ones are kept between files
-        if (*menu != nullptr && (all || (menu != &menuPlaybackMode && menu != &menuNormalize))) {
+                       &menuNormalize, &menuSpeed, &menuBrightness}) {
+        // the file independent ones are kept between files
+        bool kept =
+                menu == &menuPlaybackMode || menu == &menuNormalize || menu == &menuSpeed || menu == &menuBrightness;
+        if (*menu != nullptr && (all || !kept)) {
             delete (*menu);
             *menu = nullptr;
         }
@@ -184,4 +207,12 @@ MenuVideoSubmenu *Player::getMenuPlaybackMode() {
 
 MenuVideoSubmenu *Player::getMenuNormalize() {
     return menuNormalize;
+}
+
+MenuVideoSubmenu *Player::getMenuSpeed() {
+    return menuSpeed;
+}
+
+MenuVideoSubmenu *Player::getMenuBrightness() {
+    return menuBrightness;
 }

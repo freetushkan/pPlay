@@ -21,15 +21,16 @@ namespace {
 
 #if defined(__LINUX__)
     const std::vector<Input::ButtonMapping> g_keyboard = {
-            {Input::Button::Up, SDL_SCANCODE_UP},         {Input::Button::Down, SDL_SCANCODE_DOWN},
-            {Input::Button::Left, SDL_SCANCODE_LEFT},     {Input::Button::Right, SDL_SCANCODE_RIGHT},
-            {Input::Button::A, SDL_SCANCODE_RETURN},      {Input::Button::A, SDL_SCANCODE_KP_ENTER},
-            {Input::Button::B, SDL_SCANCODE_ESCAPE},      {Input::Button::B, SDL_SCANCODE_BACKSPACE},
-            {Input::Button::X, SDL_SCANCODE_TAB},         {Input::Button::X, SDL_SCANCODE_MENU},
-            {Input::Button::X, SDL_SCANCODE_APPLICATION}, {Input::Button::Y, SDL_SCANCODE_DELETE},
-            {Input::Button::LB, SDL_SCANCODE_PAGEUP},     {Input::Button::RB, SDL_SCANCODE_PAGEDOWN},
-            {Input::Button::LT, SDL_SCANCODE_HOME},       {Input::Button::RT, SDL_SCANCODE_END},
-            {Input::Button::Start, SDL_SCANCODE_F1},      {Input::Button::Select, SDL_SCANCODE_F2},
+            {Input::Button::Up, SDL_SCANCODE_UP},       {Input::Button::Down, SDL_SCANCODE_DOWN},
+            {Input::Button::Left, SDL_SCANCODE_LEFT},   {Input::Button::Right, SDL_SCANCODE_RIGHT},
+            {Input::Button::A, SDL_SCANCODE_RETURN},    {Input::Button::A, SDL_SCANCODE_KP_ENTER},
+            {Input::Button::A, SDL_SCANCODE_SPACE},     {Input::Button::B, SDL_SCANCODE_ESCAPE},
+            {Input::Button::B, SDL_SCANCODE_BACKSPACE}, {Input::Button::X, SDL_SCANCODE_TAB},
+            {Input::Button::X, SDL_SCANCODE_MENU},      {Input::Button::X, SDL_SCANCODE_APPLICATION},
+            {Input::Button::Y, SDL_SCANCODE_DELETE},    {Input::Button::LB, SDL_SCANCODE_PAGEUP},
+            {Input::Button::RB, SDL_SCANCODE_PAGEDOWN}, {Input::Button::LT, SDL_SCANCODE_HOME},
+            {Input::Button::RT, SDL_SCANCODE_END},      {Input::Button::Start, SDL_SCANCODE_F1},
+            {Input::Button::Select, SDL_SCANCODE_F2},
     };
 #elif !defined(NO_KEYBOARD)
     const std::vector<Input::ButtonMapping> g_keyboard = {
@@ -392,6 +393,64 @@ namespace pplay::InputMap {
         unsigned int pending = g_pending;
         g_pending = 0;
         return pending;
+    }
+
+    std::string buttonIcon(unsigned int buttons) {
+        using B = Input::Button;
+        static const std::pair<unsigned int, const char *> icons[] = {
+#if defined(__LINUX__)
+                {B::Up | B::Down, "kb_updown"},
+                {B::Up, "kb_up"},
+                {B::Down, "kb_down"},
+                {B::Left, "kb_left"},
+                {B::Right, "kb_right"},
+                {B::A, "kb_enter"},
+                {B::B, "kb_esc"},
+                {B::X, "kb_tab"},
+                {B::Y, "kb_del"},
+                {B::LB, "kb_pgup"},
+                {B::RB, "kb_pgdn"},
+                {B::LT, "kb_home"},
+                {B::RT, "kb_end"},
+                {B::Start, "kb_f1"},
+                {B::Select, "kb_f2"},
+#else
+                {B::Up | B::Down, "dpad_updown"},
+                {B::Left | B::Right, "dpad_leftright"},
+                {B::Up, "dpad_up"},
+                {B::Down, "dpad_down"},
+                {B::Left, "dpad_left"},
+                {B::Right, "dpad_right"},
+#if defined(__PS4__) || defined(__PS5__)
+                {B::A, "ps_cross"},
+                {B::B, "ps_circle"},
+                {B::X, "ps_square"},
+                {B::Y, "ps_triangle"},
+                {B::LB, "ps_l1"},
+                {B::RB, "ps_r1"},
+                {B::LT, "ps_l2"},
+                {B::RT, "ps_r2"},
+                {B::Start, "ps_options"},
+#else
+                {B::A, "sw_a"},
+                {B::B, "sw_b"},
+                {B::X, "sw_x"},
+                {B::Y, "sw_y"},
+                {B::LB, "sw_l"},
+                {B::RB, "sw_r"},
+                {B::LT, "sw_zl"},
+                {B::RT, "sw_zr"},
+                {B::Start, "sw_plus"},
+                {B::Select, "sw_minus"},
+#endif
+#endif
+        };
+        for (const auto &icon: icons) {
+            if (icon.first == buttons) {
+                return std::string("key_") + icon.second + ".png";
+            }
+        }
+        return "";
     }
 
     std::string buttonName(unsigned int button) {

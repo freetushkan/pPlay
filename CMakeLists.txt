@@ -44,7 +44,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # pplay version
 set(VERSION_MAJOR "4")
 set(VERSION_MINOR "6")
-set(PROJECT_AUTHOR "Cpasjuste")
+set(PROJECT_AUTHOR "freetushkan")
 set(TITLE_ID "PPLAY0001")
 set(APP_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
 
@@ -84,6 +84,8 @@ file(GLOB PPLAY_SRC
         src/player/*.c*
         src/app/*.c*
         src/net/*.c*
+        src/ui/*.c*
+        src/media/*.c*
     )
 
 # includes
@@ -96,6 +98,8 @@ set(PPLAY_INC
         src/player
         src/app
         src/net
+        src/ui
+        src/media
         ${MPV_INCLUDE_DIRS}
         ${ASS_INCLUDE_DIRS}
         ${FFMPEG_INCLUDE_DIRS}
@@ -142,7 +146,7 @@ elseif (PLATFORM_PS4)
     # PS4 PLATORM
     #####################
     list(APPEND PPLAY_CFLAGS -D__PS4__)
-    set(PS4_PKG_TITLE "pPlay @ cpasjuste")
+    set(PS4_PKG_TITLE "pPlay")
     set(PS4_PKG_TITLE_ID "PPLA00001")
     set(PS4_PKG_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}")
     list(APPEND PPLAY_INC)

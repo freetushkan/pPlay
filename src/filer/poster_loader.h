@@ -1,5 +1,5 @@
 //
-// Posters of the preview panel: downloaded in a thread to data/cache/posters, decoded
+// Posters of the details panel: downloaded in a thread to data/cache/posters, decoded
 // a bit after the selection settles (fast scrolling).
 //
 

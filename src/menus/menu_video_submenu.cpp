@@ -2,6 +2,9 @@
 // Created by cpasjuste on 07/12/18.
 //
 
+#include <algorithm>
+#include <cstdio>
+
 #include "cross2d/c2d.h"
 #include "main.h"
 #include "menu_video_submenu.h"
@@ -27,6 +30,21 @@ void MenuVideoSubmenu::setSelection(int streamId) {
 }
 
 void MenuVideoSubmenu::updateSelectionHighlight() {
+    if (type == MENU_VIDEO_TYPE_SPEED || type == MENU_VIDEO_TYPE_BRIGHTNESS) {
+        // no current item: the value line
+        hideCurrent();
+        char value[32];
+        if (type == MENU_VIDEO_TYPE_SPEED) {
+            snprintf(value, sizeof(value), "%.2f", main->getPlayer()->getMpv()->getSpeed());
+        } else {
+            snprintf(value, sizeof(value), "%d", (int) main->getPlayer()->getMpv()->getDouble("brightness", 0));
+        }
+        if (!buttons.empty() && buttons[0]->item.id == MENU_ADJUST_VALUE) {
+            buttons[0]->item.label = pplay::tr(type == MENU_VIDEO_TYPE_SPEED ? "Speed" : "Brightness") + ": " + value;
+            buttons[0]->refreshText();
+        }
+        return;
+    }
     current->setVisibility(Visibility::Visible);
     if (type == MENU_VIDEO_TYPE_VID) {
         setSelection(main->getPlayer()->getVideoStream());
@@ -57,6 +75,18 @@ void MenuVideoSubmenu::updateSelectionHighlight() {
 }
 
 void MenuVideoSubmenu::onOptionSelection(MenuItem *item) {
+    Player *player = main->getPlayer();
+    if (type == MENU_VIDEO_TYPE_SPEED) {
+        double speed = item->id == 0 ? 1.0 : player->getMpv()->getSpeed() + 0.05 * item->id;
+        player->setSpeed(std::max(0.25, std::min(3.0, speed)));
+        updateSelectionHighlight();
+        return;
+    }
+    if (type == MENU_VIDEO_TYPE_BRIGHTNESS) {
+        item->id == 0 ? player->resetBrightness() : player->changeBrightness(item->id);
+        updateSelectionHighlight();
+        return;
+    }
     if (item->id == MENU_TRACK_ADD && (type == MENU_VIDEO_TYPE_AUD || type == MENU_VIDEO_TYPE_SUB)) {
         setVisibility(Visibility::Hidden, true);
         main->getPlayer()->pickExternalTrack(type == MENU_VIDEO_TYPE_AUD);

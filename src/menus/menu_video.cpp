@@ -52,6 +52,15 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
             main->getPlayer()->getMenuNormalize()->setVisibility(Visibility::Visible, true);
             setVisibility(Visibility::Hidden, true);
         }
+    } else if (item->name == "Speed" || item->name == "Brightness") {
+        auto *menu = item->name == "Speed" ? main->getPlayer()->getMenuSpeed() : main->getPlayer()->getMenuBrightness();
+        if (menu != nullptr) {
+            menu->setVisibility(Visibility::Visible, true);
+            setVisibility(Visibility::Hidden, true);
+        }
+    } else if (item->name == "Information") {
+        main->getPlayer()->setInfoVisible(!main->getPlayer()->isInfoVisible());
+        setVisibility(Visibility::Hidden, true);
     } else if (item->name == "Stop") {
         main->getPlayer()->stop();
         setVisibility(Visibility::Hidden, true);

@@ -1,5 +1,5 @@
 //
-// Key hints of the preview panel bottom. In the panel they are buttons too: TV
+// Key hints of the details panel bottom. In the panel they are buttons too: TV
 // remotes (CEC) have no square / triangle.
 //
 
@@ -17,12 +17,12 @@ class KeyHints : public c2d::Rectangle {
 public:
 
     struct Hint {
-        std::string key;
-        std::string action; // menu key, translated
+        unsigned int keys = 0; // a glyph, or the key name
+        std::string action;    // menu key, translated
         int id = 0;
 
         bool operator==(const Hint &other) const {
-            return key == other.key && action == other.action && id == other.id;
+            return keys == other.keys && action == other.action && id == other.id;
         }
     };
 
@@ -42,6 +42,9 @@ public:
 
     int idAt(int index) const;
 
+    // the closest item of the row above (-1) or below (1), -1 if none
+    int neighbor(int index, int direction);
+
     float getHeight() const { return height; }
 
     void onUpdate() override;
@@ -57,6 +60,7 @@ private:
     std::string language;
     std::vector<c2d::RectangleShape *> items;
     std::vector<c2d::Text *> texts;
+    std::vector<c2d::Sprite *> icons;
     bool buttons = false;
     int focus = -1;
     float height = 0;

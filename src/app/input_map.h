@@ -45,6 +45,9 @@ namespace pplay::InputMap {
     std::string toString(unsigned int buttons);
 
     // the button as printed on the platform pad (PlayStation symbols), for hints
+    // skin glyph of a button (or of up + down, left + right), "" if none
+    std::string buttonIcon(unsigned int buttons);
+
     std::string buttonName(unsigned int button);
 
     // a text is typed (Linux text box): no shortcut from the keyboard

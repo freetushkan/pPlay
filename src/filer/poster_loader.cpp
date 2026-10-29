@@ -1,5 +1,5 @@
 //
-// Preview panel posters.
+// Details panel posters.
 //
 
 #include <cstdio>
@@ -93,11 +93,11 @@ bool PosterLoader::poll(const c2d::Vector2i &maxSize, c2d::Texture **texture, st
             failed = wanted;
             *error = pplay::tr("unsupported image") + " (" + decodeError + ")";
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                                "Preview: poster decode failed: " + wanted + ": " + decodeError);
+                                "Details: poster decode failed: " + wanted + ": " + decodeError);
             return true;
         }
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                            "Preview: poster " + wanted + " " + std::to_string((*texture)->getTextureSize().x) + "x"
+                            "Details: poster " + wanted + " " + std::to_string((*texture)->getTextureSize().x) + "x"
                                     + std::to_string((*texture)->getTextureSize().y));
         return true;
     }
@@ -142,7 +142,7 @@ int PosterLoader::downloadThread(void *data) {
         }
     }
     pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                        "Preview: poster download " + self->downloadUrl + " status=" + std::to_string(response.status)
+                        "Details: poster download " + self->downloadUrl + " status=" + std::to_string(response.status)
                                 + " size=" + std::to_string(response.body.size()) + (ok ? " ok" : " failed: " + error));
     self->downloadError = error;
     self->downloadOk = ok;

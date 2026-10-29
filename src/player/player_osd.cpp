@@ -39,66 +39,44 @@ PlayerOSD::PlayerOSD(Main *m) : GradientRectangle({0, 0, 64, 64}) {
     progress->add(buffered);
     buffered->setLayer(-1); // sorted once added
 
-    // left buttons
-    btn_pause = new C2DTexture(main->getIo()->getDataPath() + "skin/btn_pause.png");
-    btn_pause->setScale(main->getScaling());
-    btn_pause->setPosition(64 * 1 * main->getScaling().x, PlayerOSD::getSize().y / 2);
-    btn_pause->setOrigin(Origin::Center);
-    PlayerOSD::add(btn_pause);
-    buttons.push_back(btn_pause);
-
-    btn_play = new C2DTexture(main->getIo()->getDataPath() + "skin/btn_play.png");
-    btn_play->setScale(main->getScaling());
-    btn_play->setPosition(buttons.at((size_t) ButtonID::Pause)->getPosition().x, PlayerOSD::getSize().y / 2);
-    btn_play->setOrigin(Origin::Center);
+    // controls in the middle, the times by the sides, settings and stop on the right
+    const Vector2f sc = main->getScaling();
+    auto addButton = [this, sc](const char *file, float x) {
+        auto *button = new C2DTexture(main->getIo()->getDataPath() + "skin/" + file);
+        // 48 px at 720p, whatever the image size
+        float scale = 48.0f * sc.y / (float) button->getTextureSize().x;
+        button->setScale(scale, scale);
+        button->setPosition(x, PlayerOSD::getSize().y / 2);
+        button->setOrigin(Origin::Center);
+        PlayerOSD::add(button);
+        return button;
+    };
+    const float step = 72 * sc.x;
+    const float center = PlayerOSD::getSize().x / 2;
+    const float right = PlayerOSD::getSize().x - 48 * sc.x;
+    btn_pause = addButton("btn_pause.png", center);
+    btn_play = addButton("btn_play.png", center);
     btn_play->setVisibility(Visibility::Hidden);
-    PlayerOSD::add(btn_play);
+    buttons = {addButton("btn_prev.png", center - step * 3),
+               addButton("btn_seek_backward_long.png", center - step * 2),
+               addButton("btn_seek_backward_short.png", center - step),
+               btn_pause,
+               addButton("btn_seek_forward_short.png", center + step),
+               addButton("btn_seek_forward_long.png", center + step * 2),
+               addButton("btn_next.png", center + step * 3),
+               addButton("btn_settings.png", right - step),
+               addButton("btn_stop.png", right)};
 
-    auto btn = new C2DTexture(main->getIo()->getDataPath() + "skin/btn_seek_backward_long.png");
-    btn->setScale(main->getScaling());
-    btn->setPosition(64 * 2 * main->getScaling().x, PlayerOSD::getSize().y / 2);
-    btn->setOrigin(Origin::Center);
-    PlayerOSD::add(btn);
-    buttons.push_back(btn);
-
-    btn = new C2DTexture(main->getIo()->getDataPath() + "skin/btn_seek_backward_short.png");
-    btn->setScale(main->getScaling());
-    btn->setPosition(64 * 3 * main->getScaling().x, PlayerOSD::getSize().y / 2);
-    btn->setOrigin(Origin::Center);
-    PlayerOSD::add(btn);
-    buttons.push_back(btn);
-
-    progress_text = new Text("00:00:00", main->getFontSize(Main::FontSize::Big), main->getFont());
+    progress_text = new Text("00:00:00 / 00:00:00", main->getFontSize(Main::FontSize::Big), main->getFont());
     progress_text->setOrigin(Origin::Left);
-    progress_text->setPosition(64 * 4 * main->getScaling().x, PlayerOSD::getSize().y / 2);
+    progress_text->setPosition(24 * sc.x, PlayerOSD::getSize().y / 2);
     PlayerOSD::add(progress_text);
 
-    // right buttons
-    duration_text = new Text("00:00:00", main->getFontSize(Main::FontSize::Big), main->getFont());
+    // remaining, at the playback speed
+    duration_text = new Text("-00:00:00", main->getFontSize(Main::FontSize::Big), main->getFont());
     duration_text->setOrigin(Origin::Right);
-    duration_text->setPosition(PlayerOSD::getSize().x - (64 * 4 * main->getScaling().x), PlayerOSD::getSize().y / 2);
+    duration_text->setPosition(right - step - 48 * sc.x, PlayerOSD::getSize().y / 2);
     PlayerOSD::add(duration_text);
-
-    btn = new C2DTexture(main->getIo()->getDataPath() + "skin/btn_seek_forward_short.png");
-    btn->setScale(main->getScaling());
-    btn->setPosition(PlayerOSD::getSize().x - (64 * 3 * main->getScaling().x), PlayerOSD::getSize().y / 2);
-    btn->setOrigin(Origin::Center);
-    PlayerOSD::add(btn);
-    buttons.push_back(btn);
-
-    btn = new C2DTexture(main->getIo()->getDataPath() + "skin/btn_seek_forward_long.png");
-    btn->setScale(main->getScaling());
-    btn->setPosition(PlayerOSD::getSize().x - (64 * 2 * main->getScaling().x), PlayerOSD::getSize().y / 2);
-    btn->setOrigin(Origin::Center);
-    PlayerOSD::add(btn);
-    buttons.push_back(btn);
-
-    btn = new C2DTexture(main->getIo()->getDataPath() + "skin/btn_stop.png");
-    btn->setScale(main->getScaling());
-    btn->setPosition(PlayerOSD::getSize().x - (64 * 1 * main->getScaling().x), PlayerOSD::getSize().y / 2);
-    btn->setOrigin(Origin::Center);
-    PlayerOSD::add(btn);
-    buttons.push_back(btn);
 
     // TITLE
     title = new Text("Unknown Title", main->getFontSize(Main::FontSize::XL), main->getFont());
@@ -124,7 +102,7 @@ PlayerOSD::PlayerOSD(Main *m) : GradientRectangle({0, 0, 64, 64}) {
 void PlayerOSD::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
 
     if (visibility == Visibility::Visible) {
-        index = 0;
+        index = (int) ButtonID::Pause;
         highlight->tweenTo({buttons.at((size_t) index)->getPosition().x, 0});
         if (main->getPlayer() != nullptr) {
             title->setString(encoding::fix(main->getPlayer()->getTitle()));
@@ -175,8 +153,9 @@ void PlayerOSD::onDraw(c2d::Transform &transform, bool draw) {
         buffered->setSize(0, buffered->getSize().y);
     }
     progress->setFgColor(COLOR_ACCENT);
-    progress_text->setString(pplay::Utility::formatTime(position));
-    duration_text->setString(pplay::Utility::formatTime(duration));
+    progress_text->setString(pplay::Utility::formatTime(position) + " / " + pplay::Utility::formatTime(duration));
+    double speed = std::max(0.01, mpv->getSpeed());
+    duration_text->setString("-" + pplay::Utility::formatTime(std::max(0.0, (duration - position) / speed)));
     highlight->setFillColor(COLOR_HIGHLIGHT);
     highlight->setCursorColor(COLOR_ACCENT);
 
@@ -243,6 +222,15 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
             case ButtonID::SeekBackwardLong:
                 mpv->seek(-s_long);
                 break;
+            case ButtonID::Previous:
+            case ButtonID::Next:
+                hideOSD();
+                player->playSibling((ButtonID) index == ButtonID::Next ? 1 : -1);
+                break;
+            case ButtonID::Settings:
+                hideOSD();
+                main->getMenuVideo()->setVisibility(Visibility::Visible, true);
+                break;
             case ButtonID::Stop:
                 hideOSD();
                 main->getStatus()->show("Info...", "Stopping playback...");
@@ -257,7 +245,7 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
 }
 
 void PlayerOSD::reset() {
-    index = 0;
+    index = (int) ButtonID::Pause;
     highlight->tweenTo({buttons.at((size_t) index)->getPosition().x, 0});
     btn_play->setVisibility(Visibility::Hidden);
     buttons.at((int) ButtonID::Pause)->setVisibility(Visibility::Visible);

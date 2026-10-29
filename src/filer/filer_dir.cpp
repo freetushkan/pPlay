@@ -38,7 +38,8 @@ void Filer::startPick(const std::vector<std::string> &extensions, const std::str
     pickExtensions = extensions;
     pickCallback = std::move(onPick);
     picking = true;
-    preview->setFocused(false);
+    details->setFocused(false);
+    details->setPicking(true);
     main->getStatus()->show("Info...", hint, true);
     if (!getDir(dir)) {
         getDir(pickPrevPath);
@@ -47,6 +48,7 @@ void Filer::startPick(const std::vector<std::string> &extensions, const std::str
 
 void Filer::endPick() {
     picking = false;
+    details->setPicking(false);
     pickCallback = nullptr;
     main->getStatus()->hide();
     // listed again without the picked extensions

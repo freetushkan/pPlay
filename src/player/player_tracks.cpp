@@ -282,7 +282,7 @@ void Player::pickExternalTrack(bool audio) {
     }
     setFullscreen(false);
     std::string hint = pplay::tr(audio ? "Choose an audio file" : "Choose a subtitles file") + "\n"
-                       + pplay::InputMap::buttonName(c2d::Input::Button::X) + ": " + pplay::tr("cancel");
+                       + pplay::InputMap::buttonName(c2d::Input::Button::X) + " " + pplay::tr("cancel");
     main->getFiler()->startPick(
             audio ? pplay::ExternalTracks::audioExtensions() : pplay::ExternalTracks::subtitleExtensions(),
             pplay::Paths::extractDirPath(file.path), hint, [this, audio](const MediaFile &picked) {

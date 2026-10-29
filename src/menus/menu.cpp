@@ -71,7 +71,12 @@ float Menu::menuTop() const {
 }
 
 float Menu::menuBottom() {
-    return getSize().y - 32.0f * main->getScaling().y;
+    // above the bottom items (exit, stop...)
+    int bottomItems = 0;
+    for (auto *button: buttons) {
+        bottomItems += button->item.position == MenuItem::Position::Bottom;
+    }
+    return getSize().y - 32.0f * main->getScaling().y - (float) bottomItems * itemHeight();
 }
 
 float Menu::itemHeight() const {
@@ -304,7 +309,7 @@ void Menu::setItems(const std::vector<MenuItem> &items) {
     const float height = itemHeight();
     const unsigned int fontSize = main->getFontSize(compact ? Main::FontSize::Small : Main::FontSize::Medium);
     FloatRect top = {0, menuTop(), Menu::getSize().x, height};
-    FloatRect bottom = {0, menuBottom(), Menu::getSize().x, height};
+    FloatRect bottom = {0, Menu::getSize().y - 32.0f * main->getScaling().y, Menu::getSize().x, height};
     for (auto &item: items) {
         FloatRect &rect = item.position == MenuItem::Position::Top ? top : bottom;
         auto *button = new MenuButton(main, item, rect, fontSize);

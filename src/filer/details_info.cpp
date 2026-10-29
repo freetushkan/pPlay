@@ -1,9 +1,8 @@
 //
-// Preview panel texts.
+// Details panel texts.
 //
 
 #include <ctime>
-#include <sstream>
 
 #include "cross2d/c2d.h"
 #include "encodings.h"
@@ -11,7 +10,7 @@
 #include "history.h"
 #include "i18n.h"
 #include "player.h"
-#include "preview_info.h"
+#include "details_info.h"
 #include "text_wrap.h"
 #include "torrserve.h"
 #include "utility.h"
@@ -36,37 +35,45 @@ namespace {
         return pplay::tr(name) + ": " + value + "\n";
     }
 
+    // a line, or a title and a line per track
+    std::string trackLines(const char *name, const std::vector<MediaInfo::Track> &tracks) {
+        if (tracks.empty()) {
+            return "";
+        }
+        if (tracks.size() == 1) {
+            return line(name, encoding::fix(MediaInfo::describe(tracks[0])));
+        }
+        std::string out = pplay::tr(name) + " (" + std::to_string(tracks.size()) + "):\n";
+        for (auto &track: tracks) {
+            out += noBreak("   ") + encoding::fix(MediaInfo::describe(track)) + "\n";
+        }
+        return out;
+    }
+
     std::string mediaLines(const MediaInfo &mi, size_t size) {
-        std::ostringstream out;
+        std::string out;
         if (mi.duration > 0) {
-            out << line("Duration", pplay::Utility::formatTime((double) mi.duration));
+            out += line("Duration", pplay::Utility::formatTime((double) mi.duration));
         }
         if (size > 0) {
-            out << line("Size", noBreak(pplay::Utility::formatSize(size)));
+            out += line("Size", noBreak(pplay::Utility::formatSize(size)));
+            if (mi.duration > 0) {
+                out += line("Bitrate", noBreak(MediaInfo::formatBitrate((long) (size * 8 / mi.duration))));
+            }
+        }
+        if (!mi.format.empty()) {
+            out += line("Format", mi.format);
         }
         if (!mi.videos.empty()) {
+            // the resolution name first
             const auto &v = mi.videos[0];
-            std::string video = c2d::Utility::toUpper(v.codec);
-            if (v.width > 0 && v.height > 0) {
-                video += ", " + resolutionName(v.width, v.height) + " (" + std::to_string(v.width) + "x"
-                         + std::to_string(v.height) + ")";
-            }
-            out << line("Video", video);
+            std::string name = v.width > 0 && v.height > 0 ? resolutionName(v.width, v.height) + ", " : "";
+            out += mi.videos.size() == 1 ? line("Video", name + encoding::fix(MediaInfo::describe(v)))
+                                         : trackLines("Video", mi.videos);
         }
-        if (!mi.audios.empty()) {
-            std::string audio;
-            for (size_t i = 0; i < mi.audios.size() && i < 4; i++) {
-                audio += (i > 0 ? ", " : "") + c2d::Utility::toUpper(mi.audios[i].codec);
-                if (!mi.audios[i].language.empty() && mi.audios[i].language != "N/A") {
-                    audio += " " + mi.audios[i].language;
-                }
-            }
-            out << line("Audio", audio + (mi.audios.size() > 4 ? "..." : ""));
-        }
-        if (!mi.subtitles.empty()) {
-            out << line("Subtitles", std::to_string(mi.subtitles.size()));
-        }
-        return out.str();
+        out += trackLines("Audio", mi.audios);
+        out += trackLines("Subtitles", mi.subtitles);
+        return out;
     }
 
     std::string lastPlayed(const MediaFile &file) {
@@ -82,8 +89,8 @@ namespace {
     }
 }
 
-pplay::PreviewInfo pplay::PreviewInfo::of(const MediaFile &file) {
-    PreviewInfo info;
+pplay::DetailsInfo pplay::DetailsInfo::of(const MediaFile &file) {
+    DetailsInfo info;
     if (Filer::isPlaceholder(file)) {
         return info;
     }

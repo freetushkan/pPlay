@@ -34,14 +34,19 @@ bool Player::onInput(c2d::Input::Player *players) {
     int btnSeekForward = swap ? c2d::Input::RB : c2d::Input::RT;
     float seek = main->getConfig()->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
 
+    // without the OSD: the target time as a message
+    auto quietSeek = [this](float delta) {
+        double duration = (double) mpv->getDuration();
+        double target = std::max(0.0, mpv->getTime() + delta);
+        target = duration > 0 ? std::min(target, duration) : target;
+        mpv->seek(delta);
+        showMessage(pplay::Utility::formatTime(target) + " / " + pplay::Utility::formatTime(duration));
+    };
+
     // the player menus (tracks...): seeking still works (to listen again while choosing)
     bool menu = isMenuVisible();
     if (menu && !mpv->isStopped() && isFullscreen() && (keys & (btnSeekBack | btnSeekForward))) {
-        float delta = (keys & btnSeekBack) ? -seek : seek;
-        double target = std::max(0.0, mpv->getTime() + delta);
-        getMpv()->seek(delta);
-        showMessage(pplay::Utility::formatTime(target) + " / "
-                    + pplay::Utility::formatTime((double) mpv->getDuration()));
+        quietSeek((keys & btnSeekBack) ? -seek : seek);
         return true;
     }
 
@@ -64,15 +69,7 @@ bool Player::onInput(c2d::Input::Player *players) {
         osd->setVisibility(c2d::Visibility::Visible);
         getMpv()->seek(((keys & btnSeekBack) ? -seek : seek));
     } else if (keys & Input::Start) {
-        if (info_text->isVisible()) {
-            info_text->setVisibility(Visibility::Hidden);
-            info_keys->setVisibility(Visibility::Hidden);
-        } else {
-            updateInfo();
-            updateKeysInfo();
-            info_text->setVisibility(Visibility::Visible);
-            info_keys->setVisibility(Visibility::Visible);
-        }
+        setInfoVisible(!isInfoVisible());
     } else if (keys & (Input::Up | Input::Down)) {
         int delta = (keys & Input::Up) ? 1 : -1;
         if (keys & Input::Y) {
@@ -84,6 +81,12 @@ bool Player::onInput(c2d::Input::Player *players) {
 
     if (osd->isVisible()) {
         return C2DObject::onInput(players);
+    }
+
+    // left / right: the short seek (the OSD keeps them for its buttons)
+    if (keys & (Input::Left | Input::Right)) {
+        quietSeek((keys & Input::Left) ? -seek : seek);
+        return true;
     }
 
     //////////////////
@@ -198,7 +201,7 @@ void Player::updateInfo() {
         static const char *modes[] = {"Off", "Normalize", "Night mode"};
         int mode = std::max(0, std::min(2, main->getConfig()->getOption(OPT_AUDIO_NORMALIZE)->getInteger()));
         out << "\n    " << pplay::tr("Track") << ": " << trackInfo("audio") << "\n    " << pplay::tr("Volume") << ": "
-            << (int) mpv->getDouble("volume", 0) << "%, " << pplay::tr("Volume normalization") << ": "
+            << (int) mpv->getDouble("volume", 0) << "%, " << pplay::tr("Normalization") << ": "
             << pplay::tr(modes[mode]) << "\n";
     }
     out << pplay::tr("Subtitles") << ": " << trackInfo("sub") << "\n";
@@ -254,4 +257,24 @@ void Player::updateKeysInfo() {
     out += line(buttonName(Input::Start), pplay::tr("Information"));
     out.pop_back();
     info_keys->setString(out);
+}
+
+bool Player::isInfoVisible() {
+    return info_text->isVisible();
+}
+
+void Player::setInfoVisible(bool visible) {
+    if (visible) {
+        updateInfo();
+        updateKeysInfo();
+    }
+    info_text->setVisibility(visible ? Visibility::Visible : Visibility::Hidden);
+    info_keys->setVisibility(visible ? Visibility::Visible : Visibility::Hidden);
+}
+
+void Player::resetBrightness() {
+    double brightness = mpv->getDouble("brightness", 0);
+    if (brightness != 0) {
+        changeBrightness(-brightness);
+    }
 }

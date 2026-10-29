@@ -224,6 +224,8 @@ void Player::onLoadEvent() {
     // load/update media information
     file.mediaInfo = mpv->getMediaInfo(file);
     file.mediaInfo.save(file);
+    // the details panel shows it
+    main->getFiler()->setMediaInfo(file, file.mediaInfo);
 
     buildMenus();
 

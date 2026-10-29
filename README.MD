@@ -40,7 +40,7 @@ Usage and controls
 | Action | PS4 / PS5 | Switch | Keyboard / Remote (PS5) | Keyboard (Linux) |
 | :--- | :--- | :--- | :--- | :--- |
 | Move / Switch windows | Analog Sticks / D-Pad | Analog Sticks / D-Pad | Arrows (or Numpad) | Arrows |
-| Confirm (OK) / Pause | `CROSS` | `A` | `Enter` / `Space` | `Enter` |
+| Confirm (OK) / Pause | `CROSS` | `A` | `Enter` / `Space` | `Enter` / `Space` |
 | Back / Minimize player | `CIRCLE` | `B` | `Esc` / `Backspace` | `Esc` / `Backspace` |
 | Menu / Track selection | `SQUARE` | `X` | `X` / `Menu` | `Tab` / `Menu` |
 | Secondary action | `TRIANGLE` | `Y` | `Y` / `Delete` | `Delete` |

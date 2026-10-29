@@ -1,5 +1,5 @@
 //
-// Filer preview panel.
+// Filer details panel.
 //
 
 #include <algorithm>
@@ -12,8 +12,8 @@
 #include "key_hints.h"
 #include "player.h"
 #include "poster_loader.h"
-#include "preview_info.h"
-#include "preview_view.h"
+#include "details_info.h"
+#include "details_view.h"
 #include "text_wrap.h"
 #include "torrserve.h"
 
@@ -25,7 +25,7 @@ using namespace c2d;
 // not focused poster height, of the panel width (a 2:3 poster is on the side)
 #define POSTER_HEIGHT 0.55f
 
-PreviewView::PreviewView(Main *m, const c2d::FloatRect &rect) : Rectangle(rect), main(m) {
+DetailsView::DetailsView(Main *m, const c2d::FloatRect &rect) : Rectangle(rect), main(m) {
     float margin = MARGIN * main->getScaling().x;
     float bar = std::max(2.0f, 3 * main->getScaling().x);
 
@@ -34,7 +34,7 @@ PreviewView::PreviewView(Main *m, const c2d::FloatRect &rect) : Rectangle(rect),
     placeholder = new C2DTexture(Vector2i{4, 4});
 
     view = new pplay::ClipRect({0, 0, rect.width, 1});
-    PreviewView::add(view);
+    DetailsView::add(view);
     content = new Rectangle(FloatRect{0, 0, rect.width, 1});
     view->add(content);
 
@@ -59,39 +59,39 @@ PreviewView::PreviewView(Main *m, const c2d::FloatRect &rect) : Rectangle(rect),
 
     scrollBar = new RectangleShape(Vector2f{bar, 1});
     scrollBar->setVisibility(Visibility::Hidden);
-    PreviewView::add(scrollBar);
+    DetailsView::add(scrollBar);
 
     focusBar = new RectangleShape(Vector2f{bar, 1});
     focusBar->setVisibility(Visibility::Hidden);
-    PreviewView::add(focusBar);
+    DetailsView::add(focusBar);
 
     separator = new RectangleShape(Vector2f{rect.width - margin * 2, std::max(1.0f, main->getScaling().y)});
     separator->setFillColor(Color(255, 255, 255, 50));
-    PreviewView::add(separator);
+    DetailsView::add(separator);
 
     hints = new KeyHints(main, rect.width - margin * 2);
-    PreviewView::add(hints);
+    DetailsView::add(hints);
 }
 
-PreviewView::~PreviewView() {
+DetailsView::~DetailsView() {
     delete (loader);
     delete (posterTexture);
     delete (placeholder);
 }
 
-bool PreviewView::isResettable(const MediaFile &file) {
+bool DetailsView::isResettable(const MediaFile &file) {
     return file.type == Io::Type::File && !Filer::isPlaceholder(file)
            && (pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path))
                || pplay::TorrServe::isFileViewed(file.path));
 }
 
-void PreviewView::setFile(const MediaFile &f) {
+void DetailsView::setFile(const MediaFile &f) {
     if (f.path != file.path || f.name != file.name) {
         scroll = scrollShown = 0;
         posterError.clear();
     }
     file = f;
-    pplay::PreviewInfo info = pplay::PreviewInfo::of(file);
+    pplay::DetailsInfo info = pplay::DetailsInfo::of(file);
     heading = info.title;
     details = info.details;
     if (info.poster != shownPoster) {
@@ -103,7 +103,7 @@ void PreviewView::setFile(const MediaFile &f) {
     layout();
 }
 
-void PreviewView::setFocused(bool value) {
+void DetailsView::setFocused(bool value) {
     if (focused == value) {
         return;
     }
@@ -116,40 +116,44 @@ void PreviewView::setFocused(bool value) {
     layout();
 }
 
-void PreviewView::updateHints() {
-    using pplay::InputMap::buttonName;
+void DetailsView::updateHints() {
     bool empty = Filer::isPlaceholder(file);
     const char *open = file.type == Io::Type::Directory ? "Open" : "Play";
     bool resettable = isResettable(file);
 
     std::vector<KeyHints::Hint> list;
-    auto add = [&list](const std::string &key, const char *action, Action id) {
-        list.push_back({key, action, (int) id});
-    };
+    auto add = [&list](unsigned int keys, const char *action, Action id) { list.push_back({keys, action, (int) id}); };
     if (focused) {
         if (!empty) {
-            add(buttonName(Input::A), open, Action::Open);
+            add(Input::A, open, Action::Open);
         }
         if (playing) {
-            add(buttonName(Input::X), "Player", Action::Player);
+            add(Input::X, "Player", Action::Player);
         }
         if (resettable) {
-            add(buttonName(Input::Y), "Reset progress", Action::Reset);
+            add(Input::Y, "Reset progress", Action::Reset);
         }
-        add(buttonName(Input::B), "Back", Action::Files);
-    } else {
-        add(buttonName(Input::Up) + buttonName(Input::Down), "Select", Action::None);
+        add(Input::B, "Back", Action::Files);
+    } else if (picking) {
+        add(Input::Up | Input::Down, "Select", Action::None);
         if (!empty) {
-            add(buttonName(Input::A), open, Action::Open);
+            add(Input::A, file.type == Io::Type::Directory ? "Open" : "Attach", Action::Open);
         }
-        add(buttonName(Input::B), "Back", Action::Parent);
-        add(buttonName(Input::Left), "Menu", Action::Menu);
-        add(buttonName(Input::Right), "Details", Action::Panel);
+        add(Input::B, "Back", Action::Parent);
+        add(Input::X, "cancel", Action::None);
+    } else {
+        add(Input::Up | Input::Down, "Select", Action::None);
+        if (!empty) {
+            add(Input::A, open, Action::Open);
+        }
+        add(Input::B, "Back", Action::Parent);
+        add(Input::Left, "Menu", Action::Menu);
+        add(Input::Right, "Details", Action::Panel);
         if (playing) {
-            add(buttonName(Input::X), "Player", Action::Player);
+            add(Input::X, "Player", Action::Player);
         }
         if (resettable) {
-            add(buttonName(Input::Y), "Reset progress", Action::Reset);
+            add(Input::Y, "Reset progress", Action::Reset);
         }
     }
     hints->setHints(list);
@@ -159,7 +163,7 @@ void PreviewView::updateHints() {
     hints->setFocus(button);
 }
 
-void PreviewView::showPoster(c2d::Texture *texture) {
+void DetailsView::showPoster(c2d::Texture *texture) {
     poster->setTexture(placeholder, true);
     delete (posterTexture);
     posterTexture = texture;
@@ -171,7 +175,7 @@ void PreviewView::showPoster(c2d::Texture *texture) {
     layout();
 }
 
-void PreviewView::hidePoster() {
+void DetailsView::hidePoster() {
     poster->setVisibility(Visibility::Hidden);
     posterFrame->setVisibility(Visibility::Hidden);
     if (posterTexture != nullptr) {
@@ -183,7 +187,7 @@ void PreviewView::hidePoster() {
     shownPoster.clear();
 }
 
-void PreviewView::layout() {
+void DetailsView::layout() {
     Vector2f scaling = main->getScaling();
     float margin = MARGIN * scaling.x;
     float top = (32 + MARGIN) * scaling.y;
@@ -248,13 +252,13 @@ void PreviewView::layout() {
     scrollBy(0);
 }
 
-void PreviewView::scrollBy(float delta) {
+void DetailsView::scrollBy(float delta) {
     float max = std::max(0.0f, contentHeight - view->getSize().y);
     scroll = std::max(0.0f, std::min(max, scroll + delta));
     updateScroll();
 }
 
-void PreviewView::updateScroll() {
+void DetailsView::updateScroll() {
     content->setPosition(0, -std::round(scrollShown));
     float viewHeight = view->getSize().y;
     if (contentHeight <= viewHeight + 1) {
@@ -269,7 +273,7 @@ void PreviewView::updateScroll() {
     scrollBar->setVisibility(Visibility::Visible);
 }
 
-PreviewView::Action PreviewView::onKeys(unsigned int keys) {
+DetailsView::Action DetailsView::onKeys(unsigned int keys) {
     if (keys & Input::B) {
         return Action::Files;
     }
@@ -302,7 +306,11 @@ PreviewView::Action PreviewView::onKeys(unsigned int keys) {
         }
     } else {
         if (keys & Input::Up) {
-            button = -1;
+            // the row above, or the content
+            button = hints->neighbor(button, -1);
+        } else if (keys & Input::Down) {
+            int below = hints->neighbor(button, 1);
+            button = below >= 0 ? below : button;
         } else if (keys & Input::Left) {
             if (button == 0) {
                 return Action::Files;
@@ -318,7 +326,7 @@ PreviewView::Action PreviewView::onKeys(unsigned int keys) {
     return Action::None;
 }
 
-void PreviewView::onUpdate() {
+void DetailsView::onUpdate() {
     float dt = frameClock.restart().asSeconds();
 
     Texture *texture;

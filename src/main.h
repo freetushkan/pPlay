@@ -20,7 +20,6 @@
 #include "i18n.h"
 
 #define INPUT_DELAY 500
-#define ICON_SIZE 24
 #define BUTTON_HEIGHT 64
 
 #define COLOR_BG Color(20, 22, 24, 255)

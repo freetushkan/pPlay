@@ -58,7 +58,10 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
         icon = new C2DTexture(main->getIo()->getDataPath() + "skin/" + item.icon);
         icon->setOrigin(Origin::Left);
         icon->setPosition(16 * main->getScaling().x, MenuButton::getSize().y / 2);
-        icon->setScale(main->getScaling());
+        // any resolution: 36 px at 720p, smaller in compact menus
+        iconSize = std::min(36.0f * main->getScaling().y, MenuButton::getSize().y * 0.75f);
+        float scale = iconSize / (float) icon->getTextureSize().x;
+        icon->setScale(scale, scale);
         icon->setFillColor(COLOR_FONT);
         MenuButton::add(icon);
     }
@@ -68,7 +71,7 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
     name->setFillColor(pplay::Utility::isValidHexColor(item.data_str) ? pplay::Utility::hexToColor(item.data_str)
                                                                       : COLOR_FONT);
 
-    float textX = (item.icon.empty() ? 16.0f : ICON_SIZE + 32.0f) * main->getScaling().x;
+    float textX = 16.0f * main->getScaling().x + (item.icon.empty() ? 0 : iconSize + 16.0f * main->getScaling().x);
     maxTextWidth = std::max(0.0f, MenuButton::getSize().x - textX - 16.0f * main->getScaling().x);
     scrollSpeed = SCROLL_SPEED * main->getScaling().x;
     clip = new pplay::ClipRect({textX, 0, maxTextWidth, MenuButton::getSize().y});

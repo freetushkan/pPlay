@@ -198,7 +198,7 @@ namespace {
         return torrents;
     }
 
-    // last torrents list per server (preview panel)
+    // last torrents list per server (details panel)
     std::mutex g_cacheMutex;
     std::unordered_map<std::string, std::vector<Torrent>> g_torrentsCache;
 

@@ -8,7 +8,7 @@
 #include "filer.h"
 #include "utility.h"
 #include "torrserve.h"
-#include "preview_view.h"
+#include "details_view.h"
 
 #define ITEM_HEIGHT 30
 
@@ -26,8 +26,8 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     // files list, information panel on the right
     float panelWidth = 560 * m->getScaling().x;
     listWidth = size.x - panelWidth;
-    preview = new PreviewView(main, {listWidth, 0, panelWidth, size.y});
-    Filer::add(preview);
+    details = new DetailsView(main, {listWidth, 0, panelWidth, size.y});
+    Filer::add(details);
 
     // highlight
     highlight = new Highlight({listWidth, (float) ITEM_HEIGHT * m->getScaling().y}, Highlight::CursorPosition::Left);
@@ -80,7 +80,7 @@ void Filer::setSelection(int index) {
             // set highlight position
             if (index_start + i == (unsigned int) item_index) {
                 highlight->tweenTo(items[i]->getPosition());
-                preview->setFile(file);
+                details->setFile(file);
             }
         }
     }
@@ -200,10 +200,10 @@ bool Filer::onInput(c2d::Input::Player *players) {
         }
     }
 
-    using Action = PreviewView::Action;
+    using Action = DetailsView::Action;
     Action action = Action::None;
-    if (preview->isFocused()) {
-        action = preview->onKeys(keys);
+    if (details->isFocused()) {
+        action = details->onKeys(keys);
     } else if (keys & (Input::Up | Input::Down)) {
         if (filesSize > 0) {
             int next = item_index + ((keys & Input::Up) ? -1 : 1);
@@ -227,13 +227,13 @@ bool Filer::onInput(c2d::Input::Player *players) {
     return true;
 }
 
-void Filer::run(PreviewView::Action action) {
-    using Action = PreviewView::Action;
+void Filer::run(DetailsView::Action action) {
+    using Action = DetailsView::Action;
     Player *player = main->getPlayer();
     MediaFile selection = getSelection();
     switch (action) {
         case Action::Open:
-            preview->setFocused(false);
+            details->setFocused(false);
             if (selection.type == Io::Type::Directory) {
                 enter(item_index);
             } else if (pplay::Utility::isMedia(selection)) {
@@ -245,18 +245,18 @@ void Filer::run(PreviewView::Action action) {
             exit();
             break;
         case Action::Menu:
-            preview->setFocused(false);
+            details->setFocused(false);
             main->getMenuMain()->setVisibility(Visibility::Visible, true);
             break;
         case Action::Panel:
-            preview->setFocused(true);
+            details->setFocused(true);
             break;
         case Action::Files:
-            preview->setFocused(false);
+            details->setFocused(false);
             break;
         case Action::Player:
             if (!player->getMpv()->isStopped() && !player->isFullscreen()) {
-                preview->setFocused(false);
+                details->setFocused(false);
                 player->setFullscreen(true);
             }
             break;
@@ -269,7 +269,7 @@ void Filer::run(PreviewView::Action action) {
 }
 
 void Filer::resetProgress(const MediaFile &file) {
-    if (!PreviewView::isResettable(file)) {
+    if (!DetailsView::isResettable(file)) {
         return;
     }
     // the opened file would write its position back (periodic / pause save)
@@ -300,8 +300,8 @@ void Filer::onUpdate() {
         }
     }
     // the panel focused: dimmed
-    highlight->setFillColor(COLOR_HIGHLIGHT, preview->isFocused() ? 25 : 60);
-    highlight->setCursorColor(preview->isFocused() ? COLOR_GRAY : COLOR_ACCENT);
+    highlight->setFillColor(COLOR_HIGHLIGHT, details->isFocused() ? 25 : 60);
+    highlight->setCursorColor(details->isFocused() ? COLOR_GRAY : COLOR_ACCENT);
 
     C2DObject::onUpdate();
 }

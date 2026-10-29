@@ -363,79 +363,73 @@ std::vector<Mpv::TrackEntry> Mpv::getTrackList() {
 
 MediaInfo Mpv::getMediaInfo(const c2d::Io::File &file) {
     MediaInfo mediaInfo(file);
-    std::vector<MediaInfo::Track> streams;
-
     if (!isAvailable() || isStopped()) {
         return mediaInfo;
     }
 
-    // load track list
     mpv_node node;
-    if (mpv_get_property(handle, "track-list", MPV_FORMAT_NODE, &node) >= 0 && node.format == MPV_FORMAT_NODE_ARRAY) {
-        for (int i = 0; i < node.u.list->num; i++) {
-            if (node.u.list->values[i].format == MPV_FORMAT_NODE_MAP) {
-                MediaInfo::Track stream{};
-                for (int n = 0; n < node.u.list->values[i].u.list->num; n++) {
-                    std::string key = node.u.list->values[i].u.list->keys[n];
-                    if (key == "type") {
-                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_STRING) {
-                            stream.type = node.u.list->values[i].u.list->values[n].u.string;
-                        }
-                    } else if (key == "id") {
-                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_INT64) {
-                            stream.id = (int) node.u.list->values[i].u.list->values[n].u.int64;
-                        }
-                    } else if (key == "title") {
-                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_STRING) {
-                            stream.title = node.u.list->values[i].u.list->values[n].u.string;
-                        }
-                    } else if (key == "lang") {
-                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_STRING) {
-                            stream.language = node.u.list->values[i].u.list->values[n].u.string;
-                        }
-                    } else if (key == "codec") {
-                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_STRING) {
-                            stream.codec = node.u.list->values[i].u.list->values[n].u.string;
-                        }
-                    } else if (key == "demux-w") {
-                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_INT64) {
-                            stream.width = (int) node.u.list->values[i].u.list->values[n].u.int64;
-                        }
-                    } else if (key == "demux-h") {
-                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_INT64) {
-                            stream.height = (int) node.u.list->values[i].u.list->values[n].u.int64;
-                        }
-                    } else if (key == "demux-samplerate") {
-                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_INT64) {
-                            stream.sample_rate = (int) node.u.list->values[i].u.list->values[n].u.int64;
-                        }
-                    } else if (key == "demux-channel-count") {
-                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_INT64) {
-                            stream.channels = (int) node.u.list->values[i].u.list->values[n].u.int64;
-                        }
-                    }
-                }
-                streams.push_back(stream);
-            }
-        }
+    if (mpv_get_property(handle, "track-list", MPV_FORMAT_NODE, &node) < 0) {
+        return mediaInfo;
     }
-
-    // set media info tracks
     mediaInfo.videos.clear();
     mediaInfo.audios.clear();
     mediaInfo.subtitles.clear();
-    for (auto &stream: streams) {
-        if (stream.type == "video") {
-            mediaInfo.videos.push_back(stream);
-        } else if (stream.type == "audio") {
-            mediaInfo.audios.push_back(stream);
-        } else if (stream.type == "sub") {
-            mediaInfo.subtitles.push_back(stream);
+    if (node.format == MPV_FORMAT_NODE_ARRAY) {
+        for (int i = 0; i < node.u.list->num; i++) {
+            const mpv_node &entry = node.u.list->values[i];
+            if (entry.format != MPV_FORMAT_NODE_MAP) {
+                continue;
+            }
+            MediaInfo::Track t;
+            for (int n = 0; n < entry.u.list->num; n++) {
+                const std::string key = entry.u.list->keys[n];
+                const mpv_node &v = entry.u.list->values[n];
+                std::string str = v.format == MPV_FORMAT_STRING ? v.u.string : "";
+                long num = v.format == MPV_FORMAT_INT64 ? (long) v.u.int64 : 0;
+                bool flag = v.format == MPV_FORMAT_FLAG && v.u.flag;
+                if (key == "type") {
+                    t.type = str;
+                } else if (key == "id") {
+                    t.id = (int) num;
+                } else if (key == "title") {
+                    t.title = str;
+                } else if (key == "lang") {
+                    t.language = str;
+                } else if (key == "codec") {
+                    t.codec = str;
+                } else if (key == "demux-w") {
+                    t.width = (int) num;
+                } else if (key == "demux-h") {
+                    t.height = (int) num;
+                } else if (key == "demux-fps" && v.format == MPV_FORMAT_DOUBLE) {
+                    t.fps = v.u.double_;
+                } else if (key == "demux-samplerate") {
+                    t.sample_rate = (int) num;
+                } else if (key == "demux-channel-count") {
+                    t.channels = (int) num;
+                } else if (key == "demux-channels") {
+                    t.layout = str;
+                } else if (key == "demux-bitrate") {
+                    t.bit_rate = num;
+                } else if (key == "default") {
+                    t.isDefault = flag;
+                } else if (key == "forced") {
+                    t.forced = flag;
+                } else if (key == "external") {
+                    t.external = flag;
+                }
+            }
+            auto &list = t.type == "video"   ? mediaInfo.videos
+                         : t.type == "audio" ? mediaInfo.audios
+                                             : mediaInfo.subtitles;
+            if (t.type == "video" || t.type == "audio" || t.type == "sub") {
+                list.push_back(t);
+            }
         }
     }
+    mpv_free_node_contents(&node);
 
-    // set duration
     mediaInfo.duration = getDuration();
-
+    mediaInfo.format = getString("file-format");
     return mediaInfo;
 }

@@ -61,6 +61,7 @@ private:
 
     void startScroll();
 
+    float iconSize = 0;
     float maxTextWidth = 0;
     // the text, clipped at maxTextWidth; scrolled when selected and too long
     c2d::Rectangle *clip = nullptr;

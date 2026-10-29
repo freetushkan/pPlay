@@ -332,3 +332,34 @@ void Player::onMpvLog(const mpv_event_log_message *message) {
     pplay::Utility::log(level, std::string("mpv[") + (message->prefix ? message->prefix : "") + "] "
                                        + (message->level ? message->level : "") + ": " + text);
 }
+
+bool Player::playSibling(int direction) {
+    if (mpv->isStopped()) {
+        return false;
+    }
+    if (isPlaylistFile()) {
+        const char *cmd[] = {direction > 0 ? "playlist-next" : "playlist-prev", nullptr};
+        return mpv_command(mpv->getHandle(), cmd) >= 0;
+    }
+    int current = -1;
+    for (size_t i = 0; i < autoplayFiles.size(); i++) {
+        if (autoplayFiles[i].path == file.path) {
+            current = (int) i;
+            break;
+        }
+    }
+    if (current < 0) {
+        return false;
+    }
+    for (int i = current + direction; i >= 0 && i < (int) autoplayFiles.size(); i += direction) {
+        if (pplay::Utility::isMedia(autoplayFiles[i])) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                                "Player: " + std::string(direction > 0 ? "next" : "previous") + " "
+                                        + autoplayFiles[i].path);
+            MediaFile next = autoplayFiles[i];
+            return load(next);
+        }
+    }
+    showMessage(pplay::tr(direction > 0 ? "Next" : "Previous") + ": -");
+    return false;
+}

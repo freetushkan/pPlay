@@ -6,7 +6,7 @@
 #define PPLAY_PLAYER_H
 
 #include <atomic>
-#include "menus/menu_video_submenu.h"
+#include "menu_video_submenu.h"
 #include "media_file.h"
 #include "mpv.h"
 #include "external_tracks.h"
@@ -42,6 +42,9 @@ public:
 
     void stop();
 
+    // the previous / next file (or playlist entry), false if none
+    bool playSibling(int direction);
+
     // settings changed
     void applyConfig();
 
@@ -53,6 +56,13 @@ public:
     void changeVolume(double delta);
 
     void changeBrightness(double delta);
+
+    void resetBrightness();
+
+    // playback information overlay (Start)
+    bool isInfoVisible();
+
+    void setInfoVisible(bool visible);
 
     bool isFullscreen();
 
@@ -93,6 +103,10 @@ public:
     MenuVideoSubmenu *getMenuPlaybackMode();
 
     MenuVideoSubmenu *getMenuNormalize();
+
+    MenuVideoSubmenu *getMenuSpeed();
+
+    MenuVideoSubmenu *getMenuBrightness();
 
     const std::string &getTitle() const;
 
@@ -207,6 +221,8 @@ private:
     MenuVideoSubmenu *menuPlaylist = nullptr;
     MenuVideoSubmenu *menuPlaybackMode = nullptr;
     MenuVideoSubmenu *menuNormalize = nullptr;
+    MenuVideoSubmenu *menuSpeed = nullptr;
+    MenuVideoSubmenu *menuBrightness = nullptr;
 
     // the file
     MediaFile file;

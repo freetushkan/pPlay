@@ -22,12 +22,22 @@ public:
 
 private:
 
+    // skin file, "" for none
+    void setIcon(const std::string &name);
+
+    void setColor(const c2d::Color &color);
+
+    // the file state color
+    c2d::Color color();
+
     Main *main;
     MediaFile file;
 
     c2d::C2DClock updateClock;
 
     c2d::Text *textTitle;
+    c2d::Sprite *icon;
+    float iconSize = 0;
 
     bool lastFullscreen = false;
 };
