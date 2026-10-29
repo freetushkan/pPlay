@@ -50,30 +50,57 @@ namespace {
         return out;
     }
 
+    // the sections separated by an empty line
     std::string mediaLines(const MediaInfo &mi, size_t size) {
-        std::string out;
+        std::string general;
         if (mi.duration > 0) {
-            out += line("Duration", pplay::Utility::formatTime((double) mi.duration));
+            general += line("Duration", pplay::Utility::formatTime((double) mi.duration));
         }
         if (size > 0) {
-            out += line("Size", noBreak(pplay::Utility::formatSize(size)));
+            general += line("Size", noBreak(pplay::Utility::formatSize(size)));
             if (mi.duration > 0) {
-                out += line("Bitrate", noBreak(MediaInfo::formatBitrate((long) (size * 8 / mi.duration))));
+                general += line("Bitrate", noBreak(MediaInfo::formatBitrate((long) (size * 8 / mi.duration))));
             }
         }
         if (!mi.format.empty()) {
-            out += line("Format", mi.format);
+            general += line("Format", mi.format);
         }
-        if (!mi.videos.empty()) {
-            // the resolution name first
-            const auto &v = mi.videos[0];
+        // the cover is shown, not listed
+        std::vector<MediaInfo::Track> videos;
+        for (auto &v: mi.videos) {
+            if (!v.albumart) {
+                videos.push_back(v);
+            }
+        }
+        std::string video;
+        if (videos.size() == 1) {
+            const auto &v = videos[0];
             std::string name = v.width > 0 && v.height > 0 ? resolutionName(v.width, v.height) + ", " : "";
-            out += mi.videos.size() == 1 ? line("Video", name + encoding::fix(MediaInfo::describe(v)))
-                                         : trackLines("Video", mi.videos);
+            video = line("Video", name + encoding::fix(MediaInfo::describe(v)));
+        } else {
+            video = trackLines("Video", videos);
         }
-        out += trackLines("Audio", mi.audios);
-        out += trackLines("Subtitles", mi.subtitles);
+        std::string out;
+        for (auto &section: {general, video, trackLines("Audio", mi.audios), trackLines("Subtitles", mi.subtitles)}) {
+            if (!section.empty()) {
+                out += (out.empty() ? "" : "\n") + section;
+            }
+        }
         return out;
+    }
+
+    // the metadata title, after the file name
+    std::string titled(const std::string &name, const MediaInfo &mi) {
+        return mi.title.empty() ? name : name + " \u00AB" + encoding::fix(mi.title) + "\u00BB";
+    }
+
+    // smb:// is opened by mpv only
+    std::string coverOf(const MediaFile &file) {
+        std::string url = pplay::TorrServe::toStreamUrl(file.path);
+        if (!file.mediaInfo.hasCover() || c2d::Utility::startWith(url, "smb")) {
+            return "";
+        }
+        return "embedded:" + url;
     }
 
     std::string lastPlayed(const MediaFile &file) {
@@ -115,7 +142,7 @@ pplay::DetailsInfo pplay::DetailsInfo::of(const MediaFile &file) {
         }
         text += noBreak(files) + "\n";
         if (ts.fileIndex >= 0) {
-            text += "\n" + encoding::fix(ts.fileName) + "\n";
+            text += "\n" + titled(encoding::fix(ts.fileName), file.mediaInfo) + "\n\n";
             text += mediaLines(file.mediaInfo, ts.fileSize > 0 ? (size_t) ts.fileSize : 0);
         }
     } else {
@@ -123,11 +150,18 @@ pplay::DetailsInfo pplay::DetailsInfo::of(const MediaFile &file) {
         if (file.type == c2d::Io::Type::Directory) {
             text += tr("Directory") + "\n";
         } else {
+            if (!file.mediaInfo.title.empty()) {
+                text += "\u00AB" + encoding::fix(file.mediaInfo.title) + "\u00BB\n\n";
+            }
             text += mediaLines(file.mediaInfo, file.size);
         }
     }
     if (file.type == c2d::Io::Type::File) {
-        text += lastPlayed(file);
+        info.cover = coverOf(file);
+        std::string last = lastPlayed(file);
+        if (!last.empty()) {
+            text += (text.empty() ? "" : "\n") + last;
+        }
     }
     while (!text.empty() && text.back() == '\n') {
         text.pop_back();

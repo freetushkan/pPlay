@@ -7,6 +7,7 @@
 #include "main.h"
 #include "image.h"
 #include "net_http.h"
+#include "cover.h"
 #include "poster_loader.h"
 
 #define SETTLE_MS 250
@@ -116,6 +117,14 @@ bool PosterLoader::poll(const c2d::Vector2i &maxSize, c2d::Texture **texture, st
 
 int PosterLoader::downloadThread(void *data) {
     auto *self = (PosterLoader *) data;
+    // "embedded:<url>": the media file own cover
+    if (c2d::Utility::startWith(self->downloadUrl, "embedded:")) {
+        std::string error;
+        self->downloadOk = pplay::Cover::extract(self->downloadUrl.substr(9), self->downloadPath, &error);
+        self->downloadError = error;
+        self->downloadDone = true;
+        return 0;
+    }
     pplay::Http::Request request;
     request.url = self->downloadUrl;
     request.timeout = 15;

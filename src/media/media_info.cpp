@@ -60,6 +60,8 @@ MediaInfo::MediaInfo(const c2d::Io::File &file) {
             duration = std::atol(f[1].c_str());
         } else if (f[0] == "format" && f.size() > 1) {
             format = f[1];
+        } else if (f[0] == "title" && f.size() > 1) {
+            title = f[1];
         } else if (f[0] == "track" && f.size() >= 17) {
             Track t;
             t.type = f[1];
@@ -76,6 +78,7 @@ MediaInfo::MediaInfo(const c2d::Io::File &file) {
             t.bit_rate = std::atol(f[12].c_str());
             t.isDefault = f[13] == "1";
             t.forced = f[14] == "1";
+            t.albumart = f[15] == "1";
             auto &list = t.type == "video" ? videos : t.type == "audio" ? audios : subtitles;
             list.push_back(t);
         }
@@ -90,12 +93,13 @@ void MediaInfo::save(const c2d::Io::File &file) {
     out << MEDIA_INFO_VERSION << "\n";
     out << "duration\t" << duration << "\n";
     out << "format\t" << escape(format) << "\n";
+    out << "title\t" << escape(title) << "\n";
     for (auto *list: {&videos, &audios, &subtitles}) {
         for (auto &t: *list) {
             if (t.external) {
                 continue;
             }
-            // the last two: spare fields
+            // the last one: spare
             out << "track\t" << t.type << "\t" << t.id << "\t" << escape(t.title) << "\t" << escape(t.language) << "\t"
                 << escape(t.codec) << "\t" << t.channels << "\t" << escape(t.layout) << "\t" << t.sample_rate << "\t"
                 << t.width << "\t" << t.height << "\t" << t.fps << "\t" << t.bit_rate << "\t" << (t.isDefault ? 1 : 0)
@@ -155,4 +159,13 @@ std::string MediaInfo::describe(const Track &t) {
         out += " [ext]";
     }
     return out;
+}
+
+bool MediaInfo::hasCover() const {
+    for (auto &t: videos) {
+        if (t.albumart) {
+            return true;
+        }
+    }
+    return false;
 }

@@ -33,6 +33,8 @@ public:
         bool isDefault = false;
         bool forced = false;
         bool external = false;
+        // embedded cover (attached picture)
+        bool albumart = false;
     };
 
     // "448 kb/s", "8.5 Mb/s"
@@ -40,6 +42,8 @@ public:
 
     // one line: language, codec, channels / resolution, bitrate, «title»...
     static std::string describe(const Track &track);
+
+    bool hasCover() const;
 
     MediaInfo() = default;
 
@@ -51,6 +55,8 @@ public:
 
     long duration = 0;
     std::string format;
+    // the file metadata title
+    std::string title;
     std::vector<Track> videos;
     std::vector<Track> audios;
     std::vector<Track> subtitles;

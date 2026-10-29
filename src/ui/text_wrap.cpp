@@ -76,8 +76,25 @@ std::string pplay::TextWrap::wrap(c2d::Font *font, unsigned int size, const std:
         size_t eol = text.find('\n', pos);
         std::string paragraph = text.substr(pos, eol == std::string::npos ? std::string::npos : eol - pos);
 
+        // continuation lines: the paragraph indent and a bit more
+        std::string indent;
+        for (size_t i = 0; paragraph.compare(i, 2, "\u00A0") == 0 || (i < paragraph.size() && paragraph[i] == ' ');) {
+            size_t n = paragraph[i] == ' ' ? 1 : 2;
+            indent += paragraph.substr(i, n);
+            i += n;
+        }
+        indent += "\u00A0\u00A0\u00A0";
+        const float indentWidth = width(font, size, indent);
+
         std::string line;
         float lineWidth = 0;
+        bool first = true;
+        auto newLine = [&]() {
+            out += line + "\n";
+            line = indent;
+            lineWidth = indentWidth;
+            first = false;
+        };
         size_t start = 0;
         while (start <= paragraph.size()) {
             size_t end = paragraph.find(' ', start);
@@ -88,22 +105,24 @@ std::string pplay::TextWrap::wrap(c2d::Font *font, unsigned int size, const std:
             start = end + 1;
 
             float w = width(font, size, word);
-            if (!line.empty() && lineWidth + space + w <= maxWidth) {
+            bool empty = first ? line.empty() : line == indent;
+            if (!empty && lineWidth + space + w <= maxWidth) {
                 line += " " + word;
                 lineWidth += space + w;
                 continue;
             }
-            if (!line.empty()) {
-                out += line + "\n";
+            if (!empty) {
+                newLine();
             }
-            while (w > maxWidth) {
-                size_t n = fitting(font, size, word, maxWidth);
-                out += word.substr(0, n) + "\n";
+            while (lineWidth + w > maxWidth && maxWidth - lineWidth > space) {
+                size_t n = fitting(font, size, word, maxWidth - lineWidth);
+                line += word.substr(0, n);
+                newLine();
                 word.erase(0, n);
                 w = width(font, size, word);
             }
-            line = word;
-            lineWidth = w;
+            line += word;
+            lineWidth += w;
         }
         out += line;
 

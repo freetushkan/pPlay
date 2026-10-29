@@ -13,6 +13,8 @@ namespace pplay {
     struct DetailsInfo {
         std::string title;
         std::string poster;
+        // the file own picture (PosterLoader "embedded:" url), before the poster
+        std::string cover;
         std::string details;
 
         static DetailsInfo of(const MediaFile &file);

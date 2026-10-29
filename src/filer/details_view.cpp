@@ -94,10 +94,14 @@ void DetailsView::setFile(const MediaFile &f) {
     pplay::DetailsInfo info = pplay::DetailsInfo::of(file);
     heading = info.title;
     details = info.details;
-    if (info.poster != shownPoster) {
+    // the embedded cover first, the torrent one if none / it fails
+    coverUrl = info.cover;
+    fallbackUrl = info.poster;
+    std::string wanted = !coverUrl.empty() && failedCovers.count(coverUrl) == 0 ? coverUrl : fallbackUrl;
+    if (wanted != shownPoster) {
         hidePoster();
     }
-    posterUrl = info.poster;
+    posterUrl = wanted;
     loader->request(posterUrl == shownPoster ? "" : posterUrl);
     updateHints();
     layout();
@@ -335,6 +339,10 @@ void DetailsView::onUpdate() {
     if (loader->poll({(int) width, (int) width * 3}, &texture, &error)) {
         if (texture != nullptr) {
             showPoster(texture);
+        } else if (!coverUrl.empty() && posterUrl == coverUrl) {
+            failedCovers.insert(coverUrl);
+            posterUrl = fallbackUrl;
+            loader->request(posterUrl);
         } else {
             posterError = error;
             layout();

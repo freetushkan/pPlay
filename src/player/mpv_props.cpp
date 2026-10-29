@@ -415,6 +415,8 @@ MediaInfo Mpv::getMediaInfo(const c2d::Io::File &file) {
                     t.isDefault = flag;
                 } else if (key == "forced") {
                     t.forced = flag;
+                } else if (key == "albumart") {
+                    t.albumart = flag;
                 } else if (key == "external") {
                     t.external = flag;
                 }
@@ -431,5 +433,6 @@ MediaInfo Mpv::getMediaInfo(const c2d::Io::File &file) {
 
     mediaInfo.duration = getDuration();
     mediaInfo.format = getString("file-format");
+    mediaInfo.title = getString("metadata/by-key/title");
     return mediaInfo;
 }

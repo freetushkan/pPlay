@@ -6,6 +6,7 @@
 #ifndef PPLAY_DETAILS_VIEW_H
 #define PPLAY_DETAILS_VIEW_H
 
+#include <set>
 #include <string>
 #include "cross2d/c2d.h"
 #include "media_file.h"
@@ -74,6 +75,9 @@ private:
     Main *main;
     MediaFile file;
     std::string posterUrl;
+    std::string coverUrl;
+    std::string fallbackUrl;
+    std::set<std::string> failedCovers;
     std::string shownPoster;
     std::string posterError;
     std::string heading;
