@@ -84,6 +84,12 @@ namespace pplay {
         }
 #endif
 
+#ifdef __LINUX__
+        std::string getDataPath() override;
+
+        std::string getRomFsPath() override;
+#endif
+
     private:
 
         // network index of a path, -1 if none

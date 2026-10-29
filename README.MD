@@ -32,6 +32,8 @@ Installation
     It copies pPlay to `/data/homebrew/pplay` and `libOSMesa.so.8` to `/user/homebrew/lib` if missing, then starts application.
   - **Manual:** extract `pPlay-PS5.zip` to `/data/homebrew/pplay` and start `pplay.elf` from the Homebrew Launcher (websrv).
 - **Switch:** put the `.nro` file from latest `pPlay-Switch.zip` to your launcher root.
+- **Linux (x86_64):** run the latest `pPlay-x86_64.AppImage` (glibc 2.35+: Ubuntu 22.04, Debian 12, Fedora 36 and newer).
+  Settings, `mpv.conf` and caches are in `~/.config/pplay/`.
 
 Usage and controls
 -----

@@ -1,0 +1,159 @@
+diff --git a/demux/demux_mkv.c b/demux/demux_mkv.c
+index d68ccf7..dbfbff8 100644
+--- a/demux/demux_mkv.c
++++ b/demux/demux_mkv.c
+@@ -193,6 +193,7 @@ typedef struct mkv_demuxer {
+
+     uint64_t cluster_start;
+     uint64_t cluster_end;
++    uint64_t first_cluster_pos;
+
+     mkv_index_t *indexes;
+     size_t num_indexes;
+@@ -2335,6 +2336,7 @@ static int demux_mkv_open(demuxer_t *demuxer, enum demux_check check)
+         if (id == MATROSKA_ID_CLUSTER) {
+             MP_DBG(demuxer, "|+ found cluster\n");
+             mkv_d->cluster_start = start_pos;
++            mkv_d->first_cluster_pos = start_pos;
+             break;
+         }
+         int res = read_header_element(demuxer, id, start_pos);
+@@ -3285,6 +3287,117 @@ static int create_index_until(struct demuxer *demuxer, int64_t timecode)
+     return 0;
+ }
+
++/*
++ * Files without index (no Cues): to seek, mpv reads the file from the start (or
++ * the last indexed position) up to the target: gigabytes through the network.
++ * A cluster at most NOINDEX_CLOSE before the target is searched instead, by the
++ * cluster timecodes (interpolated by the bitrate, a few small reads).
++ */
++#define NOINDEX_MIN_TARGET 60e9 // ns: below, reading from the start is fine
++#define NOINDEX_GAP 30e9        // ns: an indexed position as close: read from there
++#define NOINDEX_CLOSE 5e9       // ns: cluster close enough to the target
++
++// timecode (ns) of the cluster at the stream position, or -1
++static int64_t read_cluster_timecode(struct demuxer *demuxer)
++{
++    struct mkv_demuxer *mkv_d = demuxer->priv;
++    stream_t *s = demuxer->stream;
++
++    if (ebml_read_id(s) != MATROSKA_ID_CLUSTER)
++        return -1;
++    ebml_read_length(s); // may be unknown
++    for (int n = 0; n < 3 && !s->eof; n++) {
++        uint32_t id = ebml_read_id(s);
++        if (id == MATROSKA_ID_TIMECODE) {
++            uint64_t num = ebml_read_uint(s);
++            if (num == EBML_UINT_INVALID || num > INT64_MAX / mkv_d->tc_scale)
++                return -1;
++            return num * mkv_d->tc_scale;
++        }
++        if ((id != EBML_ID_CRC32 && id != EBML_ID_VOID) || ebml_read_skip(mp_null_log, -1, s))
++            return -1;
++    }
++    return -1;
++}
++
++// cluster timecode (ns), the stream at the cluster, or -1 (not needed / not found)
++static int64_t seek_without_index(struct demuxer *demuxer, int64_t target)
++{
++    struct mkv_demuxer *mkv_d = demuxer->priv;
++    stream_t *s = demuxer->stream;
++
++    read_deferred_cues(demuxer);
++    if (mkv_d->index_complete || !demuxer->seekable || target < NOINDEX_MIN_TARGET ||
++        !mkv_d->first_cluster_pos)
++        return -1;
++    for (size_t i = 0; i < mkv_d->num_indexes; i++) {
++        int64_t tc = mkv_d->indexes[i].timecode * mkv_d->tc_scale;
++        if (tc <= target && tc >= target - NOINDEX_GAP)
++            return -1;
++    }
++    int64_t size = stream_get_size(s);
++    if (size <= 0)
++        return -1;
++
++    int64_t lo_pos = mkv_d->first_cluster_pos, lo_tc = 0;
++    int64_t hi_pos = size;
++    int64_t hi_tc = mkv_d->duration > 0 ? mkv_d->duration * 1e9 : -1;
++    // the indexed positions (played parts) narrow the search
++    for (size_t i = 0; i < mkv_d->num_indexes; i++) {
++        mkv_index_t *index = &mkv_d->indexes[i];
++        int64_t tc = index->timecode * mkv_d->tc_scale;
++        if (tc <= target && (int64_t)index->filepos > lo_pos && tc >= lo_tc) {
++            lo_pos = index->filepos;
++            lo_tc = tc;
++        } else if (tc > target && (int64_t)index->filepos < hi_pos) {
++            hi_pos = index->filepos;
++            hi_tc = tc;
++        }
++    }
++    int64_t best_pos = lo_pos, best_tc = lo_tc; // a cluster (or the first one)
++    int probes = 0;
++    while (probes < 24 && hi_pos - lo_pos > 64 * 1024 && !demux_cancel_test(demuxer)) {
++        double f = hi_tc > lo_tc ? (double)(target - lo_tc) / (hi_tc - lo_tc) : 0.5;
++        f = MPCLAMP(f, 0.05, 0.95); // the interval shrinks
++        int64_t pos = lo_pos + (int64_t)((hi_pos - lo_pos) * f);
++        probes++;
++
++        // the next cluster (a cluster id may be found in block data too)
++        int64_t cpos = -1, tc = -1;
++        stream_seek(s, pos);
++        for (int tries = 0; tries < 8 && tc < 0; tries++) {
++            if (ebml_resync_cluster(mp_null_log, s) < 0)
++                break;
++            cpos = stream_tell(s);
++            if (cpos >= hi_pos)
++                break;
++            tc = read_cluster_timecode(demuxer);
++            if (tc < 0 || (hi_tc > 0 && tc > hi_tc + 60e9)) {
++                tc = -1;
++                stream_seek(s, cpos + 1);
++            }
++        }
++        if (tc < 0 || cpos >= hi_pos) {
++            hi_pos = pos; // no cluster start in [pos, hi_pos)
++            continue;
++        }
++        if (tc <= target) {
++            lo_pos = best_pos = cpos;
++            lo_tc = best_tc = tc;
++            if (target - tc <= NOINDEX_CLOSE)
++                break;
++        } else {
++            hi_pos = pos;
++            hi_tc = tc;
++        }
++    }
++    MP_VERBOSE(demuxer, "no index: seek to %.3f s, cluster %.3f s at %"PRId64", %d probe(s)\n",
++               target / 1e9, best_tc / 1e9, best_pos, probes);
++    stream_seek(s, best_pos);
++    mkv_d->cluster_end = 0;
++    return best_tc;
++}
++
+ static struct mkv_index *seek_with_cues(struct demuxer *demuxer, int seek_id,
+                                         int64_t target_timecode, int flags)
+ {
+@@ -3395,6 +3508,12 @@ static void demux_mkv_seek(demuxer_t *demuxer, double seek_pts, int flags)
+         seek_pts = MPMAX(seek_pts, 0);
+         int64_t target_timecode = seek_pts * 1e9 + 0.5;
+
++        int64_t noindex_tc = seek_without_index(demuxer, target_timecode);
++        if (noindex_tc >= 0) {
++            mkv_d->skip_to_timecode = flags & SEEK_FORWARD ? target_timecode : noindex_tc;
++            goto seek_done;
++        }
++
+         if (create_index_until(demuxer, target_timecode) >= 0) {
+             int seek_id = st_active[STREAM_VIDEO] ? v_tnum : a_tnum;
+             index = seek_with_cues(demuxer, seek_id, target_timecode, flags);
+@@ -3446,6 +3565,7 @@ static void demux_mkv_seek(demuxer_t *demuxer, double seek_pts, int flags)
+         }
+     }
+
++seek_done:
+     mkv_d->v_skip_to_keyframe = st_active[STREAM_VIDEO];
+     mkv_d->a_skip_to_keyframe = st_active[STREAM_AUDIO];
+     mkv_d->a_skip_preroll = mkv_d->a_skip_to_keyframe;

@@ -216,6 +216,11 @@ Http::Response Http::perform(const Request &request) {
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "pPlay/" APP_VERSION);
 #if defined(__PS4__) || defined(__PS5__)
     curl_easy_setopt(curl, CURLOPT_CAINFO, Utility::getCertificatesPath().c_str());
+#elif defined(__LINUX__)
+    std::string certificates = Utility::getCertificatesPath();
+    if (!certificates.empty()) {
+        curl_easy_setopt(curl, CURLOPT_CAINFO, certificates.c_str());
+    }
 #endif
 
     struct curl_slist *headers = nullptr;

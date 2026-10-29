@@ -83,7 +83,7 @@ namespace pplay {
 
         static bool deleteWatchLater(const std::string &video_path);
 
-#if defined(__PS4__) || defined(__PS5__)
+#if defined(__PS4__) || defined(__PS5__) || defined(__LINUX__)
         static std::string getCertificatesPath();
 #endif
 

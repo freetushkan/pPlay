@@ -390,6 +390,22 @@ bool Utility::deleteWatchLater(const std::string &video_path) {
 std::string Utility::getCertificatesPath() {
     return getDataPath() + "cacert.pem";
 }
+#elif defined(__LINUX__)
+std::string Utility::getCertificatesPath() {
+    static const char *paths[] = {
+            "/etc/ssl/certs/ca-certificates.crt",
+            "/etc/pki/tls/certs/ca-bundle.crt",
+            "/etc/ssl/ca-bundle.pem",
+            "/etc/pki/tls/cacert.pem",
+            "/etc/ssl/cert.pem",
+    };
+    for (const char *path: paths) {
+        if (fileExists(path)) {
+            return path;
+        }
+    }
+    return "";
+}
 #endif
 
 std::string Utility::getKeysString(unsigned int keys) {

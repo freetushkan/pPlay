@@ -401,21 +401,40 @@ jobs:
 
   linux:
     runs-on: ubuntu-24.04
+    container: ubuntu:22.04
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      DEBIAN_FRONTEND: noninteractive
+      PPLAY_STATIC: /opt/pplay-static
     steps:
+      - name: Create build environment
+        run: |
+          apt-get update
+          apt-get install -y build-essential git cmake ninja-build nasm pkg-config patch curl file ca-certificates \
+            python3-pip python3-jinja2 \
+            zlib1g-dev libbz2-dev liblzma-dev libpng-dev libexpat1-dev libfontconfig-dev \
+            libfreetype-dev libbrotli-dev uuid-dev libssl-dev libgl-dev libglm-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxss-dev \
+            libxkbcommon-dev libwayland-dev wayland-protocols libegl-dev libdrm-dev libgbm-dev \
+            libpulse-dev libasound2-dev libpipewire-0.3-dev libdbus-1-dev libudev-dev
+          pip3 install meson==1.6.1
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Create build environment
+      - name: Cache for build dependencies
+        id: linux-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PPLAY_STATIC }}
+          key: linux-static-${{ hashFiles('ci/linux-static-deps.sh', 'ci/mpv-mkv-noindex-seek.patch') }}
+
+      - name: Build static dependencies
+        if: steps.linux-cache.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get update || true
-          sudo apt-get install -y build-essential cmake git libmpv-dev \
-            libavfilter-dev libavcodec-dev libavformat-dev libavutil-dev \
-            libswscale-dev libswresample-dev libass-dev libcurl4-openssl-dev libmbedtls-dev \
-            libbz2-dev gettext libconfig-dev libglm-dev libsdl2-dev libgl1-mesa-dev
+          WORK_DIR=/tmp/pplay-static-build ci/linux-static-deps.sh "$PPLAY_STATIC"
 
       - name: Configure pPlay
         run: |
@@ -424,6 +443,8 @@ jobs:
           mkdir -p cmake-build && cd cmake-build
           cmake -G "Unix Makefiles" \
             -DPLATFORM_LINUX=ON \
+            -DOPTION_LINUX_STATIC=ON \
+            -DLINUX_STATIC_PREFIX="$PPLAY_STATIC" \
             -DOPTION_SMB2=OFF \
             -DCMAKE_BUILD_TYPE=Release ..
 
@@ -431,15 +452,20 @@ jobs:
         run: |
           cd cmake-build
           make pplay_linux_release -j$(nproc) VERBOSE=1
+          ldd release/pplay/pplay || true
+
+      - name: Build AppImage
+        run: |
+          ci/linux-appimage.sh cmake-build
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: pPlay-Linux
-          path: "cmake-build/release/*"
+          path: "cmake-build/pPlay-x86_64.AppImage"
 
   publish:
-    needs: [ps4, ps5, ps5-pkg, switch]
+    needs: [ps4, ps5, ps5-pkg, switch, linux]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
     steps:
@@ -458,7 +484,10 @@ jobs:
           for artifact_dir in ./artifacts/*; do
             [ -d "$artifact_dir" ] || continue
             artifact_name="$(basename "$artifact_dir")"
-            [ "$artifact_name" != "pPlay-Linux" ] || continue
+            if [ "$artifact_name" = "pPlay-Linux" ]; then
+              cp ./artifacts/pPlay-Linux/*.AppImage ./release-assets/
+              continue
+            fi
             cd "./artifacts/${artifact_name}"
             zip -r "../../release-assets/${artifact_name}.zip" "."
             cd -
@@ -468,5 +497,7 @@ jobs:
       - name: Upload assets to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ./release-assets/*.zip
+          files: |
+            ./release-assets/*.zip
+            ./release-assets/*.AppImage
   

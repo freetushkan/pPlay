@@ -20,7 +20,7 @@ int main() {
     auto *io = new pplay::Io();
     io->create(io->getDataPath());
     pplay::Utility::setDataPath(io->getDataPath());
-#if defined(__PS4__) || defined(__SWITCH__)
+#if defined(__PS4__) || defined(__SWITCH__) || defined(__LINUX__)
     // romfs (skin, mpv, lang...) -> data directory
     io->syncRomFs();
 #endif

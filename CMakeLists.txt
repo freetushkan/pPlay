@@ -18,6 +18,15 @@ set(PLATFORM_PS5 OFF CACHE BOOL "Sony PS5 platform target")
 ####################
 set(OPTION_SMB2 OFF CACHE BOOL "Build with smb2 support")
 set(OPTION_SCRAPPING OFF CACHE BOOL "Build with TMDB scraping support")
+set(OPTION_LINUX_STATIC OFF CACHE BOOL "Linux: link the static libraries of ci/linux-static-deps.sh")
+set(LINUX_STATIC_PREFIX "/opt/pplay-static" CACHE PATH "Linux: ci/linux-static-deps.sh prefix")
+
+if (PLATFORM_LINUX AND OPTION_LINUX_STATIC)
+    set(ENV{PKG_CONFIG_PATH} "${LINUX_STATIC_PREFIX}/lib/pkgconfig")
+    list(PREPEND CMAKE_PREFIX_PATH ${LINUX_STATIC_PREFIX})
+    link_directories(BEFORE ${LINUX_STATIC_PREFIX}/lib)
+    set(OPTION_BUILTIN_LIBCONFIG ON CACHE BOOL "Build libconfig from sources" FORCE)
+endif ()
 
 ###################
 # MODULES
@@ -192,6 +201,14 @@ elseif (PLATFORM_PS5)
             mpv libavdevice libavfilter libavformat libavcodec
             libswscale libswresample libavutil libass libcurl)
     list(APPEND PPLAY_LDFLAGS ${PS5_PC_STATIC_LIBRARIES})
+elseif (PLATFORM_LINUX AND OPTION_LINUX_STATIC)
+    #####################
+    # LINUX PLATORM, almost static: the media libraries from the static prefix
+    # (pkg-config --static), the system ones (libc, libGL) stay shared
+    #####################
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LINUX_STATIC REQUIRED mpv libcurl)
+    set(PPLAY_LDFLAGS ${LINUX_STATIC_STATIC_LDFLAGS} -static-libstdc++ -static-libgcc)
 elseif (PLATFORM_LINUX)
     #####################
     # LINUX PLATORM

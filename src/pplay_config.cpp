@@ -2,6 +2,7 @@
 // Created by cpasjuste on 22/10/18.
 //
 
+#include <cstdlib>
 #include <cstring>
 #include "io.h"
 #include "pplay_config.h"
@@ -58,8 +59,14 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
         addOption({networkOption(i), ""});
     }
-    addOption({OPT_HOME_PATH, io->getDataPath()});
-    addOption({OPT_LAST_LOCAL_PATH, io->getDataPath()});
+#ifdef __LINUX__
+    const char *home = getenv("HOME");
+    std::string homePath = home && home[0] == '/' ? std::string(home) + "/" : io->getDataPath();
+#else
+    std::string homePath = io->getDataPath();
+#endif
+    addOption({OPT_HOME_PATH, homePath});
+    addOption({OPT_LAST_LOCAL_PATH, homePath});
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
         addOption({networkLastOption(i), "/"});
         addOption({networkNameOption(i), "Network " + std::to_string(i)});

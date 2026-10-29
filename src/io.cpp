@@ -19,6 +19,45 @@
 
 using namespace pplay;
 
+#ifdef __LINUX__
+#include <climits>
+#include <sys/stat.h>
+#include <unistd.h>
+
+std::string Io::getDataPath() {
+    static std::string path;
+    if (path.empty()) {
+        const char *xdg = getenv("XDG_CONFIG_HOME");
+        const char *home = getenv("HOME");
+        std::string base = xdg && xdg[0] == '/' ? xdg : std::string(home && home[0] ? home : ".") + "/.config";
+        path = base + "/pplay/";
+        // the parents too
+        for (size_t i = 1; i < path.size(); i++) {
+            if (path[i] == '/') {
+                mkdir(path.substr(0, i).c_str(), 0755);
+            }
+        }
+    }
+    return path;
+}
+
+std::string Io::getRomFsPath() {
+    static std::string path;
+    if (path.empty()) {
+        std::string dir = "./";
+        char exe[PATH_MAX];
+        ssize_t len = readlink("/proc/self/exe", exe, sizeof(exe) - 1);
+        if (len > 0) {
+            exe[len] = '\0';
+            std::string exePath = exe;
+            dir = exePath.substr(0, exePath.find_last_of('/') + 1);
+        }
+        path = dir + "data_romfs/";
+    }
+    return path;
+}
+#endif
+
 static Io *g_io = nullptr;
 
 Io::Io() : c2d::C2DIo() {
