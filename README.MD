@@ -37,18 +37,18 @@ Installation
 
 Usage and controls
 -----
-| Action | PS4 / PS5 | Switch | Keyboard / Remote |
-| :--- | :--- | :--- | :--- |
-| Move / Switch windows | Analog Sticks / D-Pad | Analog Sticks / D-Pad | Arrows (or Numpad) |
-| Confirm (OK) / Pause | `CROSS` | `A` | `Enter` / `Space` |
-| Back / Minimize player | `CIRCLE` | `B` | `Esc` / `Backspace` |
-| Menu / Track selection | `SQUARE` | `X` | `X` / `Menu` |
-| Secondary action | `TRIANGLE` | `Y` | `Y` / `Delete` |
-| Rewind / Speed (`LT`/`RT`) | `L2` / `R2` | `ZL` / `ZR` | `[` / `]` |
-| Previous / Next (`LB`/`RB`) | `L1` / `R1` | `L` / `R` | `PageUp` / `PageDown` |
-| Start | `Options` | `+` | `F1` |
-| Volume control (in player) | `UP` / `DOWN` | `UP` / `DOWN` | — |
-| Brightness control (in player) | `TRIANGLE` + `UP`/`DOWN` | `X` + `UP`/`DOWN` | — |
+| Action | PS4 / PS5 | Switch | Keyboard / Remote (PS5) | Keyboard (Linux) |
+| :--- | :--- | :--- | :--- | :--- |
+| Move / Switch windows | Analog Sticks / D-Pad | Analog Sticks / D-Pad | Arrows (or Numpad) | Arrows |
+| Confirm (OK) / Pause | `CROSS` | `A` | `Enter` / `Space` | `Enter` |
+| Back / Minimize player | `CIRCLE` | `B` | `Esc` / `Backspace` | `Esc` / `Backspace` |
+| Menu / Track selection | `SQUARE` | `X` | `X` / `Menu` | `Tab` / `Menu` |
+| Secondary action | `TRIANGLE` | `Y` | `Y` / `Delete` | `Delete` |
+| Rewind / Speed (`LT`/`RT`) | `L2` / `R2` | `ZL` / `ZR` | `[` / `]` | `Home` / `End` |
+| Previous / Next (`LB`/`RB`) | `L1` / `R1` | `L` / `R` | `PageUp` / `PageDown` | `PageUp` / `PageDown` |
+| Start | `Options` | `+` | `F1` | `F1` |
+| Volume control (in player) | `UP` / `DOWN` | `UP` / `DOWN` | — | `UP` / `DOWN` |
+| Brightness control (in player) | `TRIANGLE` + `UP`/`DOWN` | `X` + `UP`/`DOWN` | — | `Delete` + `UP`/`DOWN` |
 
 
 Media keys and TV remotes are supported (PS5).
@@ -177,7 +177,6 @@ Below is the list of currently supported and maintained configuration parameters
 * `SEEK_LONG_SEC` (float, default `300`) — long seek interval.
 * `SWAP_CONTROLS` (`0/1`, default `0`) — swap seek/control button mapping.
 * `ACCENT_COLOR` (HEX string, default `#1078C8`) — UI accent color.
-* `PREVIEW_PANEL` (`0/1`, default `1`) — right side panel with the selection information (poster, sizes, media info).
 * `LANGUAGE` (default `en`) — interface language (`lang/<code>.lang` file).
 * `LOG_LEVEL` (`0..4`, default `0`) — log verbosity: OFF/ERROR/INFO/DEBUG/TRACE.
   On PS4, fatal crashes are also written to `/data/pplay/crash.log`.

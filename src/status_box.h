@@ -37,9 +37,6 @@ private:
     SDL_mutex *mutex;
     bool infinite = false;
 
-#ifdef PPLAY_ENABLE_SCRAPPING
-    friend class ScrapperStatusBox;
-#endif
 };
 
 #endif //PPLAY_STATUS_BOX_H

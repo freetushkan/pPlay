@@ -13,9 +13,6 @@
 #include "filer.h"
 #include "menu_main.h"
 #include "menu_video.h"
-#ifdef PPLAY_ENABLE_SCRAPPING
-#include "scrapper.h"
-#endif
 #include "utility.h"
 
 using namespace c2d;
@@ -84,9 +81,6 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
     createMenus();
     createMessageBox();
 
-#ifdef PPLAY_ENABLE_SCRAPPING
-    scrapper = new Scrapper(this);
-#endif
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Main: ui created");
 
     // open last
@@ -177,7 +171,6 @@ void Main::setLanguage(const std::string &code) {
 void Main::applyConfig() {
     pplay::Utility::setLogLevel((pplay::Utility::LogLevel) config->getOption(OPT_LOG_LEVEL)->getInteger());
     pplay::Utility::setAccentColor(config->getOption(OPT_ACCENT_COLOR)->getString());
-    filer->setPreviewEnabled(config->getOption(OPT_PREVIEW_PANEL)->getInteger() == 1);
     player->applyConfig();
     if (pplay::I18n::current() != c2d::Utility::toLower(config->getOption(OPT_LANGUAGE)->getString())) {
         setLanguage(config->getOption(OPT_LANGUAGE)->getString());
@@ -187,9 +180,6 @@ void Main::applyConfig() {
 }
 
 Main::~Main() {
-#ifdef PPLAY_ENABLE_SCRAPPING
-    delete (scrapper);
-#endif
     delete (config);
     delete (timer);
     delete (font);
@@ -479,8 +469,3 @@ StatusBar *Main::getStatusBar() {
     return statusBar;
 }
 
-#ifdef PPLAY_ENABLE_SCRAPPING
-pplay::Scrapper *Main::getScrapper() {
-    return scrapper;
-}
-#endif

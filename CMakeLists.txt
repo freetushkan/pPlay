@@ -17,7 +17,6 @@ set(PLATFORM_PS5 OFF CACHE BOOL "Sony PS5 platform target")
 # BUILD OPTIONS
 ####################
 set(OPTION_SMB2 OFF CACHE BOOL "Build with smb2 support")
-set(OPTION_SCRAPPING OFF CACHE BOOL "Build with TMDB scraping support")
 set(OPTION_LINUX_STATIC OFF CACHE BOOL "Linux: link the static libraries of ci/linux-static-deps.sh")
 set(LINUX_STATIC_PREFIX "/opt/pplay-static" CACHE PATH "Linux: ci/linux-static-deps.sh prefix")
 
@@ -123,18 +122,6 @@ set(PPLAY_LDFLAGS
     )
 
 
-if (NOT OPTION_SCRAPPING)
-    list(REMOVE_ITEM PPLAY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/filer/scrap_view.cpp)
-endif ()
-
-if (OPTION_SCRAPPING)
-    add_subdirectory(pscrap)
-    file(GLOB PPLAY_SCRAPPER_SRC src/scrapper/*.c*)
-    list(APPEND PPLAY_SRC ${PPLAY_SCRAPPER_SRC})
-    list(APPEND PPLAY_INC src/scrapper)
-    list(APPEND PPLAY_CFLAGS -DPPLAY_ENABLE_SCRAPPING)
-    list(APPEND PPLAY_LDFLAGS pscrap)
-endif ()
 
 #####################
 # PLATORM SPECIFIC
@@ -264,7 +251,8 @@ elseif (PLATFORM_PS5)
     set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES SUFFIX ".elf")
     set(CMAKE_EXECUTABLE_SUFFIX ".elf")
     # payload started by the launcher package (ps5/launcher)
-    set(PS5_PKG_TITLE_ID "PPLA00005" CACHE STRING "PS5 launcher package title id")
+    include(${CMAKE_CURRENT_SOURCE_DIR}/ps5/title_id.cmake)
+    set(PS5_PKG_TITLE_ID "${PS5_TITLE_ID}")
     add_executable(pplay_loader ps5/loader/loader.c
         ps5/loader/hbldr/hbldr.c ps5/loader/hbldr/elfldr.c ps5/loader/hbldr/pt.c)
     set_target_properties(pplay_loader PROPERTIES SUFFIX ".elf")

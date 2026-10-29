@@ -16,7 +16,8 @@ project(pplay_launcher C)
 
 set(PKG_DIR "" CACHE PATH "package root directory")
 set(PKG_TITLE "pPlay" CACHE STRING "package title")
-set(PKG_TITLE_ID "PPLA00005" CACHE STRING "package title id")
+include(${CMAKE_CURRENT_SOURCE_DIR}/../title_id.cmake)
+set(PKG_TITLE_ID "${PS5_TITLE_ID}")
 set(PKG_VERSION "1.00" CACHE STRING "package version (xx.yy)")
 
 if (NOT PKG_DIR OR NOT EXISTS "${PKG_DIR}/ps5/pplay_loader.elf")

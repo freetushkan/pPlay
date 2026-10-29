@@ -7,9 +7,6 @@
 #include "paths.h"
 #include "filer.h"
 #include "utility.h"
-#ifdef PPLAY_ENABLE_SCRAPPING
-#include "p_search.h"
-#endif
 #include "torrserve.h"
 #include "preview_view.h"
 
@@ -27,36 +24,15 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) :
 
     Filer::setSize(main->getSize().x, main->getScaling().y);
     Vector2f size;
-#ifdef PPLAY_ENABLE_SCRAPPING
-    scrapping_enabled = main->getConfig()->getOption(OPT_ENABLE_SCRAPPING)->getInteger() == 1;
-    if (scrapping_enabled) {
-        // force scrap view width to scrapped backdrop width
-        scrapView = new ScrapView(main, {rect.width - (780 * m->getScaling().x), 0,
-                                        780 * m->getScaling().x, rect.height});
-        Filer::add(scrapView);
-        /// scaling this too much is not pretty, so no scaling for filer
-        size = {rect.width - (670 * m->getScaling().x),
-            rect.height - (64 * m->getScaling().y)};
-    } else {
-        size = {rect.width, rect.height - (64 * m->getScaling().y)};
-    }
-#else
     size = {rect.width, rect.height - (64 * m->getScaling().y)};
-#endif
-    fullWidth = size.x;
-    listWidth = size.x;
-#ifdef PPLAY_ENABLE_SCRAPPING
-    if (!scrapping_enabled)
-#endif
-    {
-        float panelWidth = 560 * m->getScaling().x;
-        listWidth = size.x - panelWidth;
-        preview = new PreviewView(main, {listWidth, 0, panelWidth, size.y});
-        Filer::add(preview);
-    }
+    // files list, information panel on the right
+    float panelWidth = 560 * m->getScaling().x;
+    listWidth = size.x - panelWidth;
+    preview = new PreviewView(main, {listWidth, 0, panelWidth, size.y});
+    Filer::add(preview);
 
     // highlight
-    highlight = new Highlight({size.x, (float) ITEM_HEIGHT * m->getScaling().y}, Highlight::CursorPosition::Left);
+    highlight = new Highlight({listWidth, (float) ITEM_HEIGHT * m->getScaling().y}, Highlight::CursorPosition::Left);
     Filer::add(highlight);
 
     // files items
@@ -67,12 +43,10 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) :
     }
 
     for (unsigned int i = 0; i < (unsigned int) item_max; i++) {
-        FloatRect r = {0, item_height * (float) i, size.x, item_height};
+        FloatRect r = {0, item_height * (float) i, listWidth, item_height};
         items.emplace_back(new FilerItem(main, r));
         Filer::add(items[i]);
     }
-
-    setPreviewEnabled(main->getConfig()->getOption(OPT_PREVIEW_PANEL)->getInteger() == 1);
 
     // tween
     Filer::add(new TweenAlpha(0, 255, 0.5f));
@@ -90,19 +64,6 @@ void Filer::setMediaInfo(const MediaFile &target, const MediaInfo &mediaInfo) {
     mutex->unlock();
 }
 
-#ifdef PPLAY_ENABLE_SCRAPPING
-void Filer::setScrapInfo(const Io::File &target, const std::vector<pscrap::Movie> &movies) {
-    mutex->lock();
-    for (size_t i = 0; i < files.size(); i++) {
-        if (files[i].path == target.path) {
-            files[i].movies = movies;
-            dirty = true;
-            break;
-        }
-    }
-    mutex->unlock();
-}
-#endif
 
 void Filer::setSelection(int index) {
     item_index = index;
@@ -126,29 +87,10 @@ void Filer::setSelection(int index) {
                 + " path=" + file.path + " type=" + std::to_string((int) file.type));
             items[i]->setFile(file);
             items[i]->setVisibility(Visibility::Visible);
-#ifdef PPLAY_ENABLE_SCRAPPING
-            if (!file.movies.empty()) {
-                items[i]->setTitle(file.movies[0].title);
-            }
-#endif
             // set highlight position
             if (index_start + i == (unsigned int) item_index) {
                 highlight->tweenTo(items[i]->getPosition());
-                if (previewEnabled) {
-                    preview->setFile(file);
-                }
-#ifdef PPLAY_ENABLE_SCRAPPING
-                if (scrapping_enabled) {
-                    if (file.type == Io::Type::File) {
-                        if (!scrapView->isVisible()) {
-                            scrapView->setVisibility(Visibility::Visible);
-                        }
-                        scrapView->setMovie(file);
-                    } else {
-                        scrapView->setVisibility(Visibility::Hidden);
-                    }
-                }
-#endif
+                preview->setFile(file);
             }
         }
     }
@@ -295,18 +237,12 @@ bool Filer::onInput(c2d::Input::Player *players) {
         if (item_index < 0)
             item_index = (int) (filesSize - 1);
         setSelection(item_index);
-#ifdef PPLAY_ENABLE_SCRAPPING
-        if (scrapping_enabled) scrapView->unload();
-#endif
     } else if (keys & Input::Down) {
         item_index++;
         if (item_index >= (int) filesSize) {
             item_index = 0;
         }
         setSelection(item_index);
-#ifdef PPLAY_ENABLE_SCRAPPING
-        if (scrapping_enabled) scrapView->unload();
-#endif
     } else if (keys & Input::Left) {
         main->getMenuMain()->setVisibility(Visibility::Visible, true);
     } else if (keys & Input::Right) {
@@ -316,25 +252,13 @@ bool Filer::onInput(c2d::Input::Player *players) {
         }
     } else if (keys & Input::A) {
         if (getSelection().type == Io::Type::Directory) {
-#ifdef PPLAY_ENABLE_SCRAPPING
-            if (scrapping_enabled) scrapView->unload();
-#endif
             enter(item_index);
         } else if (pplay::Utility::isMedia(getSelection())) {
             main->getPlayer()->setFullscreen(true);
             main->getPlayer()->load(files[item_index]);
         }
     } else if (keys & Input::B) {
-#ifdef PPLAY_ENABLE_SCRAPPING
-        if (scrapping_enabled) scrapView->unload();
-#endif
         exit();
-    } else if (keys & Input::X) {
-#ifdef PPLAY_ENABLE_SCRAPPING
-        if (scrapping_enabled) {
-            main->getScrapper()->scrap(path);
-        }
-#endif
     } else if (keys & Input::Y) {
         // the opened file would write its position back (periodic / pause save)
         if (main->getPlayer()->isPlaying(files[item_index].path)) {
@@ -403,13 +327,8 @@ static bool compare(const MediaFile &a, const MediaFile &b) {
         return false;
     }
 
-#ifdef PPLAY_ENABLE_SCRAPPING
-    std::string aa = a.movies.empty() ? a.name : a.movies[0].title;
-    std::string bb = b.movies.empty() ? b.name : b.movies[0].title;
-#else
     std::string aa = a.name;
     std::string bb = b.name;
-#endif
 
     return Utility::toLower(aa) < Utility::toLower(bb);
 }
@@ -436,22 +355,9 @@ bool Filer::getDir(const std::string &p) {
 
     for (auto &file: _files) {
         MediaFile mf(file, MediaInfo(file));
-#ifdef PPLAY_ENABLE_SCRAPPING
-        if (file.type == Io::Type::File) {
-            pscrap::Search search;
-            std::string scrapPath = pplay::Utility::getMediaScrapPath(file);
-            if (main->getIo()->exist(scrapPath)) {
-                search.load(scrapPath);
-                if (search.total_results > 0) {
-                    mf.movies = search.movies;
-                }
-            }
-        }
-#endif
         files.emplace_back(mf);
     }
 
-    // sort after title have been scrapped
     std::sort(files.begin(), files.end(), compare);
 
     files.erase(std::remove_if(files.begin(), files.end(),
@@ -507,19 +413,6 @@ bool Filer::isTopLevel(const std::string &p) {
         }
     }
     return false;
-}
-
-void Filer::setPreviewEnabled(bool enabled) {
-    previewEnabled = enabled && preview != nullptr;
-    float width = previewEnabled ? listWidth : fullWidth;
-    if (preview != nullptr) {
-        preview->setVisibility(previewEnabled ? Visibility::Visible : Visibility::Hidden);
-    }
-    highlight->setWidth(width);
-    for (auto *item: items) {
-        item->setWidth(width);
-    }
-    dirty = true;
 }
 
 void Filer::enter(int index) {

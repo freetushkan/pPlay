@@ -103,6 +103,17 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
     info_text->setVisibility(Visibility::Hidden);
     info_text->setLayer(3);
     add(info_text);
+
+    info_keys = new Text("", main->getFontSize(Main::FontSize::Medium), main->getFont());
+    info_keys->setFillColor(COLOR_FONT);
+    info_keys->setOutlineColor(COLOR_GRAY_DARK);
+    info_keys->setOutlineThickness(3.0f);
+    info_keys->setLineSpacingModifier((int) (4 * main->getScaling().y));
+    info_keys->setOrigin(Origin::TopRight);
+    info_keys->setPosition(Player::getSize().x - (20 * main->getScaling().x), (60 * main->getScaling().y));
+    info_keys->setVisibility(Visibility::Hidden);
+    info_keys->setLayer(3);
+    add(info_keys);
 }
 
 Player::~Player() {
@@ -242,9 +253,6 @@ void Player::onLoadEvent() {
     file.mediaInfo = mpv->getMediaInfo(file);
     file.mediaInfo.save(file);
 
-    // TODO: is this really needed as it should be extracted from scrapper
-    // main->getFiler()->setMediaInfo(file, file.mediaInfo);
-
     // build video track selection menu
     if (!file.mediaInfo.videos.empty()) {
         // videos menu options
@@ -325,6 +333,9 @@ void Player::onLoadEvent() {
     mpv->saveSpeed();
     resume();
 
+    // the tracks chosen for the previous file: mpv drops them when the tracks differ,
+    // and they do (the external tracks of the previous file)
+    applyTrackChoices();
     startExternalTracks();
     if (externalPending == 0) {
         selectAudioIfNone();
@@ -499,7 +510,7 @@ void Player::onExternalTracksAdded() {
                     break;
                 }
             }
-        } else if (!hadWatchLater) {
+        } else if (!hadWatchLater && !trackChoiceApplied[t]) {
             // preferred language, if the current track is not
             std::string preferred = main->getConfig()->getOption(
                     audio ? OPT_AUDIO_LANGUAGE : OPT_SUB_LANGUAGE)->getString();
@@ -529,9 +540,55 @@ void Player::onExternalTracksAdded() {
     selectAudioIfNone();
 }
 
+std::string Player::trackLayout(const std::string &type) {
+    std::string layout;
+    for (auto &track: mpv->getTrackList()) {
+        if (track.type == type && !track.external) {
+            layout += std::to_string(track.id) + ":" + track.lang + ";";
+        }
+    }
+    return layout;
+}
+
+void Player::rememberTrackChoice(bool audio, int trackId) {
+    const std::string type = audio ? "audio" : "sub";
+    TrackChoice &choice = trackChoice[audio ? 0 : 1];
+    bool external = false;
+    for (auto &track: mpv->getTrackList()) {
+        external |= track.type == type && track.id == trackId && track.external;
+    }
+    // external ones: remembered per file (ExternalTracks bindings)
+    choice.set = !external;
+    choice.id = trackId;
+    choice.layout = trackLayout(type);
+}
+
+void Player::applyTrackChoices() {
+    for (int t = 0; t < 2; t++) {
+        bool audio = t == 0;
+        const std::string type = audio ? "audio" : "sub";
+        TrackChoice &choice = trackChoice[t];
+        trackChoiceApplied[t] = false;
+        // the file own choice first (watch later), then the same tracks only
+        if (!choice.set || hadWatchLater || trackLayout(type) != choice.layout) {
+            continue;
+        }
+        trackChoiceApplied[t] = true;
+        int current = audio ? mpv->getAid() : mpv->getSid();
+        if (current != choice.id) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: previous file " + type + " track "
+                                                                + std::to_string(choice.id));
+            audio ? mpv->setAid(choice.id) : mpv->setSid(choice.id);
+        }
+    }
+}
+
 void Player::selectAudioIfNone() {
     // an old watch later may hold an external track id (not added yet / another one):
     // mpv then plays without audio, the first track instead (internal ones first)
+    if (trackChoiceApplied[0] && trackChoice[0].id < 0) {
+        return; // audio off, chosen
+    }
     std::vector<Mpv::TrackEntry> tracks = mpv->getTrackList();
     int target = -1;
     bool targetExternal = true;
@@ -921,6 +978,7 @@ void Player::onUpdate() {
     if (info_text->isVisible()) {
         if (mpv->isStopped()) {
             info_text->setVisibility(Visibility::Hidden);
+            info_keys->setVisibility(Visibility::Hidden);
         } else if (infoClock.getElapsedTime().asMilliseconds() >= 500) {
             updateInfo();
         }
@@ -1072,6 +1130,26 @@ bool Player::onInput(c2d::Input::Player *players) {
         return true;
     }
 
+    int swap = main->getConfig()->getOption(OPT_SWAP_CONTROLS)->getInteger();
+    int btnSpeedReset = swap ? c2d::Input::LT : c2d::Input::LB;
+    int btnSpeedUp = swap ? c2d::Input::RT : c2d::Input::RB;
+    int btnSeekBack = swap ? c2d::Input::LB : c2d::Input::LT;
+    int btnSeekForward = swap ? c2d::Input::RB : c2d::Input::RT;
+    float seek = main->getConfig()->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
+
+    // the player menus (tracks...): seeking still works (to listen again while choosing)
+    bool playerMenu = main->getMenuVideo()->isVisible()
+                      || (getMenuVideoStreams() != nullptr && getMenuVideoStreams()->isVisible())
+                      || (getMenuAudioStreams() != nullptr && getMenuAudioStreams()->isVisible())
+                      || (getMenuSubtitlesStreams() != nullptr && getMenuSubtitlesStreams()->isVisible());
+    if (playerMenu && !mpv->isStopped() && isFullscreen() && (keys & (btnSeekBack | btnSeekForward))) {
+        float delta = (keys & btnSeekBack) ? -seek : seek;
+        double target = std::max(0.0, mpv->getTime() + delta);
+        getMpv()->seek(delta);
+        showMessage(pplay::Utility::formatTime(target) + " / " + pplay::Utility::formatTime((double) mpv->getDuration()));
+        return true;
+    }
+
     if (mpv->isStopped()
         || main->getFiler()->isVisible()
         || main->getMenuVideo()->isVisible()
@@ -1084,13 +1162,6 @@ bool Player::onInput(c2d::Input::Player *players) {
         return C2DObject::onInput(players);
     }
 
-    int swap = main->getConfig()->getOption(OPT_SWAP_CONTROLS)->getInteger();
-    int btnSpeedReset = swap ? c2d::Input::LT : c2d::Input::LB;
-    int btnSpeedUp = swap ? c2d::Input::RT : c2d::Input::RB;
-    int btnSeekBack = swap ? c2d::Input::LB : c2d::Input::LT;
-    int btnSeekForward = swap ? c2d::Input::RB : c2d::Input::RT;
-
-    float seek = main->getConfig()->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
     if (keys & btnSpeedReset) {
         if (mpv->getSpeed() != 1.00) setSpeed(1);
         else getMpv()->seek(-1.00f);
@@ -1103,9 +1174,12 @@ bool Player::onInput(c2d::Input::Player *players) {
     } else if (keys & Input::Start) {
         if (info_text->isVisible()) {
             info_text->setVisibility(Visibility::Hidden);
+            info_keys->setVisibility(Visibility::Hidden);
         } else {
             updateInfo();
+            updateKeysInfo();
             info_text->setVisibility(Visibility::Visible);
+            info_keys->setVisibility(Visibility::Visible);
         }
     } else if (keys & (Input::Up | Input::Down)) {
         int delta = (keys & Input::Up) ? 1 : -1;
@@ -1152,12 +1226,14 @@ void Player::setAudioStream(int streamId) {
     printf("Player::setAudioStream: %i\n", streamId);
     mpv->setAid(streamId);
     rememberSelection(true, streamId);
+    rememberTrackChoice(true, streamId);
 }
 
 void Player::setSubtitleStream(int streamId) {
     printf("Player::setSubtitleStream: %i\n", streamId);
     mpv->setSid(streamId);
     rememberSelection(false, streamId);
+    rememberTrackChoice(false, streamId);
 }
 
 int Player::getVideoStream() {
@@ -1228,15 +1304,64 @@ void Player::updateInfo() {
         }
         static const char *modes[] = {"Off", "Normalize", "Night mode"};
         int mode = std::max(0, std::min(2, main->getConfig()->getOption(OPT_AUDIO_NORMALIZE)->getInteger()));
-        out << "\n    " << pplay::tr("Volume") << ": " << (int) mpv->getDouble("volume", 0) << "%, "
+        out << "\n    " << pplay::tr("Track") << ": " << trackInfo("audio")
+            << "\n    " << pplay::tr("Volume") << ": " << (int) mpv->getDouble("volume", 0) << "%, "
             << pplay::tr("Volume normalization") << ": " << pplay::tr(modes[mode]) << "\n";
     }
+    out << pplay::tr("Subtitles") << ": " << trackInfo("sub") << "\n";
     out.precision(1);
     out << pplay::tr("Cache") << ": " << std::max(0.0, mpv->getDouble("demuxer-cache-duration", 0)) << " s, "
         << mpv->getCacheSpeed() / 1048576.0 << " MB/s, " << pplay::tr("Speed") << ": ";
     out.precision(2);
     out << mpv->getSpeed();
     info_text->setString(out.str());
+}
+
+std::string Player::trackInfo(const std::string &type) {
+    const std::string prefix = "current-tracks/" + type + "/";
+    long id = mpv->getInt((prefix + "id").c_str(), -1);
+    if (id < 0) {
+        return pplay::tr("Off");
+    }
+    std::string out = "#" + std::to_string(id);
+    std::string lang = mpv->getString((prefix + "lang").c_str());
+    std::string title = mpv->getString((prefix + "title").c_str());
+    if (!lang.empty()) {
+        out += " " + lang;
+    }
+    if (!title.empty()) {
+        out += " \u00AB" + encoding::fix(title) + "\u00BB";
+    }
+    if (mpv->getString((prefix + "external").c_str()) == "yes") {
+        out += " (" + pplay::tr("external") + ")";
+    }
+    return out;
+}
+
+void Player::updateKeysInfo() {
+    using pplay::InputMap::buttonName;
+    int swap = main->getConfig()->getOption(OPT_SWAP_CONTROLS)->getInteger();
+    unsigned int seekBack = swap ? Input::LB : Input::LT;
+    unsigned int seekForward = swap ? Input::RB : Input::RT;
+    unsigned int speedReset = swap ? Input::LT : Input::LB;
+    unsigned int speedUp = swap ? Input::RT : Input::RB;
+    std::ostringstream seek;
+    seek << main->getConfig()->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
+    auto line = [](const std::string &key, const std::string &action) {
+        return key + ": " + action + "\n";
+    };
+    std::string out;
+    out += line(buttonName(Input::A), pplay::tr("Pause"));
+    out += line(buttonName(Input::B), pplay::tr("Minimize"));
+    out += line(buttonName(Input::X), pplay::tr("Menu"));
+    out += line(buttonName(seekBack) + " / " + buttonName(seekForward), "-/+ " + seek.str() + " s");
+    out += line(buttonName(speedReset), pplay::tr("Speed") + " 1.00");
+    out += line(buttonName(speedUp), pplay::tr("Speed") + " +0.05");
+    out += line(buttonName(Input::Up) + buttonName(Input::Down), pplay::tr("Volume"));
+    out += line(buttonName(Input::Y) + " + " + buttonName(Input::Up) + buttonName(Input::Down), pplay::tr("Brightness"));
+    out += line(buttonName(Input::Start), pplay::tr("Information"));
+    out.pop_back();
+    info_keys->setString(out);
 }
 
 void Player::setAudioNormalize(int mode) {

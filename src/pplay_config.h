@@ -24,18 +24,12 @@
 #define OPT_SMB_READ_BUFFER_MB  "SMB_READ_BUFFER_MB"
 #endif
 #define OPT_AUTOPLAY_MODE       "AUTOPLAY_MODE"
-#ifdef PPLAY_ENABLE_SCRAPPING
-#define OPT_ENABLE_SCRAPPING    "ENABLE_SCRAPPING"
-#define OPT_TMDB_LANGUAGE       "TMDB_LANGUAGE"
-#define OPT_CACHE_MEDIA_INFO    "CACHE_MEDIA_INFO"
-#endif
 #define OPT_LOG_LEVEL           "LOG_LEVEL"
 #define OPT_SWAP_CONTROLS       "SWAP_CONTROLS"
 #define OPT_SEEK_SHORT_SEC      "SEEK_SHORT_SEC"
 #define OPT_SEEK_LONG_SEC       "SEEK_LONG_SEC"
 #define OPT_CPU_BOOST           "CPU_BOOST"
 #define OPT_ACCENT_COLOR        "ACCENT_COLOR"
-#define OPT_PREVIEW_PANEL       "PREVIEW_PANEL"
 #define OPT_LANGUAGE            "LANGUAGE"
 // preferred track languages: mpv alang / slang list, "Auto" / "Off" (mpv.conf)
 #define OPT_AUDIO_LANGUAGE      "AUDIO_LANGUAGE"
@@ -80,6 +74,8 @@ private:
 
     // fix invalid values, apply the accent color
     void sanitize();
+
+    std::string defaultHomePath() const;
 
     pplay::Io *io;
 };

@@ -59,12 +59,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
         addOption({networkOption(i), ""});
     }
-#ifdef __LINUX__
-    const char *home = getenv("HOME");
-    std::string homePath = home && home[0] == '/' ? std::string(home) + "/" : io->getDataPath();
-#else
-    std::string homePath = io->getDataPath();
-#endif
+    std::string homePath = defaultHomePath();
     addOption({OPT_HOME_PATH, homePath});
     addOption({OPT_LAST_LOCAL_PATH, homePath});
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
@@ -79,11 +74,6 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_SMB_READ_BUFFER_MB, (int) 10});
 #endif
     addOption({OPT_AUTOPLAY_MODE, (int) 1});
-#ifdef PPLAY_ENABLE_SCRAPPING
-    addOption({OPT_ENABLE_SCRAPPING, (int) 0});
-    addOption({OPT_TMDB_LANGUAGE, "en-US"});
-    addOption({OPT_CACHE_MEDIA_INFO, (int) 1});
-#endif
     addOption({OPT_LOG_LEVEL, (int) 0}); // 0 OFF, 1 ERROR, 2 INFO, 3 DEBUG, 4 TRACE
     addOption({OPT_SWAP_CONTROLS, (int) 0});
     addOption({OPT_SEEK_SHORT_SEC, (float) 30.0});
@@ -92,7 +82,6 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_CPU_BOOST, "Disabled"}); // Disabled, Enabled
 #endif
     addOption({OPT_ACCENT_COLOR, "#1078C8"});
-    addOption({OPT_PREVIEW_PANEL, (int) 1});
     addOption({OPT_LANGUAGE, "en"});
     addOption({OPT_AUDIO_LANGUAGE, "Auto"});
     addOption({OPT_SUB_LANGUAGE, "Off"});
@@ -111,6 +100,17 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     save();
 }
 
+std::string PPLAYConfig::defaultHomePath() const {
+#ifdef __LINUX__
+    // the user home, not the settings directory
+    const char *home = getenv("HOME");
+    if (home && home[0] == '/') {
+        return std::string(home) + "/";
+    }
+#endif
+    return io->getDataPath();
+}
+
 bool PPLAYConfig::reload() {
     bool ok = load();
     sanitize();
@@ -120,11 +120,11 @@ bool PPLAYConfig::reload() {
 void PPLAYConfig::sanitize() {
 
     if (!io->exist(getOption(OPT_HOME_PATH)->getString())) {
-        getOption(OPT_HOME_PATH)->setString(io->getDataPath());
+        getOption(OPT_HOME_PATH)->setString(defaultHomePath());
     }
 
     if (!io->exist(getOption(OPT_LAST_LOCAL_PATH)->getString())) {
-        getOption(OPT_LAST_LOCAL_PATH)->setString(io->getDataPath());
+        getOption(OPT_LAST_LOCAL_PATH)->setString(defaultHomePath());
     }
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
         if (getOption(networkLastOption(i))->getString().empty()) {
@@ -168,11 +168,6 @@ void PPLAYConfig::sanitize() {
     clamp(OPT_CACHE_MB, 50, CACHE_MB_MAX);
     clamp(OPT_VIDEO_QUALITY, 0, 2);
 
-#ifdef PPLAY_ENABLE_SCRAPPING
-    if (getOption(OPT_TMDB_LANGUAGE)->getString().empty()) {
-        getOption(OPT_TMDB_LANGUAGE)->setString("en-US");
-    }
-#endif
 
     if (!pplay::Utility::isValidHexColor(getOption(OPT_ACCENT_COLOR)->getString())) {
         getOption(OPT_ACCENT_COLOR)->setString("#1078C8");

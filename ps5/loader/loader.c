@@ -27,7 +27,7 @@
 #include "hbldr/hbldr.h"
 
 #ifndef PPLAY_TITLE_ID
-#define PPLAY_TITLE_ID "PPLA00005"
+#error "PPLAY_TITLE_ID: set by CMakeLists.txt (ps5/title_id.cmake)"
 #endif
 
 #define LOADER_NAME     "pplay_loader.elf"

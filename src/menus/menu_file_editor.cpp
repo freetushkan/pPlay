@@ -12,6 +12,14 @@ using namespace c2d;
 #define ID_EDIT_ALL  (-100)
 #define ID_ADD_LINE  (-101)
 #define ID_FILE      (-102)
+#define ID_EXTERNAL  (-103)
+
+#ifdef __LINUX__
+#include <spawn.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+extern char **environ;
+#endif
 
 namespace {
     const char *g_files[] = {"pplay.cfg", "mpv/mpv.conf", "mpv/input.conf"};
@@ -78,6 +86,9 @@ void MenuFileEditor::openFile(const std::string &relativePath, int selectLine) {
         whole.pop_back();
     }
     const bool canEditAll = pplay::Keyboard::length(whole) <= pplay::Keyboard::maxLength(true);
+#ifdef __LINUX__
+    items.emplace_back("Open in a text editor", "", MenuItem::Position::Top, ID_EXTERNAL);
+#endif
     if (canEditAll) {
         items.emplace_back("Edit whole file", "", MenuItem::Position::Top, ID_EDIT_ALL);
     }
@@ -90,7 +101,11 @@ void MenuFileEditor::openFile(const std::string &relativePath, int selectLine) {
     setItems(items);
 
     if (selectLine >= 0) {
-        int target = std::min(selectLine + (canEditAll ? 1 : 0), (int) buttons.size() - 1);
+        int first = 0;
+#ifdef __LINUX__
+        first++;
+#endif
+        int target = std::min(selectLine + first + (canEditAll ? 1 : 0), (int) buttons.size() - 1);
         index = target;
         updateSelectionState();
         ensureSelectionVisible();
@@ -192,13 +207,85 @@ void MenuFileEditor::onOptionSelection(MenuItem *item) {
         }
         return;
     }
-    if (id == ID_EDIT_ALL) {
+    if (id == ID_EXTERNAL) {
+        openExternal();
+    } else if (id == ID_EDIT_ALL) {
         editAll();
     } else if (id == ID_ADD_LINE) {
         editLine((int) lines.size());
     } else if (id >= 0) {
         editLine(id);
     }
+}
+
+#ifdef __LINUX__
+static long long fileTime(const std::string &path) {
+    struct stat st{};
+    if (stat(path.c_str(), &st) != 0) {
+        return -1;
+    }
+    return (long long) st.st_mtim.tv_sec * 1000000000LL + st.st_mtim.tv_nsec;
+}
+#endif
+
+void MenuFileEditor::openExternal() {
+#ifdef __LINUX__
+    const std::string path = fullPath(currentFile);
+    auto *io = (pplay::Io *) main->getIo();
+    if (!io->exist(path)) {
+        io->writeText(path, "");
+    }
+    // detached editor
+    pid_t pid;
+    std::string arg = path;
+    char *argv[] = {(char *) "xdg-open", (char *) arg.c_str(), nullptr};
+    if (posix_spawnp(&pid, "xdg-open", nullptr, nullptr, argv, environ) != 0) {
+        main->showMessage(pplay::tr("Error"), pplay::tr("No text editor found, the file is") + "\n" + path,
+                          pplay::tr("OK"));
+        return;
+    }
+    externalPid = pid;
+    externalFile = currentFile;
+    externalTime = fileTime(path);
+    main->getStatus()->show(pplay::tr("Info..."), pplay::tr("Opened in the text editor, applied when saved"));
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "MenuFileEditor: xdg-open " + path);
+#endif
+}
+
+void MenuFileEditor::onUpdate() {
+    Menu::onUpdate();
+#ifdef __LINUX__
+    if (externalPid > 0) {
+        // xdg-open exits once the editor is started
+        if (waitpid(externalPid, nullptr, WNOHANG) == externalPid) {
+            externalPid = -1;
+        }
+    }
+    if (externalFile.empty() || checkClock.getElapsedTime().asMilliseconds() < 1000) {
+        return;
+    }
+    checkClock.restart();
+    const std::string path = fullPath(externalFile);
+    long long time = fileTime(path);
+    if (time == externalTime) {
+        return;
+    }
+    // saved in the text editor
+    externalTime = time;
+    if (externalFile == "pplay.cfg") {
+        if (main->getConfig()->reload()) {
+            main->applyConfig();
+            main->getStatus()->show(pplay::tr("Info..."), pplay::tr("Configuration applied"));
+        } else {
+            main->showMessage(pplay::tr("Error"), pplay::tr("Invalid configuration, fix the file"), pplay::tr("OK"));
+        }
+    } else {
+        main->getStatus()->show(pplay::tr("Info..."), pplay::tr("Saved, restart pPlay to apply mpv changes"));
+    }
+    if (currentFile == externalFile && isVisible()) {
+        openFile(currentFile);
+    }
+#endif
 }
 
 void MenuFileEditor::setVisibility(c2d::Visibility visibility, bool tweenPlay) {

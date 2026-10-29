@@ -92,7 +92,6 @@ jobs:
       - name: Configure pPlay
         run: |
           rm -rf cmake-build
-          mkdir -p pscrap && echo "test" > pscrap/tmdb.key
           mkdir -p cmake-build && cd cmake-build
           cmake -G "Unix Makefiles" \
             -DPLATFORM_SWITCH=ON \
@@ -204,7 +203,6 @@ jobs:
           sed -i 's/typedef uint32_t pid_t;/\/\/ typedef uint32_t pid_t;/g' src/libjbc/defs.h
 
           export OPENORBIS=/opt/pacbrew/ps4/openorbis
-          # mkdir -p pscrap && echo "test" > pscrap/tmdb.key
           rm -rf cmake-build
           mkdir -p cmake-build
           cd cmake-build
@@ -439,7 +437,6 @@ jobs:
       - name: Configure pPlay
         run: |
           rm -rf cmake-build
-          mkdir -p pscrap && echo "test" > pscrap/tmdb.key
           mkdir -p cmake-build && cd cmake-build
           cmake -G "Unix Makefiles" \
             -DPLATFORM_LINUX=ON \

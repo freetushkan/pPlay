@@ -141,6 +141,22 @@ private:
     void saveProgress();
 
     void selectAudioIfNone();
+
+    // tracks chosen in the menus, applied to the next files with the same tracks
+    struct TrackChoice {
+        bool set = false;
+        int id = -1; // -1: off
+        std::string layout;
+    };
+    TrackChoice trackChoice[2];
+    bool trackChoiceApplied[2] = {false, false};
+
+    // internal tracks of a type ("audio", "sub"): ids and languages
+    std::string trackLayout(const std::string &type);
+
+    void rememberTrackChoice(bool audio, int trackId);
+
+    void applyTrackChoices();
     bool watchLaterSkip[2] = {false, false};
 
     // ui
@@ -190,6 +206,12 @@ private:
 
     // playback information (Start toggles it), updated while shown
     c2d::Text *info_text = nullptr;
+    c2d::Text *info_keys = nullptr;
+
+    // current track ("audio", "sub"): "#id lang «title» (external)", or "Off"
+    std::string trackInfo(const std::string &type);
+
+    void updateKeysInfo();
     c2d::C2DClock infoClock;
 
     void updateInfo();

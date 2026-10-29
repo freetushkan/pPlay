@@ -25,6 +25,44 @@ using namespace c2d;
 #define POSTER_W 300
 #define POSTER_H 450
 #define MARGIN 24
+// title lines (with / without the poster), "+ 0.5": the size check is on the base line
+#define TITLE_LINES_POSTER 3.5f
+#define TITLE_LINES 8.5f
+
+namespace {
+    // non breaking spaces: kept on one line by the text wrapping
+    std::string keep(const std::string &text) {
+        std::string out;
+        for (char c: text) {
+            if (c == ' ') {
+                out += "\u00A0";
+            } else {
+                out += c;
+            }
+        }
+        return out;
+    }
+
+    // libcross2d wraps by words split on spaces only: a word holding a new line is
+    // measured with the next line text (a short line wrapped). The new lines alone as
+    // words; the same one space indent on every line.
+    std::string wrapSafe(const std::string &text) {
+        std::string out = " ";
+        for (char c: text) {
+            if (c == '\n') {
+                out += " \n ";
+            } else {
+                out += c;
+            }
+        }
+        return out;
+    }
+
+    // "key: action" hint
+    std::string keyHint(const std::string &key, const std::string &action) {
+        return keep(key + ": " + pplay::tr(action));
+    }
+}
 
 PreviewView::PreviewView(Main *m, const c2d::FloatRect &rect) : Rectangle(rect) {
     main = m;
@@ -55,7 +93,7 @@ PreviewView::PreviewView(Main *m, const c2d::FloatRect &rect) : Rectangle(rect) 
     title = new C2DText("", main->getFontSize(Main::FontSize::Big), main->getFont());
     title->setFillColor(COLOR_FONT);
     title->setOverflow(Text::NewLine);
-    title->setSizeMax(textWidth, main->getFontSize(Main::FontSize::Big) * 3.5f);
+    title->setSizeMax(textWidth, main->getFontSize(Main::FontSize::Big) * TITLE_LINES_POSTER);
     PreviewView::add(title);
 
     details = new C2DText("", main->getFontSize(Main::FontSize::Small), main->getFont());
@@ -64,17 +102,15 @@ PreviewView::PreviewView(Main *m, const c2d::FloatRect &rect) : Rectangle(rect) 
     details->setSizeMax(textWidth, rect.height - top);
     PreviewView::add(details);
 
-    // screen bottom (under the files list height): the progress reset button, a separator line above
+    // screen bottom (under the files list height): the filer keys, a separator line above
     hint = new C2DText("", main->getFontSize(Main::FontSize::Small), main->getFont());
     hint->setFillColor(COLOR_GRAY_LIGHT);
-    hint->setOrigin(Origin::BottomLeft);
-    hint->setPosition(margin, main->getSize().y - margin);
-    hint->setVisibility(Visibility::Hidden);
+    hint->setOverflow(Text::NewLine);
+    hint->setSizeMax(textWidth, 0);
     PreviewView::add(hint);
 
     separator = new RectangleShape({textWidth, std::max(1.0f, main->getScaling().y)});
     separator->setFillColor(Color(255, 255, 255, 50));
-    separator->setVisibility(Visibility::Hidden);
     PreviewView::add(separator);
 
     hidePoster();
@@ -105,6 +141,8 @@ void PreviewView::layout() {
         y += poster->getSize().y + margin;
         gap = margin / 2;
     }
+    float bigSize = (float) main->getFontSize(Main::FontSize::Big);
+    title->setSizeMax(getSize().x - margin * 2, bigSize * (shownPoster.empty() ? TITLE_LINES : TITLE_LINES_POSTER));
     title->setPosition(margin, y);
     // the bounds are not updated for an empty string
     float titleHeight = title->getString().empty() ? 0 : title->getLocalBounds().height;
@@ -112,15 +150,13 @@ void PreviewView::layout() {
         y += titleHeight + gap;
     }
     details->setPosition(margin, y);
-    float bottom = getSize().y - margin;
-    if (hint->isVisible()) {
-        // fixed at the screen bottom: hint, separator, then the details above
-        float lineHeight = (float) main->getFontSize(Main::FontSize::Small);
-        float separatorY = hint->getPosition().y - lineHeight * 1.2f - margin * 0.6f;
-        separator->setPosition(margin, separatorY);
-        bottom = separatorY - margin * 0.6f;
-    }
-    separator->setVisibility(hint->isVisible() ? Visibility::Visible : Visibility::Hidden);
+    // fixed at the screen bottom: the keys, a separator, then the details above
+    FloatRect hintBounds = hint->getLocalBounds();
+    float hintTop = main->getSize().y - margin - (hintBounds.top + hintBounds.height);
+    hint->setPosition(margin, hintTop);
+    float separatorY = hintTop + hintBounds.top - margin * 0.6f;
+    separator->setPosition(margin, separatorY);
+    float bottom = separatorY - margin * 0.6f;
     // the last line descenders are drawn under its maximum height
     float descent = (float) main->getFontSize(Main::FontSize::Small) * 0.35f;
     details->setSizeMax(getSize().x - margin * 2, std::max(0.0f, bottom - y - descent));
@@ -214,7 +250,7 @@ int PreviewView::downloadThread(void *data) {
 
 void PreviewView::setPosterStatus(const std::string &status) {
     posterStatus = status;
-    details->setString(posterStatus.empty() ? infoText : infoText + "\n" + posterStatus);
+    details->setString(wrapSafe(posterStatus.empty() ? infoText : infoText + "\n" + posterStatus));
 }
 
 static std::string resolutionName(int width, int height) {
@@ -238,28 +274,26 @@ void PreviewView::setFile(const MediaFile &file) {
     } else if (pplay::TorrServe::getInfo(file.path, ts)) {
         name = ts.title;
         wantedPoster = ts.poster;
-        if (!ts.category.empty()) {
-            info << pplay::tr("Category") << ": " << encoding::fix(ts.category) << "\n";
-        }
-        if (ts.torrentSize > 0) {
-            info << pplay::tr("Torrent size") << ": " << pplay::Utility::formatSize((size_t) ts.torrentSize) << "\n";
-        }
-        info << pplay::tr("Files") << ": " << ts.fileCount;
+        // one line: category, files and their size (kept together)
+        std::string files = pplay::tr("Files") + ": " + std::to_string(ts.fileCount);
         if (ts.filesSize > 0) {
-            info << " (" << pplay::Utility::formatSize((size_t) ts.filesSize) << ")";
+            files += " (" + pplay::Utility::formatSize((size_t) ts.filesSize) + ")";
         }
-        info << "\n";
+        if (!ts.category.empty()) {
+            info << pplay::tr("Category") << ": " << encoding::fix(ts.category) << "   ";
+        }
+        info << keep(files) << "\n";
         if (ts.fileIndex >= 0) {
             info << "\n" << encoding::fix(ts.fileName) << "\n";
             if (ts.fileSize > 0) {
-                info << pplay::tr("Size") << ": " << pplay::Utility::formatSize((size_t) ts.fileSize) << "\n";
+                info << pplay::tr("Size") << ": " << keep(pplay::Utility::formatSize((size_t) ts.fileSize)) << "\n";
             }
         }
     } else if (file.type == Io::Type::Directory) {
         info << pplay::tr("Directory");
     } else {
         if (file.size > 0) {
-            info << pplay::tr("Size") << ": " << pplay::Utility::formatSize(file.size) << "\n";
+            info << pplay::tr("Size") << ": " << keep(pplay::Utility::formatSize(file.size)) << "\n";
         }
     }
 
@@ -277,8 +311,27 @@ void PreviewView::setFile(const MediaFile &file) {
     // watch later / TorrServer viewed state: Y resets it (filer)
     bool resettable = media && (pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path))
                                 || pplay::TorrServe::isFileViewed(file.path));
-    hint->setString(pplay::InputMap::buttonName(Input::Button::Y) + " " + pplay::tr("Reset progress"));
-    hint->setVisibility(resettable ? Visibility::Visible : Visibility::Hidden);
+    // the filer keys (what they do for this selection)
+    using pplay::InputMap::buttonName;
+    std::vector<std::string> keys = {
+            keyHint(buttonName(Input::Button::Up) + buttonName(Input::Button::Down), "Select"),
+    };
+    if (!Filer::isPlaceholder(file)) {
+        keys.push_back(keyHint(buttonName(Input::Button::A), file.type == Io::Type::Directory ? "Open" : "Play"));
+    }
+    keys.push_back(keyHint(buttonName(Input::Button::B), "Back"));
+    keys.push_back(keyHint(buttonName(Input::Button::Left), "Menu"));
+    if (!main->getPlayer()->getMpv()->isStopped()) {
+        keys.push_back(keyHint(buttonName(Input::Button::Right), "Player"));
+    }
+    if (resettable) {
+        keys.push_back(keyHint(buttonName(Input::Button::Y), "Reset progress"));
+    }
+    std::string hintText;
+    for (const auto &key: keys) {
+        hintText += (hintText.empty() ? "" : "   ") + key;
+    }
+    hint->setString(hintText);
 
     const MediaInfo &mi = file.mediaInfo;
     if (file.type == Io::Type::File && (mi.duration > 0 || !mi.videos.empty() || !mi.audios.empty())) {
@@ -313,7 +366,7 @@ void PreviewView::setFile(const MediaFile &file) {
     title->setString(encoding::fix(name));
     infoText = info.str();
     posterStatus.clear();
-    details->setString(infoText);
+    details->setString(wrapSafe(infoText));
 
     if (wantedPoster != shownPoster) {
         hidePoster();

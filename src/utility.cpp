@@ -58,22 +58,6 @@ std::string Utility::getMediaInfoPath(const c2d::Io::File &file) {
     return getDataPath() + "cache/" + hash + ".info";
 }
 
-#ifdef PPLAY_ENABLE_SCRAPPING
-std::string Utility::getMediaScrapPath(const c2d::Io::File &file) {
-    std::string hash = std::to_string(std::hash<std::string>()(file.path));
-    return getDataPath() + "cache/" + hash + ".scrap";
-}
-
-std::string Utility::getMediaPosterPath(const c2d::Io::File &file) {
-    std::string hash = std::to_string(std::hash<std::string>()(file.path));
-    return getDataPath() + "cache/" + hash + "-poster.jpg";
-}
-
-std::string Utility::getMediaBackdropPath(const c2d::Io::File &file) {
-    std::string hash = std::to_string(std::hash<std::string>()(file.path));
-    return getDataPath() + "cache/" + hash + "-backdrop.jpg";
-}
-#endif
 
 std::vector<std::string> Utility::getMediaExtensions() {
     return {

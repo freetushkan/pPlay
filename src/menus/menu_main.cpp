@@ -207,7 +207,6 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     categories.push_back({"Interface", {
             MenuItem("Language", "options.png", Pos::Top),
             MenuItem("Accent color", "color.png", Pos::Top),
-            MenuItem("Preview panel", "video.png", Pos::Top),
             MenuItem("Swap controls", "swap.png", Pos::Top),
     }});
     std::vector<MenuItem> networks;
@@ -223,11 +222,6 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
             MenuItem("Local home path", "home.png", Pos::Top),
             MenuItem("Edit files", "options.png", Pos::Top),
     };
-#ifdef PPLAY_ENABLE_SCRAPPING
-    system.emplace_back("TMDB language", "home.png", Pos::Top);
-    system.emplace_back("Scrapping", "", Pos::Top);
-    system.emplace_back("Cache", "", Pos::Top);
-#endif
 #ifdef __SWITCH__
     system.emplace_back("CPU boost", "cpu.png", Pos::Top);
 #endif
@@ -306,9 +300,6 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     }
     addSubmenu("Language", "Language", OPT_LANGUAGE, languageItems, Submenu::ValueType::String);
     addTextSubmenu("Local home path", "Local home path", OPT_HOME_PATH);
-#ifdef PPLAY_ENABLE_SCRAPPING
-    addTextSubmenu("TMDB language", "TMDB language", OPT_TMDB_LANGUAGE);
-#endif
 
 #ifdef __SWITCH__
     addSubmenu("CPU boost", "CPU boost", OPT_CPU_BOOST,
@@ -333,8 +324,6 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::ValueType::Float, Submenu::MenuType::Adjust, 1.0f, 600.0f, 1.0f, "s");
     addSubmenu("Long seek step", "Seek long step", OPT_SEEK_LONG_SEC, makeAdjustItems(),
                Submenu::ValueType::Float, Submenu::MenuType::Adjust, 10.0f, 3600.0f, 10.0f, "s");
-    addSubmenu("Preview panel", "Preview panel", OPT_PREVIEW_PANEL,
-               makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Audio language", "Audio language", OPT_AUDIO_LANGUAGE,
                makeTrackLanguageItems("Auto"), Submenu::ValueType::String);
     addSubmenu("Subtitles language", "Subtitles language", OPT_SUB_LANGUAGE,
@@ -375,12 +364,6 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                 MenuItem("Deep Red", "", MenuItem::Position::Top, 0, true, "#D63031"),
                 MenuItem("Classic Red", "", MenuItem::Position::Top, 0, true, "#FF0000")},
                Submenu::ValueType::String);
-#ifdef PPLAY_ENABLE_SCRAPPING
-    addSubmenu("Scrapping", "Scrape", OPT_ENABLE_SCRAPPING,
-               makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
-    addSubmenu("Cache", "Cache", OPT_CACHE_MEDIA_INFO,
-               makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
-#endif
 
     fileEditor = new MenuFileEditor(main, rect);
     fileEditor->setLayer(2);

@@ -14,9 +14,6 @@
 #include "menu_video.h"
 #include "status_box.h"
 #include "status_bar.h"
-#ifdef PPLAY_ENABLE_SCRAPPING
-#include "scrapper.h"
-#endif
 #include "io.h"
 #include "usbfs.h"
 #include "utility.h"
@@ -118,9 +115,6 @@ public:
 
     StatusBar *getStatusBar();
 
-#ifdef PPLAY_ENABLE_SCRAPPING
-    pplay::Scrapper *getScrapper();
-#endif
 
     c2d::Vector2f getScaling();
 
@@ -171,9 +165,6 @@ private:
     Player *player = nullptr;
     MenuMain *menu_main = nullptr;
     MenuVideo *menu_video = nullptr;
-#ifdef PPLAY_ENABLE_SCRAPPING
-    pplay::Scrapper *scrapper;
-#endif
     unsigned int oldKeys = 0;
     c2d::Vector2f scaling = {1, 1};
 

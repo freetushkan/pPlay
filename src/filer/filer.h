@@ -11,9 +11,6 @@
 #include "filer_item.h"
 #include "media_file.h"
 #include "highlight.h"
-#ifdef PPLAY_ENABLE_SCRAPPING
-#include "scrap_view.h"
-#endif
 
 class Main;
 
@@ -29,9 +26,6 @@ public:
 
     void setMediaInfo(const MediaFile &target, const MediaInfo &mediaInfo);
 
-#ifdef PPLAY_ENABLE_SCRAPPING
-    void setScrapInfo(const c2d::Io::File &target, const std::vector<pscrap::Movie> &movies);
-#endif
 
     virtual bool getDir(const std::string &path);
 
@@ -50,8 +44,6 @@ public:
     std::string getError();
 
     void refresh() { dirty = true; }
-
-    void setPreviewEnabled(bool enabled);
 
     // "<Empty>" entry of an empty directory
     static bool isPlaceholder(const MediaFile &file);
@@ -84,12 +76,7 @@ private:
     std::vector<MediaFile> files;
     Highlight *highlight;
     PreviewView *preview = nullptr;
-    bool previewEnabled = false;
-    float fullWidth = 0;
     float listWidth = 0;
-#ifdef PPLAY_ENABLE_SCRAPPING
-    ScrapView *scrapView = nullptr;
-#endif
     float item_height;
     int item_max;
     int item_index = 0;
@@ -103,9 +90,6 @@ private:
     std::function<void(const MediaFile &)> pickCallback;
     std::string pickPrevPath;
     std::string pickPrevSelection;
-#ifdef PPLAY_ENABLE_SCRAPPING
-    bool scrapping_enabled = false;
-#endif
 };
 
 #endif //NXFILER_FILER_H

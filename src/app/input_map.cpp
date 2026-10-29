@@ -19,8 +19,28 @@ namespace {
         unsigned int button;
     };
 
-#ifndef NO_KEYBOARD
-    // keyboard, read by libcross2d (SDL scancodes)
+#if defined(__LINUX__)
+    const std::vector<Input::ButtonMapping> g_keyboard = {
+            {Input::Button::Up,     SDL_SCANCODE_UP},
+            {Input::Button::Down,   SDL_SCANCODE_DOWN},
+            {Input::Button::Left,   SDL_SCANCODE_LEFT},
+            {Input::Button::Right,  SDL_SCANCODE_RIGHT},
+            {Input::Button::A,      SDL_SCANCODE_RETURN},
+            {Input::Button::A,      SDL_SCANCODE_KP_ENTER},
+            {Input::Button::B,      SDL_SCANCODE_ESCAPE},
+            {Input::Button::B,      SDL_SCANCODE_BACKSPACE},
+            {Input::Button::X,      SDL_SCANCODE_TAB},
+            {Input::Button::X,      SDL_SCANCODE_MENU},
+            {Input::Button::X,      SDL_SCANCODE_APPLICATION},
+            {Input::Button::Y,      SDL_SCANCODE_DELETE},
+            {Input::Button::LB,     SDL_SCANCODE_PAGEUP},
+            {Input::Button::RB,     SDL_SCANCODE_PAGEDOWN},
+            {Input::Button::LT,     SDL_SCANCODE_HOME},
+            {Input::Button::RT,     SDL_SCANCODE_END},
+            {Input::Button::Start,  SDL_SCANCODE_F1},
+            {Input::Button::Select, SDL_SCANCODE_F2},
+    };
+#elif !defined(NO_KEYBOARD)
     const std::vector<Input::ButtonMapping> g_keyboard = {
             {Input::Button::Up,     SDL_SCANCODE_UP},
             {Input::Button::Up,     SDL_SCANCODE_KP_8},
@@ -52,7 +72,9 @@ namespace {
 
     // media and remote keys, handled here (SDL keycodes)
     const std::vector<KeyMap> g_keycodes = {
+#ifndef __LINUX__
             {SDLK_SPACE,            pplay::InputMap::PlayPause},
+#endif
             {SDLK_AUDIOPLAY,        pplay::InputMap::PlayPause},
             {SDLK_AUDIOSTOP,        pplay::InputMap::Stop},
             {SDLK_AUDIONEXT,        pplay::InputMap::Next},
@@ -66,6 +88,7 @@ namespace {
 
     std::mutex g_mutex;
     unsigned int g_pending = 0;
+    bool g_textInput = false;
     c2d::Input *g_input = nullptr;
 
     bool isKeyboardMapped(SDL_Scancode scancode) {
@@ -246,6 +269,9 @@ namespace {
 
     int onEvent(void *, SDL_Event *event) {
         char buf[256];
+        if (g_textInput) {
+            return 1;
+        }
         if (event->type == SDL_KEYDOWN) {
             const SDL_Keycode sym = event->key.keysym.sym;
             const SDL_Scancode scancode = event->key.keysym.scancode;
@@ -350,12 +376,47 @@ namespace pplay::InputMap {
     }
 
     std::string buttonName(unsigned int button) {
+        switch (button) {
+            case Input::Button::Up: return "\u2191";
+            case Input::Button::Down: return "\u2193";
+            case Input::Button::Left: return "\u2190";
+            case Input::Button::Right: return "\u2192";
+            default: break;
+        }
 #if defined(__PS4__) || defined(__PS5__)
         switch (button) {
             case Input::Button::A: return "\u2715";      // cross
             case Input::Button::B: return "\u25CB";      // circle
             case Input::Button::X: return "\u25A1";      // square
             case Input::Button::Y: return "\u25B3";      // triangle
+            case Input::Button::LB: return "L1";
+            case Input::Button::RB: return "R1";
+            case Input::Button::LT: return "L2";
+            case Input::Button::RT: return "R2";
+            case Input::Button::Start: return "Options";
+            default: break;
+        }
+#elif defined(__SWITCH__)
+        switch (button) {
+            case Input::Button::LT: return "ZL";
+            case Input::Button::RT: return "ZR";
+            case Input::Button::Start: return "+";
+            case Input::Button::Select: return "-";
+            default: break;
+        }
+#elif defined(__LINUX__)
+        // the keyboard (see g_keyboard)
+        switch (button) {
+            case Input::Button::A: return "Enter";
+            case Input::Button::B: return "Esc";
+            case Input::Button::X: return "Tab";
+            case Input::Button::Y: return "Del";
+            case Input::Button::LB: return "PgUp";
+            case Input::Button::RB: return "PgDn";
+            case Input::Button::LT: return "Home";
+            case Input::Button::RT: return "End";
+            case Input::Button::Start: return "F1";
+            case Input::Button::Select: return "F2";
             default: break;
         }
 #endif
@@ -364,8 +425,18 @@ namespace pplay::InputMap {
             case Input::Button::B: return "B";
             case Input::Button::X: return "X";
             case Input::Button::Y: return "Y";
+            case Input::Button::LB: return "L";
+            case Input::Button::RB: return "R";
+            case Input::Button::LT: return "LT";
+            case Input::Button::RT: return "RT";
+            case Input::Button::Start: return "Start";
+            case Input::Button::Select: return "Select";
             default: return "?";
         }
+    }
+
+    void setTextInput(bool active) {
+        g_textInput = active;
     }
 
     std::string toString(unsigned int buttons) {

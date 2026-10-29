@@ -35,13 +35,6 @@ namespace pplay {
 
         static std::string getMediaInfoPath(const c2d::Io::File &file);
 
-#ifdef PPLAY_ENABLE_SCRAPPING
-        static std::string getMediaScrapPath(const c2d::Io::File &file);
-
-        static std::string getMediaPosterPath(const c2d::Io::File &file);
-
-        static std::string getMediaBackdropPath(const c2d::Io::File &file);
-#endif
 
         static std::vector<std::string> getMediaExtensions();
 
