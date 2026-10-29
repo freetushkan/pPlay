@@ -136,9 +136,8 @@ pplay::DetailsInfo pplay::DetailsInfo::of(const MediaFile &file) {
         if (ts.filesSize > 0) {
             files += " (" + Utility::formatSize((size_t) ts.filesSize) + ")";
         }
-        // one line, the files part kept together
         if (!ts.category.empty()) {
-            text += tr("Category") + ": " + encoding::fix(ts.category) + "   ";
+            text += line("Category", encoding::fix(ts.category));
         }
         text += noBreak(files) + "\n";
         if (ts.fileIndex >= 0) {
