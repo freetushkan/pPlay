@@ -29,12 +29,22 @@ namespace pplay {
         static Io *get();
 
         enum class DeviceType {
-            Local, Http, Ftp, Smb, TorrServe, WebDav
+            Local,
+            Http,
+            Ftp,
+            Smb,
+            TorrServe,
+            WebDav
         };
 
         // NETWORKx_TYPE
         enum class NetworkType {
-            Auto, TorrServe, Smb, Ftp, Http, WebDav
+            Auto,
+            TorrServe,
+            Smb,
+            Ftp,
+            Http,
+            WebDav
         };
 
         static NetworkType parseNetworkType(const std::string &name);
@@ -48,8 +58,8 @@ namespace pplay {
                                          bool showHidden = false);
 
         // listing without the Io state (lastError): usable from another thread
-        std::vector<Io::File> list(const DeviceType &type, const std::string &path, int timeout,
-                                   std::string *error, bool sort = false, bool showHidden = false);
+        std::vector<Io::File> list(const DeviceType &type, const std::string &path, int timeout, std::string *error,
+                                   bool sort = false, bool showHidden = false);
 
         // type of the network the path belongs to, or from the url scheme
         DeviceType getDeviceType(const std::string &path);
@@ -67,21 +77,15 @@ namespace pplay {
         bool writeText(const std::string &path, const std::string &text);
 
 #ifdef __PS4__
-        std::string getDataPath() override {
-            return "/data/pplay/";
-        }
+        std::string getDataPath() override { return "/data/pplay/"; }
 #endif
 
 #ifdef __PS5__
-        std::string getDataPath() override {
-            return "/data/homebrew/pplay/";
-        }
+        std::string getDataPath() override { return "/data/homebrew/pplay/"; }
 #endif
 
 #ifdef __SWITCH__
-        std::string getDataPath() override {
-            return "/config/pplay/";
-        }
+        std::string getDataPath() override { return "/config/pplay/"; }
 #endif
 
 #ifdef __LINUX__

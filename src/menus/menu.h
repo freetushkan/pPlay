@@ -2,90 +2,21 @@
 // Created by cpasjuste on 20/10/18.
 //
 
-#ifndef PPLAY_OPTION_MENU_H
-#define PPLAY_OPTION_MENU_H
+#ifndef PPLAY_MENU_H
+#define PPLAY_MENU_H
 
-#include "cross2d/skeleton/sfml/RectangleShape.hpp"
+#include "cross2d/c2d.h"
 #include "highlight.h"
+#include "menu_button.h"
 
 class Main;
-
-class MenuItem {
-
-public:
-
-    enum class Position {
-        Top,
-        Bottom
-    };
-
-    MenuItem() = default;
-
-    MenuItem(const std::string &name, const std::string &icon, const Position &position, int id = 0,
-             bool selectable = true, const std::string &data_str = "", bool enabled = true) {
-        this->name = name;
-        this->icon = icon;
-        this->position = position;
-        this->id = id;
-        this->selectable = selectable;
-        this->data_str = data_str;
-        this->enabled = enabled;
-    }
-
-    // label, or the translated name (the menu key)
-    std::string text() const;
-
-    std::string name;
-    std::string label;
-    std::string icon;
-    Position position = Position::Top;
-    int id = 0;
-    bool selectable = true;
-    std::string data_str;
-    bool enabled = true;
-};
-
-class MenuButton : public c2d::Rectangle {
-
-public:
-
-    MenuButton(Main *main, const MenuItem &item, const c2d::FloatRect &rect);
-
-    // after item.name / item.label changes
-    void refreshText();
-
-    void onUpdate() override;
-
-    virtual ~MenuButton();
-
-    MenuItem item;
-    c2d::Texture *icon = nullptr;
-    c2d::Text *name = nullptr;
-    bool selected = false;
-    float maxTextWidth = 0;
-
-private:
-
-    void showStatic();
-
-    void startScroll();
-
-    // the text, clipped at maxTextWidth
-    c2d::Rectangle *clip = nullptr;
-    bool scrollable = false;
-    bool scrolling = false;
-    bool scrollSelected = false;
-    long long scrollStartMs = 0;
-    float scrollCycle = 0;
-    float scrollSpeed = 0;
-};
 
 class Menu : public c2d::RectangleShape {
 
 public:
 
-    explicit Menu(Main *main, const c2d::FloatRect &rect,
-                  const std::string &title, const std::vector<MenuItem> &items, bool left);
+    Menu(Main *main, const c2d::FloatRect &rect, const std::string &title, const std::vector<MenuItem> &items,
+         bool left);
 
     ~Menu() override;
 
@@ -101,6 +32,9 @@ public:
 
     void setItems(const std::vector<MenuItem> &items);
 
+    // smaller texts and items (long lists)
+    void setCompact(bool compact);
+
     void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
 
     void onUpdate() override;
@@ -113,9 +47,7 @@ public:
 
     bool isButtonSelectable(int buttonIndex) const;
 
-    virtual std::vector<MenuButton *> getButtons() {
-        return buttons;
-    }
+    virtual std::vector<MenuButton *> getButtons() { return buttons; }
 
 protected:
 
@@ -131,15 +63,39 @@ protected:
 
     void ensureSelectionVisible();
 
+    // the current value marker (settings, tracks...)
+    void showCurrent(MenuButton *button);
+
+    void hideCurrent();
+
+    float menuTop() const;
+
+    float menuBottom();
+
+    float itemHeight() const;
+
     Main *main;
     c2d::Text *title;
     std::string titleKey;
     std::vector<MenuButton *> buttons;
-    c2d::RectangleShape *menuButton;
     Highlight *highlight;
-    c2d::TweenPosition *tween;
+    Highlight *current;
     float scrollOffset = 0.0f;
     int index = 0;
+
+private:
+
+    int visibleSlots();
+
+    int topButtonCount() const;
+
+    int topIndexOf(int buttonIndex) const;
+
+    bool compact = false;
+    // last move, for the scrolling
+    int moveDirection = 0;
+    bool moveWrapped = false;
+    bool skipEnsure = false;
 };
 
-#endif //PPLAY_OPTION_MENU_H
+#endif //PPLAY_MENU_H

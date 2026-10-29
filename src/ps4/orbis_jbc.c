@@ -9,10 +9,10 @@
 #include <orbis/libkernel.h>
 #include "libjbc/libjbc.h"
 
-#define SYSCALL(nr, fn) __attribute__((naked)) fn \
-{ \
-    asm volatile("mov $" #nr ", %rax\nmov %rcx, %r10\nsyscall\nret"); \
-}
+#define SYSCALL(nr, fn)                                                                                                \
+    __attribute__((naked)) fn {                                                                                        \
+        asm volatile("mov $" #nr ", %rax\nmov %rcx, %r10\nsyscall\nret");                                              \
+    }
 
 SYSCALL(22, static int unmount(const char *path, int flags))
 SYSCALL(378, static int nmount(struct iovec *iov, unsigned int niov, int flags))
@@ -48,7 +48,8 @@ static void build_iovec(struct iovec **iov, int *iovlen, const char *name, const
     *iovlen = ++i;
 }
 
-int mount_large_fs(const char *device, const char *mountpoint, const char *fstype, const char *mode, unsigned int flags) {
+int mount_large_fs(const char *device, const char *mountpoint, const char *fstype, const char *mode,
+                   unsigned int flags) {
     struct iovec *iov = NULL;
     int iovlen = 0;
     int ret;

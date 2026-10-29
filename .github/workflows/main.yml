@@ -408,7 +408,7 @@ jobs:
       - name: Create build environment
         run: |
           apt-get update
-          apt-get install -y build-essential git cmake ninja-build nasm pkg-config patch curl file ca-certificates \
+          apt-get install -y build-essential git cmake ninja-build nasm pkg-config patch curl file zip ca-certificates \
             python3-pip python3-jinja2 \
             zlib1g-dev libbz2-dev liblzma-dev libpng-dev libexpat1-dev libfontconfig-dev \
             libfreetype-dev libbrotli-dev uuid-dev libssl-dev libgl-dev libglm-dev \

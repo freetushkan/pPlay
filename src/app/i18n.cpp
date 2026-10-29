@@ -16,8 +16,12 @@ namespace {
 
     std::string trim(const std::string &s) {
         size_t start = 0, end = s.size();
-        while (start < end && (s[start] == ' ' || s[start] == '\t' || s[start] == '\r')) start++;
-        while (end > start && (s[end - 1] == ' ' || s[end - 1] == '\t' || s[end - 1] == '\r')) end--;
+        while (start < end && (s[start] == ' ' || s[start] == '\t' || s[start] == '\r')) {
+            start++;
+        }
+        while (end > start && (s[end - 1] == ' ' || s[end - 1] == '\t' || s[end - 1] == '\r')) {
+            end--;
+        }
         return s.substr(start, end - start);
     }
 
@@ -28,9 +32,15 @@ namespace {
             if (s[i] == '\\' && i + 1 < s.size()) {
                 char c = s[++i];
                 switch (c) {
-                    case 'n': out += '\n'; break;
-                    case 't': out += '\t'; break;
-                    default: out += c; break;   // "\\", "\=", "\#"
+                    case 'n':
+                        out += '\n';
+                        break;
+                    case 't':
+                        out += '\t';
+                        break;
+                    default:
+                        out += c;
+                        break; // "\\", "\=", "\#"
                 }
             } else {
                 out += s[i];
@@ -41,15 +51,19 @@ namespace {
 
     bool readFile(const std::string &path, std::string &out) {
         FILE *f = fopen(path.c_str(), "rb");
-        if (!f) return false;
+        if (!f) {
+            return false;
+        }
         char buf[4096];
         size_t n;
         out.clear();
-        while ((n = fread(buf, 1, sizeof(buf), f)) > 0) out.append(buf, n);
+        while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+            out.append(buf, n);
+        }
         fclose(f);
         // utf-8 bom
-        if (out.size() >= 3 && (unsigned char) out[0] == 0xEF
-            && (unsigned char) out[1] == 0xBB && (unsigned char) out[2] == 0xBF) {
+        if (out.size() >= 3 && (unsigned char) out[0] == 0xEF && (unsigned char) out[1] == 0xBB
+            && (unsigned char) out[2] == 0xBF) {
             out.erase(0, 3);
         }
         return true;
@@ -58,24 +72,40 @@ namespace {
     // key/value pairs of a .lang file
     bool parse(const std::string &path, std::unordered_map<std::string, std::string> &map) {
         std::string text;
-        if (!readFile(path, text)) return false;
+        if (!readFile(path, text)) {
+            return false;
+        }
         size_t pos = 0;
         while (pos <= text.size()) {
             size_t eol = text.find('\n', pos);
-            if (eol == std::string::npos) eol = text.size();
+            if (eol == std::string::npos) {
+                eol = text.size();
+            }
             std::string line = trim(text.substr(pos, eol - pos));
             pos = eol + 1;
-            if (line.empty() || line[0] == '#' || line[0] == ';') continue;
+            if (line.empty() || line[0] == '#' || line[0] == ';') {
+                continue;
+            }
             // first "=" not escaped
             size_t eq = std::string::npos;
             for (size_t i = 0; i < line.size(); i++) {
-                if (line[i] == '\\') { i++; continue; }
-                if (line[i] == '=') { eq = i; break; }
+                if (line[i] == '\\') {
+                    i++;
+                    continue;
+                }
+                if (line[i] == '=') {
+                    eq = i;
+                    break;
+                }
             }
-            if (eq == std::string::npos) continue;
+            if (eq == std::string::npos) {
+                continue;
+            }
             std::string key = unescape(trim(line.substr(0, eq)));
             std::string value = unescape(trim(line.substr(eq + 1)));
-            if (!key.empty() && !value.empty()) map[key] = value;
+            if (!key.empty() && !value.empty()) {
+                map[key] = value;
+            }
         }
         return true;
     }
@@ -91,9 +121,15 @@ namespace pplay::I18n {
     void setSearchPaths(const std::vector<std::string> &paths) {
         g_paths.clear();
         for (auto path: paths) {
-            if (path.empty()) continue;
-            if (path.back() != '/') path += "/";
-            if (std::find(g_paths.begin(), g_paths.end(), path) == g_paths.end()) g_paths.push_back(path);
+            if (path.empty()) {
+                continue;
+            }
+            if (path.back() != '/') {
+                path += "/";
+            }
+            if (std::find(g_paths.begin(), g_paths.end(), path) == g_paths.end()) {
+                g_paths.push_back(path);
+            }
         }
     }
 
@@ -101,19 +137,28 @@ namespace pplay::I18n {
         std::vector<Language> languages = {{"en", "English"}};
         for (const auto &dir: g_paths) {
             DIR *d = opendir(dir.c_str());
-            if (!d) continue;
+            if (!d) {
+                continue;
+            }
             struct dirent *e;
             while ((e = readdir(d)) != nullptr) {
                 std::string file = e->d_name;
-                if (file.size() <= 5 || file.compare(file.size() - 5, 5, ".lang") != 0) continue;
+                if (file.size() <= 5 || file.compare(file.size() - 5, 5, ".lang") != 0) {
+                    continue;
+                }
                 std::string code = normalizeCode(file.substr(0, file.size() - 5));
                 std::unordered_map<std::string, std::string> map;
-                if (!parse(dir + file, map)) continue;
+                if (!parse(dir + file, map)) {
+                    continue;
+                }
                 std::string name = map.count("@name") ? map["@name"] : code;
                 auto it = std::find_if(languages.begin(), languages.end(),
                                        [&code](const Language &l) { return l.code == code; });
-                if (it == languages.end()) languages.push_back({code, name});
-                else it->name = name;
+                if (it == languages.end()) {
+                    languages.push_back({code, name});
+                } else {
+                    it->name = name;
+                }
             }
             closedir(d);
         }
@@ -133,7 +178,9 @@ namespace pplay::I18n {
         for (const auto &dir: g_paths) {
             found |= parse(dir + code + ".lang", g_strings);
         }
-        if (found) g_current = code;
+        if (found) {
+            g_current = code;
+        }
         return found;
     }
 
@@ -142,7 +189,9 @@ namespace pplay::I18n {
     }
 
     const std::string &tr(const std::string &text) {
-        if (g_strings.empty() || text.empty()) return text;
+        if (g_strings.empty() || text.empty()) {
+            return text;
+        }
         auto it = g_strings.find(text);
         return it != g_strings.end() ? it->second : text;
     }

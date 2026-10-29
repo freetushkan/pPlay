@@ -14,13 +14,17 @@ static const char *networkOptionName(int index, const char *suffix) {
     static std::vector<std::string> names[4];
     static const char *suffixes[4] = {"", "_LAST", "_NAME", "_TYPE"};
     int s = 0;
-    while (s < 3 && strcmp(suffixes[s], suffix) != 0) s++;
+    while (s < 3 && strcmp(suffixes[s], suffix) != 0) {
+        s++;
+    }
     if (names[s].empty()) {
         for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
             names[s].push_back("NETWORK" + std::to_string(i) + suffixes[s]);
         }
     }
-    if (index < 1 || index > PPLAY_MAX_NETWORKS) index = 1;
+    if (index < 1 || index > PPLAY_MAX_NETWORKS) {
+        index = 1;
+    }
     return names[s][index - 1].c_str();
 }
 
@@ -54,7 +58,7 @@ static bool migrateTorrServeUrl(std::string &url) {
 }
 
 PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
-        : Config("PPLAY", _io->getDataPath() + "pplay.cfg", version), io(_io) {
+    : Config("PPLAY", _io->getDataPath() + "pplay.cfg", version), io(_io) {
 
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
         addOption({networkOption(i), ""});
@@ -167,7 +171,6 @@ void PPLAYConfig::sanitize() {
     clamp(OPT_CACHE_SECS, 10, 600);
     clamp(OPT_CACHE_MB, 50, CACHE_MB_MAX);
     clamp(OPT_VIDEO_QUALITY, 0, 2);
-
 
     if (!pplay::Utility::isValidHexColor(getOption(OPT_ACCENT_COLOR)->getString())) {
         getOption(OPT_ACCENT_COLOR)->setString("#1078C8");

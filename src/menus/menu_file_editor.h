@@ -42,7 +42,7 @@ private:
     // Linux: the desktop text editor (xdg-open), the file applied when saved
     void openExternal();
 
-    std::string currentFile;      // "" when the files list is shown
+    std::string currentFile; // "" when the files list is shown
     std::vector<std::string> lines;
     std::string externalFile;
     long long externalTime = -1;

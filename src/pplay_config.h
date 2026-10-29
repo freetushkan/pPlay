@@ -11,44 +11,44 @@
 #include "cross2d/skeleton/config.h"
 
 // NETWORKx, NETWORKx_LAST, NETWORKx_NAME, NETWORKx_TYPE
-#define PPLAY_MAX_NETWORKS      9
-#define OPT_NETWORK             "NETWORK1"
-#define OPT_NETWORK1            "NETWORK1"
-#define OPT_HOME_PATH           "HOME_PATH"
-#define OPT_LAST_LOCAL_PATH     "LAST_LOCAL_PATH"
-#define OPT_LAST_NETWORK_PATH   "NETWORK1_LAST"
-#define OPT_LAST_MODULE         "LAST_MODULE"
-#define OPT_NETWORK_TIMEOUT     "NETWORK_TIMEOUT"
-#define OPT_NETWORK_RETRIES     "NETWORK_RETRIES"
+#define PPLAY_MAX_NETWORKS 9
+#define OPT_NETWORK "NETWORK1"
+#define OPT_NETWORK1 "NETWORK1"
+#define OPT_HOME_PATH "HOME_PATH"
+#define OPT_LAST_LOCAL_PATH "LAST_LOCAL_PATH"
+#define OPT_LAST_NETWORK_PATH "NETWORK1_LAST"
+#define OPT_LAST_MODULE "LAST_MODULE"
+#define OPT_NETWORK_TIMEOUT "NETWORK_TIMEOUT"
+#define OPT_NETWORK_RETRIES "NETWORK_RETRIES"
 #ifdef __SMB2__
-#define OPT_SMB_READ_BUFFER_MB  "SMB_READ_BUFFER_MB"
+#define OPT_SMB_READ_BUFFER_MB "SMB_READ_BUFFER_MB"
 #endif
-#define OPT_AUTOPLAY_MODE       "AUTOPLAY_MODE"
-#define OPT_LOG_LEVEL           "LOG_LEVEL"
-#define OPT_SWAP_CONTROLS       "SWAP_CONTROLS"
-#define OPT_SEEK_SHORT_SEC      "SEEK_SHORT_SEC"
-#define OPT_SEEK_LONG_SEC       "SEEK_LONG_SEC"
-#define OPT_CPU_BOOST           "CPU_BOOST"
-#define OPT_ACCENT_COLOR        "ACCENT_COLOR"
-#define OPT_LANGUAGE            "LANGUAGE"
+#define OPT_AUTOPLAY_MODE "AUTOPLAY_MODE"
+#define OPT_LOG_LEVEL "LOG_LEVEL"
+#define OPT_SWAP_CONTROLS "SWAP_CONTROLS"
+#define OPT_SEEK_SHORT_SEC "SEEK_SHORT_SEC"
+#define OPT_SEEK_LONG_SEC "SEEK_LONG_SEC"
+#define OPT_CPU_BOOST "CPU_BOOST"
+#define OPT_ACCENT_COLOR "ACCENT_COLOR"
+#define OPT_LANGUAGE "LANGUAGE"
 // preferred track languages: mpv alang / slang list, "Auto" / "Off" (mpv.conf)
-#define OPT_AUDIO_LANGUAGE      "AUDIO_LANGUAGE"
-#define OPT_SUB_LANGUAGE        "SUB_LANGUAGE"
+#define OPT_AUDIO_LANGUAGE "AUDIO_LANGUAGE"
+#define OPT_SUB_LANGUAGE "SUB_LANGUAGE"
 // external audio / subtitles files found next to the video
-#define OPT_EXTERNAL_TRACKS     "EXTERNAL_TRACKS"
+#define OPT_EXTERNAL_TRACKS "EXTERNAL_TRACKS"
 // 0 off, 1 normalize, 2 night mode (dialogue up, no LFE, compressed)
-#define OPT_AUDIO_NORMALIZE     "AUDIO_NORMALIZE"
+#define OPT_AUDIO_NORMALIZE "AUDIO_NORMALIZE"
 // last volume (-1: mpv.conf)
-#define OPT_VOLUME              "VOLUME"
+#define OPT_VOLUME "VOLUME"
 // network cache: read ahead (seconds), memory (MB)
-#define OPT_CACHE_SECS          "CACHE_SECS"
-#define OPT_CACHE_MB            "CACHE_MB"
+#define OPT_CACHE_SECS "CACHE_SECS"
+#define OPT_CACHE_MB "CACHE_MB"
 // 0 best (mpv.conf), 1 balanced, 2 fast (see Mpv::setQualityPreset)
-#define OPT_VIDEO_QUALITY       "VIDEO_QUALITY"
+#define OPT_VIDEO_QUALITY "VIDEO_QUALITY"
 #ifdef __SWITCH__
-#define CACHE_MB_MAX            500
+#define CACHE_MB_MAX 500
 #else
-#define CACHE_MB_MAX            1000
+#define CACHE_MB_MAX 1000
 #endif
 
 namespace pplay {
@@ -63,7 +63,6 @@ public:
 
     // re-read the file, false on a parse error
     bool reload();
-
 
     static const char *networkOption(int index);
     static const char *networkLastOption(int index);

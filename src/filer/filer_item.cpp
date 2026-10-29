@@ -20,8 +20,8 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
     main = m;
     file = f;
 
-    textTitle = new Text(file.name.empty() ? "AjIilp" : file.name,
-            main->getFontSize(Main::FontSize::Bigger), main->getFont());
+    textTitle = new Text(file.name.empty() ? "AjIilp" : file.name, main->getFontSize(Main::FontSize::Bigger),
+                         main->getFont());
     textTitle->setOrigin(Origin::Left);
     textTitle->setPosition(16, FilerItem::getSize().y / 2);
     textTitle->setSizeMax(FilerItem::getSize().x - 64, 0);
@@ -31,9 +31,8 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
 void FilerItem::setFile(const MediaFile &f) {
 
     this->file = f;
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "FilerItem::setFile name=" + file.name + " path=" + file.path
-        + " type=" + std::to_string((int) file.type));
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "FilerItem::setFile name=" + file.name + " path=" + file.path
+                                                                 + " type=" + std::to_string((int) file.type));
 
     if (Filer::isPlaceholder(file)) {
         textTitle->setString(pplay::tr("<Empty>"));
@@ -42,32 +41,20 @@ void FilerItem::setFile(const MediaFile &f) {
     } else if (file.name == "..") {
         textTitle->setString("◀ " + pplay::tr("BACK"));
     } else {
-        const bool playing = file.type == Io::Type::File && main->getPlayer() != nullptr
-                             && main->getPlayer()->isPlaying(file.path);
+        const bool playing =
+                file.type == Io::Type::File && main->getPlayer() != nullptr && main->getPlayer()->isPlaying(file.path);
         textTitle->setString((playing ? "▶ " : "") + encoding::fix(file.name));
     }
     uint8_t alpha = textTitle->getAlpha();
     if (file.type == Io::Type::File) {
         const std::string streamUrl = pplay::TorrServe::toStreamUrl(file.path);
-        const bool isWatched = pplay::Utility::isWatchLaterExist(streamUrl) 
-                            || pplay::TorrServe::isFileViewed(file.path);
+        const bool isWatched =
+                pplay::Utility::isWatchLaterExist(streamUrl) || pplay::TorrServe::isFileViewed(file.path);
         textTitle->setFillColor(isWatched ? COLOR_VIEWED : COLOR_FONT);
     } else if (file.type == Io::Type::Directory) {
         textTitle->setFillColor(COLOR_ACCENT);
     }
     textTitle->setAlpha(alpha);
-}
-
-void FilerItem::setWidth(float width) {
-    setSize(width, getSize().y);
-    textTitle->setSizeMax(width - 64, 0);
-}
-
-void FilerItem::setTitle(const std::string &title) {
-
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "FilerItem::setTitle title=" + title);
-    textTitle->setString(title);
 }
 
 void FilerItem::onUpdate() {
@@ -77,8 +64,8 @@ void FilerItem::onUpdate() {
     if (updateClock.getElapsedTime().asSeconds() > 30.0f || fullscreenExited) {
         if (file.type == Io::Type::File && !isFullscreen) {
             const std::string streamUrl = pplay::TorrServe::toStreamUrl(file.path);
-            const bool isWatched = pplay::Utility::isWatchLaterExist(streamUrl) 
-                                || pplay::TorrServe::isFileViewed(file.path);
+            const bool isWatched =
+                    pplay::Utility::isWatchLaterExist(streamUrl) || pplay::TorrServe::isFileViewed(file.path);
             Color targetColor = isWatched ? COLOR_VIEWED : COLOR_FONT;
             textTitle->setFillColor(targetColor);
         }

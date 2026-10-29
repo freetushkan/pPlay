@@ -9,8 +9,7 @@
 using namespace c2d;
 
 MenuMainOptions::MenuMainOptions(Main *main, const c2d::FloatRect &rect, const std::vector<MenuItem> &items)
-        : Menu(main, rect, "Settings", items, true) {
-}
+    : Menu(main, rect, "Settings", items, true) {}
 
 void MenuMainOptions::onOptionSelection(MenuItem *item) {
     if (item->name == "Edit files") {

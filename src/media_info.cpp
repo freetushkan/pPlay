@@ -38,17 +38,14 @@ bool MediaInfo::serialize() {
     size = title.size();
     fs.write((char *) &size, sizeof(size_t));
     fs.write((char *) title.c_str(), size);
-    //printf("Media::serialize: title = %s\n", title.c_str());
 
     // path
     size = path.size();
     fs.write((char *) &size, sizeof(size_t));
     fs.write((char *) path.c_str(), size);
-    //printf("Media::serialize: path = %s\n", path.c_str());
 
     // duration
     fs.write((char *) &duration, sizeof(duration));
-    //printf("Media::serialize: duration = %li\n", duration);
 
     // bit rate
     fs.write((char *) &bit_rate, sizeof(bit_rate));
@@ -62,8 +59,7 @@ bool MediaInfo::serialize() {
     // video streams
     count = (int) videos.size();
     fs.write((char *) &count, sizeof(count));
-    //printf("Media::serialize: video streams = %i\n", count);
-    for (auto &stream : videos) {
+    for (auto &stream: videos) {
         // id
         fs.write((char *) &stream.id, sizeof(stream.id));
         // type
@@ -92,8 +88,7 @@ bool MediaInfo::serialize() {
     // audio streams
     count = (int) audios.size();
     fs.write((char *) &count, sizeof(count));
-    //printf("Media::serialize: audio streams = %i\n", count);
-    for (auto &stream : audios) {
+    for (auto &stream: audios) {
         // id
         fs.write((char *) &stream.id, sizeof(stream.id));
         // type
@@ -120,8 +115,7 @@ bool MediaInfo::serialize() {
     // subtitles streams
     count = (int) subtitles.size();
     fs.write((char *) &count, sizeof(count));
-    //printf("Media::serialize: subtitle streams = %i\n", count);
-    for (auto &stream : subtitles) {
+    for (auto &stream: subtitles) {
         // id
         fs.write((char *) &stream.id, sizeof(stream.id));
         // type
@@ -166,7 +160,6 @@ bool MediaInfo::deserialize() {
     data[size] = '\0';
     title = data;
     delete[] data;
-    //printf("Media::deserialize: title = %s\n", title.c_str());
 
     // path
     fs.read((char *) &size, sizeof(size));
@@ -175,11 +168,9 @@ bool MediaInfo::deserialize() {
     data[size] = '\0';
     path = data;
     delete[] data;
-    //printf("Media::deserialize: path = %s\n", path.c_str());
 
     // duration
     fs.read((char *) &duration, sizeof(duration));
-    //printf("Media::deserialize: duration = %li\n", duration);
 
     // bit rate
     fs.read((char *) &bit_rate, sizeof(bit_rate));
@@ -193,7 +184,6 @@ bool MediaInfo::deserialize() {
     // video streams
     videos.clear();
     fs.read((char *) &count, sizeof(count));
-    //printf("Media::deserialize: video streams = %i\n", count);
     for (int i = 0; i < count; i++) {
         Track stream{};
         // id
@@ -237,7 +227,6 @@ bool MediaInfo::deserialize() {
     // audio streams
     audios.clear();
     fs.read((char *) &count, sizeof(count));
-    //printf("Media::deserialize: audio streams = %i\n", count);
     for (int i = 0; i < count; i++) {
         Track stream{};
         // id
@@ -279,7 +268,6 @@ bool MediaInfo::deserialize() {
     // subtitles streams
     subtitles.clear();
     fs.read((char *) &count, sizeof(count));
-    //printf("Media::deserialize: subtitle streams = %i\n", count);
     for (int i = 0; i < count; i++) {
         Track stream{};
         // id
@@ -318,28 +306,4 @@ bool MediaInfo::deserialize() {
     fs.close();
 
     return true;
-}
-
-void MediaInfo::debut_print() {
-    printf("============= MEDIA ===============\n");
-    printf("title: %s, duration: %s\n", title.c_str(), pplay::Utility::formatTimeShort(duration).c_str());
-    printf("\tvideo streams: %i\n", (int) videos.size());
-    for (auto &stream : videos) {
-        printf("\t\tlanguage: %s, title: %s, resolution: %ix%i, codec: %s @ %i kb/s\n",
-               stream.language.c_str(), stream.title.c_str(),
-               stream.width, stream.height, stream.codec.c_str(), stream.bit_rate / 1000);
-    }
-    printf("\taudio streams: %i\n", (int) audios.size());
-    for (auto &stream : audios) {
-        printf("\t\tlanguage: %s, title: %s, codec: %s @ %i hz\n",
-               stream.language.c_str(), stream.title.c_str(),
-               stream.codec.c_str(), stream.bit_rate);
-    }
-    printf("\tsubtitle streams: %i\n", (int) subtitles.size());
-    for (auto &stream : subtitles) {
-        printf("\t\tlanguage: %s, title: %s, codec: %s\n",
-               stream.language.c_str(), stream.title.c_str(),
-               stream.codec.c_str());
-    }
-    printf("===================================\n");
 }

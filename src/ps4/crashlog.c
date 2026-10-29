@@ -8,102 +8,94 @@
 
 #include <orbis/libkernel.h>
 
-#define MAX_MESSAGE_SIZE    0x1000
-#define MAX_STACK_FRAMES    32
+#define MAX_MESSAGE_SIZE 0x1000
+#define MAX_STACK_FRAMES 32
 
 /**
  * A callframe captures the stack and program pointer of a
  * frame in the call path.
  **/
-typedef struct  {
-  void *sp;
-  void *pc;
+typedef struct {
+    void *sp;
+    void *pc;
 } callframe_t;
-
 
 /**
  * Log a backtrace to /dev/klog and /data/pplay/crash.log
  **/
 
 static void append_file_log(const char *text) {
-  int fd = open("/data/pplay/crash.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
-  if (fd < 0) {
-    return;
-  }
-  if (text) {
-    write(fd, text, strlen(text));
-  }
-  close(fd);
+    int fd = open("/data/pplay/crash.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (fd < 0) {
+        return;
+    }
+    if (text) {
+        write(fd, text, strlen(text));
+    }
+    close(fd);
 }
 
-static void
-backtrace(const char* reason) {
-  char addr2line[MAX_STACK_FRAMES * 20];
-  callframe_t frames[MAX_STACK_FRAMES];
-  OrbisKernelVirtualQueryInfo info;
-  char buf[MAX_MESSAGE_SIZE + 3];
-  unsigned int nb_frames = 0;
-  char temp[80];
+static void backtrace(const char *reason) {
+    char addr2line[MAX_STACK_FRAMES * 20];
+    callframe_t frames[MAX_STACK_FRAMES];
+    OrbisKernelVirtualQueryInfo info;
+    char buf[MAX_MESSAGE_SIZE + 3];
+    unsigned int nb_frames = 0;
+    char temp[80];
 
-  memset(addr2line, 0, sizeof addr2line);
-  memset(frames, 0, sizeof frames);
-  memset(buf, 0, sizeof buf);
+    memset(addr2line, 0, sizeof addr2line);
+    memset(frames, 0, sizeof frames);
+    memset(buf, 0, sizeof buf);
 
-  snprintf(buf, sizeof buf, "<118>[Crashlog]: %s\n", reason);
-  
-  strncat(buf, "<118>[Crashlog]: Backtrace:\n", MAX_MESSAGE_SIZE);
-  sceKernelBacktraceSelf(frames, sizeof frames, &nb_frames, 0);
-  for(unsigned int i=0; i<nb_frames; i++) {
-    memset(&info, 0, sizeof info);
-    sceKernelVirtualQuery(frames[i].pc, 0, &info, sizeof info);
+    snprintf(buf, sizeof buf, "<118>[Crashlog]: %s\n", reason);
 
-    snprintf(temp, sizeof temp,
-	     "<118>[Crashlog]:   #%02d %32s: 0x%lx\n",
-	     i + 1, info.name, frames[i].pc - info.unk01 - 1);
-    strncat(buf, temp, MAX_MESSAGE_SIZE);
-    
-    snprintf(temp, sizeof temp,
-	     "0x%lx ", frames[i].pc - info.unk01 - 1);
-    strncat(addr2line, temp, sizeof addr2line - 1);
-  }
+    strncat(buf, "<118>[Crashlog]: Backtrace:\n", MAX_MESSAGE_SIZE);
+    sceKernelBacktraceSelf(frames, sizeof frames, &nb_frames, 0);
+    for (unsigned int i = 0; i < nb_frames; i++) {
+        memset(&info, 0, sizeof info);
+        sceKernelVirtualQuery(frames[i].pc, 0, &info, sizeof info);
 
-  strncat(buf, "<118>[Crashlog]: addr2line: ", MAX_MESSAGE_SIZE);
-  strncat(buf, addr2line, MAX_MESSAGE_SIZE);
-  strncat(buf, "\n", MAX_MESSAGE_SIZE);
+        snprintf(temp, sizeof temp, "<118>[Crashlog]:   #%02d %32s: 0x%lx\n", i + 1, info.name,
+                 frames[i].pc - info.unk01 - 1);
+        strncat(buf, temp, MAX_MESSAGE_SIZE);
 
-  buf[MAX_MESSAGE_SIZE+1] = '\n';
-  buf[MAX_MESSAGE_SIZE+2] = '\0';
-  
-  sceKernelDebugOutText(0, buf);
-  append_file_log(buf);
+        snprintf(temp, sizeof temp, "0x%lx ", frames[i].pc - info.unk01 - 1);
+        strncat(addr2line, temp, sizeof addr2line - 1);
+    }
+
+    strncat(buf, "<118>[Crashlog]: addr2line: ", MAX_MESSAGE_SIZE);
+    strncat(buf, addr2line, MAX_MESSAGE_SIZE);
+    strncat(buf, "\n", MAX_MESSAGE_SIZE);
+
+    buf[MAX_MESSAGE_SIZE + 1] = '\n';
+    buf[MAX_MESSAGE_SIZE + 2] = '\0';
+
+    sceKernelDebugOutText(0, buf);
+    append_file_log(buf);
 }
-
 
 /**
  * Log fatal signals to kernel log.
  **/
-static void
-fatal_signal(int sig) {
-  char reason[64];
+static void fatal_signal(int sig) {
+    char reason[64];
 
-  snprintf(reason, sizeof(reason), "Received the fatal POSIX signal %d", sig);
-  backtrace(reason);
-  _exit(1);
+    snprintf(reason, sizeof(reason), "Received the fatal POSIX signal %d", sig);
+    backtrace(reason);
+    _exit(1);
 }
-
 
 /**
  * Register handlers for fatal signals.
  **/
-static void __attribute__((constructor))
-init_signal(void) {
-  // FreeBSD signal numbers
-  signal(4, fatal_signal);  // SIGILL
-  signal(5, fatal_signal);  // SIGTRAP
-  signal(6, fatal_signal);  // SIGABRT
-  signal(8, fatal_signal);  // SIGFPE
-  signal(10, fatal_signal); // SIGBUS
-  signal(11, fatal_signal); // SIGSEGV
-  signal(12, fatal_signal); // SIGSYS
+static void __attribute__((constructor)) init_signal(void) {
+    // FreeBSD signal numbers
+    signal(4, fatal_signal);  // SIGILL
+    signal(5, fatal_signal);  // SIGTRAP
+    signal(6, fatal_signal);  // SIGABRT
+    signal(8, fatal_signal);  // SIGFPE
+    signal(10, fatal_signal); // SIGBUS
+    signal(11, fatal_signal); // SIGSEGV
+    signal(12, fatal_signal); // SIGSYS
 }
 #endif

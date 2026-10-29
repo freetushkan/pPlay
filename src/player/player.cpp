@@ -22,8 +22,6 @@
 #include "io.h"
 #include "menu_video_submenu.h"
 
-// appliedAudioFilter of a new file: a @pplaynorm filter may be there (old watch_later)
-#define AUDIO_FILTER_UNKNOWN "?"
 #ifdef __SMB2__
 #include "smb.h"
 #endif
@@ -45,13 +43,6 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
 
     Player::setVisibility(Visibility::Hidden);
 
-#ifdef __SMB2__
-    configure_smb_mpv(
-        main->getConfig()->getOption(OPT_SMB_READ_BUFFER_MB)->getInteger(),
-        main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger()
-    );
-#endif
-
     mpv = new Mpv(main->getIo()->getDataPath() + "mpv", true);
     if (mpv->isAvailable()) {
         // mpv.conf languages, used when the settings ones are not set
@@ -67,15 +58,9 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
         }
     }
 
-#ifndef FULL_TEXTURE_TEST
     texture = new VideoTexture(main, pos);
     texture->setOutlineColor(COLOR_ACCENT);
     texture->setOutlineThickness(4);
-#else
-    texture = new VideoTexture(main, {64, 64});
-    texture->setOrigin(Origin::Center);
-    texture->setPosition(Vector2f(Player::getSize().x / 2, Player::getSize().y / 2));
-#endif
     Player::add(texture);
 
     osd = new PlayerOSD(main);
@@ -130,8 +115,7 @@ void Player::showMessage(const std::string &message) {
     messageClock.restart();
 }
 
-// path as given to mpv, comparable
-static std::string playingKeyOf(const std::string &path) {
+std::string Player::keyOf(const std::string &path) {
     std::string key = pplay::TorrServe::toStreamUrl(pplay::Paths::normalizeSmbPathSeparators(path));
     std::replace(key.begin(), key.end(), '\\', '/');
     while (key.size() > 1 && key.back() == '/') {
@@ -140,12 +124,8 @@ static std::string playingKeyOf(const std::string &path) {
     return key;
 }
 
-std::string Player::keyOf(const std::string &path) {
-    return playingKeyOf(path);
-}
-
 bool Player::isPlaying(const std::string &path) {
-    return !playingKey.empty() && !path.empty() && playingKeyOf(path) == playingKey;
+    return !playingKey.empty() && !path.empty() && keyOf(path) == playingKey;
 }
 
 void Player::forgetProgress() {
@@ -186,11 +166,9 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     lastKnownDuration = 0;
     lastKnownPosition = 0;
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "Player::load path=" + encoding::fix(file.path)
-        + " name=" + encoding::fix(file.name)
-        + " type=" + std::to_string((int) file.type)
-        + " firstTry=" + std::to_string(firstTry ? 1 : 0)
-        + " retryCount=" + std::to_string(retryCount));
+                        "Player::load path=" + encoding::fix(file.path) + " name=" + encoding::fix(file.name) + " type="
+                                + std::to_string((int) file.type) + " firstTry=" + std::to_string(firstTry ? 1 : 0)
+                                + " retryCount=" + std::to_string(retryCount));
     std::string path = pplay::TorrServe::toStreamUrl(file.path);
 #ifdef __SMB2__
     if (Utility::startWith(path, "smb://")) {
@@ -203,8 +181,7 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     // waits for the 401 answer otherwise, a request more on each open / seek, or fails
     // when the server sends no challenge). Not set for all: an empty "Basic" header then.
     size_t scheme = path.find("://");
-    if (scheme != std::string::npos
-        && (Utility::startWith(path, "http://") || Utility::startWith(path, "https://"))) {
+    if (scheme != std::string::npos && (Utility::startWith(path, "http://") || Utility::startWith(path, "https://"))) {
         size_t hostEnd = path.find_first_of("/?#", scheme + 3);
         size_t at = path.find('@', scheme + 3);
         if (at != std::string::npos && (hostEnd == std::string::npos || at < hostEnd)) {
@@ -227,18 +204,13 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     externalSelect[1].clear();
     hadWatchLater = pplay::Utility::isWatchLaterExist(path);
 
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "Player::load effective_url=" + path + " options=" + opts);
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Player::load effective_url=" + path + " options=" + opts);
     int res = mpv->load(path, Mpv::LoadType::Replace, opts);
     if (res != 0) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Error,
-            "Player::load error code=" + std::to_string(res)
-            + " msg=" + std::string(mpv_error_string(res))
-            + " opts=" + opts
-            + " try=" + std::to_string(retryCount));
-        main->getStatus()->show("Error...", "Could not play file: "
-            + std::string(mpv_error_string(res)));
-        printf("Player::load: could not play file: %s\n", mpv_error_string(res));
+        pplay::Utility::log(pplay::Utility::LogLevel::Error, "Player::load error code=" + std::to_string(res) + " msg="
+                                                                     + std::string(mpv_error_string(res)) + " opts="
+                                                                     + opts + " try=" + std::to_string(retryCount));
+        main->getStatus()->show("Error...", "Could not play file: " + std::string(mpv_error_string(res)));
         return false;
     }
 
@@ -253,79 +225,7 @@ void Player::onLoadEvent() {
     file.mediaInfo = mpv->getMediaInfo(file);
     file.mediaInfo.save(file);
 
-    // build video track selection menu
-    if (!file.mediaInfo.videos.empty()) {
-        // videos menu options
-        std::vector<MenuItem> items;
-        for (auto &stream: file.mediaInfo.videos) {
-            items.emplace_back(stream.title + "\n" + stream.language + " " + stream.codec + " "
-                               + std::to_string(stream.width) + "x" + std::to_string(stream.height),
-                               "", MenuItem::Position::Top, stream.id);
-        }
-        menuVideoStreams = new MenuVideoSubmenu(
-                main, main->getMenuVideo()->getGlobalBounds(), "Video", items, MENU_VIDEO_TYPE_VID);
-        menuVideoStreams->setVisibility(Visibility::Hidden, false);
-        menuVideoStreams->setLayer(3);
-        add(menuVideoStreams);
-    }
-
-    buildTrackMenus();
-
-    std::vector<MenuItem> playlistItems;
-    if (isPlaylistFile()) {
-        for (auto &entry: mpv->getPlaylistItems()) {
-            std::string name = std::to_string(entry.first + 1) + ". " + entry.second;
-            playlistItems.emplace_back(name, "", MenuItem::Position::Top, entry.first);
-        }
-    } else {
-        for (size_t i = 0; i < autoplayFiles.size(); i++) {
-            auto &item = autoplayFiles[i];
-            if (!pplay::Utility::isMedia(item)) continue;
-            std::string name = std::to_string(i + 1) + ". " + encoding::fix(item.name);
-            playlistItems.emplace_back(name, "", MenuItem::Position::Top, (int)i, true, item.name);
-        }
-    }
-    if (!playlistItems.empty()) {
-        menuPlaylist = new MenuVideoSubmenu(
-            main, main->getMenuVideo()->getGlobalBounds(), "Playlist", playlistItems, MENU_VIDEO_TYPE_PLAYLIST);
-        menuPlaylist->setVisibility(Visibility::Hidden, false);
-        menuPlaylist->setLayer(3);
-        add(menuPlaylist);
-    }
-
-    if (menuNormalize == nullptr) {
-        menuNormalize = new MenuVideoSubmenu(
-                main, main->getMenuVideo()->getGlobalBounds(), "Volume normalization",
-                {MenuItem("Off", "", MenuItem::Position::Top, 0),
-                 MenuItem("Normalize", "", MenuItem::Position::Top, 1),
-                 MenuItem("Night mode", "", MenuItem::Position::Top, 2)},
-                MENU_VIDEO_TYPE_NORMALIZE);
-        menuNormalize->setLayer(3);
-        menuNormalize->setVisibility(Visibility::Hidden, false);
-        add(menuNormalize);
-    }
-
-    if (menuPlaybackMode == nullptr) {
-        menuPlaybackMode = new MenuVideoSubmenu(
-            main, main->getMenuVideo()->getGlobalBounds(), "At playback end..",
-            {MenuItem("Stop", "", MenuItem::Position::Top, 0),
-             MenuItem("Play next", "", MenuItem::Position::Top, 1),
-             MenuItem("Loop file", "", MenuItem::Position::Top, 2),
-             MenuItem("Loop directory", "", MenuItem::Position::Top, 3)},
-            MENU_VIDEO_TYPE_PL_MODE);
-        menuPlaybackMode->setLayer(3);
-        menuPlaybackMode->setVisibility(Visibility::Hidden, false);
-        add(menuPlaybackMode);
-    }
-
-#ifdef FULL_TEXTURE_TEST
-    texture->resize({file.mediaInfo.videos.at(0).width,
-                     file.mediaInfo.videos.at(0).height});
-    float scaling = std::min(
-            getSize().x / texture->getSize().x,
-            getSize().y / texture->getSize().y);
-    texture->setScale(scaling, scaling);
-#endif
+    buildMenus();
 
     mpv->restoreVolume();
     mpv->restoreSpeed();
@@ -339,634 +239,6 @@ void Player::onLoadEvent() {
     startExternalTracks();
     if (externalPending == 0) {
         selectAudioIfNone();
-    }
-}
-
-void Player::buildTrackMenus() {
-    bool audioVisible = menuAudioStreams != nullptr && menuAudioStreams->isVisible();
-    bool subtitlesVisible = menuSubtitlesStreams != nullptr && menuSubtitlesStreams->isVisible();
-    if (menuAudioStreams != nullptr) {
-        delete (menuAudioStreams);
-        menuAudioStreams = nullptr;
-    }
-    if (menuSubtitlesStreams != nullptr) {
-        delete (menuSubtitlesStreams);
-        menuSubtitlesStreams = nullptr;
-    }
-
-    // audio: the tracks, then a file to add
-    if (!file.mediaInfo.audios.empty() || hasVideo()) {
-        std::vector<MenuItem> items;
-        for (auto &stream: file.mediaInfo.audios) {
-            items.emplace_back(stream.title + "\n" + stream.language + " "
-                               + stream.codec + " " + std::to_string(stream.channels) + "ch "
-                               + std::to_string(stream.sample_rate / 1000) + " Khz",
-                               "", MenuItem::Position::Top, stream.id);
-        }
-        items.emplace_back("Add file...", "", MenuItem::Position::Top, MENU_TRACK_ADD);
-        menuAudioStreams = new MenuVideoSubmenu(
-                main, main->getMenuVideo()->getGlobalBounds(), "Audio", items, MENU_VIDEO_TYPE_AUD);
-        menuAudioStreams->setVisibility(audioVisible ? Visibility::Visible : Visibility::Hidden, false);
-        menuAudioStreams->setLayer(3);
-        add(menuAudioStreams);
-    }
-
-    // subtitles: none, the tracks, then a file to add
-    if (!file.mediaInfo.subtitles.empty() || hasVideo()) {
-        std::vector<MenuItem> items;
-        items.emplace_back("None", "", MenuItem::Position::Top, -1);
-        for (auto &stream: file.mediaInfo.subtitles) {
-            items.emplace_back(stream.title + "\nLang: " + stream.language, "", MenuItem::Position::Top, stream.id);
-        }
-        items.emplace_back("Add file...", "", MenuItem::Position::Top, MENU_TRACK_ADD);
-        menuSubtitlesStreams = new MenuVideoSubmenu(
-                main, main->getMenuVideo()->getGlobalBounds(), "Subtitles", items, MENU_VIDEO_TYPE_SUB);
-        menuSubtitlesStreams->setVisibility(subtitlesVisible ? Visibility::Visible : Visibility::Hidden, false);
-        menuSubtitlesStreams->setLayer(3);
-        add(menuSubtitlesStreams);
-    }
-}
-
-void Player::applyLanguages() {
-    if (!mpv->isAvailable()) {
-        return;
-    }
-    auto preferred = [this](const char *option, const std::string &fallback) {
-        std::string value = main->getConfig()->getOption(option)->getString();
-        return value.empty() || value == "Auto" || value == "Off" ? fallback : value;
-    };
-    // only on change: mpv may select the tracks again
-    std::string alang = preferred(OPT_AUDIO_LANGUAGE, confAudioLang);
-    std::string slang = preferred(OPT_SUB_LANGUAGE, confSubLang);
-    if (alang != appliedAudioLang) {
-        appliedAudioLang = alang;
-        mpv_set_property_string(mpv->getHandle(), "alang", alang.c_str());
-    }
-    if (slang != appliedSubLang) {
-        appliedSubLang = slang;
-        mpv_set_property_string(mpv->getHandle(), "slang", slang.c_str());
-    }
-}
-
-#define EXTERNAL_REPLY 0x4558540000000000ULL
-
-void Player::startExternalTracks() {
-    // the user bindings first (remembered selection), then the files found
-    externalBindings = pplay::ExternalTracks::load(playingKey);
-    for (auto &track: externalBindings) {
-        if (track.selected) {
-            externalSelect[track.audio ? 0 : 1] = pplay::ExternalTracks::toMpvUrl(track.path);
-        }
-        addExternalTrack(track);
-    }
-
-    if (main->getConfig()->getOption(OPT_EXTERNAL_TRACKS)->getInteger() == 0
-        || isPlaylistFile() || file.type != c2d::Io::Type::File) {
-        return;
-    }
-    // one search at a time: a running one (previous file) restarts when done
-    if (externalThread != nullptr) {
-        externalRestart = true;
-        return;
-    }
-    externalJobGeneration = externalGeneration;
-    externalJobPath = file.path;
-    externalJobName = file.name;
-    externalFound.clear();
-    externalDone = false;
-    externalThread = new c2d::C2DThread(externalFindThread, this);
-}
-
-int Player::externalFindThread(void *data) {
-    auto *self = (Player *) data;
-    int timeout = self->main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
-    self->externalFound = pplay::ExternalTracks::find(
-            pplay::Io::get(), self->externalJobPath, self->externalJobName, timeout);
-    self->externalDone = true;
-    return 0;
-}
-
-void Player::updateExternalTracks() {
-    if (externalThread == nullptr || !externalDone) {
-        return;
-    }
-    externalThread->join();
-    delete (externalThread);
-    externalThread = nullptr;
-
-    if (externalJobGeneration == externalGeneration && !mpv->isStopped()) {
-        for (auto &track: externalFound) {
-            addExternalTrack(track);
-        }
-    }
-    if (externalRestart) {
-        externalRestart = false;
-        if (externalJobGeneration != externalGeneration && !mpv->isStopped()) {
-            startExternalTracks();
-        }
-    }
-}
-
-void Player::addExternalTrack(const pplay::ExternalTracks::Track &track) {
-    std::string url = pplay::ExternalTracks::toMpvUrl(track.path);
-    if (std::find(externalAdded.begin(), externalAdded.end(), url) != externalAdded.end()) {
-        return;
-    }
-    externalAdded.push_back(url);
-    externalAll.push_back(track);
-
-    // async: the file is opened by mpv, without blocking the ui
-    const char *args[] = {track.audio ? "audio-add" : "sub-add", url.c_str(), "auto", track.title.c_str(),
-                          track.lang.empty() ? nullptr : track.lang.c_str(), nullptr};
-    int res = mpv_command_async(mpv->getHandle(), EXTERNAL_REPLY + (uint64_t) externalGeneration, args);
-    pplay::Utility::log(res < 0 ? pplay::Utility::LogLevel::Error : pplay::Utility::LogLevel::Info,
-                        std::string("Player: external ") + (track.audio ? "audio" : "subtitles") + " \""
-                        + track.title + "\" " + (track.lang.empty() ? "" : "(" + track.lang + ") ") + url
-                        + (res < 0 ? std::string(": ") + mpv_error_string(res) : ""));
-    if (res >= 0) {
-        externalPending++;
-    }
-}
-
-void Player::onExternalTracksAdded() {
-    if (mpv->isStopped()) {
-        return;
-    }
-    file.mediaInfo = mpv->getMediaInfo(file);
-    buildTrackMenus();
-
-    std::vector<Mpv::TrackEntry> tracks = mpv->getTrackList();
-    for (int t = 0; t < 2; t++) {
-        bool audio = t == 0;
-        const std::string type = audio ? "audio" : "sub";
-        int current = audio ? mpv->getAid() : mpv->getSid();
-        int target = -1;
-        if (!externalSelect[t].empty()) {
-            // remembered or just picked
-            for (auto &track: tracks) {
-                if (track.type == type && track.external && track.filename == externalSelect[t]) {
-                    target = track.id;
-                    externalSelect[t].clear();
-                    break;
-                }
-            }
-        } else if (!hadWatchLater && !trackChoiceApplied[t]) {
-            // preferred language, if the current track is not
-            std::string preferred = main->getConfig()->getOption(
-                    audio ? OPT_AUDIO_LANGUAGE : OPT_SUB_LANGUAGE)->getString();
-            if (!preferred.empty() && preferred != "Auto" && preferred != "Off") {
-                bool currentOk = false;
-                for (auto &track: tracks) {
-                    if (track.type == type && track.id == current
-                        && pplay::ExternalTracks::matchLanguage(preferred, track.lang)) {
-                        currentOk = true;
-                    }
-                }
-                for (auto &track: tracks) {
-                    if (!currentOk && track.type == type
-                        && pplay::ExternalTracks::matchLanguage(preferred, track.lang)) {
-                        target = track.id;
-                        break;
-                    }
-                }
-            }
-        }
-        if (target >= 0 && target != current) {
-            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: select " + type + " track "
-                                                                + std::to_string(target));
-            audio ? mpv->setAid(target) : mpv->setSid(target);
-        }
-    }
-    selectAudioIfNone();
-}
-
-std::string Player::trackLayout(const std::string &type) {
-    std::string layout;
-    for (auto &track: mpv->getTrackList()) {
-        if (track.type == type && !track.external) {
-            layout += std::to_string(track.id) + ":" + track.lang + ";";
-        }
-    }
-    return layout;
-}
-
-void Player::rememberTrackChoice(bool audio, int trackId) {
-    const std::string type = audio ? "audio" : "sub";
-    TrackChoice &choice = trackChoice[audio ? 0 : 1];
-    bool external = false;
-    for (auto &track: mpv->getTrackList()) {
-        external |= track.type == type && track.id == trackId && track.external;
-    }
-    // external ones: remembered per file (ExternalTracks bindings)
-    choice.set = !external;
-    choice.id = trackId;
-    choice.layout = trackLayout(type);
-}
-
-void Player::applyTrackChoices() {
-    for (int t = 0; t < 2; t++) {
-        bool audio = t == 0;
-        const std::string type = audio ? "audio" : "sub";
-        TrackChoice &choice = trackChoice[t];
-        trackChoiceApplied[t] = false;
-        // the file own choice first (watch later), then the same tracks only
-        if (!choice.set || hadWatchLater || trackLayout(type) != choice.layout) {
-            continue;
-        }
-        trackChoiceApplied[t] = true;
-        int current = audio ? mpv->getAid() : mpv->getSid();
-        if (current != choice.id) {
-            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: previous file " + type + " track "
-                                                                + std::to_string(choice.id));
-            audio ? mpv->setAid(choice.id) : mpv->setSid(choice.id);
-        }
-    }
-}
-
-void Player::selectAudioIfNone() {
-    // an old watch later may hold an external track id (not added yet / another one):
-    // mpv then plays without audio, the first track instead (internal ones first)
-    if (trackChoiceApplied[0] && trackChoice[0].id < 0) {
-        return; // audio off, chosen
-    }
-    std::vector<Mpv::TrackEntry> tracks = mpv->getTrackList();
-    int target = -1;
-    bool targetExternal = true;
-    for (auto &track: tracks) {
-        if (track.type != "audio") {
-            continue;
-        }
-        if (track.selected) {
-            return;
-        }
-        if (target < 0 || (targetExternal && !track.external)) {
-            target = track.id;
-            targetExternal = track.external;
-        }
-    }
-    if (target >= 0) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: no audio selected, track "
-                                                            + std::to_string(target));
-        mpv->setAid(target);
-    }
-}
-
-void Player::saveProgress() {
-    // external tracks ids depend on the order they are added: not in watch later
-    // (a stale id leaves the file without audio / with other subtitles)
-    std::vector<Mpv::TrackEntry> tracks = mpv->getTrackList();
-    for (int t = 0; t < 2; t++) {
-        const std::string type = t == 0 ? "audio" : "sub";
-        bool external = false;
-        for (auto &track: tracks) {
-            external |= track.type == type && track.selected && track.external;
-        }
-        if (external != watchLaterSkip[t]) {
-            watchLaterSkip[t] = external;
-            const char *cmd[] = {"change-list", "watch-later-options", external ? "remove" : "append",
-                                 t == 0 ? "aid" : "sid", nullptr};
-            mpv_command(mpv->getHandle(), cmd);
-        }
-    }
-    mpv->save();
-}
-
-void Player::rememberSelection(bool audio, int trackId) {
-    if (externalAll.empty()) {
-        return;
-    }
-    std::string url;
-    for (auto &track: mpv->getTrackList()) {
-        if (track.id == trackId && track.type == (audio ? "audio" : "sub") && track.external) {
-            url = track.filename;
-        }
-    }
-    bool changed = false, found = false;
-    for (auto &binding: externalBindings) {
-        if (binding.audio != audio) {
-            continue;
-        }
-        bool selected = !url.empty() && pplay::ExternalTracks::toMpvUrl(binding.path) == url;
-        changed |= binding.selected != selected;
-        binding.selected = selected;
-        found |= selected;
-    }
-    if (!url.empty() && !found) {
-        for (auto &track: externalAll) {
-            if (track.audio == audio && pplay::ExternalTracks::toMpvUrl(track.path) == url) {
-                pplay::ExternalTracks::Track binding = track;
-                binding.selected = true;
-                externalBindings.push_back(binding);
-                changed = true;
-                break;
-            }
-        }
-    }
-    if (changed) {
-        pplay::ExternalTracks::save(playingKey, externalBindings);
-    }
-}
-
-void Player::pickExternalTrack(bool audio) {
-    if (mpv->isStopped()) {
-        return;
-    }
-    setFullscreen(false);
-    std::string hint = pplay::tr(audio ? "Choose an audio file" : "Choose a subtitles file")
-                       + "\n" + pplay::InputMap::buttonName(c2d::Input::Button::X) + ": " + pplay::tr("cancel");
-    main->getFiler()->startPick(
-            audio ? pplay::ExternalTracks::audioExtensions() : pplay::ExternalTracks::subtitleExtensions(),
-            pplay::Paths::extractDirPath(file.path), hint,
-            [this, audio](const MediaFile &picked) {
-                setFullscreen(true);
-                if (mpv->isStopped()) {
-                    return;
-                }
-                pplay::ExternalTracks::Track track = pplay::ExternalTracks::fromPath(audio, picked.path, file.path);
-                track.selected = true;
-                // remembered, the selected one of its type
-                bool exists = false;
-                for (auto &binding: externalBindings) {
-                    if (binding.audio == audio) {
-                        binding.selected = binding.path == track.path;
-                        exists |= binding.selected;
-                    }
-                }
-                if (!exists) {
-                    externalBindings.push_back(track);
-                }
-                pplay::ExternalTracks::save(playingKey, externalBindings);
-
-                std::string url = pplay::ExternalTracks::toMpvUrl(track.path);
-                externalSelect[audio ? 0 : 1] = url;
-                if (std::find(externalAdded.begin(), externalAdded.end(), url) != externalAdded.end()) {
-                    if (externalPending == 0) {
-                        onExternalTracksAdded();
-                    }
-                } else {
-                    addExternalTrack(track);
-                }
-            });
-}
-
-void Player::onStopEvent(int reason) {
-    bool reloading = skipStopEvent && reason == MPV_END_FILE_REASON_STOP;
-    skipStopEvent = false;
-    if (!reloading) {
-        main->getStatus()->hide();
-    }
-    main->getMenuVideo()->reset();
-    osd->reset();
-
-    if (menuAudioStreams != nullptr) {
-        delete (menuAudioStreams);
-        menuAudioStreams = nullptr;
-    }
-    if (menuVideoStreams != nullptr) {
-        delete (menuVideoStreams);
-        menuVideoStreams = nullptr;
-    }
-    if (menuSubtitlesStreams != nullptr) {
-        delete (menuSubtitlesStreams);
-        menuSubtitlesStreams = nullptr;
-    }
-    if (menuPlaylist != nullptr) {
-        delete (menuPlaylist);
-        menuPlaylist = nullptr;
-    }
-
-    if (main->isExiting()) {
-        if (volumeDirty) {
-            saveVolume();
-        }
-        if (menuPlaybackMode != nullptr) {
-            delete (menuPlaybackMode);
-            menuPlaybackMode = nullptr;
-        }
-        if (menuNormalize != nullptr) {
-            delete (menuNormalize);
-            menuNormalize = nullptr;
-        }
-        main->setRunningStop();
-        return;
-    }
-
-    if (reloading) {
-        return;
-    }
-
-    long duration = mpv->getDuration();
-    long position = mpv->getPosition();
-    if (duration <= 0) {
-        duration = lastKnownDuration;
-    }
-    if (position <= 0) {
-        position = lastKnownPosition;
-    }
-    bool playbackCompleted = duration > 0 && ((double)position / duration) >= 0.98;
-    pplay::Utility::log(pplay::Utility::LogLevel::Info,
-        "Player::onStopEvent reason=" + std::to_string(reason)
-        + " duration=" + std::to_string(duration)
-        + " position=" + std::to_string(position)
-        + " delta=" + std::to_string(duration - position)
-        + " playbackCompleted=" + std::to_string(playbackCompleted ? 1 : 0)
-        + " isPlaylist=" + std::to_string(isPlaylistFile() ? 1 : 0)
-        + " retries=" + std::to_string(retryCount));
-
-    if (stalledStop) {
-        stalledStop = false;
-        main->getStatus()->show("Error...", "Playback stalled");
-    }
-
-    if (reason == MPV_END_FILE_REASON_ERROR) {
-        if (scheduleReload("error", true)) {
-            return;
-        }
-        main->getStatus()->show("Error...", "Could not load file");
-        pplay::Utility::log(pplay::Utility::LogLevel::Info,
-            "Player::onStopEvent could not load file");
-        printf("Player::load: could not load file\n");
-    } else if (reason == MPV_END_FILE_REASON_EOF && playbackCompleted && !isPlaylistFile()) {
-        const int autoplayMode = main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger();
-        if (autoplayMode == 2) {
-            pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                "Player::onStopEvent loopFile current=" + file.path);
-            load(file, true, "pause=yes,start=0");
-            return;
-        }
-        if ((autoplayMode == 1 || autoplayMode == 3) && !autoplayFiles.empty()) {
-            texture->clearFrame();
-            int currentIndex = -1;
-            for (size_t i = 0; i < autoplayFiles.size(); i++) {
-                if (autoplayFiles[i].path == file.path) {
-                    currentIndex = (int) i;
-                    break;
-                }
-            }
-            if (currentIndex >= 0) {
-                for (size_t idx = (size_t) currentIndex + 1; idx < autoplayFiles.size(); idx++) {
-                    if (pplay::Utility::isMedia(autoplayFiles[idx])) {
-                        pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                            "Player::onStopEvent autoplayNext current=" + file.path
-                            + " next=" + autoplayFiles[idx].path);
-                        load(autoplayFiles[idx], true, "pause=yes,start=0");
-                        return;
-                    }
-                }
-                if (autoplayMode == 3) {
-                    if (autoplayFiles.size() == 1) {
-                        load(file, true, "pause=yes,start=0");
-                        return;
-                    }
-                    for (size_t idx = 0; idx < (size_t) currentIndex; idx++) {
-                        if (pplay::Utility::isMedia(autoplayFiles[idx])) {
-                            pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                                "Player::onStopEvent autoplayLoop current=" + file.path
-                                + " next=" + autoplayFiles[idx].path);
-                            load(autoplayFiles[idx], true, "pause=yes,start=0");
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-    } else if (reason == MPV_END_FILE_REASON_EOF && !isPlaylistFile()) {
-        if (scheduleReload("early end of file", true)) {
-            return;
-        }
-        main->getStatus()->show("Error...", "Unexpected end of file");
-        pplay::Utility::log(pplay::Utility::LogLevel::Info,
-            "Player::onStopEvent Unexpected end of file");
-    }
-
-    if (mpv->isStopped()) {
-        texture->clearFrame();
-        setFullscreen(false, true);
-#ifdef __SWITCH__
-        if (main->getConfig()->getOption(OPT_CPU_BOOST)->getString() == "Enabled") {
-            pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Min);
-        }
-        appletSetMediaPlaybackState(false);
-#endif
-    }
-}
-
-bool Player::scheduleReload(const std::string &reason, bool counted) {
-    int retries = main->getConfig()->getOption(OPT_NETWORK_RETRIES)->getInteger();
-    if (counted) {
-        if (retries != 0 && retryCount >= retries) {
-            return false;
-        }
-        retryCount++;
-    }
-    reloadPending = true;
-    reloadDelayMs = counted ? std::min(2000 * retryCount, 10000) : 500;
-    reloadPosition = lastTime;
-    reloadPaused = userPaused;
-    reloadClock.restart();
-
-    pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                        "Player: reload (" + reason + ") at " + std::to_string((int) reloadPosition)
-                        + " s in " + std::to_string(reloadDelayMs) + " ms, try "
-                        + std::to_string(retryCount) + "/" + (retries ? std::to_string(retries) : "-"));
-    std::string text = pplay::tr("Reconnecting...");
-    if (counted) {
-        text += " (" + std::to_string(retryCount) + (retries ? "/" + std::to_string(retries) : "") + ")";
-    }
-    main->getStatus()->show("Please Wait...", text, true);
-    return true;
-}
-
-void Player::updateMpvLog() {
-    auto level = (int) pplay::Utility::getLogLevel();
-    if (level == mpvLogLevel) {
-        return;
-    }
-    mpvLogLevel = level;
-    // Error: errors, Info: warnings, Debug: verbose (network, streams), Trace: debug
-    static const char *levels[] = {"no", "error", "warn", "v", "debug"};
-    mpv_request_log_messages(mpv->getHandle(), levels[std::max(0, std::min(level, 4))]);
-}
-
-void Player::onMpvLog(const mpv_event_log_message *message) {
-    std::string text = message->text ? message->text : "";
-    while (!text.empty() && (text.back() == '\n' || text.back() == '\r')) {
-        text.pop_back();
-    }
-    auto level = message->log_level <= MPV_LOG_LEVEL_ERROR ? pplay::Utility::LogLevel::Error
-               : message->log_level <= MPV_LOG_LEVEL_WARN ? pplay::Utility::LogLevel::Info
-               : message->log_level <= MPV_LOG_LEVEL_V ? pplay::Utility::LogLevel::Debug
-               : pplay::Utility::LogLevel::Trace;
-    pplay::Utility::log(level, std::string("mpv[") + (message->prefix ? message->prefix : "") + "] "
-                               + (message->level ? message->level : "") + ": " + text);
-}
-
-void Player::updateWatchdog() {
-    double time = mpv->getTime();
-    if (time < 0) {
-        return;
-    }
-    bool paused = mpv->isPaused();
-    bool cachePaused = mpv->isPausedForCache();
-    double cache = mpv->getCacheDuration();
-    long frame = mpv->getFrameNumber();
-    bool video = mpv->hasMovingVideo();
-    userPaused = paused;
-
-    auto state = [&]() {
-        char buf[192];
-        snprintf(buf, sizeof(buf), "time=%.2f frame=%ld video=%d pause=%d cache-pause=%d cache=%.1fs cache-speed=%ld",
-                 time, frame, video ? 1 : 0, paused ? 1 : 0, cachePaused ? 1 : 0, cache, mpv->getCacheSpeed());
-        return std::string(buf);
-    };
-    if (watchLogClock.getElapsedTime().asSeconds() >= 5) {
-        watchLogClock.restart();
-        pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Player: watch " + state());
-    }
-
-    // progress: the time moves, and the frames too for a video (a stuck decoder
-    // or video output can leave the time running)
-    bool timeMoved = std::fabs(time - watchTime) > 0.05;
-    bool frameMoved = !video || frame != watchFrame;
-    if (timeMoved) {
-        watchTime = time;
-        lastTime = time;
-    }
-    watchFrame = frame;
-    if (timeMoved && frameMoved) {
-        watchCache = cache;
-        stallClock.restart();
-        if (retryCount > 0 && progressClock.getElapsedTime().asSeconds() >= 10) {
-            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: playback recovered");
-            retryCount = 0;
-        }
-        return;
-    }
-    if (paused && !cachePaused) {
-        stallClock.restart();
-        return;
-    }
-
-    // data still coming (slow source): the buffer grows. Not "cache-speed": the
-    // demuxer thread updates it, it keeps its last value while a read hangs.
-    if (cache > watchCache + 0.1) {
-        watchCache = cache;
-        stallClock.restart();
-        return;
-    }
-    // not started yet: the first position can take long (a mkv without index (cues)
-    // is read up to the resume position, through the network), a reload starts it again
-    int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
-    float stallSec = playbackStarted ? (float) std::max(timeout * 2, 20) : (float) std::max(timeout * 10, 300);
-    if (stallClock.getElapsedTime().asSeconds() >= stallSec) {
-        stallClock.restart();
-        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: stalled, " + state());
-        // counted: "recovered" (progress) resets the count, a file never playing ends
-        if (!scheduleReload("stalled " + std::to_string((int) stallSec) + " s", true)) {
-            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: stalled, no retry left");
-            stalledStop = true;
-            stop();
-        }
     }
 }
 
@@ -1007,13 +279,12 @@ void Player::onUpdate() {
         if (position > 0.0) {
             lastKnownPosition = position;
         }
-        if (position > 0.0 && duration > 300 && !progressForgotten
-            && (position - lastProgressSave) >= 10
+        if (position > 0.0 && duration > 300 && !progressForgotten && (position - lastProgressSave) >= 10
             && (duration - position) >= 60) {
             saveProgress();
             pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-                "Player::onUpdate::saveProgress position=" + std::to_string(position)
-                + " duration=" + std::to_string(duration));
+                                "Player::onUpdate::saveProgress position=" + std::to_string(position)
+                                        + " duration=" + std::to_string(duration));
             lastProgressSave = position;
         }
         updateMpvLog();
@@ -1023,73 +294,7 @@ void Player::onUpdate() {
             if (event == nullptr || event->event_id == MPV_EVENT_NONE) {
                 break;
             }
-            switch (event->event_id) {
-                case MPV_EVENT_START_FILE:
-                    printf("MPV_EVENT_START_FILE\n");
-                    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-                        "Player::onUpdate::event MPV_EVENT_START_FILE");
-                    texture->clearFrame();
-                    texture->setWaiting(true);
-                    // the previous file filter may not fit (channels): set again on audio start
-                    if (!appliedAudioFilter.empty()) {
-                        const char *remove[] = {"af", "remove", "@pplaynorm", nullptr};
-                        mpv_command(mpv->getHandle(), remove);
-                    }
-                    appliedAudioFilter = AUDIO_FILTER_UNKNOWN;
-                    main->getStatus()->show("Please Wait...",
-                        "Loading... " + encoding::fix(file.name), true);
-                    startPlaybackPosition = -1;
-                    frameDrawn = false;
-                    playbackStarted = false;
-                    playingKey = playingKeyOf(file.path);
-                    main->getFiler()->refresh();
-                    break;
-                case MPV_EVENT_FILE_LOADED:
-                    printf("MPV_EVENT_FILE_LOADED\n");
-                    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-                        "Player::onUpdate::event MPV_EVENT_FILE_LOADED");
-                    onLoadEvent();
-                    pplay::History::touch(playingKey);
-                    // "Loading..." kept until the playback starts (resume position may be long)
-                    break;
-                case MPV_EVENT_END_FILE:
-                    printf("MPV_EVENT_END_FILE\n");
-                    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-                        "Player::onUpdate::event MPV_EVENT_END_FILE");
-                    playingKey.clear();
-                    onStopEvent(((mpv_event_end_file *) event->data)->reason);
-                    main->getFiler()->refresh();
-                    break;
-                case MPV_EVENT_AUDIO_RECONFIG:
-                    applyAudioFilter();
-                    break;
-                case MPV_EVENT_PLAYBACK_RESTART:
-                    // the new file first frame is shown (mpv waits for it): visible again
-                    texture->setWaiting(false);
-                    if (!playbackStarted) {
-                        playbackStarted = true;
-                        main->getStatus()->hide();
-                    }
-                    break;
-                case MPV_EVENT_COMMAND_REPLY:
-                    if (event->reply_userdata == EXTERNAL_REPLY + (uint64_t) externalGeneration) {
-                        if (event->error < 0) {
-                            pplay::Utility::log(pplay::Utility::LogLevel::Error,
-                                                std::string("Player: external track not loaded: ")
-                                                + mpv_error_string(event->error));
-                        }
-                        if (--externalPending <= 0) {
-                            externalPending = 0;
-                            onExternalTracksAdded();
-                        }
-                    }
-                    break;
-                case MPV_EVENT_LOG_MESSAGE:
-                    onMpvLog((mpv_event_log_message *) event->data);
-                    break;
-                default:
-                    break;
-            }
+            onMpvEvent(event);
         }
         if (!mpv->isStopped()) {
             if (!reloadPending) {
@@ -1117,377 +322,14 @@ void Player::onUpdate() {
     }
 }
 
-bool Player::onInput(c2d::Input::Player *players) {
-    unsigned int keys = players[0].buttons;
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "Player::onInput keys=" + pplay::Utility::getKeysString(keys));
-
-    if (reloadPending && mpv->isStopped() && (keys & Input::B)) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: reload cancelled");
-        stop();
-        texture->clearFrame();
-        setFullscreen(false, true);
-        return true;
-    }
-
-    int swap = main->getConfig()->getOption(OPT_SWAP_CONTROLS)->getInteger();
-    int btnSpeedReset = swap ? c2d::Input::LT : c2d::Input::LB;
-    int btnSpeedUp = swap ? c2d::Input::RT : c2d::Input::RB;
-    int btnSeekBack = swap ? c2d::Input::LB : c2d::Input::LT;
-    int btnSeekForward = swap ? c2d::Input::RB : c2d::Input::RT;
-    float seek = main->getConfig()->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
-
-    // the player menus (tracks...): seeking still works (to listen again while choosing)
-    bool playerMenu = main->getMenuVideo()->isVisible()
-                      || (getMenuVideoStreams() != nullptr && getMenuVideoStreams()->isVisible())
-                      || (getMenuAudioStreams() != nullptr && getMenuAudioStreams()->isVisible())
-                      || (getMenuSubtitlesStreams() != nullptr && getMenuSubtitlesStreams()->isVisible());
-    if (playerMenu && !mpv->isStopped() && isFullscreen() && (keys & (btnSeekBack | btnSeekForward))) {
-        float delta = (keys & btnSeekBack) ? -seek : seek;
-        double target = std::max(0.0, mpv->getTime() + delta);
-        getMpv()->seek(delta);
-        showMessage(pplay::Utility::formatTime(target) + " / " + pplay::Utility::formatTime((double) mpv->getDuration()));
-        return true;
-    }
-
-    if (mpv->isStopped()
-        || main->getFiler()->isVisible()
-        || main->getMenuVideo()->isVisible()
-        || (getMenuVideoStreams() != nullptr && getMenuVideoStreams()->isVisible())
-        || (getMenuAudioStreams() != nullptr && getMenuAudioStreams()->isVisible())
-        || (getMenuSubtitlesStreams() != nullptr && getMenuSubtitlesStreams()->isVisible())
-        || (getMenuPlaylist() != nullptr && getMenuPlaylist()->isVisible())
-        || (getMenuPlaybackMode() != nullptr && getMenuPlaybackMode()->isVisible())
-        || (getMenuNormalize() != nullptr && getMenuNormalize()->isVisible())) {
-        return C2DObject::onInput(players);
-    }
-
-    if (keys & btnSpeedReset) {
-        if (mpv->getSpeed() != 1.00) setSpeed(1);
-        else getMpv()->seek(-1.00f);
-    } else if (keys & btnSpeedUp) {
-        double new_speed = mpv->getSpeed() + 0.05;
-        if (new_speed <= 3) setSpeed(new_speed);
-    } else if (keys & (btnSeekBack | btnSeekForward)) {
-        osd->setVisibility(c2d::Visibility::Visible);
-        getMpv()->seek(((keys & btnSeekBack) ? -seek : seek));
-    } else if (keys & Input::Start) {
-        if (info_text->isVisible()) {
-            info_text->setVisibility(Visibility::Hidden);
-            info_keys->setVisibility(Visibility::Hidden);
-        } else {
-            updateInfo();
-            updateKeysInfo();
-            info_text->setVisibility(Visibility::Visible);
-            info_keys->setVisibility(Visibility::Visible);
-        }
-    } else if (keys & (Input::Up | Input::Down)) {
-        int delta = (keys & Input::Up) ? 1 : -1;
-        if (keys & Input::Y)
-            changeBrightness(delta);
-        else changeVolume(delta);
-    } 
-
-    if (osd->isVisible()) {
-        return C2DObject::onInput(players);
-    }
-
-    //////////////////
-    /// handle inputs
-    //////////////////
-    if (keys & Input::B) {
-        setFullscreen(false);
-    } else if (keys & Input::X) {
-        main->getMenuVideo()->setVisibility(Visibility::Visible, true);
-        return true;
-    } else if (keys & Input::A) {
-        bool paused = mpv->isPaused();
-        main->getStatus()->show("Info...",
-            paused ? "Resuming playback..." : "Pausing playback...");
-        paused ? resume() : pause();
-        osd->btn_play->setVisibility(paused ? Visibility::Hidden : Visibility::Visible);
-        osd->btn_pause->setVisibility(paused ? Visibility::Visible : Visibility::Hidden);
-    }
-
-    if (keys && !osd->isVisible()) {
-        osd->setVisibility(Visibility::Visible, true);
-        main->getStatusBar()->setVisibility(Visibility::Visible, true);
-    }
-
-    return true;
-}
-
-void Player::setVideoStream(int streamId) {
-    printf("Player::setVideoStream: %i\n", streamId);
-    mpv->setVid(streamId);
-}
-
-void Player::setAudioStream(int streamId) {
-    printf("Player::setAudioStream: %i\n", streamId);
-    mpv->setAid(streamId);
-    rememberSelection(true, streamId);
-    rememberTrackChoice(true, streamId);
-}
-
-void Player::setSubtitleStream(int streamId) {
-    printf("Player::setSubtitleStream: %i\n", streamId);
-    mpv->setSid(streamId);
-    rememberSelection(false, streamId);
-    rememberTrackChoice(false, streamId);
-}
-
-int Player::getVideoStream() {
-    return mpv->getVid();
-}
-
-int Player::getAudioStream() {
-    return mpv->getAid();
-}
-
-int Player::getSubtitleStream() {
-    return mpv->getSid();
-}
-
-void Player::setSpeed(double speed) {
-    showMessage(mpv->setSpeed(speed));
-}
-
-void Player::updateInfo() {
-    infoClock.restart();
-    std::ostringstream out;
-    out.setf(std::ios::fixed);
-    auto bitrate = [](double bps) {
-        std::ostringstream b;
-        b.setf(std::ios::fixed);
-        if (bps >= 1000000) {
-            b.precision(1);
-            b << bps / 1000000 << " Mb/s";
-        } else {
-            b.precision(0);
-            b << bps / 1000 << " kb/s";
-        }
-        return b.str();
-    };
-
-    out << encoding::fix(file.name) << "\n";
-    std::string vcodec = mpv->getString("current-tracks/video/codec");
-    if (!vcodec.empty() && hasVideo()) {
-        out.precision(3);
-        out << pplay::tr("Video") << ": " << vcodec << " " << mpv->getInt("video-params/w", 0) << "x"
-            << mpv->getInt("video-params/h", 0);
-        double fps = mpv->getDouble("container-fps", 0);
-        if (fps > 0) {
-            out << " " << fps << " fps";
-        }
-        std::string hwdec = mpv->getString("hwdec-current");
-        out << ", hwdec: " << (hwdec.empty() ? "no" : hwdec);
-        double vbit = mpv->getDouble("video-bitrate", 0);
-        if (vbit > 0) {
-            out << ", " << bitrate(vbit);
-        }
-        out << "\n    " << pplay::tr("Dropped frames") << ": " << mpv->getInt("frame-drop-count", 0)
-            << " / " << mpv->getInt("decoder-frame-drop-count", 0)
-            << ", " << pplay::tr("Render") << ": " << mpv->getOsdWidth() << "x" << mpv->getOsdHeight() << "\n";
-        static const char *qualities[] = {"Best", "Balanced", "Fast"};
-        int quality = std::max(0, std::min(2, (int) main->getConfig()->getOption(OPT_VIDEO_QUALITY)->getInteger()));
-        out << "    " << pplay::tr("Video quality") << ": " << pplay::tr(qualities[quality]) << "\n";
-    }
-    std::string acodec = mpv->getString("current-tracks/audio/codec");
-    if (!acodec.empty()) {
-        out.precision(0);
-        out << pplay::tr("Audio") << ": " << acodec << " " << mpv->getString("audio-params/channels") << " "
-            << mpv->getInt("audio-params/samplerate", 0) / 1000.0 << " kHz -> "
-            << mpv->getString("audio-out-params/channels");
-        double abit = mpv->getDouble("audio-bitrate", 0);
-        if (abit > 0) {
-            out << ", " << bitrate(abit);
-        }
-        static const char *modes[] = {"Off", "Normalize", "Night mode"};
-        int mode = std::max(0, std::min(2, main->getConfig()->getOption(OPT_AUDIO_NORMALIZE)->getInteger()));
-        out << "\n    " << pplay::tr("Track") << ": " << trackInfo("audio")
-            << "\n    " << pplay::tr("Volume") << ": " << (int) mpv->getDouble("volume", 0) << "%, "
-            << pplay::tr("Volume normalization") << ": " << pplay::tr(modes[mode]) << "\n";
-    }
-    out << pplay::tr("Subtitles") << ": " << trackInfo("sub") << "\n";
-    out.precision(1);
-    out << pplay::tr("Cache") << ": " << std::max(0.0, mpv->getDouble("demuxer-cache-duration", 0)) << " s, "
-        << mpv->getCacheSpeed() / 1048576.0 << " MB/s, " << pplay::tr("Speed") << ": ";
-    out.precision(2);
-    out << mpv->getSpeed();
-    info_text->setString(out.str());
-}
-
-std::string Player::trackInfo(const std::string &type) {
-    const std::string prefix = "current-tracks/" + type + "/";
-    long id = mpv->getInt((prefix + "id").c_str(), -1);
-    if (id < 0) {
-        return pplay::tr("Off");
-    }
-    std::string out = "#" + std::to_string(id);
-    std::string lang = mpv->getString((prefix + "lang").c_str());
-    std::string title = mpv->getString((prefix + "title").c_str());
-    if (!lang.empty()) {
-        out += " " + lang;
-    }
-    if (!title.empty()) {
-        out += " \u00AB" + encoding::fix(title) + "\u00BB";
-    }
-    if (mpv->getString((prefix + "external").c_str()) == "yes") {
-        out += " (" + pplay::tr("external") + ")";
-    }
-    return out;
-}
-
-void Player::updateKeysInfo() {
-    using pplay::InputMap::buttonName;
-    int swap = main->getConfig()->getOption(OPT_SWAP_CONTROLS)->getInteger();
-    unsigned int seekBack = swap ? Input::LB : Input::LT;
-    unsigned int seekForward = swap ? Input::RB : Input::RT;
-    unsigned int speedReset = swap ? Input::LT : Input::LB;
-    unsigned int speedUp = swap ? Input::RT : Input::RB;
-    std::ostringstream seek;
-    seek << main->getConfig()->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
-    auto line = [](const std::string &key, const std::string &action) {
-        return key + ": " + action + "\n";
-    };
-    std::string out;
-    out += line(buttonName(Input::A), pplay::tr("Pause"));
-    out += line(buttonName(Input::B), pplay::tr("Minimize"));
-    out += line(buttonName(Input::X), pplay::tr("Menu"));
-    out += line(buttonName(seekBack) + " / " + buttonName(seekForward), "-/+ " + seek.str() + " s");
-    out += line(buttonName(speedReset), pplay::tr("Speed") + " 1.00");
-    out += line(buttonName(speedUp), pplay::tr("Speed") + " +0.05");
-    out += line(buttonName(Input::Up) + buttonName(Input::Down), pplay::tr("Volume"));
-    out += line(buttonName(Input::Y) + " + " + buttonName(Input::Up) + buttonName(Input::Down), pplay::tr("Brightness"));
-    out += line(buttonName(Input::Start), pplay::tr("Information"));
-    out.pop_back();
-    info_keys->setString(out);
-}
-
-void Player::setAudioNormalize(int mode) {
-    auto *option = main->getConfig()->getOption(OPT_AUDIO_NORMALIZE);
-    if (option->getInteger() == mode) {
-        return;
-    }
-    const std::string oldValue = option->getString();
-    option->setInteger(mode);
-    main->getConfig()->save();
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Options: " + std::string(OPT_AUDIO_NORMALIZE)
-                                                        + " changed from " + oldValue + " to " + option->getString());
-    applyAudioFilter();
-}
-
-void Player::applyAudioFilter() {
-    if (!mpv->isAvailable()) {
-        return;
-    }
-    int mode = main->getConfig()->getOption(OPT_AUDIO_NORMALIZE)->getInteger();
-    std::string chain;
-    if (mode > 0) {
-        // decoded channels ("5.1(side)", "stereo"... or "fl-fr-fc-lfe-sl-sr")
-        std::string layout = mpv->getString("audio-params/channels");
-        if (layout.empty()) {
-            return; // audio not started yet: on its reconfig event
-        }
-        static const std::pair<const char *, const char *> layouts[] = {
-                {"mono", "fc"}, {"stereo", "fl-fr"}, {"2.1", "fl-fr-lfe"}, {"3.0", "fl-fr-fc"},
-                {"3.0(back)", "fl-fr-bc"}, {"4.0", "fl-fr-fc-bc"}, {"quad", "fl-fr-bl-br"},
-                {"quad(side)", "fl-fr-sl-sr"}, {"3.1", "fl-fr-fc-lfe"}, {"5.0", "fl-fr-fc-bl-br"},
-                {"5.0(side)", "fl-fr-fc-sl-sr"}, {"4.1", "fl-fr-fc-lfe-bc"}, {"5.1", "fl-fr-fc-lfe-bl-br"},
-                {"5.1(side)", "fl-fr-fc-lfe-sl-sr"}, {"6.0", "fl-fr-fc-bc-sl-sr"},
-                {"6.1", "fl-fr-fc-lfe-bc-sl-sr"}, {"7.0", "fl-fr-fc-bl-br-sl-sr"},
-                {"7.1", "fl-fr-fc-lfe-bl-br-sl-sr"}, {"7.1(wide)", "fl-fr-fc-lfe-bl-br-flc-frc"},
-                {"7.1(wide-side)", "fl-fr-fc-lfe-flc-frc-sl-sr"},
-        };
-        std::string speakers = layout;
-        for (auto &known: layouts) {
-            if (layout == known.first) {
-                speakers = known.second;
-            }
-        }
-        auto has = [&speakers](const char *name) {
-            std::string s = "-" + speakers + "-";
-            return s.find(std::string("-") + name + "-") != std::string::npos;
-        };
-        int channels = 0;
-        for (char c: speakers) {
-            channels += c == '-';
-        }
-        channels++;
-
-        if (mode == 2 && channels > 2 && has("fc") && has("fl") && has("fr")) {
-            // night mode downmix: dialogue (center) up, surrounds down, no LFE
-            auto side = [&](const char *front, const char *back, const char *sideName, const char *wide) {
-                // "<": gains renormalized (no clipping)
-                std::string out = std::string(front) + "<1.0*FC+0.6*" + front;
-                for (const char *extra: {back, sideName, wide}) {
-                    std::string lower = extra;
-                    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-                    if (has(lower.c_str())) {
-                        out += std::string("+0.35*") + extra;
-                    }
-                }
-                return out;
-            };
-            chain = "pan=stereo|" + side("FL", "BL", "SL", "FLC") + "|" + side("FR", "BR", "SR", "FRC") + ",";
-        }
-        if (mode == 2) {
-            // fast peaks down, then the level evened out
-            chain += "acompressor=threshold=0.063:ratio=6:attack=5:release=300:makeup=4,"
-                     "dynaudnorm=f=200:g=11:p=0.6:m=10";
-        } else {
-            chain += "dynaudnorm=f=250:g=15:p=0.9:m=8";
-        }
-    }
-
-    if (chain == appliedAudioFilter) {
-        return;
-    }
-    if (!appliedAudioFilter.empty()) {
-        const char *remove[] = {"af", "remove", "@pplaynorm", nullptr};
-        mpv_command(mpv->getHandle(), remove);
-    }
-    appliedAudioFilter = chain;
-    if (!chain.empty()) {
-        std::string filter = "@pplaynorm:lavfi=[" + chain + "]";
-        const char *add[] = {"af", "add", filter.c_str(), nullptr};
-        int res = mpv_command(mpv->getHandle(), add);
-        pplay::Utility::log(res < 0 ? pplay::Utility::LogLevel::Error : pplay::Utility::LogLevel::Info,
-                            "Player: audio filter " + chain + (res < 0 ? std::string(": ") + mpv_error_string(res) : ""));
-        if (res < 0) {
-            appliedAudioFilter.clear();
-        }
-    }
-}
-
-void Player::changeVolume(double delta) {
-    showMessage(mpv->changeVolume(delta));
-    volumeDirty = true;
-    volumeClock.restart();
-}
-
-void Player::saveVolume() {
-    volumeDirty = false;
-    int volume = (int) mpv->getLastVolume();
-    auto *option = main->getConfig()->getOption(OPT_VOLUME);
-    if (volume >= 0 && option->getInteger() != volume) {
-        option->setInteger(volume);
-        main->getConfig()->save();
-    }
-}
-
-void Player::changeBrightness(double delta) {
-    showMessage(mpv->changeBrightness(delta));
-}
-
 void Player::pause() {
     mpv->pause();
     if (lastKnownPosition > 0 && lastKnownDuration > 300 && !progressForgotten
         && (lastKnownDuration - lastKnownPosition) >= 60) {
         saveProgress();
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
-            "Player::pause::saveProgress lastKnownPosition=" + std::to_string(lastKnownPosition)
-            + " lastKnownDuration=" + std::to_string(lastKnownDuration));
+                            "Player::pause::saveProgress lastKnownPosition=" + std::to_string(lastKnownPosition)
+                                    + " lastKnownDuration=" + std::to_string(lastKnownDuration));
     }
 #ifdef __SWITCH__
     if (main->getConfig()->getOption(OPT_CPU_BOOST)->getString() == "Enabled") {
@@ -1538,25 +380,7 @@ void Player::setFullscreen(bool fs, bool hide) {
             tweenPosition->play(TweenDirection::Backward);
         }
         texture->showFade();
-        main->getMenuVideo()->setVisibility(Visibility::Hidden, true);
-        if (menuVideoStreams != nullptr) {
-            menuVideoStreams->setVisibility(Visibility::Hidden, true);
-        }
-        if (menuAudioStreams != nullptr) {
-            menuAudioStreams->setVisibility(Visibility::Hidden, true);
-        }
-        if (menuSubtitlesStreams != nullptr) {
-            menuSubtitlesStreams->setVisibility(Visibility::Hidden, true);
-        }
-        if (menuPlaylist != nullptr) {
-            menuPlaylist->setVisibility(Visibility::Hidden, true);
-        }
-        if (menuPlaybackMode != nullptr) {
-            menuPlaybackMode->setVisibility(Visibility::Hidden, true);
-        }
-        if (menuNormalize != nullptr) {
-            menuNormalize->setVisibility(Visibility::Hidden, true);
-        }
+        hideMenus();
         main->getFiler()->setVisibility(Visibility::Visible, true);
         main->getStatusBar()->setVisibility(Visibility::Visible, true);
     } else {
@@ -1570,38 +394,13 @@ void Player::setFullscreen(bool fs, bool hide) {
     }
 }
 
-MenuVideoSubmenu *Player::getMenuVideoStreams() {
-    return menuVideoStreams;
-}
-
-MenuVideoSubmenu *Player::getMenuAudioStreams() {
-    return menuAudioStreams;
-}
-
-MenuVideoSubmenu *Player::getMenuSubtitlesStreams() {
-    return menuSubtitlesStreams;
-}
-
-MenuVideoSubmenu *Player::getMenuPlaylist() {
-    return menuPlaylist;
-}
-
-MenuVideoSubmenu *Player::getMenuPlaybackMode() {
-    return menuPlaybackMode;
-}
-
-MenuVideoSubmenu *Player::getMenuNormalize() {
-    return menuNormalize;
-}
-
 const std::string &Player::getTitle() const {
     if (isPlaylistFile()) {
         displayTitle = mpv->getPlaylistCurrentTitle();
         if (displayTitle.empty()) {
             displayTitle = file.name;
         }
-        displayTitle = "#" + std::to_string(mpv->getPlaylistPos() + 1)
-            + ". " + displayTitle;
+        displayTitle = "#" + std::to_string(mpv->getPlaylistPos() + 1) + ". " + displayTitle;
     } else {
         displayTitle = file.name;
     }
@@ -1613,9 +412,9 @@ bool Player::hasVideo() const {
 }
 
 bool Player::isPlaylistFile() const {
-    return file.name.size() >= 4 &&
-        (file.name.compare(file.name.size() - 4, 4, ".m3u") == 0 ||
-         file.name.compare(file.name.size() - 5, 5, ".m3u8") == 0);
+    return file.name.size() >= 4
+           && (file.name.compare(file.name.size() - 4, 4, ".m3u") == 0
+               || file.name.compare(file.name.size() - 5, 5, ".m3u8") == 0);
 }
 
 const std::vector<MediaFile> &Player::getAutoplayFiles() const {
@@ -1635,7 +434,7 @@ void Player::applyConfig() {
     applyAudioFilter();
     const int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
 #ifdef __SMB2__
-    configure_smb_mpv(main->getConfig()->getOption(OPT_SMB_READ_BUFFER_MB)->getInteger(), timeout);
+    pplay::Smb::configureStream(main->getConfig()->getOption(OPT_SMB_READ_BUFFER_MB)->getInteger(), timeout);
 #endif
     mpv_command_string(mpv->getHandle(), ("set network-timeout " + std::to_string(timeout)).c_str());
     mpv->setCache(main->getConfig()->getOption(OPT_CACHE_SECS)->getInteger(),
@@ -1653,31 +452,4 @@ void Player::applyConfig() {
         }
     }
     texture->setOutlineColor(COLOR_ACCENT);
-}
-
-void Player::onMediaKeys(unsigned int keys) {
-    if (mpv->isStopped()) {
-        return;
-    }
-    const float seekShort = main->getConfig()->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
-    const float seekLong = main->getConfig()->getOption(OPT_SEEK_LONG_SEC)->getFloat();
-
-    if (keys & pplay::InputMap::PlayPause) {
-        bool paused = mpv->isPaused();
-        main->getStatus()->show("Info...", paused ? "Resuming playback..." : "Pausing playback...");
-        paused ? resume() : pause();
-        osd->btn_play->setVisibility(paused ? Visibility::Hidden : Visibility::Visible);
-        osd->btn_pause->setVisibility(paused ? Visibility::Visible : Visibility::Hidden);
-    } else if (keys & pplay::InputMap::Stop) {
-        main->getStatus()->show("Info...", "Stopping playback...");
-        stop();
-    } else if (keys & (pplay::InputMap::FastForward | pplay::InputMap::Rewind)) {
-        osd->setVisibility(Visibility::Visible, true);
-        mpv->seek((keys & pplay::InputMap::Rewind) ? -seekShort : seekShort);
-    } else if (keys & (pplay::InputMap::Next | pplay::InputMap::Previous)) {
-        osd->setVisibility(Visibility::Visible, true);
-        mpv->seek((keys & pplay::InputMap::Previous) ? -seekLong : seekLong);
-    } else if (keys & (pplay::InputMap::VolumeUp | pplay::InputMap::VolumeDown)) {
-        changeVolume((keys & pplay::InputMap::VolumeUp) ? 1 : -1);
-    }
 }

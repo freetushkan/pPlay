@@ -15,6 +15,7 @@ namespace pplay {
     class Utility {
 
     public:
+
         enum class LogLevel {
             Off = 0,
             Error = 1,
@@ -35,7 +36,6 @@ namespace pplay {
 
         static std::string getMediaInfoPath(const c2d::Io::File &file);
 
-
         static std::vector<std::string> getMediaExtensions();
 
         static bool isMedia(const c2d::Io::File &file);
@@ -49,9 +49,9 @@ namespace pplay {
         static LogLevel getLogLevel();
 
         static void setLogLevel(LogLevel level);
-        
+
         static void log(LogLevel level, const std::string &message);
-        
+
         static std::string md5hash(const std::string &input);
 
         static int hexValue(char c);
@@ -62,7 +62,7 @@ namespace pplay {
 
         static void setAccentColor(const std::string &hex);
 
-        static c2d::Color& getAccentColor();
+        static c2d::Color &getAccentColor();
 
         static bool deleteFile(const std::string &path);
 

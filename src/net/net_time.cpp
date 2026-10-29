@@ -41,10 +41,10 @@ namespace {
             // local time at the middle of the request
             time_t local = before + (after - before) / 2;
             long long drift = (long long) local - (long long) response.date;
-            pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                                "Clock: system " + std::to_string((long long) local) + ", " + url + " "
-                                + std::to_string((long long) response.date) + ", drift "
-                                + std::to_string(drift) + " s");
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Clock: system " + std::to_string((long long) local)
+                                                                        + ", " + url + " "
+                                                                        + std::to_string((long long) response.date)
+                                                                        + ", drift " + std::to_string(drift) + " s");
             if (llabs(drift) > CLOCK_MAX_DRIFT) {
                 g_local = local;
                 g_network = response.date;
@@ -57,7 +57,7 @@ namespace {
     }
 
     std::string formatTime(time_t t) {
-        struct tm tm{};
+        struct tm tm {};
         localtime_r(&t, &tm);
         char buf[32];
         strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", &tm);
@@ -107,11 +107,12 @@ namespace pplay::NetTime {
         if (!g_mismatch.exchange(false)) {
             return false;
         }
-        *message = pplay::tr("The console clock is off by") + " "
-                   + formatDrift((long long) g_local - (long long) g_network) + ".\n"
-                   + pplay::tr("Console") + ": " + formatTime(g_local) + "\n"
-                   + pplay::tr("Network") + ": " + formatTime(g_network) + "\n"
-                   + pplay::tr("Secure connections (HTTPS) may fail: check the date, time and time zone in the system settings.");
+        *message =
+                pplay::tr("The console clock is off by") + " "
+                + formatDrift((long long) g_local - (long long) g_network) + ".\n" + pplay::tr("Console") + ": "
+                + formatTime(g_local) + "\n" + pplay::tr("Network") + ": " + formatTime(g_network) + "\n"
+                + pplay::tr(
+                        "Secure connections (HTTPS) may fail: check the date, time and time zone in the system settings.");
         return true;
     }
 }

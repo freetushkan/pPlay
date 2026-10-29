@@ -80,7 +80,7 @@ static bool ps5_single_instance() {
     if (sock < 0) {
         return true;
     }
-    struct sockaddr_in addr{};
+    struct sockaddr_in addr {};
     addr.sin_len = sizeof(addr);
     addr.sin_family = AF_INET;
     addr.sin_port = htons(9095);
@@ -102,10 +102,10 @@ static void logRenderer(Main *main) {
     };
     pplay::Utility::log(pplay::Utility::LogLevel::Info,
                         "Renderer: " + std::to_string((int) main->getSize().x) + "x"
-                        + std::to_string((int) main->getSize().y) + ", " + str(GL_RENDERER)
-                        + ", " + str(GL_VERSION)
+                                + std::to_string((int) main->getSize().y) + ", " + str(GL_RENDERER) + ", "
+                                + str(GL_VERSION)
 #ifdef __PS5__
-                        + ", cpus: " + std::to_string(sysconf(_SC_NPROCESSORS_ONLN))
+                                + ", cpus: " + std::to_string(sysconf(_SC_NPROCESSORS_ONLN))
 #endif
     );
 }
@@ -186,7 +186,8 @@ namespace pplay::Platform {
         terminate_jbc();
 #endif
         sceSystemServiceLoadExec((char *) "exit", nullptr);
-        while (true) {}
+        while (true) {
+        }
 #endif
     }
 }

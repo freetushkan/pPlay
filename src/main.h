@@ -19,34 +19,32 @@
 #include "utility.h"
 #include "i18n.h"
 
-//#define FULL_TEXTURE_TEST 1
-
 #define INPUT_DELAY 500
 #define ICON_SIZE 24
 #define BUTTON_HEIGHT 64
 
-#define COLOR_BG            Color(20, 22, 24, 255)
-#define COLOR_BG_ALPHA      Color(20, 22, 24, 128)
-#define COLOR_FONT          Color(230, 230, 230, 255)
-#define COLOR_HIGHLIGHT     Color(255, 255, 255, 60)
-inline c2d::Color& COLOR_ACCENT = pplay::Utility::getAccentColor();
+#define COLOR_BG Color(20, 22, 24, 255)
+#define COLOR_BG_ALPHA Color(20, 22, 24, 128)
+#define COLOR_FONT Color(230, 230, 230, 255)
+#define COLOR_HIGHLIGHT Color(255, 255, 255, 60)
+inline c2d::Color &COLOR_ACCENT = pplay::Utility::getAccentColor();
 
-#define COLOR_BLACK         Color(0x000000FF)
-#define COLOR_WHITE         Color(0xFFFFFFFF)
-#define COLOR_CLOUD         Color(0xDFE6E9FF)
-#define COLOR_GRAY          Color(0x95A5A6FF)
-#define COLOR_GRAY_LIGHT    Color(0xD2D7D9FF)
-#define COLOR_GRAY_DARK     Color(0x34495EFF)
-#define COLOR_BLUE          Color(0x54A0FFFF)
-#define COLOR_BLUE_LIGHT    Color(0x81ECECFF)
-#define COLOR_PURPLE        Color(0xA29BFEFF)
-#define COLOR_PURPLE_LIGHT  Color(0xD6D1FFFF)
-#define COLOR_GREEN         Color(0x26DE81FF)
-#define COLOR_GREEN_LIGHT   Color(0x7BED9FFF)
-#define COLOR_ORANGE        Color(0xFA8231FF)
-#define COLOR_ORANGE_LIGHT  Color(0xFFB142FF)
-#define COLOR_RED           Color(0xEB4D4BFF)
-#define COLOR_VIEWED        Color(0x5B6464FF)
+#define COLOR_BLACK Color(0x000000FF)
+#define COLOR_WHITE Color(0xFFFFFFFF)
+#define COLOR_CLOUD Color(0xDFE6E9FF)
+#define COLOR_GRAY Color(0x95A5A6FF)
+#define COLOR_GRAY_LIGHT Color(0xD2D7D9FF)
+#define COLOR_GRAY_DARK Color(0x34495EFF)
+#define COLOR_BLUE Color(0x54A0FFFF)
+#define COLOR_BLUE_LIGHT Color(0x81ECECFF)
+#define COLOR_PURPLE Color(0xA29BFEFF)
+#define COLOR_PURPLE_LIGHT Color(0xD6D1FFFF)
+#define COLOR_GREEN Color(0x26DE81FF)
+#define COLOR_GREEN_LIGHT Color(0x7BED9FFF)
+#define COLOR_ORANGE Color(0xFA8231FF)
+#define COLOR_ORANGE_LIGHT Color(0xFFB142FF)
+#define COLOR_RED Color(0xEB4D4BFF)
+#define COLOR_VIEWED Color(0x5B6464FF)
 
 #ifdef __PS4__
 #include "ps4/ps4_compat.h"
@@ -81,6 +79,9 @@ public:
 
     void show(MenuType type);
 
+    // the module of the last session
+    void showLast();
+
     void setCurrentModuleIndex(int index);
 
     int getcurrentModuleIndex();
@@ -108,27 +109,21 @@ public:
 
     c2d::MessageBox *getMessageBox();
 
-    int showMessage(const std::string &title, const std::string &message,
-                    const std::string &buttonLeft, const std::string &buttonRight = "");
+    int showMessage(const std::string &title, const std::string &message, const std::string &buttonLeft,
+                    const std::string &buttonRight = "");
 
     StatusBox *getStatus();
 
     StatusBar *getStatusBar();
 
-
     c2d::Vector2f getScaling();
 
-    c2d::Vector2f getScaled(const c2d::Vector2f &v) {
-        return {v.x * scaling.x, v.y * scaling.y};
-    }
+    c2d::Vector2f getScaled(const c2d::Vector2f &v) { return {v.x * scaling.x, v.y * scaling.y}; }
 
-    c2d::Vector2f getScaled(float x, float y) {
-        return {x * scaling.x, y * scaling.y};
-    }
+    c2d::Vector2f getScaled(float x, float y) { return {x * scaling.x, y * scaling.y}; }
 
     c2d::FloatRect getScaled(const c2d::FloatRect &rect) {
-        return {rect.left * scaling.x, rect.top * scaling.y,
-                rect.width * scaling.x, rect.height * scaling.y};
+        return {rect.left * scaling.x, rect.top * scaling.y, rect.width * scaling.x, rect.height * scaling.y};
     }
 
     unsigned int getFontSize(FontSize fontSize);

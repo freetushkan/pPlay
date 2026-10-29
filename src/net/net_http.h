@@ -13,7 +13,7 @@
 namespace pplay::Http {
 
     struct Response {
-        long status = 0;          // HTTP status code, 0 on transport error
+        long status = 0; // HTTP status code, 0 on transport error
         std::string body;
         std::string error;        // transport error message
         std::string effectiveUrl; // after redirects

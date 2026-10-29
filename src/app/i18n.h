@@ -14,8 +14,8 @@ namespace pplay {
     namespace I18n {
 
         struct Language {
-            std::string code;   // file name without extension ("ru")
-            std::string name;   // "@name" value, or the code
+            std::string code; // file name without extension ("ru")
+            std::string name; // "@name" value, or the code
         };
 
         // "*.lang" directories (later ones override earlier ones)

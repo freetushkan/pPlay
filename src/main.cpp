@@ -3,35 +3,18 @@
 //
 
 #include <algorithm>
-#include <cstdlib>
-#include <sstream>
+
 #include "main.h"
-#include "io.h"
-#include "paths.h"
+#include "i18n.h"
 #include "input_map.h"
+#include "io.h"
 #include "net_time.h"
-#include "filer.h"
-#include "menu_main.h"
-#include "menu_video.h"
+#include "platform.h"
+#include "pplay_config.h"
 #include "utility.h"
 
 using namespace c2d;
-using namespace c2d::config;
 using namespace pplay;
-
-
-
-static int parseNetworkModule(const std::string &module) {
-    if (module.rfind("NETWORK", 0) != 0) {
-        return -1;
-    }
-    int index = std::atoi(module.substr(7).c_str());
-    return index >= 1 && index <= PPLAY_MAX_NETWORKS ? index : 1;
-}
-
-static std::string networkModuleName(int index) {
-    return "NETWORK" + std::to_string(index);
-}
 
 Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRenderer(size) {
 
@@ -46,8 +29,8 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
     setClearColor(COLOR_BG);
 
     scaling = {Main::getSize().x / 1280.0f, Main::getSize().y / 720.0f};
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: resolution "
-                        + std::to_string((int) Main::getSize().x) + "x" + std::to_string((int) Main::getSize().y));
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: resolution " + std::to_string((int) Main::getSize().x)
+                                                                + "x" + std::to_string((int) Main::getSize().y));
 
     Main::getInput()->setRepeatDelay(INPUT_DELAY);
     pplay::InputMap::setup(Main::getInput());
@@ -83,17 +66,7 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
 
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Main: ui created");
 
-    // open last
-    setCurrentModuleIndex(parseNetworkModule(config->getOption(OPT_LAST_MODULE)->getString()));
-    show(
-#ifdef __SWITCH__
-            config->getOption(OPT_LAST_MODULE)->getString() == "USB"
-            ? MenuType::Usb :
-#endif
-            currentModuleIndex > 0
-            ? MenuType::Network
-            : MenuType::Local
-    );
+    showLast();
 }
 
 void Main::createFont() {
@@ -140,8 +113,8 @@ void Main::createMenus() {
 void Main::createMessageBox() {
     float w = Main::getSize().x / 3;
     float h = Main::getSize().y / 3;
-    messageBox = new MessageBox({Main::getSize().x / 2, Main::getSize().y / 2, w, h},
-                                Main::getInput(), Main::getFont(), (int) getFontSize(Main::FontSize::Medium));
+    messageBox = new MessageBox({Main::getSize().x / 2, Main::getSize().y / 2, w, h}, Main::getInput(), Main::getFont(),
+                                (int) getFontSize(Main::FontSize::Medium));
     messageBox->setOrigin(Origin::Center);
     messageBox->setFillColor(COLOR_BG);
     messageBox->setAlpha(240);
@@ -197,7 +170,7 @@ bool Main::onInput(c2d::Input::Player *players) {
         return true;
     }
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "Main::onInput keys=" + pplay::Utility::getKeysString(keys) + pplay::InputMap::toString(keys));
+                        "Main::onInput keys=" + pplay::Utility::getKeysString(keys) + pplay::InputMap::toString(keys));
 
     // media keys: the player, whatever is shown
     if (keys & pplay::InputMap::Media) {
@@ -234,8 +207,7 @@ void Main::onUpdate() {
     }
 
     // media keys and other devices
-    unsigned int pending = pplay::InputMap::takePending()
-                           | pplay::InputMap::update();
+    unsigned int pending = pplay::InputMap::takePending() | pplay::InputMap::update();
     if (pending != 0) {
         Input::Player *players = getInput()->getPlayers();
         unsigned int saved = players[0].buttons;
@@ -247,70 +219,6 @@ void Main::onUpdate() {
     Renderer::onUpdate();
 }
 
-void Main::show(MenuType type) {
-    if (player->getMpv()->isStopped() && player->isFullscreen()) {
-        player->setFullscreen(false);
-    }
-
-    filer->setVisibility(Visibility::Visible, true);
-    if (type == MenuType::Local) {
-#ifdef __SWITCH__
-        usbExit();
-#endif
-        currentModuleIndex = -1;
-        std::string path = Paths::normalizePath(config->getOption(OPT_LAST_LOCAL_PATH)->getString());
-        if (path.empty()) {
-            path = config->getOption(OPT_HOME_PATH)->getString();
-        }
-        std::string dirPath = Paths::extractDirPath(path);
-        if (!filer->getDir(dirPath)) {
-            if (filer->getDir(config->getOption(OPT_HOME_PATH)->getString())) {
-                filer->clearHistory();
-            }
-        } else {
-            filer->selectByPath(path);
-        }
-#ifdef __SWITCH__
-    } else if (type == MenuType::Usb) {
-        currentModuleIndex = -2;
-        usbInit();
-        usbWaitForDevice();
-        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main::usb path=ums_list");
-        if (!filer->getDir("ums_list")) {
-            show(MenuType::Local);
-            return;
-        }
-#endif
-    } else {
-#ifdef __SWITCH__
-        usbExit();
-#endif
-        std::string network = config->getOption(
-            PPLAYConfig::networkOption(currentModuleIndex))->getString();
-        if (network.empty()) {
-            show(MenuType::Local);
-            return;
-        }
-        std::string root = Paths::ensureTrailingSlash(network);
-        std::string path = config->getOption(
-            PPLAYConfig::networkLastOption(currentModuleIndex))->getString();
-        if (pplayIo->getDeviceType(path) == pplay::Io::DeviceType::Local
-            || !c2d::Utility::startWith(path, root) || path.empty()) {
-            path = root;
-        }
-        std::string dirPath = Paths::extractDirPath(path);
-        if (!filer->getDir(dirPath)) {
-            if (!filer->getDir(root)) {
-                showMessage(pplay::tr("ERROR"), filer->getError(), pplay::tr("OK"));
-                show(MenuType::Local);
-            }
-        } else {
-            filer->selectByPath(path);
-        }
-        filer->clearHistory();
-    }
-}
-
 bool Main::isExiting() {
     return exit;
 }
@@ -320,13 +228,12 @@ bool Main::isRunning() {
 }
 
 void Main::setRunningStop() {
-    printf("Main::setRunningStop()\n");
     running = false;
 }
 
 void Main::quit() {
 #ifdef __SWITCH__
-        usbExit();
+    usbExit();
 #endif
     syncLastLocation();
     config->save();
@@ -336,44 +243,6 @@ void Main::quit() {
     } else {
         player->stop();
     }
-}
-
-void Main::syncLastLocation() {
-    MediaFile selected = filer->getSelection();
-    std::string selectedPath = selected.path.empty() ? filer->getPath() + "/.." : selected.path;
-    std::string path = Paths::normalizePath(selectedPath);
-
-    if (currentModuleIndex > 0) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Main::syncLastLocation module="
-            + std::string(currentModuleIndex > 0 ? networkModuleName(currentModuleIndex) : "LOCAL")
-            + " index=" + std::to_string(currentModuleIndex) + " path=" + path);
-
-        config->getOption(OPT_LAST_MODULE)->setString(networkModuleName(currentModuleIndex));
-        const char *lastOption = PPLAYConfig::networkLastOption(currentModuleIndex);
-        if (Paths::getLeafName(path).empty()) {
-            config->getOption(lastOption)->setString(Paths::ensureTrailingSlash(path));
-        } else {
-            config->getOption(lastOption)->setString(path);
-        }
-#ifdef __SWITCH__
-    } else if (c2d::Utility::startWith(selectedPath, "ums")) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-            "Main::syncLastLocation module=USB");
-
-        config->getOption(OPT_LAST_MODULE)->setString("USB");
-#endif
-    } else {
-        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-            "Main::syncLastLocation module=LOCAL path=" + path);
-
-        config->getOption(OPT_LAST_MODULE)->setString("LOCAL");
-        if (Paths::getLeafName(path).empty()) {
-            config->getOption(OPT_LAST_LOCAL_PATH)->setString(Paths::ensureTrailingSlash(path));
-        } else {
-            config->getOption(OPT_LAST_LOCAL_PATH)->setString(path);
-        }
-    }
-    config->save();
 }
 
 void Main::setCurrentModuleIndex(int index) {
@@ -418,8 +287,8 @@ c2d::MessageBox *Main::getMessageBox() {
     return messageBox;
 }
 
-int Main::showMessage(const std::string &title, const std::string &message,
-                      const std::string &buttonLeft, const std::string &buttonRight) {
+int Main::showMessage(const std::string &title, const std::string &message, const std::string &buttonLeft,
+                      const std::string &buttonRight) {
     float width = Main::getSize().x * 0.4f;
     float margin = 16 * scaling.y;
     Text *text = messageBox->getMessageText();
@@ -469,3 +338,44 @@ StatusBar *Main::getStatusBar() {
     return statusBar;
 }
 
+// platform, data directory, configuration and language before the ui
+int main() {
+    if (!pplay::Platform::init()) {
+        return 0;
+    }
+
+    auto *io = new pplay::Io();
+    io->create(io->getDataPath());
+    pplay::Utility::setDataPath(io->getDataPath());
+#if defined(__PS4__) || defined(__SWITCH__) || defined(__LINUX__)
+    // romfs (skin, mpv, lang...) -> data directory
+    io->syncRomFs();
+#endif
+
+    auto *config = new PPLAYConfig(io);
+    io->setConfig(config);
+    pplay::Utility::setLogLevel((pplay::Utility::LogLevel) config->getOption(OPT_LOG_LEVEL)->getInteger());
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "pPlay " APP_VERSION_FULL " starting");
+
+    // bundled languages, then the user ones
+    pplay::I18n::setSearchPaths({io->getRomFsPath() + "lang", io->getDataPath() + "lang"});
+    pplay::I18n::load(config->getOption(OPT_LANGUAGE)->getString());
+
+    c2d::Vector2f size = pplay::Platform::resolution();
+
+    auto *main = new Main(size, io, config);
+    pplay::Platform::started(main);
+    pplay::NetTime::start();
+
+    while (main->isRunning()) {
+        main->flip();
+        pplay::Platform::frameDone(main);
+    }
+
+    pplay::NetTime::stop();
+    delete (main);
+
+    pplay::Platform::exit();
+
+    return 0;
+}

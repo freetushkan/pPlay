@@ -5,8 +5,8 @@
 #ifndef PPLAY_PLAYER_H
 #define PPLAY_PLAYER_H
 
-#include "menus/menu_video_submenu.h"
 #include <atomic>
+#include "menus/menu_video_submenu.h"
 #include "media_file.h"
 #include "mpv.h"
 #include "external_tracks.h"
@@ -70,6 +70,12 @@ public:
 
     int getSubtitleStream();
 
+    // volume normalization changed (settings or player menu)
+    void setAudioNormalize(int mode);
+
+    // "Add file..." of the audio / subtitles menus: pick a file in the filer
+    void pickExternalTrack(bool audio);
+
     void showMessage(const std::string &message);
 
     PlayerOSD *getOSD();
@@ -88,24 +94,44 @@ public:
 
     MenuVideoSubmenu *getMenuNormalize();
 
-    // volume normalization changed (settings or player menu)
-    void setAudioNormalize(int mode);
-
     const std::string &getTitle() const;
+
     bool hasVideo() const;
+
     bool isPlaylistFile() const;
+
     const std::vector<MediaFile> &getAutoplayFiles() const;
 
     bool onInput(c2d::Input::Player *players) override;
 
-    // "Add file..." of the audio / subtitles menus: pick a file in the filer
-    void pickExternalTrack(bool audio);
-
 private:
+
+    // mpv_command_async user data of the external tracks (+ generation)
+    static constexpr uint64_t ExternalReply = 0x4558540000000000ULL;
+    // appliedAudioFilter of a new file: a @pplaynorm filter may be there (old watch_later)
+    static constexpr const char *AudioFilterUnknown = "?";
 
     void onUpdate() override;
 
+    // player.cpp
     void onLoadEvent();
+
+    // player_menus.cpp
+    void buildMenus();
+
+    void buildTrackMenus();
+
+    std::vector<MenuVideoSubmenu *> menus() const;
+
+    bool isMenuVisible() const;
+
+    void hideMenus();
+
+    // the file ones, all on exit
+    void deleteMenus(bool all);
+
+    // player_playback.cpp
+    void onMpvEvent(mpv_event *event);
 
     void onStopEvent(int reason);
 
@@ -113,15 +139,15 @@ private:
 
     void updateWatchdog();
 
+    // watch later save (aid / sid left out while an external track is selected)
+    void saveProgress();
+
     void updateMpvLog();
 
     void onMpvLog(const mpv_event_log_message *message);
 
-    // preferred track languages (settings, or mpv.conf)
+    // player_tracks.cpp: preferred languages (settings, or mpv.conf)
     void applyLanguages();
-
-    // audio / subtitles selection menus
-    void buildTrackMenus();
 
     // external tracks: user bindings, then the files found next to the video
     void startExternalTracks();
@@ -137,12 +163,95 @@ private:
     // a track chosen in a menu: remembered if external
     void rememberSelection(bool audio, int trackId);
 
-    // watch later save (aid / sid left out while an external track is selected)
-    void saveProgress();
+    // internal tracks of a type ("audio", "sub"): ids and languages
+    std::string trackLayout(const std::string &type);
+
+    // tracks chosen in the menus, applied to the next files with the same tracks
+    void rememberTrackChoice(bool audio, int trackId);
+
+    void applyTrackChoices();
 
     void selectAudioIfNone();
 
-    // tracks chosen in the menus, applied to the next files with the same tracks
+    // player_audio.cpp: lavfi filter labelled @pplaynorm, by the decoded channels
+    void applyAudioFilter();
+
+    // volume saved in the settings, a bit after the last change
+    void saveVolume();
+
+    // player_controls.cpp: playback information (Start toggles it)
+    void updateInfo();
+
+    void updateKeysInfo();
+
+    // current track ("audio", "sub"): "#id lang «title» (external)", or "Off"
+    std::string trackInfo(const std::string &type);
+
+    Main *main = nullptr;
+    Mpv *mpv = nullptr;
+    VideoTexture *texture = nullptr;
+    PlayerOSD *osd = nullptr;
+    bool fullscreen = false;
+    c2d::TweenScale *tweenScale = nullptr;
+    c2d::TweenPosition *tweenPosition = nullptr;
+
+    c2d::Text *message_text = nullptr;
+    c2d::C2DClock messageClock;
+    c2d::Text *info_text = nullptr;
+    c2d::Text *info_keys = nullptr;
+    c2d::C2DClock infoClock;
+
+    MenuVideoSubmenu *menuVideoStreams = nullptr;
+    MenuVideoSubmenu *menuAudioStreams = nullptr;
+    MenuVideoSubmenu *menuSubtitlesStreams = nullptr;
+    MenuVideoSubmenu *menuPlaylist = nullptr;
+    MenuVideoSubmenu *menuPlaybackMode = nullptr;
+    MenuVideoSubmenu *menuNormalize = nullptr;
+
+    // the file
+    MediaFile file;
+    std::string playingKey;
+    std::vector<MediaFile> autoplayFiles;
+    mutable std::string displayTitle;
+    int appliedQuality = -1;
+    long startPlaybackPosition = -1;
+    bool frameDrawn = false;
+    // the playback restart event seen (first frame / position reached)
+    bool playbackStarted = false;
+
+    // progress
+    long lastProgressSave = 0;
+    bool progressForgotten = false;
+    long lastKnownDuration = 0;
+    long lastKnownPosition = 0;
+    bool watchLaterSkip[2] = {false, false};
+
+    // reloads and the stall watchdog
+    int retryCount = 0;
+    bool reloadPending = false;
+    int reloadDelayMs = 0;
+    double reloadPosition = 0;
+    bool reloadPaused = false;
+    bool skipStopEvent = false;
+    // stopped by the watchdog, retries exhausted
+    bool stalledStop = false;
+    c2d::C2DClock reloadClock;
+    double watchTime = -1;
+    long watchFrame = -1;
+    double watchCache = -1;
+    double lastTime = 0;
+    bool userPaused = false;
+    c2d::C2DClock watchLogClock;
+    c2d::C2DClock stallClock;
+    c2d::C2DClock progressClock;
+    int mpvLogLevel = -1;
+
+    // audio
+    std::string appliedAudioFilter;
+    bool volumeDirty = false;
+    c2d::C2DClock volumeClock;
+
+    // tracks
     struct TrackChoice {
         bool set = false;
         int id = -1; // -1: off
@@ -150,96 +259,19 @@ private:
     };
     TrackChoice trackChoice[2];
     bool trackChoiceApplied[2] = {false, false};
-
-    // internal tracks of a type ("audio", "sub"): ids and languages
-    std::string trackLayout(const std::string &type);
-
-    void rememberTrackChoice(bool audio, int trackId);
-
-    void applyTrackChoices();
-    bool watchLaterSkip[2] = {false, false};
-
-    // ui
-    Main *main = nullptr;
-    PlayerOSD *osd = nullptr;
-    c2d::Text *message_text = nullptr;
-    c2d::TweenScale *tweenScale = nullptr;
-    c2d::TweenPosition *tweenPosition = nullptr;
-    MenuVideoSubmenu *menuVideoStreams = nullptr;
-    MenuVideoSubmenu *menuAudioStreams = nullptr;
-    MenuVideoSubmenu *menuSubtitlesStreams = nullptr;
-    MenuVideoSubmenu *menuPlaylist = nullptr;
-    MenuVideoSubmenu *menuPlaybackMode = nullptr;
-    MenuVideoSubmenu *menuNormalize = nullptr;
-    int appliedQuality = -1;
-    MediaFile file;
-    std::string playingKey;
-    std::vector<MediaFile> autoplayFiles;
-    int retryCount = 0;
-    long lastProgressSave = 0;
-    bool progressForgotten = false;
-    long lastKnownDuration = 0;
-    long lastKnownPosition = 0;
-    long startPlaybackPosition = -1;
-    c2d::C2DClock messageClock;
-    bool frameDrawn = false;
-    // the file playback restart event seen (first frame / position reached)
-    bool playbackStarted = false;
-    // stopped by the watchdog, retries exhausted
-    bool stalledStop = false;
-
-    bool reloadPending = false;
-    int reloadDelayMs = 0;
-    double reloadPosition = 0;
-    bool reloadPaused = false;
-    bool skipStopEvent = false;
-    c2d::C2DClock reloadClock;
-    int mpvLogLevel = -1;
-    double watchTime = -1;
-    long watchFrame = -1;
-    double watchCache = -1;
-    c2d::C2DClock watchLogClock;
-    double lastTime = 0;
-    bool userPaused = false;
-    c2d::C2DClock stallClock;
-    c2d::C2DClock progressClock;
-
-    // playback information (Start toggles it), updated while shown
-    c2d::Text *info_text = nullptr;
-    c2d::Text *info_keys = nullptr;
-
-    // current track ("audio", "sub"): "#id lang «title» (external)", or "Off"
-    std::string trackInfo(const std::string &type);
-
-    void updateKeysInfo();
-    c2d::C2DClock infoClock;
-
-    void updateInfo();
-
-    // volume normalization (lavfi, labelled @pplaynorm), by the decoded channels;
-    // AUDIO_FILTER_UNKNOWN: a new file (an old watch_later may have restored one)
-    std::string appliedAudioFilter;
-
-    void applyAudioFilter();
-
-    // volume saved in the settings, a bit after the last change
-    bool volumeDirty = false;
-    c2d::C2DClock volumeClock;
-
-    void saveVolume();
-
-    // external tracks
     std::string confAudioLang;
     std::string confSubLang;
     std::string appliedAudioLang = "\x01";
     std::string appliedSubLang = "\x01";
     bool hadWatchLater = false;
+
+    // external tracks
     int externalGeneration = 0;
     int externalPending = 0;
     std::vector<std::string> externalAdded;
     std::vector<pplay::ExternalTracks::Track> externalBindings;
     std::vector<pplay::ExternalTracks::Track> externalAll;
-    std::string externalSelect[2];  // url to select once added (audio, subtitles)
+    std::string externalSelect[2]; // url to select once added (audio, subtitles)
     c2d::C2DThread *externalThread = nullptr;
     std::atomic<bool> externalDone{false};
     bool externalRestart = false;
@@ -247,13 +279,6 @@ private:
     std::string externalJobPath;
     std::string externalJobName;
     std::vector<pplay::ExternalTracks::Track> externalFound;
-
-    // player
-    VideoTexture *texture = nullptr;
-    Mpv *mpv;
-
-    bool fullscreen = false;
-    mutable std::string displayTitle;
 };
 
 #endif //PPLAY_PLAYER_H

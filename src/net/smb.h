@@ -16,14 +16,28 @@
 #include "libsmb2-raw.h"
 
 namespace pplay::Smb {
+
+    struct Url {
+        std::string domain;
+        std::string user;
+        std::string password;
+        std::string server;
+        int port = 445;
+        std::string path;
+        std::string libsmbUrl;
+        std::string displayUrl;
+    };
+
     // smb://[domain.]user:password@server[:port]/share/path
+    Url parseUrl(const std::string &url);
+
     std::vector<c2d::Io::File> list(const std::string &path, int timeout, std::string *error = nullptr);
+
+    // mpv "smb2://" stream protocol
+    void configureStream(int bufferMB, int timeout);
+
+    int registerStream(void *mpv);
 }
-
-// mpv "smb2://" stream protocol
-void configure_smb_mpv(int readBufferMB, int timeoutSeconds);
-
-int register_smb_mpv(void *mpv_ctx);
 
 #endif
 

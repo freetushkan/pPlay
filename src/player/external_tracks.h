@@ -17,10 +17,10 @@ namespace pplay {
 
         struct Track {
             bool audio = true;
-            std::string path;       // as listed (TorrServe virtual path, smb://...)
-            std::string title;      // shown in the tracks menu
-            std::string lang;       // mpv language code, or ""
-            bool selected = false;  // chosen by the user
+            std::string path;      // as listed (TorrServe virtual path, smb://...)
+            std::string title;     // shown in the tracks menu
+            std::string lang;      // mpv language code, or ""
+            bool selected = false; // chosen by the user
         };
 
         const std::vector<std::string> &audioExtensions();

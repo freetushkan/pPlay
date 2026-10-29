@@ -11,10 +11,9 @@
 #include "filer_item.h"
 #include "media_file.h"
 #include "highlight.h"
+#include "preview_view.h"
 
 class Main;
-
-class PreviewView;
 
 class Filer : public c2d::Rectangle {
 
@@ -25,7 +24,6 @@ public:
     ~Filer() override;
 
     void setMediaInfo(const MediaFile &target, const MediaInfo &mediaInfo);
-
 
     virtual bool getDir(const std::string &path);
 
@@ -54,14 +52,22 @@ public:
 
     // file picker: files with these extensions listed too, A picks one, X cancels;
     // the previous directory comes back after
-    void startPick(const std::vector<std::string> &extensions, const std::string &dir,
-                   const std::string &hint, std::function<void(const MediaFile &)> onPick);
+    void startPick(const std::vector<std::string> &extensions, const std::string &dir, const std::string &hint,
+                   std::function<void(const MediaFile &)> onPick);
 
     bool isPicking() const { return picking; }
 
 private:
 
     void endPick();
+
+    // A on a picked file
+    void pick();
+
+    // a key (or a panel button) action
+    void run(PreviewView::Action action);
+
+    void resetProgress(const MediaFile &file);
 
     virtual void enter(int index);
 

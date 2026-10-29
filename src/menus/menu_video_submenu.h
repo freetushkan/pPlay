@@ -20,8 +20,8 @@ class MenuVideoSubmenu : public Menu {
 
 public:
 
-    MenuVideoSubmenu(Main *main, const c2d::FloatRect &rect,
-                     const std::string &_title, const std::vector<MenuItem> &items, int type);
+    MenuVideoSubmenu(Main *main, const c2d::FloatRect &rect, const std::string &_title,
+                     const std::vector<MenuItem> &items, int type);
 
     bool onInput(c2d::Input::Player *players) override;
 
@@ -29,10 +29,7 @@ public:
 
     void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
 
-    void onUpdate() override;
-
     int type;
-    Highlight *highlight_selection;
 
 private:
 

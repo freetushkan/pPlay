@@ -53,6 +53,10 @@ Usage and controls
 
 Media keys and TV remotes are supported (PS5).
 
+In the file browser `RIGHT` moves to the information panel: the D-Pad scrolls it, at its end the key hints
+become buttons (TV remotes have no `SQUARE` / `TRIANGLE`); `LEFT` or Back returns to the files.
+The menu key (`SQUARE`) returns to the minimized video.
+
 Fork additions
 ----
 

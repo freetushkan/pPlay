@@ -71,19 +71,27 @@ Io *Io::get() {
 }
 
 const std::vector<std::string> &Io::networkTypeNames() {
-    static const std::vector<std::string> names = {
-            "Auto", "TorrServe", "Samba", "FTP", "HTTP", "WebDAV"
-    };
+    static const std::vector<std::string> names = {"Auto", "TorrServe", "Samba", "FTP", "HTTP", "WebDAV"};
     return names;
 }
 
 Io::NetworkType Io::parseNetworkType(const std::string &name) {
     const std::string n = c2d::Utility::toLower(name);
-    if (n == "torrserve" || n == "torrserver") return NetworkType::TorrServe;
-    if (n == "samba" || n == "smb") return NetworkType::Smb;
-    if (n == "ftp") return NetworkType::Ftp;
-    if (n == "http" || n == "https") return NetworkType::Http;
-    if (n == "webdav" || n == "dav") return NetworkType::WebDav;
+    if (n == "torrserve" || n == "torrserver") {
+        return NetworkType::TorrServe;
+    }
+    if (n == "samba" || n == "smb") {
+        return NetworkType::Smb;
+    }
+    if (n == "ftp") {
+        return NetworkType::Ftp;
+    }
+    if (n == "http" || n == "https") {
+        return NetworkType::Http;
+    }
+    if (n == "webdav" || n == "dav") {
+        return NetworkType::WebDav;
+    }
     return NetworkType::Auto;
 }
 
@@ -100,22 +108,23 @@ std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, con
 
     // remove items by extensions, if provided
     if (!extensions.empty()) {
-        files.erase(
-                std::remove_if(files.begin(), files.end(), [extensions](const Io::File &file) {
-                    for (auto &ext: extensions) {
-                        if (c2d::Utility::endsWith(file.name, ext, false)) {
-                            return false;
-                        }
-                    }
-                    return file.type == c2d::Io::Type::File;
-                }), files.end());
+        files.erase(std::remove_if(files.begin(), files.end(),
+                                   [extensions](const Io::File &file) {
+                                       for (auto &ext: extensions) {
+                                           if (c2d::Utility::endsWith(file.name, ext, false)) {
+                                               return false;
+                                           }
+                                       }
+                                       return file.type == c2d::Io::Type::File;
+                                   }),
+                    files.end());
     }
 
     return files;
 }
 
-std::vector<c2d::Io::File> Io::list(const DeviceType &type, const std::string &path, int timeout,
-                                    std::string *error, bool sort, bool showHidden) {
+std::vector<c2d::Io::File> Io::list(const DeviceType &type, const std::string &path, int timeout, std::string *error,
+                                    bool sort, bool showHidden) {
     std::vector<c2d::Io::File> files;
     if (type == DeviceType::Local) {
 #ifdef __SWITCH__
@@ -123,21 +132,20 @@ std::vector<c2d::Io::File> Io::list(const DeviceType &type, const std::string &p
             for (const auto &mountName: usbGetMountNames()) {
                 files.emplace_back(c2d::Utility::removeLastSlash(mountName), mountName, Io::Type::Directory, 0);
             }
-            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::UsbList entries="
-                                                                    + std::to_string(files.size()));
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::UsbList entries=" + std::to_string(files.size()));
             return files;
         }
 #endif
         files = c2d::C2DIo::getDirList(path, sort, showHidden);
-        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::Local path=" + path
-                                                            + " entries=" + std::to_string(files.size()));
+        pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                            "Io::Local path=" + path + " entries=" + std::to_string(files.size()));
     } else if (type == DeviceType::Http || type == DeviceType::WebDav) {
         files = type == DeviceType::Http ? Http::listIndex(path, timeout, error)
                                          : Http::listWebDav(path, timeout, error);
     } else if (type == DeviceType::TorrServe) {
         files = pplay::TorrServe::getDirList(path, timeout, error);
-        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::TorrServe path=" + path
-                                                            + " entries=" + std::to_string(files.size()));
+        pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                            "Io::TorrServe path=" + path + " entries=" + std::to_string(files.size()));
     } else if (type == DeviceType::Ftp) {
         files = Ftp::list(path, timeout, error);
     }
@@ -177,8 +185,7 @@ static std::string comparableUrl(const std::string &url) {
         slash = u.find('/', scheme + 3);
     }
     size_t hostEnd = slash == std::string::npos ? u.size() : slash;
-    std::transform(u.begin(), u.begin() + (long) hostEnd, u.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+    std::transform(u.begin(), u.begin() + (long) hostEnd, u.begin(), [](unsigned char c) { return std::tolower(c); });
     std::replace(u.begin(), u.end(), '\\', '/');
     while (u.size() > scheme + 3 && c2d::Utility::endsWith(u, "/")) {
         u.pop_back();
@@ -201,13 +208,14 @@ int Io::findNetwork(const std::string &path, bool typedOnly) {
         if (network.empty()) {
             continue;
         }
-        if (typedOnly && parseNetworkType(
-                config->getOption(PPLAYConfig::networkTypeOption(i))->getString()) == NetworkType::Auto) {
+        if (typedOnly
+            && parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(i))->getString())
+                       == NetworkType::Auto) {
             continue;
         }
         const std::string root = comparableUrl(network);
-        if (target == root || (c2d::Utility::startWith(target, root)
-                               && (target[root.size()] == '/' || target[root.size()] == '?'))) {
+        if (target == root
+            || (c2d::Utility::startWith(target, root) && (target[root.size()] == '/' || target[root.size()] == '?'))) {
             // longest match wins
             if (root.size() > bestLen) {
                 best = i;

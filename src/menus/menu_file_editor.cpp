@@ -9,10 +9,10 @@
 
 using namespace c2d;
 
-#define ID_EDIT_ALL  (-100)
-#define ID_ADD_LINE  (-101)
-#define ID_FILE      (-102)
-#define ID_EXTERNAL  (-103)
+#define ID_EDIT_ALL (-100)
+#define ID_ADD_LINE (-101)
+#define ID_FILE (-102)
+#define ID_EXTERNAL (-103)
 
 #ifdef __LINUX__
 #include <spawn.h>
@@ -29,9 +29,13 @@ namespace {
         size_t pos = 0;
         while (pos < text.size()) {
             size_t eol = text.find('\n', pos);
-            if (eol == std::string::npos) eol = text.size();
+            if (eol == std::string::npos) {
+                eol = text.size();
+            }
             std::string line = text.substr(pos, eol - pos);
-            if (!line.empty() && line.back() == '\r') line.pop_back();
+            if (!line.empty() && line.back() == '\r') {
+                line.pop_back();
+            }
             out.push_back(line);
             pos = eol + 1;
         }
@@ -49,7 +53,7 @@ namespace {
 }
 
 MenuFileEditor::MenuFileEditor(Main *main, const c2d::FloatRect &rect)
-        : Menu(main, rect, "Edit files", {MenuItem("", "", MenuItem::Position::Top)}, true) {
+    : Menu(main, rect, "Edit files", {MenuItem("", "", MenuItem::Position::Top)}, true) {
     showFiles();
 }
 
@@ -61,6 +65,7 @@ void MenuFileEditor::showFiles() {
     currentFile.clear();
     lines.clear();
     setTitle("Edit files");
+    setCompact(false);
     std::vector<MenuItem> items;
     for (const char *file: g_files) {
         MenuItem item(file, "", MenuItem::Position::Top, ID_FILE);
@@ -79,6 +84,8 @@ void MenuFileEditor::openFile(const std::string &relativePath, int selectLine) {
     currentFile = relativePath;
     lines = splitLines(text);
     setTitle(relativePath);
+    // more lines on screen
+    setCompact(true);
 
     std::vector<MenuItem> items;
     std::string whole = text;
@@ -137,8 +144,7 @@ bool MenuFileEditor::save(const std::vector<std::string> &newLines) {
                 io->writeText(path, oldText);
             }
             main->getConfig()->reload();
-            main->showMessage(pplay::tr("Error"),
-                              pplay::tr("Invalid configuration, the changes were discarded"),
+            main->showMessage(pplay::tr("Error"), pplay::tr("Invalid configuration, the changes were discarded"),
                               pplay::tr("OK"));
             return false;
         }
@@ -158,8 +164,7 @@ void MenuFileEditor::editAll() {
     }
     if (pplay::Keyboard::length(text) > pplay::Keyboard::maxLength(true)) {
         main->showMessage(pplay::tr("Info..."),
-                          pplay::tr("The file is too long for the keyboard, edit it line by line"),
-                          pplay::tr("OK"));
+                          pplay::tr("The file is too long for the keyboard, edit it line by line"), pplay::tr("OK"));
         return;
     }
     if (!pplay::Keyboard::edit(currentFile, text, true)) {
@@ -175,8 +180,7 @@ void MenuFileEditor::editLine(int line) {
     std::vector<std::string> newLines = lines;
     std::string text = line < (int) lines.size() ? lines[line] : std::string();
     if (pplay::Keyboard::length(text) > pplay::Keyboard::maxLength(false)) {
-        main->showMessage(pplay::tr("Info..."), pplay::tr("The line is too long for the keyboard"),
-                          pplay::tr("OK"));
+        main->showMessage(pplay::tr("Info..."), pplay::tr("The line is too long for the keyboard"), pplay::tr("OK"));
         return;
     }
     if (!pplay::Keyboard::edit(currentFile + ": " + std::to_string(line + 1), text, false)) {
@@ -220,7 +224,7 @@ void MenuFileEditor::onOptionSelection(MenuItem *item) {
 
 #ifdef __LINUX__
 static long long fileTime(const std::string &path) {
-    struct stat st{};
+    struct stat st {};
     if (stat(path.c_str(), &st) != 0) {
         return -1;
     }

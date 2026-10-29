@@ -8,7 +8,7 @@
 using namespace c2d;
 
 TextIcon::TextIcon(const std::string &str, unsigned int fontSize, Font *font, const Color &color)
-        : RectangleShape({32, 32}) {
+    : RectangleShape({32, 32}) {
 
     text = new Text(str, fontSize, font);
     text->setOrigin(Origin::Center);

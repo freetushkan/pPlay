@@ -21,51 +21,42 @@ namespace {
 
 #if defined(__LINUX__)
     const std::vector<Input::ButtonMapping> g_keyboard = {
-            {Input::Button::Up,     SDL_SCANCODE_UP},
-            {Input::Button::Down,   SDL_SCANCODE_DOWN},
-            {Input::Button::Left,   SDL_SCANCODE_LEFT},
-            {Input::Button::Right,  SDL_SCANCODE_RIGHT},
-            {Input::Button::A,      SDL_SCANCODE_RETURN},
-            {Input::Button::A,      SDL_SCANCODE_KP_ENTER},
-            {Input::Button::B,      SDL_SCANCODE_ESCAPE},
-            {Input::Button::B,      SDL_SCANCODE_BACKSPACE},
-            {Input::Button::X,      SDL_SCANCODE_TAB},
-            {Input::Button::X,      SDL_SCANCODE_MENU},
-            {Input::Button::X,      SDL_SCANCODE_APPLICATION},
-            {Input::Button::Y,      SDL_SCANCODE_DELETE},
-            {Input::Button::LB,     SDL_SCANCODE_PAGEUP},
-            {Input::Button::RB,     SDL_SCANCODE_PAGEDOWN},
-            {Input::Button::LT,     SDL_SCANCODE_HOME},
-            {Input::Button::RT,     SDL_SCANCODE_END},
-            {Input::Button::Start,  SDL_SCANCODE_F1},
-            {Input::Button::Select, SDL_SCANCODE_F2},
+            {Input::Button::Up, SDL_SCANCODE_UP},         {Input::Button::Down, SDL_SCANCODE_DOWN},
+            {Input::Button::Left, SDL_SCANCODE_LEFT},     {Input::Button::Right, SDL_SCANCODE_RIGHT},
+            {Input::Button::A, SDL_SCANCODE_RETURN},      {Input::Button::A, SDL_SCANCODE_KP_ENTER},
+            {Input::Button::B, SDL_SCANCODE_ESCAPE},      {Input::Button::B, SDL_SCANCODE_BACKSPACE},
+            {Input::Button::X, SDL_SCANCODE_TAB},         {Input::Button::X, SDL_SCANCODE_MENU},
+            {Input::Button::X, SDL_SCANCODE_APPLICATION}, {Input::Button::Y, SDL_SCANCODE_DELETE},
+            {Input::Button::LB, SDL_SCANCODE_PAGEUP},     {Input::Button::RB, SDL_SCANCODE_PAGEDOWN},
+            {Input::Button::LT, SDL_SCANCODE_HOME},       {Input::Button::RT, SDL_SCANCODE_END},
+            {Input::Button::Start, SDL_SCANCODE_F1},      {Input::Button::Select, SDL_SCANCODE_F2},
     };
 #elif !defined(NO_KEYBOARD)
     const std::vector<Input::ButtonMapping> g_keyboard = {
-            {Input::Button::Up,     SDL_SCANCODE_UP},
-            {Input::Button::Up,     SDL_SCANCODE_KP_8},
-            {Input::Button::Down,   SDL_SCANCODE_DOWN},
-            {Input::Button::Down,   SDL_SCANCODE_KP_2},
-            {Input::Button::Left,   SDL_SCANCODE_LEFT},
-            {Input::Button::Left,   SDL_SCANCODE_KP_4},
-            {Input::Button::Right,  SDL_SCANCODE_RIGHT},
-            {Input::Button::Right,  SDL_SCANCODE_KP_6},
-            {Input::Button::A,      SDL_SCANCODE_RETURN},
-            {Input::Button::A,      SDL_SCANCODE_KP_ENTER},
-            {Input::Button::A,      SDL_SCANCODE_SELECT},       // remote "OK" (some keymaps)
-            {Input::Button::B,      SDL_SCANCODE_ESCAPE},
-            {Input::Button::B,      SDL_SCANCODE_BACKSPACE},
-            {Input::Button::B,      SDL_SCANCODE_AC_BACK},      // remote "Back"
-            {Input::Button::X,      SDL_SCANCODE_X},
-            {Input::Button::X,      SDL_SCANCODE_MENU},         // remote "Menu" / "Options"
-            {Input::Button::X,      SDL_SCANCODE_APPLICATION},
-            {Input::Button::Y,      SDL_SCANCODE_Y},
-            {Input::Button::Y,      SDL_SCANCODE_DELETE},
-            {Input::Button::LB,     SDL_SCANCODE_PAGEUP},
-            {Input::Button::RB,     SDL_SCANCODE_PAGEDOWN},
-            {Input::Button::LT,     SDL_SCANCODE_LEFTBRACKET},
-            {Input::Button::RT,     SDL_SCANCODE_RIGHTBRACKET},
-            {Input::Button::Start,  SDL_SCANCODE_F1},
+            {Input::Button::Up, SDL_SCANCODE_UP},
+            {Input::Button::Up, SDL_SCANCODE_KP_8},
+            {Input::Button::Down, SDL_SCANCODE_DOWN},
+            {Input::Button::Down, SDL_SCANCODE_KP_2},
+            {Input::Button::Left, SDL_SCANCODE_LEFT},
+            {Input::Button::Left, SDL_SCANCODE_KP_4},
+            {Input::Button::Right, SDL_SCANCODE_RIGHT},
+            {Input::Button::Right, SDL_SCANCODE_KP_6},
+            {Input::Button::A, SDL_SCANCODE_RETURN},
+            {Input::Button::A, SDL_SCANCODE_KP_ENTER},
+            {Input::Button::A, SDL_SCANCODE_SELECT}, // remote "OK" (some keymaps)
+            {Input::Button::B, SDL_SCANCODE_ESCAPE},
+            {Input::Button::B, SDL_SCANCODE_BACKSPACE},
+            {Input::Button::B, SDL_SCANCODE_AC_BACK}, // remote "Back"
+            {Input::Button::X, SDL_SCANCODE_X},
+            {Input::Button::X, SDL_SCANCODE_MENU}, // remote "Menu" / "Options"
+            {Input::Button::X, SDL_SCANCODE_APPLICATION},
+            {Input::Button::Y, SDL_SCANCODE_Y},
+            {Input::Button::Y, SDL_SCANCODE_DELETE},
+            {Input::Button::LB, SDL_SCANCODE_PAGEUP},
+            {Input::Button::RB, SDL_SCANCODE_PAGEDOWN},
+            {Input::Button::LT, SDL_SCANCODE_LEFTBRACKET},
+            {Input::Button::RT, SDL_SCANCODE_RIGHTBRACKET},
+            {Input::Button::Start, SDL_SCANCODE_F1},
             {Input::Button::Select, SDL_SCANCODE_F2},
     };
 #endif
@@ -73,17 +64,17 @@ namespace {
     // media and remote keys, handled here (SDL keycodes)
     const std::vector<KeyMap> g_keycodes = {
 #ifndef __LINUX__
-            {SDLK_SPACE,            pplay::InputMap::PlayPause},
+            {SDLK_SPACE, pplay::InputMap::PlayPause},
 #endif
-            {SDLK_AUDIOPLAY,        pplay::InputMap::PlayPause},
-            {SDLK_AUDIOSTOP,        pplay::InputMap::Stop},
-            {SDLK_AUDIONEXT,        pplay::InputMap::Next},
-            {SDLK_AUDIOPREV,        pplay::InputMap::Previous},
+            {SDLK_AUDIOPLAY, pplay::InputMap::PlayPause},
+            {SDLK_AUDIOSTOP, pplay::InputMap::Stop},
+            {SDLK_AUDIONEXT, pplay::InputMap::Next},
+            {SDLK_AUDIOPREV, pplay::InputMap::Previous},
             {SDLK_AUDIOFASTFORWARD, pplay::InputMap::FastForward},
-            {SDLK_AUDIOREWIND,      pplay::InputMap::Rewind},
-            {SDLK_VOLUMEUP,         pplay::InputMap::VolumeUp},
-            {SDLK_VOLUMEDOWN,       pplay::InputMap::VolumeDown},
-            {SDLK_AC_HOME,          Input::Button::LB},           // remote "Home": main menu
+            {SDLK_AUDIOREWIND, pplay::InputMap::Rewind},
+            {SDLK_VOLUMEUP, pplay::InputMap::VolumeUp},
+            {SDLK_VOLUMEDOWN, pplay::InputMap::VolumeDown},
+            {SDLK_AC_HOME, Input::Button::LB}, // remote "Home": main menu
     };
 
     std::mutex g_mutex;
@@ -94,16 +85,22 @@ namespace {
     bool isKeyboardMapped(SDL_Scancode scancode) {
 #ifndef NO_KEYBOARD
         for (const auto &map: g_keyboard) {
-            if (map.value == (int) scancode) return true;
+            if (map.value == (int) scancode) {
+                return true;
+            }
         }
 #endif
         return false;
     }
 
     bool isJoystickMapped(int button) {
-        if (g_input == nullptr) return false;
+        if (g_input == nullptr) {
+            return false;
+        }
         for (const auto &map: g_input->getPlayer(0)->mapping) {
-            if (map.value == button) return true;
+            if (map.value == button) {
+                return true;
+            }
         }
         return false;
     }
@@ -123,8 +120,7 @@ namespace {
             return false;
         }
         for (int b = 0; b < SDL_CONTROLLER_BUTTON_MAX; b++) {
-            SDL_GameControllerButtonBind bind =
-                    SDL_GameControllerGetBindForButton(pad, (SDL_GameControllerButton) b);
+            SDL_GameControllerButtonBind bind = SDL_GameControllerGetBindForButton(pad, (SDL_GameControllerButton) b);
             if (bind.bindType == SDL_CONTROLLER_BINDTYPE_BUTTON && bind.value.button == joyButton) {
                 return true;
             }
@@ -142,10 +138,18 @@ namespace {
 
     unsigned int hatButtons(Uint8 hat) {
         unsigned int buttons = 0;
-        if (hat & SDL_HAT_UP) buttons |= Input::Button::Up;
-        if (hat & SDL_HAT_DOWN) buttons |= Input::Button::Down;
-        if (hat & SDL_HAT_LEFT) buttons |= Input::Button::Left;
-        if (hat & SDL_HAT_RIGHT) buttons |= Input::Button::Right;
+        if (hat & SDL_HAT_UP) {
+            buttons |= Input::Button::Up;
+        }
+        if (hat & SDL_HAT_DOWN) {
+            buttons |= Input::Button::Down;
+        }
+        if (hat & SDL_HAT_LEFT) {
+            buttons |= Input::Button::Left;
+        }
+        if (hat & SDL_HAT_RIGHT) {
+            buttons |= Input::Button::Right;
+        }
         return buttons;
     }
 
@@ -163,8 +167,11 @@ namespace {
 
     void scanDevices() {
         for (auto &d: g_devices) {
-            if (d.pad) SDL_GameControllerClose(d.pad);
-            else if (d.joy) SDL_JoystickClose(d.joy);
+            if (d.pad) {
+                SDL_GameControllerClose(d.pad);
+            } else if (d.joy) {
+                SDL_JoystickClose(d.joy);
+            }
         }
         g_devices.clear();
         g_deviceCount = SDL_NumJoysticks();
@@ -177,17 +184,18 @@ namespace {
             } else {
                 d.joy = SDL_JoystickOpen(i);
             }
-            if (!d.joy) continue;
+            if (!d.joy) {
+                continue;
+            }
             const char *name = SDL_JoystickName(d.joy);
             d.name = name ? name : "?";
             d.buttons.assign((size_t) std::max(0, SDL_JoystickNumButtons(d.joy)), 0);
             d.hats.assign((size_t) std::max(0, SDL_JoystickNumHats(d.joy)), SDL_HAT_CENTERED);
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
                                 "Input: device " + std::to_string(i) + " \"" + d.name + "\" ("
-                                + (d.pad ? "game controller" : "joystick") + ", "
-                                + std::to_string(d.buttons.size()) + " buttons, "
-                                + std::to_string(d.hats.size()) + " hats)"
-                                + (i == 0 ? ", main" : ""));
+                                        + (d.pad ? "game controller" : "joystick") + ", "
+                                        + std::to_string(d.buttons.size()) + " buttons, "
+                                        + std::to_string(d.hats.size()) + " hats)" + (i == 0 ? ", main" : ""));
             g_devices.push_back(d);
         }
     }
@@ -212,8 +220,8 @@ namespace {
                 Uint8 value = SDL_JoystickGetHat(d.joy, (int) h);
                 bool unused = !hasDpad(d.pad);
                 if (value != d.hats[h] && value != SDL_HAT_CENTERED && unused) {
-                    snprintf(buf, sizeof(buf), "hat %d = 0x%x on \"%s\" (handled as directions)",
-                             (int) h, (unsigned) value, d.name.c_str());
+                    snprintf(buf, sizeof(buf), "hat %d = 0x%x on \"%s\" (handled as directions)", (int) h,
+                             (unsigned) value, d.name.c_str());
                     pplay::Utility::log(pplay::Utility::LogLevel::Debug, std::string("Input: ") + buf);
                 }
                 d.hats[h] = value;
@@ -246,8 +254,7 @@ namespace {
         }
         unsigned int fire = 0;
         unsigned int pressed = held & ~g_extraHeld;
-        bool bounce = pressed && g_extraHeld == 0
-                      && g_releaseClock->getElapsedTime().asMilliseconds() < DEBOUNCE_MS;
+        bool bounce = pressed && g_extraHeld == 0 && g_releaseClock->getElapsedTime().asMilliseconds() < DEBOUNCE_MS;
         if (pressed && !bounce) {
             fire = held;
             g_extraClock->restart();
@@ -324,7 +331,9 @@ namespace pplay::InputMap {
         // triggers: remotes may report them off-center)
         auto mapped = [](SDL_GameController *pad) {
             unsigned int buttons = 0;
-            if (pad == nullptr || g_input == nullptr) return buttons;
+            if (pad == nullptr || g_input == nullptr) {
+                return buttons;
+            }
             for (const auto &map: g_input->getPlayer(0)->mapping) {
                 if (map.value >= 0 && map.value < SDL_CONTROLLER_BUTTON_MAX
                     && SDL_GameControllerGetButton(pad, (SDL_GameControllerButton) map.value)) {
@@ -343,11 +352,15 @@ namespace pplay::InputMap {
         // some devices mirror the main controller, late (PS5 "User1" hat): ignore what
         // it pressed in the last MIRROR_MS
         if (mainPad != nullptr) {
-            if (g_mirrorClock == nullptr) g_mirrorClock = new c2d::C2DClock();
+            if (g_mirrorClock == nullptr) {
+                g_mirrorClock = new c2d::C2DClock();
+            }
             const int now = (int) g_mirrorClock->getElapsedTime().asMilliseconds();
             const unsigned int mainHeld = mapped(mainPad);
             for (int bit = 0; bit < 32; bit++) {
-                if (mainHeld & (1u << bit)) g_mainLastMs[bit] = now;
+                if (mainHeld & (1u << bit)) {
+                    g_mainLastMs[bit] = now;
+                }
                 if ((held & (1u << bit)) && g_mainLastMs[bit] >= 0 && now - g_mainLastMs[bit] < MIRROR_MS) {
                     held &= ~(1u << bit);
                 }
@@ -362,9 +375,15 @@ namespace pplay::InputMap {
     }
 
     int repeatDelay(int heldMs) {
-        if (heldMs < REPEAT_DELAY) return REPEAT_DELAY;
-        if (heldMs < REPEAT_LEVEL2_AFTER) return REPEAT_LEVEL1;
-        if (heldMs < REPEAT_LEVEL3_AFTER) return REPEAT_LEVEL2;
+        if (heldMs < REPEAT_DELAY) {
+            return REPEAT_DELAY;
+        }
+        if (heldMs < REPEAT_LEVEL2_AFTER) {
+            return REPEAT_LEVEL1;
+        }
+        if (heldMs < REPEAT_LEVEL3_AFTER) {
+            return REPEAT_LEVEL2;
+        }
         return REPEAT_LEVEL3;
     }
 
@@ -376,63 +395,31 @@ namespace pplay::InputMap {
     }
 
     std::string buttonName(unsigned int button) {
-        switch (button) {
-            case Input::Button::Up: return "\u2191";
-            case Input::Button::Down: return "\u2193";
-            case Input::Button::Left: return "\u2190";
-            case Input::Button::Right: return "\u2192";
-            default: break;
-        }
+        using B = Input::Button;
+        // first match: the platform names, then the generic ones
+        static const std::pair<unsigned int, const char *> names[] = {
+                {B::Up, "\u2191"},     {B::Down, "\u2193"},   {B::Left, "\u2190"}, {B::Right, "\u2192"},
 #if defined(__PS4__) || defined(__PS5__)
-        switch (button) {
-            case Input::Button::A: return "\u2715";      // cross
-            case Input::Button::B: return "\u25CB";      // circle
-            case Input::Button::X: return "\u25A1";      // square
-            case Input::Button::Y: return "\u25B3";      // triangle
-            case Input::Button::LB: return "L1";
-            case Input::Button::RB: return "R1";
-            case Input::Button::LT: return "L2";
-            case Input::Button::RT: return "R2";
-            case Input::Button::Start: return "Options";
-            default: break;
-        }
+                {B::A, "\u2715"},      {B::B, "\u25CB"},      {B::X, "\u25A1"},    {B::Y, "\u25B3"},
+                {B::LB, "L1"},         {B::RB, "R1"},         {B::LT, "L2"},       {B::RT, "R2"},
+                {B::Start, "Options"},
 #elif defined(__SWITCH__)
-        switch (button) {
-            case Input::Button::LT: return "ZL";
-            case Input::Button::RT: return "ZR";
-            case Input::Button::Start: return "+";
-            case Input::Button::Select: return "-";
-            default: break;
-        }
+                {B::LT, "ZL"},       {B::RT, "ZR"},         {B::Start, "+"},     {B::Select, "-"},
 #elif defined(__LINUX__)
-        // the keyboard (see g_keyboard)
-        switch (button) {
-            case Input::Button::A: return "Enter";
-            case Input::Button::B: return "Esc";
-            case Input::Button::X: return "Tab";
-            case Input::Button::Y: return "Del";
-            case Input::Button::LB: return "PgUp";
-            case Input::Button::RB: return "PgDn";
-            case Input::Button::LT: return "Home";
-            case Input::Button::RT: return "End";
-            case Input::Button::Start: return "F1";
-            case Input::Button::Select: return "F2";
-            default: break;
-        }
+                // the keyboard (see g_keyboard)
+                {B::A, "Enter"}, {B::B, "Esc"}, {B::X, "Tab"}, {B::Y, "Del"}, {B::LB, "PgUp"}, {B::RB, "PgDn"},
+                {B::LT, "Home"}, {B::RT, "End"}, {B::Start, "F1"}, {B::Select, "F2"},
 #endif
-        switch (button) {
-            case Input::Button::A: return "A";
-            case Input::Button::B: return "B";
-            case Input::Button::X: return "X";
-            case Input::Button::Y: return "Y";
-            case Input::Button::LB: return "L";
-            case Input::Button::RB: return "R";
-            case Input::Button::LT: return "LT";
-            case Input::Button::RT: return "RT";
-            case Input::Button::Start: return "Start";
-            case Input::Button::Select: return "Select";
-            default: return "?";
+                {B::A, "A"},           {B::B, "B"},           {B::X, "X"},         {B::Y, "Y"},
+                {B::LB, "L"},          {B::RB, "R"},          {B::LT, "LT"},       {B::RT, "RT"},
+                {B::Start, "Start"},   {B::Select, "Select"},
+        };
+        for (const auto &name: names) {
+            if (name.first == button) {
+                return name.second;
+            }
         }
+        return "?";
     }
 
     void setTextInput(bool active) {
@@ -441,13 +428,13 @@ namespace pplay::InputMap {
 
     std::string toString(unsigned int buttons) {
         static const std::pair<unsigned int, const char *> names[] = {
-                {PlayPause, "PlayPause"}, {Stop, "Stop"}, {Next, "Next"}, {Previous, "Previous"},
-                {FastForward, "FastForward"}, {Rewind, "Rewind"}, {VolumeUp, "VolumeUp"},
-                {VolumeDown, "VolumeDown"}
-        };
+                {PlayPause, "PlayPause"},     {Stop, "Stop"},     {Next, "Next"},         {Previous, "Previous"},
+                {FastForward, "FastForward"}, {Rewind, "Rewind"}, {VolumeUp, "VolumeUp"}, {VolumeDown, "VolumeDown"}};
         std::string out;
         for (const auto &name: names) {
-            if (buttons & name.first) out += std::string(name.second) + " ";
+            if (buttons & name.first) {
+                out += std::string(name.second) + " ";
+            }
         }
         return out;
     }

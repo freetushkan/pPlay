@@ -11,12 +11,10 @@
 #include "preview_view.h"
 
 #define ITEM_HEIGHT 30
-#define EMPTY_NAME "<Empty>"
 
 using namespace c2d;
 
-Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) :
-        Rectangle(m->getScaled(rect)) {
+Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rectangle(m->getScaled(rect)) {
 
     main = m;
 
@@ -64,14 +62,10 @@ void Filer::setMediaInfo(const MediaFile &target, const MediaInfo &mediaInfo) {
     mutex->unlock();
 }
 
-
 void Filer::setSelection(int index) {
     item_index = index;
     int page = item_index / item_max;
     unsigned int index_start = (unsigned int) page * item_max;
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "Filer::setSelection item_index=" + std::to_string(item_index)
-        + " item_max=" + std::to_string(item_max));
 
     mutex->lock();
 
@@ -81,10 +75,6 @@ void Filer::setSelection(int index) {
         } else {
             // load media info, set file
             MediaFile file = files[index_start + i];
-            pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-                "Filer::setSelection item idx="
-                + std::to_string(index_start + i) + " name=" + file.name
-                + " path=" + file.path + " type=" + std::to_string((int) file.type));
             items[i]->setFile(file);
             items[i]->setVisibility(Visibility::Visible);
             // set highlight position
@@ -104,14 +94,13 @@ void Filer::setSelection(int index) {
     mutex->unlock();
     MediaFile selected = getSelection();
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "Filer::setSelection finished index=" + std::to_string(item_index) + " path=" + path
-        + " selectedName=" + selected.name + " selectedPath=" + selected.path
-        + " selectedType=" + std::to_string((int) selected.type));
+                        "Filer::setSelection finished index=" + std::to_string(item_index) + " path=" + path
+                                + " selectedName=" + selected.name + " selectedPath=" + selected.path
+                                + " selectedType=" + std::to_string((int) selected.type));
     main->syncLastLocation();
 }
 
 MediaFile Filer::getSelection() const {
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Filer::getSelection started.");
     mutex->lock();
     if (!files.empty() && files.size() > (unsigned int) item_index) {
         MediaFile file = files[item_index];
@@ -119,8 +108,6 @@ MediaFile Filer::getSelection() const {
         return file;
     }
     mutex->unlock();
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Filer::getSelection finished.");
-
     return {};
 }
 
@@ -187,8 +174,7 @@ bool Filer::selectByPath(const std::string &targetPath) {
 }
 
 bool Filer::onInput(c2d::Input::Player *players) {
-    if (main->getMenuMain()->isMenuVisible()
-        || main->getPlayer()->isFullscreen()) {
+    if (main->getMenuMain()->isMenuVisible() || main->getPlayer()->isFullscreen()) {
         return false;
     }
 
@@ -197,108 +183,109 @@ bool Filer::onInput(c2d::Input::Player *players) {
     mutex->unlock();
 
     unsigned int keys = players[0].buttons;
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "Filer::onInput keys=" + pplay::Utility::getKeysString(keys));
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Filer::onInput keys=" + pplay::Utility::getKeysString(keys));
 
     if (picking) {
-        if (keys & (c2d::Input::LB | c2d::Input::RB | Input::Left | Input::Y)) {
+        if (keys & (Input::LB | Input::RB | Input::Left | Input::Right | Input::Y)) {
             return true;
         }
-        if (keys & (Input::X | Input::Right)) {
+        if (keys & Input::X) {
             endPick();
             main->getPlayer()->setFullscreen(true);
             return true;
         }
         if (keys & Input::A) {
-            if (filesSize == 0 || isPlaceholder(getSelection())) {
-                return true;
-            }
-            MediaFile selection = getSelection();
-            if (selection.type == Io::Type::Directory) {
-                enter(item_index);
-            } else {
-                for (auto &ext: pickExtensions) {
-                    if (Utility::endsWith(selection.name, ext, false)) {
-                        auto callback = pickCallback;
-                        endPick();
-                        callback(selection);
-                        break;
-                    }
-                }
-            }
+            pick();
             return true;
         }
     }
 
-    if (keys & c2d::Input::LB || keys & c2d::Input::RB) {
-        main->getMenuMain()->setVisibility(Visibility::Visible, true);
-    } else if (keys & Input::Up) {
-        item_index--;
-        if (item_index < 0)
-            item_index = (int) (filesSize - 1);
-        setSelection(item_index);
-    } else if (keys & Input::Down) {
-        item_index++;
-        if (item_index >= (int) filesSize) {
-            item_index = 0;
+    using Action = PreviewView::Action;
+    Action action = Action::None;
+    if (preview->isFocused()) {
+        action = preview->onKeys(keys);
+    } else if (keys & (Input::Up | Input::Down)) {
+        if (filesSize > 0) {
+            int next = item_index + ((keys & Input::Up) ? -1 : 1);
+            setSelection(next < 0 ? (int) filesSize - 1 : next >= (int) filesSize ? 0 : next);
         }
-        setSelection(item_index);
-    } else if (keys & Input::Left) {
-        main->getMenuMain()->setVisibility(Visibility::Visible, true);
+    } else if (keys & (Input::LB | Input::RB | Input::Left)) {
+        action = Action::Menu;
     } else if (keys & Input::Right) {
-        if (!main->getPlayer()->getMpv()->isStopped()
-            && !main->getPlayer()->isFullscreen()) {
-            main->getPlayer()->setFullscreen(true);
-        }
+        action = Action::Panel;
     } else if (keys & Input::A) {
-        if (getSelection().type == Io::Type::Directory) {
-            enter(item_index);
-        } else if (pplay::Utility::isMedia(getSelection())) {
-            main->getPlayer()->setFullscreen(true);
-            main->getPlayer()->load(files[item_index]);
-        }
+        action = Action::Open;
     } else if (keys & Input::B) {
-        exit();
+        action = Action::Parent;
+    } else if (keys & Input::X) {
+        action = Action::Player;
     } else if (keys & Input::Y) {
-        // the opened file would write its position back (periodic / pause save)
-        if (main->getPlayer()->isPlaying(files[item_index].path)) {
-            main->getPlayer()->forgetProgress();
-        }
-        if (pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(files[item_index].path))) {
-            main->getStatus()->show("Info...", "Removing local watch later data...");
-            pplay::Utility::deleteWatchLater(pplay::TorrServe::toStreamUrl(files[item_index].path));
-        }
-        if (pplay::TorrServe::isFileViewed(files[item_index].path)) {
-            main->getStatus()->show("Info...", "Removing TorrServer watched state...");
-            pplay::TorrServe::remFileViewed(files[item_index].path);
-        }
-        dirty = true;
+        action = Action::Reset;
     }
+    run(action);
 
     return true;
 }
 
-void Filer::startPick(const std::vector<std::string> &extensions, const std::string &dir,
-                      const std::string &hint, std::function<void(const MediaFile &)> onPick) {
-    pickPrevPath = path;
-    pickPrevSelection = files.empty() ? "" : getSelection().path;
-    pickExtensions = extensions;
-    pickCallback = std::move(onPick);
-    picking = true;
-    main->getStatus()->show("Info...", hint, true);
-    if (!getDir(dir)) {
-        getDir(pickPrevPath);
+void Filer::run(PreviewView::Action action) {
+    using Action = PreviewView::Action;
+    Player *player = main->getPlayer();
+    MediaFile selection = getSelection();
+    switch (action) {
+        case Action::Open:
+            preview->setFocused(false);
+            if (selection.type == Io::Type::Directory) {
+                enter(item_index);
+            } else if (pplay::Utility::isMedia(selection)) {
+                player->setFullscreen(true);
+                player->load(selection);
+            }
+            break;
+        case Action::Parent:
+            exit();
+            break;
+        case Action::Menu:
+            preview->setFocused(false);
+            main->getMenuMain()->setVisibility(Visibility::Visible, true);
+            break;
+        case Action::Panel:
+            preview->setFocused(true);
+            break;
+        case Action::Files:
+            preview->setFocused(false);
+            break;
+        case Action::Player:
+            if (!player->getMpv()->isStopped() && !player->isFullscreen()) {
+                preview->setFocused(false);
+                player->setFullscreen(true);
+            }
+            break;
+        case Action::Reset:
+            resetProgress(selection);
+            break;
+        default:
+            break;
     }
 }
 
-void Filer::endPick() {
-    picking = false;
-    pickCallback = nullptr;
-    main->getStatus()->hide();
-    // listed again without the picked extensions
-    if (getDir(pickPrevPath) && !pickPrevSelection.empty()) {
-        selectByPath(pickPrevSelection);
+void Filer::resetProgress(const MediaFile &file) {
+    if (!PreviewView::isResettable(file)) {
+        return;
     }
+    // the opened file would write its position back (periodic / pause save)
+    if (main->getPlayer()->isPlaying(file.path)) {
+        main->getPlayer()->forgetProgress();
+    }
+    std::string url = pplay::TorrServe::toStreamUrl(file.path);
+    if (pplay::Utility::isWatchLaterExist(url)) {
+        main->getStatus()->show("Info...", "Removing local watch later data...");
+        pplay::Utility::deleteWatchLater(url);
+    }
+    if (pplay::TorrServe::isFileViewed(file.path)) {
+        main->getStatus()->show("Info...", "Removing TorrServer watched state...");
+        pplay::TorrServe::remFileViewed(file.path);
+    }
+    dirty = true;
 }
 
 void Filer::onUpdate() {
@@ -312,176 +299,11 @@ void Filer::onUpdate() {
             highlight->setVisibility(Visibility::Visible, true);
         }
     }
-    highlight->setFillColor(COLOR_HIGHLIGHT);
-    highlight->setCursorColor(COLOR_ACCENT);
+    // the panel focused: dimmed
+    highlight->setFillColor(COLOR_HIGHLIGHT, preview->isFocused() ? 25 : 60);
+    highlight->setCursorColor(preview->isFocused() ? COLOR_GRAY : COLOR_ACCENT);
 
     C2DObject::onUpdate();
-}
-
-
-static bool compare(const MediaFile &a, const MediaFile &b) {
-    if (a.type == Io::Type::Directory && b.type != Io::Type::Directory) {
-        return true;
-    }
-    if (a.type != Io::Type::Directory && b.type == Io::Type::Directory) {
-        return false;
-    }
-
-    std::string aa = a.name;
-    std::string bb = b.name;
-
-    return Utility::toLower(aa) < Utility::toLower(bb);
-}
-
-bool Filer::getDir(const std::string &p) {
-    printf("getDir(%s)\n", p.c_str());
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Filer::getDir path=" + p);
-
-    mutex->lock();
-    files.clear();
-    path = p;
-    if (path.size() > 1 && Utility::endsWith(path, "/")) {
-        path = Utility::removeLastSlash(path);
-    }
-
-    std::vector<std::string> ext = pplay::Utility::getMediaExtensions();
-    if (picking) {
-        ext.insert(ext.end(), pickExtensions.begin(), pickExtensions.end());
-    }
-    pplay::Io::DeviceType type = ((pplay::Io *) main->getIo())->getDeviceType(p);
-    int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
-    std::vector<Io::File> _files =
-        ((pplay::Io *) main->getIo())->getDirList(type, ext, path, timeout, false);
-
-    for (auto &file: _files) {
-        MediaFile mf(file, MediaInfo(file));
-        files.emplace_back(mf);
-    }
-
-    std::sort(files.begin(), files.end(), compare);
-
-    files.erase(std::remove_if(files.begin(), files.end(),
-                               [](const MediaFile &f) { return f.name == ".." || f.name == "."; }),
-                files.end());
-    if (!isTopLevel(path)) {
-        Io::File file("..", p + "/..", Io::Type::Directory, 0);
-        files.insert(files.begin(), MediaFile{file, MediaInfo(file)});
-    }
-    if (files.empty()) {
-        Io::File file(EMPTY_NAME, "", Io::Type::Unknown, 0);
-        files.emplace_back(file, MediaInfo(file));
-    }
-
-    mutex->unlock();
-    for (size_t i = 0; i < files.size(); i++) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-            "Filer::file[" + std::to_string(i) + "] name=" + files[i].name
-            + " path=" + files[i].path + " type=" + std::to_string((int) files[i].type));
-    }
-    setSelection(0);
-
-    return true;
-}
-
-bool Filer::isPlaceholder(const MediaFile &file) {
-    return file.type == Io::Type::Unknown && file.path.empty() && file.name == EMPTY_NAME;
-}
-
-bool Filer::isTopLevel(const std::string &p) {
-    if (p.empty() || p == "/" || p.find('/') == std::string::npos) {
-        return true;
-    }
-#ifdef __SWITCH__
-    if (Utility::startWith(p, "ums") && p.find('/') == p.size() - 1) {
-        return true;
-    }
-#endif
-    pplay::Io::DeviceType type = ((pplay::Io *) main->getIo())->getDeviceType(p);
-    if (type == pplay::Io::DeviceType::Local) {
-        return false;
-    }
-    std::string s = pplay::Paths::normalizeSmbPathSeparators(p);
-    if (!Utility::endsWith(s, "/")) {
-        s += "/";
-    }
-    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
-        std::string root = main->getConfig()->getOption(PPLAYConfig::networkOption(i))->getString();
-        root = pplay::Paths::normalizeSmbPathSeparators(root);
-        if (!root.empty() && !Utility::endsWith(root, "/")) root += "/";
-        if (!root.empty() && s == root) {
-            return true;
-        }
-    }
-    return false;
-}
-
-void Filer::enter(int index) {
-    MediaFile file = getSelection();
-    bool success;
-
-    if (isPlaceholder(file)) {
-        return;
-    }
-
-    if (file.name == "..") {
-        exit();
-        return;
-    }
-
-    if (!file.path.empty() && file.name != "..") {
-        success = getDir(file.path);
-    } else if (path == "/") {
-        success = getDir(path + file.name);
-    } else {
-        success = getDir(path + "/" + file.name);
-    }
-    if (success) {
-        item_index_prev.push_back(index);
-        setSelection(item_index);
-    }
-}
-
-void Filer::exit() {
-    std::string p = path;
-
-    if (isTopLevel(p)) {
-        return;
-    }
-
-    while (p.back() != '/') {
-        p.erase(p.size() - 1);
-    }
-
-    if (p.size() > 1 && Utility::endsWith(p, "/")) {
-        p.erase(p.size() - 1);
-    }
-
-    if (getDir(p)) {
-        if (!item_index_prev.empty()) {
-            int last = (int) item_index_prev.size() - 1;
-            mutex->lock();
-            size_t filesSize = files.size();
-            mutex->unlock();
-            if (item_index_prev[last] < (int) filesSize) {
-                item_index = item_index_prev[last];
-            }
-            item_index_prev.erase(item_index_prev.end() - 1);
-        }
-        setSelection(item_index);
-    }
-}
-
-std::string Filer::getError() {
-    std::string error = ((pplay::Io *) main->getIo())->getLastError();
-    return error.empty() ? "Could not open: " + path : error;
-}
-
-void Filer::clearHistory() {
-    item_index_prev.clear();
-}
-
-std::string Filer::getPath() {
-    return path;
 }
 
 Filer::~Filer() {

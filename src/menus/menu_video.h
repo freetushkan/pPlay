@@ -20,5 +20,4 @@ private:
     void onOptionSelection(MenuItem *item) override;
 };
 
-
 #endif //PPLAY_MENU_VIDEO_H

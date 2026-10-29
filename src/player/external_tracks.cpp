@@ -22,9 +22,8 @@ namespace {
 
     std::string lower(const std::string &s) {
         std::string out = s;
-        std::transform(out.begin(), out.end(), out.begin(), [](unsigned char c) {
-            return c < 0x80 ? (char) std::tolower(c) : (char) c;
-        });
+        std::transform(out.begin(), out.end(), out.begin(),
+                       [](unsigned char c) { return c < 0x80 ? (char) std::tolower(c) : (char) c; });
         return out;
     }
 
@@ -109,14 +108,12 @@ namespace {
 
     std::string guessLanguage(const std::string &text) {
         static const std::pair<const char *, const char *> words[] = {
-                {"rus", "rus"}, {"ru", "rus"}, {"russian", "rus"},
-                {"eng", "eng"}, {"en", "eng"}, {"english", "eng"},
-                {"ukr", "ukr"}, {"ua", "ukr"}, {"ukrainian", "ukr"},
+                {"rus", "rus"},     {"ru", "rus"},  {"russian", "rus"}, {"eng", "eng"},       {"en", "eng"},
+                {"english", "eng"}, {"ukr", "ukr"}, {"ua", "ukr"},      {"ukrainian", "ukr"},
         };
         static const std::pair<const char *, const char *> cyrillic[] = {
-                {"рус", "rus"}, {"Рус", "rus"}, {"РУС", "rus"},
-                {"англ", "eng"}, {"Англ", "eng"}, {"АНГЛ", "eng"},
-                {"укр", "ukr"}, {"Укр", "ukr"}, {"УКР", "ukr"},
+                {"рус", "rus"},  {"Рус", "rus"}, {"РУС", "rus"}, {"англ", "eng"}, {"Англ", "eng"},
+                {"АНГЛ", "eng"}, {"укр", "ukr"}, {"Укр", "ukr"}, {"УКР", "ukr"},
         };
         std::string l = lower(text);
         std::string token;
@@ -162,17 +159,13 @@ namespace {
 namespace pplay::ExternalTracks {
 
     const std::vector<std::string> &audioExtensions() {
-        static const std::vector<std::string> extensions = {
-                ".mka", ".ac3", ".eac3", ".dts", ".aac", ".flac", ".mp3", ".ogg", ".opus", ".m4a", ".wav",
-                ".thd", ".mlp", ".wv"
-        };
+        static const std::vector<std::string> extensions = {".mka", ".ac3",  ".eac3", ".dts", ".aac", ".flac", ".mp3",
+                                                            ".ogg", ".opus", ".m4a",  ".wav", ".thd", ".mlp",  ".wv"};
         return extensions;
     }
 
     const std::vector<std::string> &subtitleExtensions() {
-        static const std::vector<std::string> extensions = {
-                ".srt", ".ass", ".ssa", ".vtt", ".sub", ".sup"
-        };
+        static const std::vector<std::string> extensions = {".srt", ".ass", ".ssa", ".vtt", ".sub", ".sup"};
         return extensions;
     }
 
@@ -215,8 +208,8 @@ namespace pplay::ExternalTracks {
                 }
                 if (f.type == c2d::Io::Type::Directory) {
                     if (dir.depth < FIND_DEPTH) {
-                        dirs.push_back({f.path, dir.label.empty() ? f.name : dir.label + " / " + f.name,
-                                        dir.depth + 1});
+                        dirs.push_back(
+                                {f.path, dir.label.empty() ? f.name : dir.label + " / " + f.name, dir.depth + 1});
                     }
                     continue;
                 }
@@ -244,9 +237,8 @@ namespace pplay::ExternalTracks {
             }
         }
 
-        Utility::log(Utility::LogLevel::Info, "ExternalTracks: " + std::to_string(tracks.size())
-                                              + " file(s) for " + videoName + " (" + std::to_string(listings)
-                                              + " listing(s))");
+        Utility::log(Utility::LogLevel::Info, "ExternalTracks: " + std::to_string(tracks.size()) + " file(s) for "
+                                                      + videoName + " (" + std::to_string(listings) + " listing(s))");
         return tracks;
     }
 
@@ -294,8 +286,8 @@ namespace pplay::ExternalTracks {
             return;
         }
         for (const auto &track: tracks) {
-            fprintf(f, "%s\t%d\t%s\t%s\t%s\n", track.audio ? "a" : "s", track.selected ? 1 : 0,
-                    track.path.c_str(), track.title.c_str(), track.lang.c_str());
+            fprintf(f, "%s\t%d\t%s\t%s\t%s\n", track.audio ? "a" : "s", track.selected ? 1 : 0, track.path.c_str(),
+                    track.title.c_str(), track.lang.c_str());
         }
         fclose(f);
     }

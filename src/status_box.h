@@ -36,7 +36,6 @@ private:
     c2d::Clock *clock;
     SDL_mutex *mutex;
     bool infinite = false;
-
 };
 
 #endif //PPLAY_STATUS_BOX_H

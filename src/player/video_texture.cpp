@@ -11,7 +11,8 @@
 
 using namespace c2d;
 
-VideoTexture::VideoTexture(Main *m, const c2d::Vector2f &size) : GLTextureBuffer({(int) size.x, (int) size.y}, Format::RGBA8) {
+VideoTexture::VideoTexture(Main *m, const c2d::Vector2f &size)
+    : GLTextureBuffer({(int) size.x, (int) size.y}, Format::RGBA8) {
     main = m;
 
     // fade
@@ -70,19 +71,13 @@ void VideoTexture::onDraw(c2d::Transform &transform, bool draw) {
                 mpv_fbo.h = (int) getSize().y;
                 mpv_fbo.internal_format = GL_RGBA8;
 
-                mpv_render_param r_params[] = {
-                        {MPV_RENDER_PARAM_OPENGL_FBO, &mpv_fbo},
-                        {MPV_RENDER_PARAM_FLIP_Y,     &zero},
-                        {MPV_RENDER_PARAM_INVALID,    nullptr}
-                };
+                mpv_render_param r_params[] = {{MPV_RENDER_PARAM_OPENGL_FBO, &mpv_fbo},
+                                               {MPV_RENDER_PARAM_FLIP_Y, &zero},
+                                               {MPV_RENDER_PARAM_INVALID, nullptr}};
                 mpv_render_context_render(ctx, r_params);
                 if (waiting) {
                     clearFrame();
                 }
-#ifdef FULL_TEXTURE_TEST
-                // mpv change viewport, restore
-                glViewport(0, 0, (GLsizei) main->getSize().x, (GLsizei) main->getSize().y);
-#endif
                 forceDraw = false;
             }
         }

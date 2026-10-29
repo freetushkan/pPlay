@@ -34,7 +34,6 @@
 #include <cstring>
 #include <cstdint>
 
-
 #include <chrono>
 
 using namespace pplay;
@@ -58,38 +57,10 @@ std::string Utility::getMediaInfoPath(const c2d::Io::File &file) {
     return getDataPath() + "cache/" + hash + ".info";
 }
 
-
 std::vector<std::string> Utility::getMediaExtensions() {
-    return {
-            ".8svx",
-            ".aac",
-            ".ac3",
-            ".aif",
-            ".asf",
-            ".avi",
-            ".dv",
-            ".flv",
-            ".m2ts",
-            ".m2v",
-            ".m4a",
-            ".mkv",
-            ".mov",
-            ".mp3",
-            ".mp4",
-            ".mpeg",
-            ".mpg",
-            ".mts",
-            ".ogg",
-            ".rmvb",
-            ".swf",
-            ".ts",
-            ".vob",
-            ".wav",
-            ".wma",
-            ".wmv",
-            ".m3u",
-            ".m3u8"
-    };
+    return {".8svx", ".aac", ".ac3", ".aif", ".asf", ".avi",  ".dv",  ".flv", ".m2ts", ".m2v",
+            ".m4a",  ".mkv", ".mov", ".mp3", ".mp4", ".mpeg", ".mpg", ".mts", ".ogg",  ".rmvb",
+            ".swf",  ".ts",  ".vob", ".wav", ".wma", ".wmv",  ".m3u", ".m3u8"};
 }
 
 bool Utility::isMedia(const c2d::Io::File &file) {
@@ -107,9 +78,15 @@ bool Utility::isMedia(const c2d::Io::File &file) {
 }
 
 int Utility::hexValue(char c) {
-    if (c >= '0' && c <= '9') return c - '0';
-    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    if (c >= '0' && c <= '9') {
+        return c - '0';
+    }
+    if (c >= 'a' && c <= 'f') {
+        return c - 'a' + 10;
+    }
+    if (c >= 'A' && c <= 'F') {
+        return c - 'A' + 10;
+    }
     return -1;
 }
 
@@ -132,7 +109,7 @@ c2d::Color Utility::hexToColor(const std::string &hex) {
     }
     const size_t offset = hex[0] == '#' ? 1 : 0;
     auto byteAt = [&](size_t i) -> uint8_t {
-        return (uint8_t)((hexValue(hex[offset + i]) << 4) | hexValue(hex[offset + i + 1]));
+        return (uint8_t) ((hexValue(hex[offset + i]) << 4) | hexValue(hex[offset + i + 1]));
     };
     return c2d::Color(byteAt(0), byteAt(2), byteAt(4), 255);
 }
@@ -141,7 +118,7 @@ void Utility::setAccentColor(const std::string &hex) {
     g_accentColor = hexToColor(hex);
 }
 
-c2d::Color& Utility::getAccentColor() {
+c2d::Color &Utility::getAccentColor() {
     return g_accentColor;
 }
 
@@ -189,7 +166,7 @@ static std::string convertToString(double num) {
 
 static double roundOff(double n) {
     double d = n * 100.0;
-    int i = (int) lround(d);//(int) (d + 0.5);
+    int i = (int) lround(d); //(int) (d + 0.5);
     d = (float) i / 100.0;
     return d;
 }
@@ -246,17 +223,15 @@ void Utility::log(Utility::LogLevel level, const std::string &message) {
     gmtime_r(&t, &tm_info);
     int ms = raw_ms % 1000;
     std::ostringstream time_ss;
-    time_ss << std::put_time(&tm_info, "%Y.%m.%d %H:%M:%S")
-            << "." << std::setfill('0') << std::setw(3) << ms;
+    time_ss << std::put_time(&tm_info, "%Y.%m.%d %H:%M:%S") << "." << std::setfill('0') << std::setw(3) << ms;
     out << time_ss.str() << " UTC (" << raw_ms << ") | " << message << "\n";
 }
-
 
 std::string Utility::md5hash(const std::string &input) {
     unsigned char output[16];
 
 #ifdef __PS5__
-    EVP_MD_CTX* context = EVP_MD_CTX_new();
+    EVP_MD_CTX *context = EVP_MD_CTX_new();
     if (context != nullptr) {
         if (EVP_DigestInit_ex(context, EVP_md5(), nullptr) == 1) {
             EVP_DigestUpdate(context, input.c_str(), input.length());
@@ -269,14 +244,14 @@ std::string Utility::md5hash(const std::string &input) {
     mbedtls_md5_context ctx;
     mbedtls_md5_init(&ctx);
     mbedtls_md5_starts_ret(&ctx);
-    mbedtls_md5_update_ret(&ctx, (const unsigned char*)input.c_str(), input.length());
+    mbedtls_md5_update_ret(&ctx, (const unsigned char *) input.c_str(), input.length());
     mbedtls_md5_finish_ret(&ctx, output);
     mbedtls_md5_free(&ctx);
 #endif
 
     std::stringstream ss;
     for (int i = 0; i < 16; i++) {
-        ss << std::hex << std::setw(2) << std::setfill('0') << (int)output[i];
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int) output[i];
     }
     return ss.str();
 }
@@ -290,7 +265,7 @@ bool Utility::deleteFile(const std::string &path) {
 }
 
 bool Utility::fileExists(const std::string &path) {
-    if (FILE* file = std::fopen(path.c_str(), "r")) {
+    if (FILE *file = std::fopen(path.c_str(), "r")) {
         std::fclose(file);
         return true;
     }
@@ -316,6 +291,7 @@ void Utility::setMpvVersion(const std::string &version) {
     log(LogLevel::Info, "Utility: watch later url base name: " + std::to_string(watchLaterUrlBaseName ? 1 : 0));
 }
 
+#if defined(__PS4__) || defined(__PS5__)
 // mpv mp_is_url: "proto://", proto made of letters, digits, '+', '-', '.'
 static bool isMpvUrl(const std::string &path) {
     size_t sep = path.find("://");
@@ -330,6 +306,7 @@ static bool isMpvUrl(const std::string &path) {
     }
     return true;
 }
+#endif
 
 std::string Utility::getWatchLater(const std::string &video_path) {
     std::string mpvPath = video_path;
@@ -353,7 +330,8 @@ std::string Utility::getWatchLater(const std::string &video_path) {
     std::string hash = pplay::Utility::md5hash(mpvPath);
     std::transform(hash.begin(), hash.end(), hash.begin(), ::toupper);
     std::string path = getDataPath() + "mpv/watch_later/" + hash;
-    log(LogLevel::Debug, "Utility::getWatchLater video_path=" + video_path + " mpv_path=" + mpvPath + " wl_path=" + path);
+    log(LogLevel::Debug,
+        "Utility::getWatchLater video_path=" + video_path + " mpv_path=" + mpvPath + " wl_path=" + path);
     return path;
 }
 
@@ -393,18 +371,22 @@ std::string Utility::getCertificatesPath() {
 #endif
 
 std::string Utility::getKeysString(unsigned int keys) {
-    if (keys == 0) return "";
-    
-    static const std::pair<unsigned int, const char*> btns[] = {
-        {c2d::Input::Up, "Up"}, {c2d::Input::Down, "Down"}, {c2d::Input::Left, "Left"}, {c2d::Input::Right, "Right"},
-        {c2d::Input::LB, "LB"}, {c2d::Input::RB, "RB"}, {c2d::Input::LT, "LT"}, {c2d::Input::RT, "RT"},
-        {c2d::Input::A, "A"}, {c2d::Input::B, "B"}, {c2d::Input::X, "X"}, {c2d::Input::Y, "Y"},
-        {c2d::Input::Start, "Start"}, {c2d::Input::Select, "Select"}
-    };
+    if (keys == 0) {
+        return "";
+    }
+
+    static const std::pair<unsigned int, const char *> btns[] = {
+            {c2d::Input::Up, "Up"},       {c2d::Input::Down, "Down"},    {c2d::Input::Left, "Left"},
+            {c2d::Input::Right, "Right"}, {c2d::Input::LB, "LB"},        {c2d::Input::RB, "RB"},
+            {c2d::Input::LT, "LT"},       {c2d::Input::RT, "RT"},        {c2d::Input::A, "A"},
+            {c2d::Input::B, "B"},         {c2d::Input::X, "X"},          {c2d::Input::Y, "Y"},
+            {c2d::Input::Start, "Start"}, {c2d::Input::Select, "Select"}};
 
     std::string res = "Keys(" + std::to_string(keys) + "): ";
-    for (const auto& [bit, name] : btns) {
-        if (keys & bit) res += std::string(name) + " ";
+    for (const auto &[bit, name]: btns) {
+        if (keys & bit) {
+            res += std::string(name) + " ";
+        }
     }
     return res;
 }
@@ -412,22 +394,22 @@ std::string Utility::getKeysString(unsigned int keys) {
 void Utility::setCpuClock(const CpuClock &clock) {
 #ifdef __SWITCH__
     if (clock == CpuClock::Min) {
-        if (c2d::SwitchSys::getClock(c2d::SwitchSys::Module::Cpu) !=
-            c2d::SwitchSys::getClock(c2d::SwitchSys::Module::Cpu, true)) {
+        if (c2d::SwitchSys::getClock(c2d::SwitchSys::Module::Cpu)
+            != c2d::SwitchSys::getClock(c2d::SwitchSys::Module::Cpu, true)) {
             int clock_old = c2d::SwitchSys::getClock(c2d::SwitchSys::Module::Cpu);
             c2d::SwitchSys::setClock(c2d::SwitchSys::Module::Cpu, (int) c2d::SwitchSys::CPUClock::Stock);
             c2d::SwitchSys::setClock(c2d::SwitchSys::Module::Gpu, (int) c2d::SwitchSys::GPUClock::Stock);
             c2d::SwitchSys::setClock(c2d::SwitchSys::Module::Emc, (int) c2d::SwitchSys::EMCClock::Stock);
-            printf("restoring cpu speed (old: %i, new: %i)\n",
-                   clock_old, c2d::SwitchSys::getClock(c2d::SwitchSys::Module::Cpu));
+            printf("restoring cpu speed (old: %i, new: %i)\n", clock_old,
+                   c2d::SwitchSys::getClock(c2d::SwitchSys::Module::Cpu));
         }
     } else {
         int clock_old = c2d::SwitchSys::getClock(c2d::SwitchSys::Module::Cpu);
         c2d::SwitchSys::setClock(c2d::SwitchSys::Module::Cpu, (int) c2d::SwitchSys::CPUClock::Max);
         c2d::SwitchSys::setClock(c2d::SwitchSys::Module::Gpu, (int) c2d::SwitchSys::GPUClock::Max);
         c2d::SwitchSys::setClock(c2d::SwitchSys::Module::Emc, (int) c2d::SwitchSys::EMCClock::Max);
-        printf("setting max cpu speed (old: %i, new: %i)\n",
-               clock_old, c2d::SwitchSys::getClock(c2d::SwitchSys::Module::Cpu));
+        printf("setting max cpu speed (old: %i, new: %i)\n", clock_old,
+               c2d::SwitchSys::getClock(c2d::SwitchSys::Module::Cpu));
     }
 #endif
 }

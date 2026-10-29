@@ -36,10 +36,6 @@ public:
 
     void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
 
-    void onUpdate() override;
-
-    Highlight *highlight_selection;
-
 private:
 
     bool onInput(c2d::Input::Player *players) override;
@@ -56,6 +52,5 @@ private:
     std::map<std::string, MenuMainOptionsSubmenu *> menuMainOptionsSubmenus;
     std::map<std::string, std::string> parents;
 };
-
 
 #endif //PPLAY_MENU_MAIN_H

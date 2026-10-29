@@ -10,8 +10,8 @@
 
 using namespace c2d;
 
-#define OSD_HEIGHT      80.0f
-#define OSD_HIDE_TIME   7.0f
+#define OSD_HEIGHT 80.0f
+#define OSD_HIDE_TIME 7.0f
 
 PlayerOSD::PlayerOSD(Main *m) : GradientRectangle({0, 0, 64, 64}) {
 
@@ -76,8 +76,7 @@ PlayerOSD::PlayerOSD(Main *m) : GradientRectangle({0, 0, 64, 64}) {
     // right buttons
     duration_text = new Text("00:00:00", main->getFontSize(Main::FontSize::Big), main->getFont());
     duration_text->setOrigin(Origin::Right);
-    duration_text->setPosition(PlayerOSD::getSize().x - (64 * 4 * main->getScaling().x),
-            PlayerOSD::getSize().y / 2);
+    duration_text->setPosition(PlayerOSD::getSize().x - (64 * 4 * main->getScaling().x), PlayerOSD::getSize().y / 2);
     PlayerOSD::add(duration_text);
 
     btn = new C2DTexture(main->getIo()->getDataPath() + "skin/btn_seek_forward_short.png");
@@ -160,9 +159,7 @@ void PlayerOSD::onDraw(c2d::Transform &transform, bool draw) {
     }
 
     bool hasVideo = player->hasVideo();
-    if (hasVideo
-        && !mpv->isPaused()
-        && clock.getElapsedTime().asSeconds() >= OSD_HIDE_TIME) {
+    if (hasVideo && !mpv->isPaused() && clock.getElapsedTime().asSeconds() >= OSD_HIDE_TIME) {
         setVisibility(Visibility::Hidden, true);
         main->getStatusBar()->setVisibility(Visibility::Hidden, true);
     }
@@ -198,13 +195,17 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
 
     unsigned int keys = players[0].buttons;
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "PlayerOSD::onInput keys=" + pplay::Utility::getKeysString(keys));
-    if (!keys) return true;
+                        "PlayerOSD::onInput keys=" + pplay::Utility::getKeysString(keys));
+    if (!keys) {
+        return true;
+    }
 
     if (keys & Input::B) {
-        if (!player->hasVideo())
+        if (!player->hasVideo()) {
             player->setFullscreen(false);
-        else hideOSD();
+        } else {
+            hideOSD();
+        }
     } else if (keys & Input::X) {
         hideOSD();
         main->getMenuVideo()->setVisibility(Visibility::Visible, true);
@@ -212,8 +213,8 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
 
     else if (keys & (Input::Left | Input::Right)) {
         int dir = (keys & Input::Right) ? 1 : -1;
-        index = (index + dir + (int)buttons.size()) % (int)buttons.size();
-        highlight->tweenTo({buttons.at((size_t)index)->getPosition().x, 0});
+        index = (index + dir + (int) buttons.size()) % (int) buttons.size();
+        highlight->tweenTo({buttons.at((size_t) index)->getPosition().x, 0});
     }
 
     else if (keys & Input::A) {
@@ -221,20 +222,27 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
         float s_short = cfg->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
         float s_long = cfg->getOption(OPT_SEEK_LONG_SEC)->getFloat();
 
-        switch ((ButtonID)index) {
+        switch ((ButtonID) index) {
             case ButtonID::Pause: {
                 bool pause = !mpv->isPaused();
                 btn_play->setVisibility(pause ? Visibility::Visible : Visibility::Hidden);
                 btn_pause->setVisibility(pause ? Visibility::Hidden : Visibility::Visible);
-                main->getStatus()->show("Info...",
-                    pause ? "Pausing playback..." : "Resuming playback...");
+                main->getStatus()->show("Info...", pause ? "Pausing playback..." : "Resuming playback...");
                 pause ? player->pause() : player->resume();
                 break;
             }
-            case ButtonID::SeekForwardShort:  mpv->seek(s_short); break;
-            case ButtonID::SeekForwardLong:   mpv->seek(s_long); break;
-            case ButtonID::SeekBackwardShort: mpv->seek(-s_short); break;
-            case ButtonID::SeekBackwardLong:  mpv->seek(-s_long); break;
+            case ButtonID::SeekForwardShort:
+                mpv->seek(s_short);
+                break;
+            case ButtonID::SeekForwardLong:
+                mpv->seek(s_long);
+                break;
+            case ButtonID::SeekBackwardShort:
+                mpv->seek(-s_short);
+                break;
+            case ButtonID::SeekBackwardLong:
+                mpv->seek(-s_long);
+                break;
             case ButtonID::Stop:
                 hideOSD();
                 main->getStatus()->show("Info...", "Stopping playback...");

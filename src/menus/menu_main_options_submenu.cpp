@@ -18,12 +18,11 @@
 
 using namespace c2d;
 
-MenuMainOptionsSubmenu::MenuMainOptionsSubmenu(
-        Main *main, const c2d::FloatRect &rect, const std::string &_title,
-        const std::vector<MenuItem> &items, const std::string &optionName,
-        ValueType valueType, MenuType menuType, float minValue, float maxValue,
-        float stepValue, const std::string &unit)
-        : Menu(main, rect, _title, items, true) {
+MenuMainOptionsSubmenu::MenuMainOptionsSubmenu(Main *main, const c2d::FloatRect &rect, const std::string &_title,
+                                               const std::vector<MenuItem> &items, const std::string &optionName,
+                                               ValueType valueType, MenuType menuType, float minValue, float maxValue,
+                                               float stepValue, const std::string &unit)
+    : Menu(main, rect, _title, items, true) {
 
     option_name = optionName;
     value_type = valueType;
@@ -32,17 +31,6 @@ MenuMainOptionsSubmenu::MenuMainOptionsSubmenu(
     max_value = maxValue;
     step_value = stepValue;
     value_unit = unit;
-
-    // highlight
-    highlight_selection = new Highlight({MenuMainOptionsSubmenu::getSize().x, BUTTON_HEIGHT * main->getScaling().y},
-                                        Highlight::CursorPosition::Left);
-    highlight_selection->setFillColor(COLOR_ACCENT, 60);
-    highlight_selection->setCursorColor(COLOR_ACCENT);
-    highlight_selection->setOrigin(Origin::Left);
-    highlight_selection->setPosition(0, 200 * main->getScaling().y);
-    highlight_selection->setLayer(-1);
-    MenuMainOptionsSubmenu::add(highlight_selection);
-
     refresh();
 }
 
@@ -59,15 +47,13 @@ namespace {
 std::string MenuMainOptionsSubmenu::formatValue(float value) const {
     std::ostringstream oss;
 
-    if (option_name == OPT_SEEK_SHORT_SEC
-        || option_name == OPT_SEEK_LONG_SEC
-        || option_name == OPT_NETWORK_TIMEOUT) {
+    if (option_name == OPT_SEEK_SHORT_SEC || option_name == OPT_SEEK_LONG_SEC || option_name == OPT_NETWORK_TIMEOUT) {
         return formatTimeMMSS(value);
     }
 
     if (value_type == ValueType::Float) {
-        int precision = (step_value - std::floor(step_value) > 0.0f) && 
-                        (std::fmod(step_value * 10.0f, 1.0f) > 0.0f) ? 2 : 1;
+        int precision =
+                (step_value - std::floor(step_value) > 0.0f) && (std::fmod(step_value * 10.0f, 1.0f) > 0.0f) ? 2 : 1;
         oss << std::fixed << std::setprecision(precision) << value;
     } else {
         oss << (int) value;
@@ -122,8 +108,7 @@ void MenuMainOptionsSubmenu::updateSelectionHighlight() {
             buttons[0]->item.name = "<empty>";
         }
         buttons[0]->refreshText();
-        highlight_selection->setVisibility(buttons[0]->isVisible() ? Visibility::Visible : Visibility::Hidden);
-        highlight_selection->tweenTo(buttons[0]->getPosition());
+        showCurrent(buttons[0]);
         return;
     }
 
@@ -135,8 +120,7 @@ void MenuMainOptionsSubmenu::updateSelectionHighlight() {
         const int value = (int) getCurrentValue();
         for (auto btn: buttons) {
             if (btn->item.id == value) {
-                highlight_selection->setVisibility(btn->isVisible() ? Visibility::Visible : Visibility::Hidden);
-                highlight_selection->tweenTo(btn->getPosition());
+                showCurrent(btn);
                 break;
             }
         }
@@ -147,7 +131,7 @@ void MenuMainOptionsSubmenu::updateSelectionHighlight() {
 
 void MenuMainOptionsSubmenu::refresh() {
     if (menu_type == MenuType::Adjust && buttons.size() >= 3) {
-        highlight_selection->setVisibility(Visibility::Hidden);
+        hideCurrent();
         buttons[0]->item.name = pplay::tr("Value") + ": " + formatValue(getCurrentValue());
         buttons[0]->refreshText();
         std::string stepStr = formatValue(step_value);
@@ -162,7 +146,7 @@ void MenuMainOptionsSubmenu::refresh() {
     }
 
     // shown on the current value only (none in groups / categories)
-    highlight_selection->setVisibility(Visibility::Hidden);
+    hideCurrent();
 
     updateSelectionHighlight();
 }
@@ -170,9 +154,8 @@ void MenuMainOptionsSubmenu::refresh() {
 void MenuMainOptionsSubmenu::setSelection(const std::string &name) {
     for (auto btn: buttons) {
         if (Utility::toLower(btn->item.name) == Utility::toLower(name)
-        || Utility::toLower(btn->item.data_str) == Utility::toLower(name)) {
-            highlight_selection->setVisibility(btn->isVisible() ? Visibility::Visible : Visibility::Hidden);
-            highlight_selection->tweenTo(btn->getPosition());
+            || Utility::toLower(btn->item.data_str) == Utility::toLower(name)) {
+            showCurrent(btn);
         }
     }
 }
@@ -221,9 +204,8 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
             const std::string oldValue = formatValue(getCurrentValue());
             setCurrentValue(getCurrentValue() + ((float) item->id * step_value));
             main->getConfig()->save();
-            pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                                "Options: " + option_name + " changed from " + oldValue
-                                + " to " + formatValue(getCurrentValue()));
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Options: " + option_name + " changed from " + oldValue
+                                                                        + " to " + formatValue(getCurrentValue()));
             main->applyConfig();
             refresh();
         }
@@ -241,15 +223,13 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
                 pplay::Utility::setLogLevel((pplay::Utility::LogLevel) item->id);
             }
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                                "Options: " + option_name + " changed from " + oldValue
-                                + " to " + option->getString());
+                                "Options: " + option_name + " changed from " + oldValue + " to " + option->getString());
             if (item->id == (int) pplay::Utility::LogLevel::Off) {
                 pplay::Utility::setLogLevel(pplay::Utility::LogLevel::Off);
             }
         } else {
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                                "Options: " + option_name + " changed from " + oldValue
-                                + " to " + option->getString());
+                                "Options: " + option_name + " changed from " + oldValue + " to " + option->getString());
         }
         main->applyConfig();
         refresh();
@@ -276,7 +256,7 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
     option->setString(newValue);
     main->getConfig()->save();
     pplay::Utility::log(pplay::Utility::LogLevel::Info,
-        "Options: " + option_name + " changed from " + oldValue + " to " + newValue);
+                        "Options: " + option_name + " changed from " + oldValue + " to " + newValue);
     main->applyConfig();
     setSelection(item->name);
 }
@@ -298,10 +278,4 @@ bool MenuMainOptionsSubmenu::onInput(c2d::Input::Player *players) {
     bool result = Menu::onInput(players);
     updateSelectionHighlight();
     return result;
-}
-
-void MenuMainOptionsSubmenu::onUpdate() {
-    highlight_selection->setFillColor(COLOR_ACCENT, 60);
-    highlight_selection->setCursorColor(COLOR_ACCENT);
-    Menu::onUpdate();
 }

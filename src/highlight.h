@@ -30,7 +30,7 @@ public:
 
     void tweenTo(const c2d::Vector2f &position);
 
-    void setWidth(float width);
+    void resize(const c2d::Vector2f &size);
 
 private:
 
@@ -44,7 +44,6 @@ private:
     uint8_t hlAlpha = 255;
     c2d::GradientRectangle::Direction hlDirection;
     CursorPosition cursorPosition;
-
 };
 
 #endif //PPLAY_HIGHLIGHT_H

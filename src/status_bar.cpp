@@ -40,8 +40,7 @@ public:
         batteryRect = new RectangleShape(size);
         batteryRect->setFillColor(COLOR_FONT);
         batteryRect->setOrigin(Origin::Right);
-        batteryRect->setPosition(Battery::getSize().x - (2 * scaling.x),
-                                 (Battery::getSize().y + (outline / 2)) / 2);
+        batteryRect->setPosition(Battery::getSize().x - (2 * scaling.x), (Battery::getSize().y + (outline / 2)) / 2);
         Battery::add(batteryRect);
 
         auto leftRect = new RectangleShape({scaling.x * 6, rect.height / 3});
@@ -111,8 +110,7 @@ StatusBar::StatusBar(Main *m) : GradientRectangle({0, 0, 64, 64}) {
     timeText->setPosition(battery->getPosition().x - battery->getSize().x - (m->getScaling().x * 20),
                           StatusBar::getSize().y / 2);
 #else
-    timeText->setPosition(StatusBar::getGlobalBounds().width - (m->getScaling().x * 20),
-                          StatusBar::getSize().y / 2);
+    timeText->setPosition(StatusBar::getGlobalBounds().width - (m->getScaling().x * 20), StatusBar::getSize().y / 2);
 #endif
     timeText->setFillColor(COLOR_FONT);
     StatusBar::add(timeText);
@@ -136,7 +134,7 @@ void StatusBar::onUpdate() {
 
     time_t time_raw;
     time(&time_raw);
-    struct tm time_struct{};
+    struct tm time_struct {};
     localtime_r(&time_raw, &time_struct);
 
     int hour = time_struct.tm_hour;

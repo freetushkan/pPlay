@@ -11,8 +11,7 @@
 
 using namespace c2d;
 
-StatusBox::StatusBox(Main *m, const c2d::Vector2f &position)
-        : Rectangle(m->getScaled({64, 48})) {
+StatusBox::StatusBox(Main *m, const c2d::Vector2f &position) : Rectangle(m->getScaled({64, 48})) {
 
     main = m;
     pos = m->getScaled(position);
@@ -32,13 +31,12 @@ StatusBox::StatusBox(Main *m, const c2d::Vector2f &position)
     titleText->setPosition(icon->getSize().x + (16 * m->getScaling().x), (4 * m->getScaling().y));
     StatusBox::add(titleText);
 
-    messageText = new Text("Doing something in background, please wait",
-                           main->getFontSize(Main::FontSize::Small), main->getFont());
+    messageText = new Text("Doing something in background, please wait", main->getFontSize(Main::FontSize::Small),
+                           main->getFont());
     messageText->setFillColor(COLOR_FONT);
     messageText->setPosition(icon->getSize().x + (16 * m->getScaling().x),
-                                                  titleText->getPosition().y
-                                                  + (float) main->getFontSize(Main::FontSize::Medium) +
-                                                  (4 * m->getScaling().y));
+                             titleText->getPosition().y + (float) main->getFontSize(Main::FontSize::Medium)
+                                     + (4 * m->getScaling().y));
     messageText->setSizeMax(StatusBox::getSize().x - icon->getSize().x - (16 * m->getScaling().x), 0);
     StatusBox::add(messageText);
 
@@ -85,15 +83,10 @@ void StatusBox::onDraw(c2d::Transform &transform, bool draw) {
         PlayerOSD *osd = main->getPlayer()->getOSD();
         if (osd && osd->isVisible()) {
             FloatRect bounds = main->getPlayer()->getOSD()->getGlobalBounds();
-            setPosition(pos.x,
-                bounds.top - (
-                    (static_cast<int>(Main::FontSize::XL) + 32)
-                    * main->getScaling().y
-                ));
+            setPosition(pos.x, bounds.top - ((static_cast<int>(Main::FontSize::XL) + 32) * main->getScaling().y));
         } else {
             FloatRect bounds = main->getMenuMain()->getGlobalBounds();
-            setPosition(bounds.left + bounds.width + pos.x,
-                main->getSize().y - (16 * main->getScaling().x));
+            setPosition(bounds.left + bounds.width + pos.x, main->getSize().y - (16 * main->getScaling().x));
         }
     }
     if (isVisible() && titleText->getAlpha() > 0) {

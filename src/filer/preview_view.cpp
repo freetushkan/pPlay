@@ -1,123 +1,174 @@
 //
-// Right side panel of the filer: poster and information about the selection.
+// Filer preview panel.
 //
 
 #include <algorithm>
-#include <cstdio>
-#include <sstream>
+#include <cmath>
 
 #include "main.h"
-#include "io.h"
-#include "utility.h"
-#include "net_http.h"
-#include "torrserve.h"
-#include "preview_view.h"
+#include "clip_rect.h"
 #include "filer.h"
-#include "i18n.h"
-#include "encodings.h"
-#include "image.h"
-#include "history.h"
 #include "input_map.h"
+#include "key_hints.h"
 #include "player.h"
+#include "poster_loader.h"
+#include "preview_info.h"
+#include "preview_view.h"
+#include "text_wrap.h"
+#include "torrserve.h"
 
 using namespace c2d;
 
-#define POSTER_W 300
-#define POSTER_H 450
 #define MARGIN 24
-// title lines (with / without the poster), "+ 0.5": the size check is on the base line
-#define TITLE_LINES_POSTER 3.5f
-#define TITLE_LINES 8.5f
+// details right of the poster up to this part of the panel width
+#define POSTER_SIDE 0.4f
+// not focused poster height, of the panel width (a 2:3 poster is on the side)
+#define POSTER_HEIGHT 0.55f
 
-namespace {
-    // non breaking spaces: kept on one line by the text wrapping
-    std::string keep(const std::string &text) {
-        std::string out;
-        for (char c: text) {
-            if (c == ' ') {
-                out += "\u00A0";
-            } else {
-                out += c;
-            }
-        }
-        return out;
-    }
-
-    // libcross2d wraps by words split on spaces only: a word holding a new line is
-    // measured with the next line text (a short line wrapped). The new lines alone as
-    // words; the same one space indent on every line.
-    std::string wrapSafe(const std::string &text) {
-        std::string out = " ";
-        for (char c: text) {
-            if (c == '\n') {
-                out += " \n ";
-            } else {
-                out += c;
-            }
-        }
-        return out;
-    }
-
-    // "key: action" hint
-    std::string keyHint(const std::string &key, const std::string &action) {
-        return keep(key + ": " + pplay::tr(action));
-    }
-}
-
-PreviewView::PreviewView(Main *m, const c2d::FloatRect &rect) : Rectangle(rect) {
-    main = m;
-
-    // below the status bar
-    top = (32 + MARGIN) * main->getScaling().y;
+PreviewView::PreviewView(Main *m, const c2d::FloatRect &rect) : Rectangle(rect), main(m) {
     float margin = MARGIN * main->getScaling().x;
-    Vector2f posterSize = main->getScaled(POSTER_W, POSTER_H);
+    float bar = std::max(2.0f, 3 * main->getScaling().x);
 
-    posterFrame = new RectangleShape(posterSize);
-    posterFrame->setPosition(margin, top);
-    posterFrame->setFillColor(Color::Transparent);
-    posterFrame->setOutlineColor(COLOR_ACCENT);
-    posterFrame->setOutlineThickness(2);
-    posterFrame->setVisibility(Visibility::Hidden);
-    PreviewView::add(posterFrame);
-
+    loader = new PosterLoader(main);
     // the poster sprite never points to a deleted texture
     placeholder = new C2DTexture(Vector2i{4, 4});
-    poster = new Sprite();
-    poster->setPosition(margin, top);
-    poster->setVisibility(Visibility::Hidden);
-    poster->add(new TweenAlpha(0, 255, 0.3f));
-    PreviewView::add(poster);
 
-    float textWidth = rect.width - margin * 2;
+    view = new pplay::ClipRect({0, 0, rect.width, 1});
+    PreviewView::add(view);
+    content = new Rectangle(FloatRect{0, 0, rect.width, 1});
+    view->add(content);
 
     title = new C2DText("", main->getFontSize(Main::FontSize::Big), main->getFont());
     title->setFillColor(COLOR_FONT);
-    title->setOverflow(Text::NewLine);
-    title->setSizeMax(textWidth, main->getFontSize(Main::FontSize::Big) * TITLE_LINES_POSTER);
-    PreviewView::add(title);
+    content->add(title);
 
-    details = new C2DText("", main->getFontSize(Main::FontSize::Small), main->getFont());
-    details->setFillColor(COLOR_FONT);
-    details->setOverflow(Text::NewLine);
-    details->setSizeMax(textWidth, rect.height - top);
-    PreviewView::add(details);
+    posterFrame = new RectangleShape(Vector2f{1, 1});
+    posterFrame->setFillColor(Color::Transparent);
+    posterFrame->setOutlineThickness(2);
+    posterFrame->setVisibility(Visibility::Hidden);
+    content->add(posterFrame);
 
-    // screen bottom (under the files list height): the filer keys, a separator line above
-    hint = new C2DText("", main->getFontSize(Main::FontSize::Small), main->getFont());
-    hint->setFillColor(COLOR_GRAY_LIGHT);
-    hint->setOverflow(Text::NewLine);
-    hint->setSizeMax(textWidth, 0);
-    PreviewView::add(hint);
+    poster = new Sprite();
+    poster->setVisibility(Visibility::Hidden);
+    poster->add(new TweenAlpha(0, 255, 0.3f));
+    content->add(poster);
 
-    separator = new RectangleShape({textWidth, std::max(1.0f, main->getScaling().y)});
+    detailsText = new C2DText("", main->getFontSize(Main::FontSize::Small), main->getFont());
+    detailsText->setFillColor(COLOR_FONT);
+    content->add(detailsText);
+
+    scrollBar = new RectangleShape(Vector2f{bar, 1});
+    scrollBar->setVisibility(Visibility::Hidden);
+    PreviewView::add(scrollBar);
+
+    focusBar = new RectangleShape(Vector2f{bar, 1});
+    focusBar->setVisibility(Visibility::Hidden);
+    PreviewView::add(focusBar);
+
+    separator = new RectangleShape(Vector2f{rect.width - margin * 2, std::max(1.0f, main->getScaling().y)});
     separator->setFillColor(Color(255, 255, 255, 50));
     PreviewView::add(separator);
 
-    hidePoster();
+    hints = new KeyHints(main, rect.width - margin * 2);
+    PreviewView::add(hints);
 }
 
-std::string PreviewView::posterCachePath(const std::string &url) const {
-    return main->getIo()->getDataPath() + "cache/posters/" + pplay::Utility::md5hash(url);
+PreviewView::~PreviewView() {
+    delete (loader);
+    delete (posterTexture);
+    delete (placeholder);
+}
+
+bool PreviewView::isResettable(const MediaFile &file) {
+    return file.type == Io::Type::File && !Filer::isPlaceholder(file)
+           && (pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path))
+               || pplay::TorrServe::isFileViewed(file.path));
+}
+
+void PreviewView::setFile(const MediaFile &f) {
+    if (f.path != file.path || f.name != file.name) {
+        scroll = scrollShown = 0;
+        posterError.clear();
+    }
+    file = f;
+    pplay::PreviewInfo info = pplay::PreviewInfo::of(file);
+    heading = info.title;
+    details = info.details;
+    if (info.poster != shownPoster) {
+        hidePoster();
+    }
+    posterUrl = info.poster;
+    loader->request(posterUrl == shownPoster ? "" : posterUrl);
+    updateHints();
+    layout();
+}
+
+void PreviewView::setFocused(bool value) {
+    if (focused == value) {
+        return;
+    }
+    focused = value;
+    button = -1;
+    scroll = 0;
+    hints->setButtons(focused);
+    focusBar->setVisibility(focused ? Visibility::Visible : Visibility::Hidden);
+    updateHints();
+    layout();
+}
+
+void PreviewView::updateHints() {
+    using pplay::InputMap::buttonName;
+    bool empty = Filer::isPlaceholder(file);
+    const char *open = file.type == Io::Type::Directory ? "Open" : "Play";
+    bool resettable = isResettable(file);
+
+    std::vector<KeyHints::Hint> list;
+    auto add = [&list](const std::string &key, const char *action, Action id) {
+        list.push_back({key, action, (int) id});
+    };
+    if (focused) {
+        if (!empty) {
+            add(buttonName(Input::A), open, Action::Open);
+        }
+        if (playing) {
+            add(buttonName(Input::X), "Player", Action::Player);
+        }
+        if (resettable) {
+            add(buttonName(Input::Y), "Reset progress", Action::Reset);
+        }
+        add(buttonName(Input::B), "Back", Action::Files);
+    } else {
+        add(buttonName(Input::Up) + buttonName(Input::Down), "Select", Action::None);
+        if (!empty) {
+            add(buttonName(Input::A), open, Action::Open);
+        }
+        add(buttonName(Input::B), "Back", Action::Parent);
+        add(buttonName(Input::Left), "Menu", Action::Menu);
+        add(buttonName(Input::Right), "Details", Action::Panel);
+        if (playing) {
+            add(buttonName(Input::X), "Player", Action::Player);
+        }
+        if (resettable) {
+            add(buttonName(Input::Y), "Reset progress", Action::Reset);
+        }
+    }
+    hints->setHints(list);
+    if (button >= hints->count()) {
+        button = hints->count() - 1;
+    }
+    hints->setFocus(button);
+}
+
+void PreviewView::showPoster(c2d::Texture *texture) {
+    poster->setTexture(placeholder, true);
+    delete (posterTexture);
+    posterTexture = texture;
+    poster->setTexture(posterTexture, true);
+    poster->setVisibility(Visibility::Visible, true);
+    posterFrame->setVisibility(Visibility::Visible);
+    shownPoster = posterUrl;
+    posterError.clear();
+    layout();
 }
 
 void PreviewView::hidePoster() {
@@ -125,300 +176,184 @@ void PreviewView::hidePoster() {
     posterFrame->setVisibility(Visibility::Hidden);
     if (posterTexture != nullptr) {
         // Shape::setTexture(nullptr) is a no-op
+        poster->setTexture(placeholder, true);
         delete (posterTexture);
         posterTexture = nullptr;
-        poster->setTexture(placeholder, true);
     }
     shownPoster.clear();
-    layout();
 }
 
 void PreviewView::layout() {
-    float margin = MARGIN * main->getScaling().x;
-    float y = top;
-    float gap = margin;
-    if (!shownPoster.empty()) {
-        y += poster->getSize().y + margin;
-        gap = margin / 2;
+    Vector2f scaling = main->getScaling();
+    float margin = MARGIN * scaling.x;
+    float top = (32 + MARGIN) * scaling.y;
+    float width = getSize().x - margin * 2;
+    float gap = margin / 2;
+
+    // fixed bottom: the keys (above the minimized player), a separator
+    float limit = main->getSize().y - margin;
+    if (playerShown) {
+        limit = main->getSize().y * 0.75f - 16 - gap;
     }
-    float bigSize = (float) main->getFontSize(Main::FontSize::Big);
-    title->setSizeMax(getSize().x - margin * 2, bigSize * (shownPoster.empty() ? TITLE_LINES : TITLE_LINES_POSTER));
-    title->setPosition(margin, y);
-    // the bounds are not updated for an empty string
-    float titleHeight = title->getString().empty() ? 0 : title->getLocalBounds().height;
-    if (titleHeight > 0) {
-        y += titleHeight + gap;
-    }
-    details->setPosition(margin, y);
-    // fixed at the screen bottom: the keys, a separator, then the details above
-    FloatRect hintBounds = hint->getLocalBounds();
-    float hintTop = main->getSize().y - margin - (hintBounds.top + hintBounds.height);
-    hint->setPosition(margin, hintTop);
-    float separatorY = hintTop + hintBounds.top - margin * 0.6f;
+    hints->setPosition(margin, limit - hints->getHeight());
+    float separatorY = hints->getPosition().y - margin * 0.6f;
     separator->setPosition(margin, separatorY);
-    float bottom = separatorY - margin * 0.6f;
-    // the last line descenders are drawn under its maximum height
-    float descent = (float) main->getFontSize(Main::FontSize::Small) * 0.35f;
-    details->setSizeMax(getSize().x - margin * 2, std::max(0.0f, bottom - y - descent));
+    float viewHeight = std::max(1.0f, separatorY - margin * 0.6f - top);
+    view->setPosition(0, top);
+    view->setSize(getSize().x, viewHeight);
+    focusBar->setPosition(0, top);
+    focusBar->setSize(focusBar->getSize().x, limit - top);
+
+    // title, the poster with the details right of it (narrow) or below
+    float y = 0;
+    title->setString(pplay::TextWrap::wrap(main->getFont(), title->getCharacterSize(), heading, width));
+    title->setPosition(margin, y);
+    if (!heading.empty()) {
+        y += title->getLocalBounds().top + title->getLocalBounds().height + gap;
+    }
+    float x = margin, detailsWidth = width, detailsY = y, bottom = y;
+    if (posterTexture != nullptr) {
+        Vector2f tex = {(float) posterTexture->getTextureSize().x, (float) posterTexture->getTextureSize().y};
+        // focused: the panel width at most; never upscaled
+        float scale = std::min(1.0f, width / tex.x);
+        if (!focused) {
+            scale = std::min(scale, width * POSTER_HEIGHT / tex.y);
+        }
+        Vector2f size = {std::round(tex.x * scale), std::round(tex.y * scale)};
+        poster->setSize(size);
+        posterFrame->setSize(size);
+        poster->setPosition(margin, y);
+        posterFrame->setPosition(margin, y);
+        if (size.x <= width * POSTER_SIDE) {
+            x = margin + size.x + margin;
+            detailsWidth = width - size.x - margin;
+        } else {
+            detailsY = y + size.y + gap;
+        }
+        bottom = y + size.y;
+    }
+    std::string text = details;
+    if (!posterError.empty()) {
+        text += (text.empty() ? "" : "\n") + pplay::tr("Poster") + ": " + posterError;
+    }
+    detailsText->setString(pplay::TextWrap::wrap(main->getFont(), detailsText->getCharacterSize(), text, detailsWidth));
+    detailsText->setPosition(x, detailsY);
+    if (!text.empty()) {
+        FloatRect bounds = detailsText->getLocalBounds();
+        bottom = std::max(bottom, detailsY + bounds.top + bounds.height);
+    }
+    // the last line descenders
+    contentHeight = bottom + (float) detailsText->getCharacterSize() * 0.4f;
+    content->setSize(getSize().x, contentHeight);
+    scrollBy(0);
 }
 
-void PreviewView::showPoster(const std::string &url) {
-    std::string path = posterCachePath(url);
-    std::string error;
-    Vector2f shown = main->getScaled(POSTER_W, POSTER_H);
-    c2d::Texture *texture = pplay::Image::load(path, {(int) shown.x * 2, (int) shown.y * 2}, &error);
-    if (texture == nullptr) {
-        pplay::Utility::deleteFile(path);
-        failedPoster = url;
-        setPosterStatus(pplay::tr("Poster") + ": " + pplay::tr("unsupported image") + " (" + error + ")");
-        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Preview: poster decode failed: " + url + ": " + error);
+void PreviewView::scrollBy(float delta) {
+    float max = std::max(0.0f, contentHeight - view->getSize().y);
+    scroll = std::max(0.0f, std::min(max, scroll + delta));
+    updateScroll();
+}
+
+void PreviewView::updateScroll() {
+    content->setPosition(0, -std::round(scrollShown));
+    float viewHeight = view->getSize().y;
+    if (contentHeight <= viewHeight + 1) {
+        scrollBar->setVisibility(Visibility::Hidden);
         return;
     }
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Preview: poster " + url + " "
-                                                        + std::to_string(texture->getTextureSize().x) + "x"
-                                                        + std::to_string(texture->getTextureSize().y));
-    setPosterStatus("");
+    float barHeight = std::max(viewHeight * viewHeight / contentHeight, 24 * main->getScaling().y);
+    float max = contentHeight - viewHeight;
+    scrollBar->setSize(scrollBar->getSize().x, barHeight);
+    scrollBar->setPosition(getSize().x - MARGIN * main->getScaling().x / 2,
+                           view->getPosition().y + (viewHeight - barHeight) * std::min(1.0f, scrollShown / max));
+    scrollBar->setVisibility(Visibility::Visible);
+}
 
-    if (posterTexture != nullptr) {
-        poster->setTexture(placeholder, true);
-        delete (posterTexture);
+PreviewView::Action PreviewView::onKeys(unsigned int keys) {
+    if (keys & Input::B) {
+        return Action::Files;
     }
-    posterTexture = texture;
-    poster->setTexture(posterTexture, true);
+    if (keys & (Input::LB | Input::RB)) {
+        return Action::Menu;
+    }
+    if (keys & Input::X) {
+        return Action::Player;
+    }
+    if (keys & Input::Y) {
+        return Action::Reset;
+    }
 
-    Vector2i texSize = posterTexture->getTextureSize();
-    float maxW = main->getScaled(POSTER_W, 0).x;
-    float maxH = getSize().y / 2 - top;
-    float scale = std::min(maxW / (float) texSize.x, maxH / (float) texSize.y);
-    Vector2f size = {(float) texSize.x * scale, (float) texSize.y * scale};
-    poster->setSize(size);
-    posterFrame->setSize(size);
-    poster->setVisibility(Visibility::Visible, true);
-    posterFrame->setVisibility(Visibility::Visible);
-    shownPoster = url;
-    layout();
-}
-
-static const char *imageFormat(const std::string &data) {
-    auto u = [&data](size_t i) { return (unsigned char) data[i]; };
-    if (data.size() < 12) return nullptr;
-    if (u(0) == 0xFF && u(1) == 0xD8) return "jpeg";
-    if (u(0) == 0x89 && data.compare(1, 3, "PNG") == 0) return "png";
-    if (data.compare(0, 3, "GIF") == 0) return "gif";
-    if (data.compare(0, 2, "BM") == 0) return "bmp";
-    if (data.compare(0, 4, "RIFF") == 0 && data.compare(8, 4, "WEBP") == 0) return "webp";
-    if (data.compare(4, 4, "ftyp") == 0) return "avif";  // avif / heif
-    return nullptr;
-}
-
-int PreviewView::downloadThread(void *data) {
-    auto *self = (PreviewView *) data;
-    pplay::Http::Request request;
-    request.url = self->downloadUrl;
-    request.timeout = 15;
-    request.maxSize = 8 * 1024 * 1024;
-    request.headers = {"Accept: image/jpeg,image/png;q=0.9,image/*;q=0.5,*/*;q=0.1",
-                       "User-Agent: Mozilla/5.0 (PlayStation; pPlay) AppleWebKit/605.1.15 (KHTML, like Gecko)"};
-    pplay::Http::Response response = pplay::Http::perform(request);
-
-    std::string status;
-    bool ok = false;
-    if (!response.ok()) {
-        status = response.error.empty() ? "HTTP " + std::to_string(response.status) : response.error;
+    if (button < 0) {
+        float max = std::max(0.0f, contentHeight - view->getSize().y);
+        float step = std::max(view->getSize().y * 0.35f, (float) detailsText->getCharacterSize() * 3);
+        if (keys & (Input::Down | Input::Right)) {
+            // at the end: the buttons
+            if (scroll < max - 0.5f) {
+                scrollBy(step);
+            } else if (hints->count() > 0) {
+                button = 0;
+            }
+        } else if (keys & Input::Up) {
+            scrollBy(-step);
+        } else if (keys & Input::Left) {
+            return Action::Files;
+        } else if (keys & Input::A) {
+            return Action::Open;
+        }
     } else {
-        const char *format = imageFormat(response.body);
-        if (format == nullptr) {
-            status = "not an image";
-        } else {
-            FILE *f = fopen(self->downloadPath.c_str(), "wb");
-            ok = f != nullptr && fwrite(response.body.data(), 1, response.body.size(), f) == response.body.size();
-            if (f) fclose(f);
-            if (!ok) {
-                pplay::Utility::deleteFile(self->downloadPath);
-                status = "can't write cache file";
+        if (keys & Input::Up) {
+            button = -1;
+        } else if (keys & Input::Left) {
+            if (button == 0) {
+                return Action::Files;
             }
+            button--;
+        } else if (keys & Input::Right) {
+            button = std::min(button + 1, hints->count() - 1);
+        } else if (keys & Input::A) {
+            return (Action) hints->idAt(button);
         }
     }
-    pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                        "Preview: poster download " + self->downloadUrl + " status=" + std::to_string(response.status)
-                        + " size=" + std::to_string(response.body.size()) + (ok ? " ok" : " failed: " + status));
-    self->downloadStatus = status;
-    self->downloadOk = ok;
-    self->downloadDone = true;
-    return 0;
-}
-
-void PreviewView::setPosterStatus(const std::string &status) {
-    posterStatus = status;
-    details->setString(wrapSafe(posterStatus.empty() ? infoText : infoText + "\n" + posterStatus));
-}
-
-static std::string resolutionName(int width, int height) {
-    if (width >= 3800) return "2160p";
-    if (width >= 1900) return "1080p";
-    if (width >= 1260) return "720p";
-    return std::to_string(height) + "p";
-}
-
-void PreviewView::setFile(const MediaFile &file) {
-    std::ostringstream info;
-    std::string name = file.name;
-    wantedPoster.clear();
-
-    pplay::TorrServe::Info ts;
-    if (Filer::isPlaceholder(file)) {
-        name.clear();
-    } else if (file.name == "..") {
-        name = pplay::tr("BACK");
-        info << pplay::tr("Parent directory");
-    } else if (pplay::TorrServe::getInfo(file.path, ts)) {
-        name = ts.title;
-        wantedPoster = ts.poster;
-        // one line: category, files and their size (kept together)
-        std::string files = pplay::tr("Files") + ": " + std::to_string(ts.fileCount);
-        if (ts.filesSize > 0) {
-            files += " (" + pplay::Utility::formatSize((size_t) ts.filesSize) + ")";
-        }
-        if (!ts.category.empty()) {
-            info << pplay::tr("Category") << ": " << encoding::fix(ts.category) << "   ";
-        }
-        info << keep(files) << "\n";
-        if (ts.fileIndex >= 0) {
-            info << "\n" << encoding::fix(ts.fileName) << "\n";
-            if (ts.fileSize > 0) {
-                info << pplay::tr("Size") << ": " << keep(pplay::Utility::formatSize((size_t) ts.fileSize)) << "\n";
-            }
-        }
-    } else if (file.type == Io::Type::Directory) {
-        info << pplay::tr("Directory");
-    } else {
-        if (file.size > 0) {
-            info << pplay::tr("Size") << ": " << keep(pplay::Utility::formatSize(file.size)) << "\n";
-        }
-    }
-
-    bool media = file.type == Io::Type::File && !Filer::isPlaceholder(file);
-    if (media) {
-        time_t last = pplay::History::lastPlayed(Player::keyOf(file.path));
-        if (last > 0) {
-            struct tm tm{};
-            localtime_r(&last, &tm);
-            char date[32];
-            strftime(date, sizeof(date), "%d.%m.%Y %H:%M", &tm);
-            info << pplay::tr("Last played") << ": " << date << "\n";
-        }
-    }
-    // watch later / TorrServer viewed state: Y resets it (filer)
-    bool resettable = media && (pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path))
-                                || pplay::TorrServe::isFileViewed(file.path));
-    // the filer keys (what they do for this selection)
-    using pplay::InputMap::buttonName;
-    std::vector<std::string> keys = {
-            keyHint(buttonName(Input::Button::Up) + buttonName(Input::Button::Down), "Select"),
-    };
-    if (!Filer::isPlaceholder(file)) {
-        keys.push_back(keyHint(buttonName(Input::Button::A), file.type == Io::Type::Directory ? "Open" : "Play"));
-    }
-    keys.push_back(keyHint(buttonName(Input::Button::B), "Back"));
-    keys.push_back(keyHint(buttonName(Input::Button::Left), "Menu"));
-    if (!main->getPlayer()->getMpv()->isStopped()) {
-        keys.push_back(keyHint(buttonName(Input::Button::Right), "Player"));
-    }
-    if (resettable) {
-        keys.push_back(keyHint(buttonName(Input::Button::Y), "Reset progress"));
-    }
-    std::string hintText;
-    for (const auto &key: keys) {
-        hintText += (hintText.empty() ? "" : "   ") + key;
-    }
-    hint->setString(hintText);
-
-    const MediaInfo &mi = file.mediaInfo;
-    if (file.type == Io::Type::File && (mi.duration > 0 || !mi.videos.empty() || !mi.audios.empty())) {
-        if (mi.duration > 0) {
-            info << pplay::tr("Duration") << ": " << pplay::Utility::formatTime((double) mi.duration) << "\n";
-        }
-        if (!mi.videos.empty()) {
-            const auto &v = mi.videos[0];
-            info << pplay::tr("Video") << ": " << c2d::Utility::toUpper(v.codec);
-            if (v.width > 0 && v.height > 0) {
-                info << ", " << resolutionName(v.width, v.height) << " (" << v.width << "x" << v.height << ")";
-            }
-            info << "\n";
-        }
-        if (!mi.audios.empty()) {
-            info << pplay::tr("Audio") << ": ";
-            for (size_t i = 0; i < mi.audios.size() && i < 4; i++) {
-                if (i > 0) info << ", ";
-                info << c2d::Utility::toUpper(mi.audios[i].codec);
-                if (mi.audios[i].language != "N/A" && !mi.audios[i].language.empty()) {
-                    info << " " << mi.audios[i].language;
-                }
-            }
-            if (mi.audios.size() > 4) info << "...";
-            info << "\n";
-        }
-        if (!mi.subtitles.empty()) {
-            info << pplay::tr("Subtitles") << ": " << mi.subtitles.size() << "\n";
-        }
-    }
-
-    title->setString(encoding::fix(name));
-    infoText = info.str();
-    posterStatus.clear();
-    details->setString(wrapSafe(infoText));
-
-    if (wantedPoster != shownPoster) {
-        hidePoster();
-    } else {
-        layout();
-    }
-    selectionClock.restart();
+    hints->setFocus(button);
+    return Action::None;
 }
 
 void PreviewView::onUpdate() {
-    posterFrame->setOutlineColor(COLOR_ACCENT);
+    float dt = frameClock.restart().asSeconds();
 
-    if (thread != nullptr && downloadDone) {
-        thread->join();
-        delete (thread);
-        thread = nullptr;
-        if (!downloadOk) {
-            failedPoster = downloadUrl;
-            if (downloadUrl == wantedPoster) {
-                setPosterStatus(pplay::tr("Poster") + ": " + downloadStatus);
-            }
-        }
-    }
-
-    if (!wantedPoster.empty() && wantedPoster != shownPoster && wantedPoster != failedPoster
-        && thread == nullptr && selectionClock.getElapsedTime().asMilliseconds() > 250) {
-        std::string path = posterCachePath(wantedPoster);
-        if (main->getIo()->exist(path)) {
-            showPoster(wantedPoster);
+    Texture *texture;
+    std::string error;
+    float width = getSize().x - MARGIN * main->getScaling().x * 2;
+    if (loader->poll({(int) width, (int) width * 3}, &texture, &error)) {
+        if (texture != nullptr) {
+            showPoster(texture);
         } else {
-            std::string dir = main->getIo()->getDataPath() + "cache/posters";
-            if (!main->getIo()->exist(dir)) {
-                main->getIo()->create(dir);
-            }
-            downloadUrl = wantedPoster;
-            downloadPath = path;
-            downloadDone = false;
-            downloadOk = false;
-            thread = new C2DThread(downloadThread, this);
+            posterError = error;
+            layout();
         }
     }
+
+    Player *player = main->getPlayer();
+    bool nowPlaying = !player->getMpv()->isStopped();
+    bool nowShown = player->isVisible() && !player->isFullscreen();
+    if (nowPlaying != playing || nowShown != playerShown) {
+        playing = nowPlaying;
+        playerShown = nowShown;
+        updateHints();
+        layout();
+    }
+
+    if (scrollShown != scroll) {
+        scrollShown += (scroll - scrollShown) * std::min(1.0f, dt * 14);
+        if (std::fabs(scroll - scrollShown) < 0.5f) {
+            scrollShown = scroll;
+        }
+        updateScroll();
+    }
+
+    posterFrame->setOutlineColor(COLOR_ACCENT);
+    focusBar->setFillColor(COLOR_ACCENT);
+    scrollBar->setFillColor(focused && button < 0 ? COLOR_ACCENT : Color(255, 255, 255, 60));
 
     Rectangle::onUpdate();
-}
-
-PreviewView::~PreviewView() {
-    if (thread != nullptr) {
-        thread->join();
-        delete (thread);
-    }
-    if (posterTexture != nullptr) {
-        delete (posterTexture);
-    }
-    delete (placeholder);
 }

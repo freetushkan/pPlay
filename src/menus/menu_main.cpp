@@ -7,208 +7,40 @@
 #include "main.h"
 #include "menu_main.h"
 #include "menu_file_editor.h"
+#include "menu_main_items.h"
 #include "io.h"
 #include "i18n.h"
-#include "player.h"
-#include "mpv.h"
 
 using namespace c2d;
 
-namespace {
-    using Submenu = MenuMainOptionsSubmenu;
-
-    std::vector<MenuItem> makeAdjustItems() {
-        std::vector<MenuItem> items;
-        items.emplace_back("Value", "", MenuItem::Position::Top, 0, false);
-        items.emplace_back("-", "", MenuItem::Position::Top, -1);
-        items.emplace_back("+", "", MenuItem::Position::Top, 1);
-        return items;
-    }
-
-    std::string networkKey(int index) {
-        return "Network " + std::to_string(index);
-    }
-
-    // mpv language lists (alang / slang), the first item keeps mpv.conf
-    std::vector<MenuItem> makeTrackLanguageItems(const std::string &none) {
-        static const std::pair<const char *, const char *> languages[] = {
-                {"Russian",    "rus,ru,russian"},
-                {"English",    "eng,en,english"},
-                {"Ukrainian",  "ukr,uk,ukrainian"},
-                {"Belarusian", "bel,be,belarusian"},
-                {"Kazakh",     "kaz,kk,kazakh"},
-                {"Uzbek",      "uzb,uz,uzbek"},
-                {"Georgian",   "geo,kat,ka,georgian"},
-                {"Armenian",   "arm,hye,hy,armenian"},
-                {"Azerbaijani", "aze,az,azerbaijani"},
-                {"Polish",     "pol,pl,polish"},
-                {"Czech",      "cze,ces,cs,czech"},
-                {"Slovak",     "slo,slk,sk,slovak"},
-                {"Bulgarian",  "bul,bg,bulgarian"},
-                {"Serbian",    "srp,sr,serbian"},
-                {"Croatian",   "hrv,hr,croatian"},
-                {"Slovenian",  "slv,sl,slovenian"},
-                {"Romanian",   "rum,ron,ro,romanian"},
-                {"Hungarian",  "hun,hu,hungarian"},
-                {"Greek",      "gre,ell,el,greek"},
-                {"Lithuanian", "lit,lt,lithuanian"},
-                {"Latvian",    "lav,lv,latvian"},
-                {"Estonian",   "est,et,estonian"},
-                {"Finnish",    "fin,fi,finnish"},
-                {"Swedish",    "swe,sv,swedish"},
-                {"Norwegian",  "nor,nob,nno,no,nb,nn,norwegian"},
-                {"Danish",     "dan,da,danish"},
-                {"Icelandic",  "ice,isl,is,icelandic"},
-                {"Dutch",      "dut,nld,nl,dutch"},
-                {"German",     "ger,deu,de,german"},
-                {"French",     "fre,fra,fr,french"},
-                {"Spanish",    "spa,es,spanish"},
-                {"Catalan",    "cat,ca,catalan"},
-                {"Portuguese", "por,pt,portuguese"},
-                {"Italian",    "ita,it,italian"},
-                {"Turkish",    "tur,tr,turkish"},
-                {"Hebrew",     "heb,he,hebrew"},
-                {"Arabic",     "ara,ar,arabic"},
-                {"Persian",    "per,fas,fa,persian"},
-                {"Hindi",      "hin,hi,hindi"},
-                {"Bengali",    "ben,bn,bengali"},
-                {"Tamil",      "tam,ta,tamil"},
-                {"Thai",       "tha,th,thai"},
-                {"Vietnamese", "vie,vi,vietnamese"},
-                {"Indonesian", "ind,id,indonesian"},
-                {"Malay",      "may,msa,ms,malay"},
-                {"Filipino",   "fil,tgl,tl,filipino"},
-                {"Japanese",   "jpn,ja,japanese"},
-                {"Korean",     "kor,ko,korean"},
-                {"Chinese",    "chi,zho,zh,cmn,yue,chinese"},
-        };
-        std::vector<MenuItem> items;
-        items.emplace_back(none, "", MenuItem::Position::Top);
-        for (const auto &language: languages) {
-            items.emplace_back(language.first, "", MenuItem::Position::Top, 0, true, language.second);
-        }
-        return items;
-    }
-
-    const char *platformName() {
-#if defined(__SWITCH__)
-        return "Nintendo Switch";
-#elif defined(__PS4__)
-        return "PlayStation 4";
-#elif defined(__PS5__)
-        return "PlayStation 5";
-#else
-        return "Linux";
-#endif
-    }
-
-    // the people and projects pPlay is built with
-    std::vector<std::string> credits() {
-        std::vector<std::string> list = {
-                "Cpasjuste — pPlay, libcross2d",
-                "freetushkan — pPlay fork",
-                "mpv contributors — mpv",
-                "FFmpeg developers — FFmpeg",
-                "libass contributors — libass",
-        };
-#if defined(__SWITCH__) || defined(__PS5__)
-        list.emplace_back("Niklas Haas — libplacebo");
-#endif
-#ifdef __SWITCH__
-        list.emplace_back("VideoLAN — dav1d");
-#endif
-        list.emplace_back("Daniel Stenberg — curl");
-#ifdef __SMB2__
-        list.emplace_back("Ronnie Sahlberg, cy33hc — libsmb2");
-#endif
-        list.emplace_back("Thomas Pfau — ftplib");
-        list.emplace_back("D. J. Bernstein — ftpparse");
-        list.emplace_back("Niels Lohmann — JSON for Modern C++");
-        list.emplace_back("YouROK — TorrServer");
-#ifdef __PS5__
-        list.emplace_back("OpenSSL Project — OpenSSL");
-        list.emplace_back("Mesa developers — OSMesa");
-#else
-        list.emplace_back("Trusted Firmware — Mbed TLS");
-#endif
-        list.emplace_back("FreeType, FriBidi, libpng, libjpeg-turbo, libarchive, zstd, bzip2");
-#if defined(__SWITCH__)
-        list.emplace_back("devkitPro — devkitA64");
-        list.emplace_back("Switchbrew — libnx");
-        list.emplace_back("DarkMatterCore — libusbhsfs");
-        list.emplace_back("ntfs-3g, lwext4");
-#elif defined(__PS4__)
-        list.emplace_back("OpenOrbis — PS4 toolchain");
-#ifdef PPLAY_PS4_JAILBREAK
-        list.emplace_back("sleirsgoevy, bucanero, cy33hc — libjbc");
-#endif
-#elif defined(__PS5__)
-        list.emplace_back("John Törnblom — ps5-payload-sdk");
-        list.emplace_back("OpenOrbis — PS4 toolchain (launcher)");
-#endif
-        return list;
-    }
-
-    std::vector<MenuItem> makeAboutItems(Main *main) {
-        using Pos = MenuItem::Position;
-        std::vector<MenuItem> items;
-        // dynamic texts are labels, the names stay menu keys
-        MenuItem version("About version", "", Pos::Top);
-        version.label = "pPlay v" APP_VERSION_FULL;
-        items.push_back(version);
-        MenuItem build("About build", "", Pos::Top);
-        build.label = std::string(platformName()) + " · " + __DATE__;
-        items.push_back(build);
-        std::string mpvVersion, ffmpegVersion;
-        if (main->getPlayer() != nullptr && main->getPlayer()->getMpv() != nullptr) {
-            mpvVersion = main->getPlayer()->getMpv()->getString("mpv-version");
-            ffmpegVersion = main->getPlayer()->getMpv()->getString("ffmpeg-version");
-        }
-        if (!mpvVersion.empty()) {
-            MenuItem libs("About libs", "", Pos::Top);
-            libs.label = mpvVersion + (ffmpegVersion.empty() ? "" : " · FFmpeg " + ffmpegVersion);
-            items.push_back(libs);
-        }
-        // section title, not selectable
-        items.emplace_back("Thanks", "", Pos::Top, 0, false, "#95A5A6");
-        for (const auto &credit: credits()) {
-            items.emplace_back(credit, "", Pos::Top);
-        }
-        return items;
-    }
-
-    std::vector<MenuItem> makeIntItems(const std::vector<std::pair<std::string, int>> &values) {
-        std::vector<MenuItem> items;
-        for (auto &value: values) {
-            items.emplace_back(value.first, "", MenuItem::Position::Top, value.second);
-        }
-        return items;
-    }
-}
+using Submenu = MenuMainOptionsSubmenu;
+using namespace pplay::MenuMainItems;
 
 MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<MenuItem> &items)
-        : Menu(main, rect, "pPlay v" APP_VERSION, items, true) {
+    : Menu(main, rect, "pPlay v" APP_VERSION, items, true) {
     using Pos = MenuItem::Position;
     // settings by category (menu key, items)
     std::vector<std::pair<std::string, std::vector<MenuItem>>> categories;
-    categories.push_back({"Playback", {
-            MenuItem("Playback mode", "pl_mode.png", Pos::Top),
-            MenuItem("Short seek step", "short_seek.png", Pos::Top),
-            MenuItem("Long seek step", "long_seek.png", Pos::Top),
-            MenuItem("Playback retry", "pl_retry.png", Pos::Top),
-            MenuItem("Audio language", "options.png", Pos::Top),
-            MenuItem("Subtitles language", "options.png", Pos::Top),
-            MenuItem("External tracks", "options.png", Pos::Top),
-            MenuItem("Volume normalization", "options.png", Pos::Top),
-            MenuItem("Video quality", "video.png", Pos::Top),
-            MenuItem("Buffer length", "buffer.png", Pos::Top),
-            MenuItem("Buffer memory", "buffer.png", Pos::Top),
-    }});
-    categories.push_back({"Interface", {
-            MenuItem("Language", "options.png", Pos::Top),
-            MenuItem("Accent color", "color.png", Pos::Top),
-            MenuItem("Swap controls", "swap.png", Pos::Top),
-    }});
+    categories.push_back({"Playback",
+                          {
+                                  MenuItem("Playback mode", "pl_mode.png", Pos::Top),
+                                  MenuItem("Short seek step", "short_seek.png", Pos::Top),
+                                  MenuItem("Long seek step", "long_seek.png", Pos::Top),
+                                  MenuItem("Playback retry", "pl_retry.png", Pos::Top),
+                                  MenuItem("Audio language", "options.png", Pos::Top),
+                                  MenuItem("Subtitles language", "options.png", Pos::Top),
+                                  MenuItem("External tracks", "options.png", Pos::Top),
+                                  MenuItem("Volume normalization", "options.png", Pos::Top),
+                                  MenuItem("Video quality", "video.png", Pos::Top),
+                                  MenuItem("Buffer length", "buffer.png", Pos::Top),
+                                  MenuItem("Buffer memory", "buffer.png", Pos::Top),
+                          }});
+    categories.push_back({"Interface",
+                          {
+                                  MenuItem("Language", "options.png", Pos::Top),
+                                  MenuItem("Accent color", "color.png", Pos::Top),
+                                  MenuItem("Swap controls", "swap.png", Pos::Top),
+                          }});
     std::vector<MenuItem> networks;
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
         networks.emplace_back(networkKey(i), "network.png", Pos::Top);
@@ -229,10 +61,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     categories.push_back({"System", system});
 
     std::vector<MenuItem> it = {
-            MenuItem("Playback", "pl_mode.png", Pos::Top),
-            MenuItem("Interface", "color.png", Pos::Top),
-            MenuItem("Networks", "network.png", Pos::Top),
-            MenuItem("System", "options.png", Pos::Top),
+            MenuItem("Playback", "pl_mode.png", Pos::Top), MenuItem("Interface", "color.png", Pos::Top),
+            MenuItem("Networks", "network.png", Pos::Top), MenuItem("System", "options.png", Pos::Top),
             MenuItem("About", "log.png", Pos::Top),
     };
 
@@ -244,11 +74,10 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     auto addSubmenu = [&](const std::string &name, const std::string &title, const std::string &optionName,
                           const std::vector<MenuItem> &submenuItems,
                           Submenu::ValueType valueType = Submenu::ValueType::String,
-                          Submenu::MenuType menuType = Submenu::MenuType::List,
-                          float minValue = 0.0f, float maxValue = 0.0f,
-                          float stepValue = 1.0f, const std::string &unit = "") {
-        auto *submenu = new MenuMainOptionsSubmenu(main, rect, title, submenuItems, optionName,
-                                                   valueType, menuType, minValue, maxValue, stepValue, unit);
+                          Submenu::MenuType menuType = Submenu::MenuType::List, float minValue = 0.0f,
+                          float maxValue = 0.0f, float stepValue = 1.0f, const std::string &unit = "") {
+        auto *submenu = new MenuMainOptionsSubmenu(main, rect, title, submenuItems, optionName, valueType, menuType,
+                                                   minValue, maxValue, stepValue, unit);
         submenu->setLayer(2);
         submenu->setVisibility(Visibility::Hidden, false);
         submenu->setKey(name);
@@ -259,6 +88,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
 
     // no submenus behind these items: A does nothing, the selection scrolls long texts
     addSubmenu("About", "About", "", makeAboutItems(main));
+    menuMainOptionsSubmenus["About"]->setCompact(true);
 
     for (auto &category: categories) {
         addSubmenu(category.first, category.first, "", category.second);
@@ -268,9 +98,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     }
 
     auto addTextSubmenu = [&](const std::string &name, const std::string &title, const std::string &optionName) {
-        addSubmenu(name, title, optionName,
-                   {MenuItem("", "", MenuItem::Position::Top)},
-                   Submenu::ValueType::String, Submenu::MenuType::TextInput);
+        addSubmenu(name, title, optionName, {MenuItem("", "", MenuItem::Position::Top)}, Submenu::ValueType::String,
+                   Submenu::MenuType::TextInput);
     };
 
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
@@ -303,67 +132,44 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
 
 #ifdef __SWITCH__
     addSubmenu("CPU boost", "CPU boost", OPT_CPU_BOOST,
-               {MenuItem("Disabled", "", MenuItem::Position::Top),
-                MenuItem("Enabled", "", MenuItem::Position::Top)});
+               {MenuItem("Disabled", "", MenuItem::Position::Top), MenuItem("Enabled", "", MenuItem::Position::Top)});
 #endif
 
     addSubmenu("Connection timeout", "Connection timeout", OPT_NETWORK_TIMEOUT, makeAdjustItems(),
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 300.0f, 5.0f, "s");
-    addSubmenu("Playback retry", "Playback retry", OPT_NETWORK_RETRIES, makeAdjustItems(),
-               Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 10.0f, 1.0f);
+    addSubmenu("Playback retry", "Playback retry", OPT_NETWORK_RETRIES, makeAdjustItems(), Submenu::ValueType::Integer,
+               Submenu::MenuType::Adjust, 0.0f, 10.0f, 1.0f);
 #ifdef __SMB2__
     addSubmenu("SMB buffer", "SMB preload buffer", OPT_SMB_READ_BUFFER_MB, makeAdjustItems(),
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 100.0f, 1.0f, "MB");
 #endif
     addSubmenu("Playback mode", "At playback end..", OPT_AUTOPLAY_MODE,
-               makeIntItems({{"Stop", 0}, {"Play next", 1},
-                             {"Loop file", 2}, {"Loop directory", 3}}), Submenu::ValueType::Integer);
+               makeIntItems({{"Stop", 0}, {"Play next", 1}, {"Loop file", 2}, {"Loop directory", 3}}),
+               Submenu::ValueType::Integer);
     addSubmenu("Swap controls", "Triggers and buttons", OPT_SWAP_CONTROLS,
                makeIntItems({{"Normal", 0}, {"Swapped", 1}}), Submenu::ValueType::Integer);
-    addSubmenu("Short seek step", "Seek short step", OPT_SEEK_SHORT_SEC, makeAdjustItems(),
-               Submenu::ValueType::Float, Submenu::MenuType::Adjust, 1.0f, 600.0f, 1.0f, "s");
-    addSubmenu("Long seek step", "Seek long step", OPT_SEEK_LONG_SEC, makeAdjustItems(),
-               Submenu::ValueType::Float, Submenu::MenuType::Adjust, 10.0f, 3600.0f, 10.0f, "s");
-    addSubmenu("Audio language", "Audio language", OPT_AUDIO_LANGUAGE,
-               makeTrackLanguageItems("Auto"), Submenu::ValueType::String);
-    addSubmenu("Subtitles language", "Subtitles language", OPT_SUB_LANGUAGE,
-               makeTrackLanguageItems("Off"), Submenu::ValueType::String);
+    addSubmenu("Short seek step", "Seek short step", OPT_SEEK_SHORT_SEC, makeAdjustItems(), Submenu::ValueType::Float,
+               Submenu::MenuType::Adjust, 1.0f, 600.0f, 1.0f, "s");
+    addSubmenu("Long seek step", "Seek long step", OPT_SEEK_LONG_SEC, makeAdjustItems(), Submenu::ValueType::Float,
+               Submenu::MenuType::Adjust, 10.0f, 3600.0f, 10.0f, "s");
+    addSubmenu("Audio language", "Audio language", OPT_AUDIO_LANGUAGE, makeTrackLanguageItems("Auto"),
+               Submenu::ValueType::String);
+    addSubmenu("Subtitles language", "Subtitles language", OPT_SUB_LANGUAGE, makeTrackLanguageItems("Off"),
+               Submenu::ValueType::String);
     addSubmenu("External tracks", "External audio and subtitles", OPT_EXTERNAL_TRACKS,
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Volume normalization", "Volume normalization", OPT_AUDIO_NORMALIZE,
                makeIntItems({{"Off", 0}, {"Normalize", 1}, {"Night mode", 2}}), Submenu::ValueType::Integer);
     addSubmenu("Video quality", "Video quality", OPT_VIDEO_QUALITY,
                makeIntItems({{"Best", 0}, {"Balanced", 1}, {"Fast", 2}}), Submenu::ValueType::Integer);
-    addSubmenu("Buffer length", "Network buffer length", OPT_CACHE_SECS, makeAdjustItems(),
-               Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 10.0f, 600.0f, 10.0f, "s");
-    addSubmenu("Buffer memory", "Network buffer memory", OPT_CACHE_MB, makeAdjustItems(),
-               Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 50.0f, (float) CACHE_MB_MAX, 50.0f, "MB");
+    addSubmenu("Buffer length", "Network buffer length", OPT_CACHE_SECS, makeAdjustItems(), Submenu::ValueType::Integer,
+               Submenu::MenuType::Adjust, 10.0f, 600.0f, 10.0f, "s");
+    addSubmenu("Buffer memory", "Network buffer memory", OPT_CACHE_MB, makeAdjustItems(), Submenu::ValueType::Integer,
+               Submenu::MenuType::Adjust, 50.0f, (float) CACHE_MB_MAX, 50.0f, "MB");
     addSubmenu("Logging", "Log to file", OPT_LOG_LEVEL,
                makeIntItems({{"Off", 0}, {"Error", 1}, {"Info", 2}, {"Debug", 3}, {"Trace", 4}}),
                Submenu::ValueType::Integer);
-    addSubmenu("Accent color", "Accent color", OPT_ACCENT_COLOR,
-                {MenuItem("Base Blue", "", MenuItem::Position::Top, 0, true, "#1078C8"),
-                MenuItem("Muted Cyan", "", MenuItem::Position::Top, 0, true, "#008EA0"),
-                MenuItem("Muted Crimson", "", MenuItem::Position::Top, 0, true, "#D64545"),
-                MenuItem("Soft Crimson", "", MenuItem::Position::Top, 0, true, "#EB4D4B"),
-                MenuItem("Terracotta Orange", "", MenuItem::Position::Top, 0, true, "#DB6B30"),
-                MenuItem("Burnt Orange", "", MenuItem::Position::Top, 0, true, "#FA8231"),
-                MenuItem("Ochre Yellow", "", MenuItem::Position::Top, 0, true, "#C29346"),
-                MenuItem("Olive Gold", "", MenuItem::Position::Top, 0, true, "#9EA133"),
-                MenuItem("Olive Lime", "", MenuItem::Position::Top, 0, true, "#88B04B"),
-                MenuItem("Sage Green", "", MenuItem::Position::Top, 0, true, "#5D9E54"),
-                MenuItem("Soft Emerald", "", MenuItem::Position::Top, 0, true, "#3A9668"),
-                MenuItem("Bright Emerald", "", MenuItem::Position::Top, 0, true, "#20BF6B"),
-                MenuItem("Deep Turquoise", "", MenuItem::Position::Top, 0, true, "#2E8B96"),
-                MenuItem("Slate Blue", "", MenuItem::Position::Top, 0, true, "#4378A6"),
-                MenuItem("Dark Indigo", "", MenuItem::Position::Top, 0, true, "#535EA8"),
-                MenuItem("Soft Purple", "", MenuItem::Position::Top, 0, true, "#A55EEA"),
-                MenuItem("Amethyst Purple", "", MenuItem::Position::Top, 0, true, "#7A5299"),
-                MenuItem("Plum Violet", "", MenuItem::Position::Top, 0, true, "#9C498D"),
-                MenuItem("Dusty Rose", "", MenuItem::Position::Top, 0, true, "#B5526C"),
-                MenuItem("Deep Red", "", MenuItem::Position::Top, 0, true, "#D63031"),
-                MenuItem("Classic Red", "", MenuItem::Position::Top, 0, true, "#FF0000")},
-               Submenu::ValueType::String);
+    addSubmenu("Accent color", "Accent color", OPT_ACCENT_COLOR, makeAccentColorItems(), Submenu::ValueType::String);
 
     fileEditor = new MenuFileEditor(main, rect);
     fileEditor->setLayer(2);
@@ -371,16 +177,6 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     main->add(fileEditor);
 
     updateNetworkLabels();
-
-    // highlight
-    highlight_selection = new Highlight({MenuMain::getSize().x, BUTTON_HEIGHT * main->getScaling().y},
-                                        Highlight::CursorPosition::Left);
-    highlight_selection->setFillColor(COLOR_ACCENT, 60);
-    highlight_selection->setCursorColor(COLOR_ACCENT);
-    highlight_selection->setOrigin(Origin::Left);
-    highlight_selection->setPosition(0, 200 * main->getScaling().y);
-    highlight_selection->setLayer(-1);
-    MenuMain::add(highlight_selection);
 }
 
 void MenuMain::updateNetworkLabels() {
@@ -417,7 +213,9 @@ void MenuMain::updateNetworkLabels() {
         for (const char *suffix: {" name", " url", " type"}) {
             auto sub = menuMainOptionsSubmenus.find(key + suffix);
             if (sub != menuMainOptionsSubmenus.end()) {
-                std::string what = std::string(suffix) == " name" ? "Name" : std::string(suffix) == " url" ? "URL" : "Type";
+                std::string what = std::string(suffix) == " name"  ? "Name"
+                                   : std::string(suffix) == " url" ? "URL"
+                                                                   : "Type";
                 sub->second->setTitle(label + ": " + pplay::tr(what));
             }
         }
@@ -460,24 +258,22 @@ void MenuMain::reloadModules() {
 }
 
 void MenuMain::setSelection(int moduleId) {
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "MenuMain::setSelection moduleId=" + std::to_string(moduleId));
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "MenuMain::setSelection moduleId=" + std::to_string(moduleId));
     for (auto &button: buttons) {
         pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-            "MenuMain::setSelection btnId=" + std::to_string(button->item.id));
+                            "MenuMain::setSelection btnId=" + std::to_string(button->item.id));
         if (button->item.id == moduleId) {
-            highlight_selection->setVisibility(button->isVisible() ? Visibility::Visible : Visibility::Hidden);
+            current->setVisibility(button->isVisible() ? Visibility::Visible : Visibility::Hidden);
             if (isVisible()) {
                 pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-                    "MenuMain::setSelection btnId=" + std::to_string(button->item.id)
-                    + " tweenTo()");
-                highlight_selection->tweenTo(button->getPosition());
+                                    "MenuMain::setSelection btnId=" + std::to_string(button->item.id) + " tweenTo()");
+                current->tweenTo(button->getPosition());
             } else {
                 pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-                    "MenuMain::setSelection btnId=" + std::to_string(button->item.id)
-                    + " setPosition()");
-                highlight_selection->setPosition(button->getPosition());
-                highlight_selection->tweenTo(button->getPosition());
+                                    "MenuMain::setSelection btnId=" + std::to_string(button->item.id)
+                                            + " setPosition()");
+                current->setPosition(button->getPosition());
+                current->tweenTo(button->getPosition());
             }
             break;
         }
@@ -487,7 +283,7 @@ void MenuMain::setSelection(int moduleId) {
 void MenuMain::updateSelectionHighlight() {
     int index = main->getcurrentModuleIndex();
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "MenuMain::updateSelectionHighlight index=" + std::to_string(index));
+                        "MenuMain::updateSelectionHighlight index=" + std::to_string(index));
     setSelection(index);
 }
 
@@ -516,8 +312,7 @@ void MenuMain::onOptionSelection(MenuItem *item) {
 
 void MenuMain::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
     int index = main->getcurrentModuleIndex();
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-        "MenuMain::setVisibility highlight=" + std::to_string(index));
+    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "MenuMain::setVisibility highlight=" + std::to_string(index));
     Menu::setVisibility(visibility, tweenPlay);
     setSelection(index);
 }
@@ -581,10 +376,4 @@ MenuMainOptionsSubmenu *MenuMain::getMenuMainOptionsSubmenu(const std::string &n
     }
 
     return nullptr;
-}
-
-void MenuMain::onUpdate() {
-    highlight_selection->setFillColor(COLOR_ACCENT, 60);
-    highlight_selection->setCursorColor(COLOR_ACCENT);
-    Menu::onUpdate();
 }

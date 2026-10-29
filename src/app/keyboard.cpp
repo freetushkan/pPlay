@@ -80,13 +80,28 @@ namespace {
             auto c = (unsigned char) s[i];
             uint32_t cp;
             size_t len;
-            if (c < 0x80) { cp = c; len = 1; }
-            else if ((c & 0xE0) == 0xC0) { cp = c & 0x1F; len = 2; }
-            else if ((c & 0xF0) == 0xE0) { cp = c & 0x0F; len = 3; }
-            else if ((c & 0xF8) == 0xF0) { cp = c & 0x07; len = 4; }
-            else { i++; continue; }
-            if (i + len > s.size()) break;
-            for (size_t k = 1; k < len; k++) cp = (cp << 6) | ((unsigned char) s[i + k] & 0x3F);
+            if (c < 0x80) {
+                cp = c;
+                len = 1;
+            } else if ((c & 0xE0) == 0xC0) {
+                cp = c & 0x1F;
+                len = 2;
+            } else if ((c & 0xF0) == 0xE0) {
+                cp = c & 0x0F;
+                len = 3;
+            } else if ((c & 0xF8) == 0xF0) {
+                cp = c & 0x07;
+                len = 4;
+            } else {
+                i++;
+                continue;
+            }
+            if (i + len > s.size()) {
+                break;
+            }
+            for (size_t k = 1; k < len; k++) {
+                cp = (cp << 6) | ((unsigned char) s[i + k] & 0x3F);
+            }
             i += len;
             if (cp >= 0x10000) {
                 cp -= 0x10000;
@@ -132,16 +147,24 @@ namespace {
 namespace {
     // utf-8 code point boundaries
     size_t prevChar(const std::string &s, size_t i) {
-        if (i == 0) return 0;
+        if (i == 0) {
+            return 0;
+        }
         i--;
-        while (i > 0 && ((unsigned char) s[i] & 0xC0) == 0x80) i--;
+        while (i > 0 && ((unsigned char) s[i] & 0xC0) == 0x80) {
+            i--;
+        }
         return i;
     }
 
     size_t nextChar(const std::string &s, size_t i) {
-        if (i >= s.size()) return s.size();
+        if (i >= s.size()) {
+            return s.size();
+        }
         i++;
-        while (i < s.size() && ((unsigned char) s[i] & 0xC0) == 0x80) i++;
+        while (i < s.size() && ((unsigned char) s[i] & 0xC0) == 0x80) {
+            i++;
+        }
         return i;
     }
 
@@ -157,7 +180,9 @@ namespace {
                 cursorLine = lines.size();
             }
             lines.push_back(line.empty() ? " " : line);
-            if (eol == std::string::npos) break;
+            if (eol == std::string::npos) {
+                break;
+            }
             start = eol + 1;
         }
         size_t first = 0;

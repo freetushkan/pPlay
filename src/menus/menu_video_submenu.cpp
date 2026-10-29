@@ -10,35 +10,24 @@
 
 using namespace c2d;
 
-MenuVideoSubmenu::MenuVideoSubmenu(
-        Main *main, const c2d::FloatRect &rect, const std::string &_title,
-        const std::vector<MenuItem> &items, int type) : Menu(main, rect, _title, items, false) {
+MenuVideoSubmenu::MenuVideoSubmenu(Main *main, const c2d::FloatRect &rect, const std::string &_title,
+                                   const std::vector<MenuItem> &items, int type)
+    : Menu(main, rect, _title, items, false) {
 
     this->type = type;
-
-    // highlight
-    highlight_selection = new Highlight({MenuVideoSubmenu::getSize().x, BUTTON_HEIGHT * main->getScaling().y},
-                                        Highlight::CursorPosition::Left);
-    highlight_selection->setFillColor(COLOR_ACCENT, 60);
-    highlight_selection->setCursorColor(COLOR_ACCENT);
-    highlight_selection->setOrigin(Origin::Left);
-    highlight_selection->setPosition(0, 200 * main->getScaling().y);
-    highlight_selection->setLayer(-1);
-    MenuVideoSubmenu::add(highlight_selection);
     updateSelectionHighlight();
 }
 
-void MenuVideoSubmenu::setSelection(int streamId)  {
+void MenuVideoSubmenu::setSelection(int streamId) {
     for (auto btn: buttons) {
         if (btn->item.id == streamId) {
-            highlight_selection->setVisibility(btn->isVisible() ? Visibility::Visible : Visibility::Hidden);
-            highlight_selection->tweenTo(btn->getPosition());
+            showCurrent(btn);
         }
     }
 }
 
 void MenuVideoSubmenu::updateSelectionHighlight() {
-    highlight_selection->setVisibility(Visibility::Visible);
+    current->setVisibility(Visibility::Visible);
     if (type == MENU_VIDEO_TYPE_VID) {
         setSelection(main->getPlayer()->getVideoStream());
     } else if (type == MENU_VIDEO_TYPE_AUD) {
@@ -56,7 +45,9 @@ void MenuVideoSubmenu::updateSelectionHighlight() {
         }
         for (auto btn: buttons) {
             auto item = btn->item;
-            if (item.id < 0) continue; 
+            if (item.id < 0) {
+                continue;
+            }
             if (item.data_str == main->getPlayer()->getTitle()) {
                 setSelection(item.id);
                 break;
@@ -92,9 +83,9 @@ void MenuVideoSubmenu::onOptionSelection(MenuItem *item) {
             option->setType(c2d::config::Option::Type::Integer);
             option->setInteger(item->id);
             main->getConfig()->save();
-            pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-                                "Options: " + std::string(OPT_AUTOPLAY_MODE) + " changed from "
-                                + oldValue + " to " + option->getString());
+            pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Options: " + std::string(OPT_AUTOPLAY_MODE)
+                                                                         + " changed from " + oldValue + " to "
+                                                                         + option->getString());
         } else if (type == MENU_VIDEO_TYPE_NORMALIZE) {
             main->getPlayer()->setAudioNormalize(item->id);
         } else if (type == MENU_VIDEO_TYPE_PLAYLIST) {
@@ -103,7 +94,7 @@ void MenuVideoSubmenu::onOptionSelection(MenuItem *item) {
                 main->getPlayer()->getMpv()->setPlaylistPos(item->id);
             } else {
                 auto files = main->getPlayer()->getAutoplayFiles();
-                if (item->id >= 0 && item->id < (int)files.size()) {
+                if (item->id >= 0 && item->id < (int) files.size()) {
                     main->getPlayer()->load(files[item->id]);
                 }
             }
@@ -127,10 +118,4 @@ bool MenuVideoSubmenu::onInput(c2d::Input::Player *players) {
     bool result = Menu::onInput(players);
     updateSelectionHighlight();
     return result;
-}
-
-void MenuVideoSubmenu::onUpdate() {
-    Menu::onUpdate();
-    highlight_selection->setFillColor(COLOR_ACCENT, 60);
-    highlight_selection->setCursorColor(COLOR_ACCENT);
 }

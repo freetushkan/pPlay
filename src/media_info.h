@@ -16,6 +16,7 @@ public:
 
     class Track {
     public:
+
         int id;
         std::string type;
         std::string title = "Unknown";
@@ -30,6 +31,7 @@ public:
 
     class Playback {
     public:
+
         int vid_id = -1;
         int aud_id = -1;
         int sub_id = -1;
@@ -60,8 +62,6 @@ private:
     bool serialize();
 
     bool deserialize();
-
-    void debut_print();
 };
 
 #endif //PPLAY_MEDIA_INFO_H

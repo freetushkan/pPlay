@@ -23,18 +23,15 @@ public:
         TextInput
     };
 
-    MenuMainOptionsSubmenu(Main *main, const c2d::FloatRect &rect,
-                           const std::string &_title, const std::vector<MenuItem> &items,
-                           const std::string &optionName, ValueType valueType = ValueType::String,
-                           MenuType menuType = MenuType::List, float minValue = 0.0f,
-                           float maxValue = 0.0f, float stepValue = 1.0f,
+    MenuMainOptionsSubmenu(Main *main, const c2d::FloatRect &rect, const std::string &_title,
+                           const std::vector<MenuItem> &items, const std::string &optionName,
+                           ValueType valueType = ValueType::String, MenuType menuType = MenuType::List,
+                           float minValue = 0.0f, float maxValue = 0.0f, float stepValue = 1.0f,
                            const std::string &unit = "");
 
     bool onInput(c2d::Input::Player *players) override;
 
     void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
-
-    void onUpdate() override;
 
     void setSelection(const std::string &name);
 
@@ -57,7 +54,6 @@ private:
 
     bool editTextValue();
 
-    Highlight *highlight_selection;
     std::string option_name;
     ValueType value_type;
     MenuType menu_type;

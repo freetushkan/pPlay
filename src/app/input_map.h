@@ -34,9 +34,9 @@ namespace pplay::InputMap {
 
     // auto repeat (ms): first repeat, then three speeds by hold time
 #define REPEAT_DELAY 500
-#define REPEAT_LEVEL1 200        // until REPEAT_LEVEL2_AFTER ms of hold
+#define REPEAT_LEVEL1 200 // until REPEAT_LEVEL2_AFTER ms of hold
 #define REPEAT_LEVEL2_AFTER 1500
-#define REPEAT_LEVEL2 100        // until REPEAT_LEVEL3_AFTER ms of hold
+#define REPEAT_LEVEL2 100 // until REPEAT_LEVEL3_AFTER ms of hold
 #define REPEAT_LEVEL3_AFTER 3000
 #define REPEAT_LEVEL3 50
 

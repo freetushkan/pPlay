@@ -18,10 +18,6 @@ public:
 
     void setFile(const MediaFile &file);
 
-    void setTitle(const std::string &title);
-
-    void setWidth(float width);
-
     void onUpdate();
 
 private:
@@ -32,7 +28,7 @@ private:
     c2d::C2DClock updateClock;
 
     c2d::Text *textTitle;
-    
+
     bool lastFullscreen = false;
 };
 

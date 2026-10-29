@@ -26,14 +26,14 @@ static u32 g_usbListedDeviceCount = 0;
 
 static void usbPrintDevicesLocked(const char *prefix) {
     printf("%s mounted devices=%u, listed=%u\n", prefix, g_usbDeviceCount, g_usbListedDeviceCount);
-    pplay::Utility::log(pplay::Utility::LogLevel::Info,
-        std::string(prefix) + " mounted devices=" + std::to_string(g_usbDeviceCount) +
-        ", listed=" + std::to_string(g_usbListedDeviceCount));
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, std::string(prefix)
+                                                                + " mounted devices=" + std::to_string(g_usbDeviceCount)
+                                                                + ", listed=" + std::to_string(g_usbListedDeviceCount));
 
     for (u32 i = 0; i < g_usbListedDeviceCount; i++) {
         printf("%s device[%u]=%s\n", prefix, i, g_usbDevices[i].name);
-        pplay::Utility::log(pplay::Utility::LogLevel::Info,
-            std::string(prefix) + " device[" + std::to_string(i) + "]=" + std::string(g_usbDevices[i].name));
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, std::string(prefix) + " device[" + std::to_string(i)
+                                                                    + "]=" + std::string(g_usbDevices[i].name));
     }
 }
 
@@ -60,7 +60,7 @@ static void usbRefreshMountedDevices() {
 }
 
 static void usbMscThreadFunc(void *arg) {
-    (void)arg;
+    (void) arg;
 
     Waiter status_change_event_waiter = waiterForUEvent(g_statusChangeEvent);
     Waiter exit_event_waiter = waiterForUEvent(&g_exitEvent);
@@ -80,7 +80,7 @@ static void usbMscThreadFunc(void *arg) {
 
         printf("usbMscThreadFunc: USB Mass Storage status change event triggered\n");
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
-            "usbMscThreadFunc: USB Mass Storage status change event triggered");
+                            "usbMscThreadFunc: USB Mass Storage status change event triggered");
 
         usbRefreshMountedDevices();
     }

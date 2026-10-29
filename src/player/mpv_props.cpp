@@ -1,0 +1,441 @@
+//
+// Mpv playback controls and properties.
+//
+
+#include <cmath>
+#include "mpv.h"
+#include "utility.h"
+
+int Mpv::save() {
+    return mpv_command_string(handle, "write-watch-later-config");
+}
+
+int Mpv::pause() {
+    return mpv_command_string(handle, "set pause yes");
+}
+
+int Mpv::resume() {
+    return mpv_command_string(handle, "set pause no");
+}
+
+int Mpv::stop() {
+    return mpv_command_string(handle, "stop");
+}
+
+std::string Mpv::changeBrightness(double delta) {
+    std::string cmd = "no-osd add brightness " + std::to_string(delta);
+    mpv_command_string(handle, cmd.c_str());
+    double brightness = 0.0;
+    mpv_get_property(handle, "brightness", MPV_FORMAT_DOUBLE, &brightness);
+    return "Brightness: " + std::to_string((int) brightness) + "%";
+}
+
+std::string Mpv::changeVolume(double delta) {
+    std::string cmd = "no-osd add volume " + std::to_string(delta);
+    mpv_command_string(handle, cmd.c_str());
+    double volume = 0.0;
+    mpv_get_property(handle, "volume", MPV_FORMAT_DOUBLE, &volume);
+    saveVolume();
+    return "Volume: " + std::to_string((int) volume) + "%";
+}
+
+void Mpv::saveVolume() {
+    double currentVolume = 100.0;
+    mpv_get_property(handle, "volume", MPV_FORMAT_DOUBLE, &currentVolume);
+    lastVolume = currentVolume;
+}
+
+int Mpv::restoreVolume() {
+    if (lastVolume >= 0.0) {
+        std::string cmd = "no-osd set volume " + std::to_string((int) lastVolume);
+        int res = mpv_command_string(handle, cmd.c_str());
+        return res;
+    }
+    return 0;
+}
+
+int Mpv::getOsdWidth() {
+    int64_t res = -1;
+    mpv_get_property(handle, "osd-width", MPV_FORMAT_INT64, &res);
+    return static_cast<int>(res);
+}
+
+int Mpv::getOsdHeight() {
+    int64_t res = -1;
+    mpv_get_property(handle, "osd-height", MPV_FORMAT_INT64, &res);
+    return static_cast<int>(res);
+}
+
+int Mpv::seek(double position) {
+    std::string cmd = "no-osd seek " + std::to_string(position);
+    return mpv_command_string(handle, cmd.c_str());
+}
+
+std::string Mpv::setSpeed(double speed) {
+    std::string cmd = "no-osd set speed " + std::to_string(speed);
+    mpv_command_string(handle, cmd.c_str());
+    double currentSpeed = getSpeed();
+    return "Speed: " + std::to_string((int) (currentSpeed * 100.0)) + "%";
+}
+
+double Mpv::getSpeed() {
+    double res = -1;
+    mpv_get_property(handle, "speed", MPV_FORMAT_DOUBLE, &res);
+    return res;
+}
+
+void Mpv::saveSpeed() {
+    double currentSpeed = 1.0;
+    mpv_get_property(handle, "speed", MPV_FORMAT_DOUBLE, &currentSpeed);
+    lastSpeed = currentSpeed;
+}
+
+int Mpv::restoreSpeed() {
+    if (lastSpeed > 1.0) {
+        std::string cmd = "no-osd set speed " + std::to_string(lastSpeed);
+        return mpv_command_string(handle, cmd.c_str());
+    }
+    return 0;
+}
+
+int Mpv::setVid(int id) {
+    std::string cmd = "no-osd set vid ";
+    cmd += id < 0 ? "no" : std::to_string(id);
+    return mpv_command_string(handle, cmd.c_str());
+}
+
+int Mpv::setAid(int id) {
+    std::string cmd = "no-osd set aid ";
+    cmd += id < 0 ? "no" : std::to_string(id);
+    return mpv_command_string(handle, cmd.c_str());
+}
+
+int Mpv::setSid(int id) {
+    std::string cmd = "no-osd set sid ";
+    cmd += id < 0 ? "no" : std::to_string(id);
+    return mpv_command_string(handle, cmd.c_str());
+}
+
+int Mpv::setPlaylistPos(int id) {
+    int64_t pos = id;
+    return mpv_set_property(handle, "playlist-pos", MPV_FORMAT_INT64, &pos);
+}
+
+int Mpv::getVid() {
+    int64_t vid = -1;
+    mpv_get_property(handle, "vid", MPV_FORMAT_INT64, &vid);
+    return (int) vid;
+}
+
+int Mpv::getAid() {
+    int64_t aid = -1;
+    mpv_get_property(handle, "aid", MPV_FORMAT_INT64, &aid);
+    return (int) aid;
+}
+
+int Mpv::getSid() {
+    int64_t sid = -1;
+    mpv_get_property(handle, "sid", MPV_FORMAT_INT64, &sid);
+    return (int) sid;
+}
+
+int Mpv::getPlaylistPos() {
+    int64_t pos = -1;
+    mpv_get_property(handle, "playlist-pos", MPV_FORMAT_INT64, &pos);
+    return (int) pos;
+}
+
+int Mpv::getPlaylistCount() {
+    int64_t count = 0;
+    mpv_get_property(handle, "playlist-count", MPV_FORMAT_INT64, &count);
+    return (int) count;
+}
+
+std::string Mpv::getPlaylistCurrentTitle() {
+    char *title = mpv_get_property_string(handle, "media-title");
+    std::string res = title ? title : "";
+    if (title) {
+        mpv_free(title);
+    }
+    return res;
+}
+
+std::string Mpv::getCurrentPath() {
+    char *path = mpv_get_property_string(handle, "path");
+    std::string res = path ? path : "";
+    if (path) {
+        mpv_free(path);
+    }
+    return res;
+}
+
+std::vector<std::pair<int, std::string>> Mpv::getPlaylistItems() {
+    std::vector<std::pair<int, std::string>> items;
+    mpv_node node;
+    if (mpv_get_property(handle, "playlist", MPV_FORMAT_NODE, &node) < 0) {
+        return items;
+    }
+    if (node.format == MPV_FORMAT_NODE_ARRAY && node.u.list) {
+        for (int i = 0; i < node.u.list->num; i++) {
+            const mpv_node &entry = node.u.list->values[i];
+            if (entry.format != MPV_FORMAT_NODE_MAP || !entry.u.list) {
+                continue;
+            }
+            std::string title;
+            for (int n = 0; n < entry.u.list->num; n++) {
+                std::string key = entry.u.list->keys[n];
+                const mpv_node &value = entry.u.list->values[n];
+                if (key == "title" && value.format == MPV_FORMAT_STRING && value.u.string) {
+                    title = value.u.string;
+                } else if (key == "filename" && title.empty() && value.format == MPV_FORMAT_STRING && value.u.string) {
+                    title = value.u.string;
+                }
+            }
+            items.emplace_back(i, title.empty() ? ("Item " + std::to_string(i + 1)) : title);
+        }
+    }
+    mpv_free_node_contents(&node);
+    return items;
+}
+
+int Mpv::getVideoBitrate() {
+    double bitrate = 0;
+    mpv_get_property(handle, "video-bitrate", MPV_FORMAT_DOUBLE, &bitrate);
+    return (int) bitrate;
+}
+
+int Mpv::getAudioBitrate() {
+    int64_t bitrate = 0;
+    mpv_get_property(handle, "audio-bitrate", MPV_FORMAT_INT64, &bitrate);
+    return (int) bitrate;
+}
+
+long Mpv::getDuration() {
+    long duration = 0;
+    mpv_get_property(handle, "duration", MPV_FORMAT_INT64, &duration);
+    return duration;
+}
+
+long Mpv::getPosition() {
+    long position = 0;
+    mpv_get_property(handle, "playback-time", MPV_FORMAT_INT64, &position);
+    return position;
+}
+
+double Mpv::getTime() {
+    double time = -1;
+    if (mpv_get_property(handle, "playback-time", MPV_FORMAT_DOUBLE, &time) < 0) {
+        return -1;
+    }
+    return time;
+}
+
+bool Mpv::isPausedForCache() {
+    int res = 0;
+    mpv_get_property(handle, "paused-for-cache", MPV_FORMAT_FLAG, &res);
+    return res == 1;
+}
+
+long Mpv::getCacheSpeed() {
+    int64_t speed = 0;
+    mpv_get_property(handle, "cache-speed", MPV_FORMAT_INT64, &speed);
+    return (long) speed;
+}
+
+double Mpv::getCacheDuration() {
+    double duration = -1;
+    if (mpv_get_property(handle, "demuxer-cache-duration", MPV_FORMAT_DOUBLE, &duration) < 0) {
+        return -1;
+    }
+    return duration;
+}
+
+long Mpv::getFrameNumber() {
+    int64_t frame = -1;
+    if (mpv_get_property(handle, "estimated-frame-number", MPV_FORMAT_INT64, &frame) < 0) {
+        return -1;
+    }
+    return (long) frame;
+}
+
+bool Mpv::hasMovingVideo() {
+    int64_t id = -1;
+    if (mpv_get_property(handle, "current-tracks/video/id", MPV_FORMAT_INT64, &id) < 0) {
+        return false;
+    }
+    int albumArt = 0;
+    mpv_get_property(handle, "current-tracks/video/albumart", MPV_FORMAT_FLAG, &albumArt);
+    return albumArt == 0;
+}
+
+bool Mpv::isAvailable() {
+    return handle != nullptr;
+}
+
+bool Mpv::isStopped() {
+    int res = 1;
+    mpv_get_property(handle, "playback-abort", MPV_FORMAT_FLAG, &res);
+    return res == 1;
+}
+
+bool Mpv::isPaused() {
+    int res = -1;
+    mpv_get_property(handle, "pause", MPV_FORMAT_FLAG, &res);
+    return res == 1;
+}
+
+mpv_event *Mpv::getEvent() {
+    return mpv_wait_event(handle, 0);
+}
+
+mpv_handle *Mpv::getHandle() {
+    return handle;
+}
+
+mpv_render_context *Mpv::getContext() {
+    return context;
+}
+
+std::string Mpv::getString(const char *name) {
+    char *value = nullptr;
+    if (!isAvailable() || mpv_get_property(handle, name, MPV_FORMAT_STRING, &value) < 0 || !value) {
+        return "";
+    }
+    std::string out = value;
+    mpv_free(value);
+    return out;
+}
+
+double Mpv::getDouble(const char *name, double fallback) {
+    double value = fallback;
+    if (!isAvailable() || mpv_get_property(handle, name, MPV_FORMAT_DOUBLE, &value) < 0) {
+        return fallback;
+    }
+    return value;
+}
+
+long Mpv::getInt(const char *name, long fallback) {
+    int64_t value = fallback;
+    if (!isAvailable() || mpv_get_property(handle, name, MPV_FORMAT_INT64, &value) < 0) {
+        return fallback;
+    }
+    return (long) value;
+}
+
+std::vector<Mpv::TrackEntry> Mpv::getTrackList() {
+    std::vector<TrackEntry> tracks;
+    mpv_node node;
+    if (!isAvailable() || mpv_get_property(handle, "track-list", MPV_FORMAT_NODE, &node) < 0) {
+        return tracks;
+    }
+    if (node.format == MPV_FORMAT_NODE_ARRAY) {
+        for (int i = 0; i < node.u.list->num; i++) {
+            const mpv_node &entry = node.u.list->values[i];
+            if (entry.format != MPV_FORMAT_NODE_MAP) {
+                continue;
+            }
+            TrackEntry track;
+            for (int n = 0; n < entry.u.list->num; n++) {
+                std::string key = entry.u.list->keys[n];
+                const mpv_node &value = entry.u.list->values[n];
+                if (value.format == MPV_FORMAT_STRING) {
+                    if (key == "type") {
+                        track.type = value.u.string;
+                    } else if (key == "lang") {
+                        track.lang = value.u.string;
+                    } else if (key == "external-filename") {
+                        track.filename = value.u.string;
+                    }
+                } else if (value.format == MPV_FORMAT_INT64 && key == "id") {
+                    track.id = (int) value.u.int64;
+                } else if (value.format == MPV_FORMAT_FLAG && key == "external") {
+                    track.external = value.u.flag != 0;
+                } else if (value.format == MPV_FORMAT_FLAG && key == "selected") {
+                    track.selected = value.u.flag != 0;
+                }
+            }
+            tracks.push_back(track);
+        }
+    }
+    mpv_free_node_contents(&node);
+    return tracks;
+}
+
+MediaInfo Mpv::getMediaInfo(const c2d::Io::File &file) {
+    MediaInfo mediaInfo(file);
+    std::vector<MediaInfo::Track> streams;
+
+    if (!isAvailable() || isStopped()) {
+        return mediaInfo;
+    }
+
+    // load track list
+    mpv_node node;
+    if (mpv_get_property(handle, "track-list", MPV_FORMAT_NODE, &node) >= 0 && node.format == MPV_FORMAT_NODE_ARRAY) {
+        for (int i = 0; i < node.u.list->num; i++) {
+            if (node.u.list->values[i].format == MPV_FORMAT_NODE_MAP) {
+                MediaInfo::Track stream{};
+                for (int n = 0; n < node.u.list->values[i].u.list->num; n++) {
+                    std::string key = node.u.list->values[i].u.list->keys[n];
+                    if (key == "type") {
+                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_STRING) {
+                            stream.type = node.u.list->values[i].u.list->values[n].u.string;
+                        }
+                    } else if (key == "id") {
+                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_INT64) {
+                            stream.id = (int) node.u.list->values[i].u.list->values[n].u.int64;
+                        }
+                    } else if (key == "title") {
+                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_STRING) {
+                            stream.title = node.u.list->values[i].u.list->values[n].u.string;
+                        }
+                    } else if (key == "lang") {
+                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_STRING) {
+                            stream.language = node.u.list->values[i].u.list->values[n].u.string;
+                        }
+                    } else if (key == "codec") {
+                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_STRING) {
+                            stream.codec = node.u.list->values[i].u.list->values[n].u.string;
+                        }
+                    } else if (key == "demux-w") {
+                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_INT64) {
+                            stream.width = (int) node.u.list->values[i].u.list->values[n].u.int64;
+                        }
+                    } else if (key == "demux-h") {
+                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_INT64) {
+                            stream.height = (int) node.u.list->values[i].u.list->values[n].u.int64;
+                        }
+                    } else if (key == "demux-samplerate") {
+                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_INT64) {
+                            stream.sample_rate = (int) node.u.list->values[i].u.list->values[n].u.int64;
+                        }
+                    } else if (key == "demux-channel-count") {
+                        if (node.u.list->values[i].u.list->values[n].format == MPV_FORMAT_INT64) {
+                            stream.channels = (int) node.u.list->values[i].u.list->values[n].u.int64;
+                        }
+                    }
+                }
+                streams.push_back(stream);
+            }
+        }
+    }
+
+    // set media info tracks
+    mediaInfo.videos.clear();
+    mediaInfo.audios.clear();
+    mediaInfo.subtitles.clear();
+    for (auto &stream: streams) {
+        if (stream.type == "video") {
+            mediaInfo.videos.push_back(stream);
+        } else if (stream.type == "audio") {
+            mediaInfo.audios.push_back(stream);
+        } else if (stream.type == "sub") {
+            mediaInfo.subtitles.push_back(stream);
+        }
+    }
+
+    // set duration
+    mediaInfo.duration = getDuration();
+
+    return mediaInfo;
+}
