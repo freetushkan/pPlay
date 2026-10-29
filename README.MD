@@ -37,7 +37,7 @@ Installation
 
 Usage and controls
 -----
-| Action | PS4 / PS5 | Switch | Keyboard / Remote (PS5) | Keyboard (Linux) |
+| Action | PS4 / PS5 | Switch | Keyboard/Remote (PS5) | Linux |
 | :--- | :--- | :--- | :--- | :--- |
 | Move / Switch windows | Analog Sticks / D-Pad | Analog Sticks / D-Pad | Arrows (or Numpad) | Arrows |
 | Confirm (OK) / Pause | `CROSS` | `A` | `Enter` / `Space` | `Enter` / `Space` |
@@ -46,12 +46,10 @@ Usage and controls
 | Secondary action | `TRIANGLE` | `Y` | `Y` / `Delete` | `Delete` |
 | Rewind / Speed (`LT`/`RT`) | `L2` / `R2` | `ZL` / `ZR` | `[` / `]` | `Home` / `End` |
 | Previous / Next (`LB`/`RB`) | `L1` / `R1` | `L` / `R` | `PageUp` / `PageDown` | `PageUp` / `PageDown` |
-| Start | `Options` | `+` | `F1` | `F1` |
-| Volume control (in player) | `UP` / `DOWN` | `UP` / `DOWN` | — | `UP` / `DOWN` |
-| Brightness control (in player) | `TRIANGLE` + `UP`/`DOWN` | `X` + `UP`/`DOWN` | — | `Delete` + `UP`/`DOWN` |
-
-
-Media keys and TV remotes are supported (PS5).
+| Playback info / Hints | `Options` | `+` | `F1` | `F1` |
+| Toggle fullscreen | — | — | — | `F11` |
+| Volume control (in player) | `UP` / `DOWN` | `UP` / `DOWN` | `UP` / `DOWN` | `UP` / `DOWN` |
+| Brightness control (in player) | `TRIANGLE` + `UP`/`DOWN` | `X` + `UP`/`DOWN` | `Delete` + `UP`/`DOWN` | `Delete` + `UP`/`DOWN` |
 
 In the file browser `RIGHT` moves to the information panel: the D-Pad scrolls it, at its end the key hints
 become buttons (TV remotes have no `SQUARE` / `TRIANGLE`); `LEFT` or Back returns to the files.

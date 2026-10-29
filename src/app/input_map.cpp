@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <atomic>
 #include <mutex>
 #include <vector>
 
@@ -81,6 +82,7 @@ namespace {
     std::mutex g_mutex;
     unsigned int g_pending = 0;
     bool g_textInput = false;
+    std::atomic<bool> g_fullscreenToggle{false};
     c2d::Input *g_input = nullptr;
 
     bool isKeyboardMapped(SDL_Scancode scancode) {
@@ -283,6 +285,14 @@ namespace {
         if (event->type == SDL_KEYDOWN) {
             const SDL_Keycode sym = event->key.keysym.sym;
             const SDL_Scancode scancode = event->key.keysym.scancode;
+#ifdef __LINUX__
+            if (sym == SDLK_F11) {
+                if (!event->key.repeat) {
+                    g_fullscreenToggle = true;
+                }
+                return 1;
+            }
+#endif
             for (const auto &map: g_keycodes) {
                 if (map.code == sym) {
                     if (!event->key.repeat || (map.button & pplay::InputMap::Media) == 0) {
@@ -393,6 +403,10 @@ namespace pplay::InputMap {
         unsigned int pending = g_pending;
         g_pending = 0;
         return pending;
+    }
+
+    bool takeFullscreenToggle() {
+        return g_fullscreenToggle.exchange(false);
     }
 
     std::string buttonIcon(unsigned int buttons) {

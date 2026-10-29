@@ -45,6 +45,9 @@ namespace pplay::InputMap {
     std::string toString(unsigned int buttons);
 
     // the button as printed on the platform pad (PlayStation symbols), for hints
+    // Linux: F11 pressed since the last call
+    bool takeFullscreenToggle();
+
     // skin glyph of a button (or of up + down, left + right), "" if none
     std::string buttonIcon(unsigned int buttons);
 

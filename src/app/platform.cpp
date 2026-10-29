@@ -7,6 +7,7 @@
 
 #include "main.h"
 #include "platform.h"
+#include "desktop_window.h"
 #include "utility.h"
 
 #ifdef __SWITCH__
@@ -150,6 +151,7 @@ namespace pplay::Platform {
 
     void started(Main *main) {
         logRenderer(main);
+        pplay::DesktopWindow::setup(main);
 #ifdef __SWITCH__
         appletLockExit();
         appletHook(&applet_hook_cookie, on_applet_hook, main);
@@ -165,6 +167,7 @@ namespace pplay::Platform {
     }
 
     void frameDone(Main *main) {
+        pplay::DesktopWindow::update(main);
         static c2d::C2DClock statsClock;
         if (statsClock.getElapsedTime().asSeconds() >= 10) {
             statsClock.restart();
