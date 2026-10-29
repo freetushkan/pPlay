@@ -53,6 +53,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     std::vector<MenuItem> system = {
             MenuItem("Local home path", "home.png", Pos::Top),
             MenuItem("Edit files", "edit.png", Pos::Top),
+            MenuItem("Media information", "media_info.png", Pos::Top),
+            MenuItem("Clear cache", "clear_cache.png", Pos::Top),
     };
 #ifdef __SWITCH__
     system.emplace_back("CPU boost", "cpu.png", Pos::Top);
@@ -160,6 +162,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Volume normalization", "Volume normalization", OPT_AUDIO_NORMALIZE,
                makeIntItems({{"Off", 0}, {"Normalize", 1}, {"Night mode", 2}}), Submenu::ValueType::Integer);
+    addSubmenu("Media information", "Media information on selection", OPT_MEDIA_PROBE,
+               makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Video quality", "Video quality", OPT_VIDEO_QUALITY,
                makeIntItems({{"Best", 0}, {"Balanced", 1}, {"Fast", 2}}), Submenu::ValueType::Integer);
     addSubmenu("Buffer length", "Network buffer length", OPT_CACHE_SECS, makeAdjustItems(), Submenu::ValueType::Integer,

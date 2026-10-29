@@ -50,7 +50,7 @@ PosterLoader::~PosterLoader() {
 }
 
 std::string PosterLoader::cachePath(const std::string &url) const {
-    return main->getIo()->getDataPath() + "cache/posters/" + pplay::Utility::md5hash(url);
+    return pplay::Cover::cachePath(url);
 }
 
 void PosterLoader::request(const std::string &url) {

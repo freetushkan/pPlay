@@ -2,6 +2,7 @@
 // Created by cpasjuste on 03/10/18.
 //
 
+#include <dirent.h>
 #include <sstream>
 #include <iomanip>
 #include <codecvt>
@@ -412,4 +413,28 @@ void Utility::setCpuClock(const CpuClock &clock) {
                c2d::SwitchSys::getClock(c2d::SwitchSys::Module::Cpu));
     }
 #endif
+}
+
+int Utility::clearCache() {
+    int count = 0;
+    for (const std::string &dir: {getDataPath() + "cache/", getDataPath() + "cache/posters/"}) {
+        DIR *d = opendir(dir.c_str());
+        if (d == nullptr) {
+            continue;
+        }
+        std::vector<std::string> names;
+        while (struct dirent *entry = readdir(d)) {
+            std::string name = entry->d_name;
+            // the posters and the ".info" files, not the directories
+            if (name != "." && name != ".." && name != "posters") {
+                names.push_back(name);
+            }
+        }
+        closedir(d);
+        for (auto &name: names) {
+            count += deleteFile(dir + name) ? 1 : 0;
+        }
+    }
+    log(LogLevel::Info, "Utility: cache cleared, " + std::to_string(count) + " files");
+    return count;
 }

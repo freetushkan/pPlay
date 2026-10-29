@@ -170,6 +170,8 @@ Below is the list of currently supported and maintained configuration parameters
 * `AUDIO_LANGUAGE` (default `Auto`) / `SUB_LANGUAGE` (default `Off`) — preferred tracks languages
   (mpv `alang` / `slang` list, like `rus,ru`), `Auto` / `Off` keep `mpv.conf` ones.
 * `EXTERNAL_TRACKS` (`0/1`, default `1`) — audio and subtitles files found next to the video.
+* `MEDIA_PROBE` (`0/1`, default `1`) — media information (tracks, cover) read on selection, not only for the played files.
+  Cached in `cache/`, Settings > System > Clear cache removes it with the posters.
 * `AUDIO_NORMALIZE` (`0..2`, default `0`) — volume normalization: off, normalize, night mode.
 * `VOLUME` (int, default `-1`: `mpv.conf` one) — last volume, saved by the player.
 

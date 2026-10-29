@@ -15,6 +15,8 @@
 
 class Main;
 
+class MediaProbe;
+
 class Filer : public c2d::Rectangle {
 
 public:
@@ -42,6 +44,9 @@ public:
     std::string getError();
 
     void refresh() { dirty = true; }
+
+    // the media information cache was cleared
+    void clearMediaInfo();
 
     // "<Empty>" entry of an empty directory
     static bool isPlaceholder(const MediaFile &file);
@@ -82,6 +87,7 @@ private:
     std::vector<MediaFile> files;
     Highlight *highlight;
     DetailsView *details = nullptr;
+    MediaProbe *probe = nullptr;
     float listWidth = 0;
     float item_height;
     int item_max;

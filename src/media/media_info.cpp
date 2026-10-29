@@ -54,6 +54,7 @@ MediaInfo::MediaInfo(const c2d::Io::File &file) {
     if (!std::getline(in, line) || line != MEDIA_INFO_VERSION) {
         return;
     }
+    known = true;
     while (std::getline(in, line)) {
         std::vector<std::string> f = fields(line);
         if (f[0] == "duration" && f.size() > 1) {

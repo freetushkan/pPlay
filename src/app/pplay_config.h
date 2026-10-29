@@ -45,6 +45,8 @@
 #define OPT_CACHE_MB "CACHE_MB"
 // 0 best (mpv.conf), 1 balanced, 2 fast (see Mpv::setQualityPreset)
 #define OPT_VIDEO_QUALITY "VIDEO_QUALITY"
+// media information read on selection (not only played files)
+#define OPT_MEDIA_PROBE "MEDIA_PROBE"
 #ifdef __SWITCH__
 #define CACHE_MB_MAX 500
 #else

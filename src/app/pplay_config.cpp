@@ -95,6 +95,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_CACHE_SECS, (int) 60});
     addOption({OPT_CACHE_MB, (int) 150});
     addOption({OPT_VIDEO_QUALITY, (int) 0});
+    addOption({OPT_MEDIA_PROBE, (int) 1});
 
     // load the configuration from file, overwriting default values
     load();

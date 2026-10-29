@@ -66,6 +66,9 @@ namespace pplay {
 
         static bool deleteFile(const std::string &path);
 
+        // media information and posters; the files removed
+        static int clearCache();
+
         static bool fileExists(const std::string &path);
 
         static std::string getWatchLater(const std::string &video_path);

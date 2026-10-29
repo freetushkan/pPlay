@@ -9,6 +9,7 @@
 #include "utility.h"
 #include "torrserve.h"
 #include "details_view.h"
+#include "media_probe.h"
 
 #define ITEM_HEIGHT 30
 
@@ -27,6 +28,7 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     float panelWidth = 560 * m->getScaling().x;
     listWidth = size.x - panelWidth;
     details = new DetailsView(main, {listWidth, 0, panelWidth, size.y});
+    probe = new MediaProbe();
     Filer::add(details);
 
     // highlight
@@ -81,6 +83,9 @@ void Filer::setSelection(int index) {
             if (index_start + i == (unsigned int) item_index) {
                 highlight->tweenTo(items[i]->getPosition());
                 details->setFile(file);
+                if (main->getConfig()->getOption(OPT_MEDIA_PROBE)->getInteger() != 0) {
+                    probe->request(file);
+                }
             }
         }
     }
@@ -289,6 +294,10 @@ void Filer::resetProgress(const MediaFile &file) {
 }
 
 void Filer::onUpdate() {
+    MediaFile probed;
+    if (probe->poll(&probed)) {
+        setMediaInfo(probed, probed.mediaInfo);
+    }
     if (dirty) {
         setSelection(item_index);
         dirty = false;
@@ -307,5 +316,16 @@ void Filer::onUpdate() {
 }
 
 Filer::~Filer() {
+    delete (probe);
     delete (mutex);
+}
+
+void Filer::clearMediaInfo() {
+    mutex->lock();
+    for (auto &file: files) {
+        file.mediaInfo = MediaInfo();
+    }
+    dirty = true;
+    mutex->unlock();
+    probe->reset();
 }

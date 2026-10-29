@@ -1,0 +1,21 @@
+//
+// libavformat open of a media url (local or network) with timeouts: covers and media
+// information read without mpv.
+//
+
+#ifndef PPLAY_AV_OPEN_H
+#define PPLAY_AV_OPEN_H
+
+#include <string>
+
+extern "C" {
+#include <libavformat/avformat.h>
+}
+
+namespace pplay::AvOpen {
+
+    // the headers read; nullptr (and the reason) on errors. avformat_close_input() it.
+    AVFormatContext *open(const std::string &url, std::string *error);
+}
+
+#endif //PPLAY_AV_OPEN_H

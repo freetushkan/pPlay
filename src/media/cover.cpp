@@ -2,59 +2,20 @@
 // Embedded covers, read with libavformat (the headers only).
 //
 
-#include <chrono>
 #include <cstdio>
 #include <cstring>
 
-extern "C" {
-#include <libavformat/avformat.h>
-}
-
+#include "av_open.h"
 #include "cover.h"
+#include "io.h"
 #include "utility.h"
 
-namespace {
-    using Clock = std::chrono::steady_clock;
-
-    // the whole open, whatever the server does
-    int interrupted(void *deadline) {
-        return Clock::now() > *(Clock::time_point *) deadline ? 1 : 0;
-    }
-
-    bool write(const std::string &path, const uint8_t *data, int size) {
-        FILE *f = fopen(path.c_str(), "wb");
-        bool ok = f != nullptr && fwrite(data, 1, (size_t) size, f) == (size_t) size;
-        if (f) {
-            fclose(f);
-        }
-        return ok;
-    }
+std::string pplay::Cover::cachePath(const std::string &url) {
+    return Utility::getDataPath() + "cache/posters/" + Utility::md5hash(url);
 }
 
-bool pplay::Cover::extract(const std::string &url, const std::string &path, std::string *error) {
-    Clock::time_point deadline = Clock::now() + std::chrono::seconds(30);
-    AVFormatContext *ctx = avformat_alloc_context();
-    ctx->interrupt_callback = {interrupted, &deadline};
-    AVDictionary *options = nullptr;
-    av_dict_set(&options, "rw_timeout", "15000000", 0);
-    size_t scheme = url.find("://");
-    if (scheme != std::string::npos && url.find('@') != std::string::npos
-        && url.find('@') < url.find('/', scheme + 3)) {
-        av_dict_set(&options, "auth_type", "basic", 0);
-    }
-#if defined(__PS4__) || defined(__PS5__)
-    av_dict_set(&options, "ca_file", Utility::getCertificatesPath().c_str(), 0);
-#endif
-    int res = avformat_open_input(&ctx, url.c_str(), nullptr, &options);
-    av_dict_free(&options);
-    if (res < 0) {
-        char text[128];
-        av_strerror(res, text, sizeof(text));
-        *error = text;
-        return false;
-    }
-
-    // attached pictures, else image attachments (a "cover" one first)
+bool pplay::Cover::save(AVFormatContext *ctx, const std::string &path, std::string *error) {
+    // attached pictures (a "cover" one first), else image attachments
     const uint8_t *data = nullptr;
     int size = 0;
     bool named = false;
@@ -77,14 +38,32 @@ bool pplay::Cover::extract(const std::string &url, const std::string &path, std:
             }
         }
     }
-    bool ok = data != nullptr && write(path, data, size);
     if (data == nullptr) {
         *error = "no cover";
-    } else if (!ok) {
+        return false;
+    }
+    std::string dir = Utility::getDataPath() + "cache/posters";
+    if (Io::get() != nullptr && !Io::get()->exist(dir)) {
+        Io::get()->create(dir);
+    }
+    FILE *f = fopen(path.c_str(), "wb");
+    bool ok = f != nullptr && fwrite(data, 1, (size_t) size, f) == (size_t) size;
+    if (f) {
+        fclose(f);
+    }
+    if (!ok) {
         *error = "can't write cache file";
     }
+    return ok;
+}
+
+bool pplay::Cover::extract(const std::string &url, const std::string &path, std::string *error) {
+    AVFormatContext *ctx = AvOpen::open(url, error);
+    if (ctx == nullptr) {
+        return false;
+    }
+    bool ok = save(ctx, path, error);
     avformat_close_input(&ctx);
-    Utility::log(Utility::LogLevel::Info,
-                 "Cover: " + url + (ok ? " " + std::to_string(size) + " bytes" : ": " + *error));
+    Utility::log(Utility::LogLevel::Info, "Cover: " + url + (ok ? "" : ": " + *error));
     return ok;
 }

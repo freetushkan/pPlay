@@ -53,6 +53,8 @@ public:
     // cached (the file own tracks)
     void save(const c2d::Io::File &file);
 
+    // read from the cache (or probed): not probed again
+    bool known = false;
     long duration = 0;
     std::string format;
     // the file metadata title

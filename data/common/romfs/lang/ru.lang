@@ -256,3 +256,7 @@ Attach = Подключить файл
 Previous = Предыдущий
 Next = Следующий
 Reset = Сбросить
+Media information = Информация о файлах
+Media information on selection = Информация о файле при выборе
+Clear cache = Очистить кэш
+Cache cleared = Кэш очищен

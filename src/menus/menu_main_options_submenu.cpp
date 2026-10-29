@@ -186,6 +186,12 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
     }
 
     if (option_name.empty()) {
+        if (item->name == "Clear cache") {
+            int count = pplay::Utility::clearCache();
+            main->getFiler()->clearMediaInfo();
+            main->getStatus()->show(pplay::tr("Info..."), pplay::tr("Cache cleared") + ": " + std::to_string(count));
+            return;
+        }
         if (item->name == "Edit files") {
             setVisibility(Visibility::Hidden, true);
             main->getMenuMain()->getFileEditor()->setVisibility(Visibility::Visible);
