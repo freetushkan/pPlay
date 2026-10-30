@@ -30,7 +30,8 @@ void Player::onMpvEvent(mpv_event *event) {
                 mpv_command(mpv->getHandle(), remove);
             }
             appliedAudioFilter = AudioFilterUnknown;
-            main->getStatus()->show("Please Wait...", "Loading... " + encoding::fix(file.name), true);
+            main->getStatus()->show("Please Wait...", pplay::tr("Loading file")
+                                                    + " \"" + encoding::fix(file.name) + "\"", true);
             startPlaybackPosition = -1;
             frameDrawn = false;
             playbackStarted = false;
@@ -41,7 +42,7 @@ void Player::onMpvEvent(mpv_event *event) {
             pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Player::onUpdate::event MPV_EVENT_FILE_LOADED");
             onLoadEvent();
             pplay::History::touch(playingKey);
-            // "Loading..." kept until the playback starts (resume position may be long)
+            // "Loading file..." kept until the playback starts (resume position may be long)
             break;
         case MPV_EVENT_END_FILE:
             pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Player::onUpdate::event MPV_EVENT_END_FILE");
