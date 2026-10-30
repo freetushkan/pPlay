@@ -155,22 +155,27 @@ int MediaProbe::run(void *data) {
     bool viewed = torrent && pplay::TorrServe::isFileViewed(self->job.path);
     std::string error;
     MediaInfo info;
-    AVFormatContext *ctx = pplay::AvOpen::open(url, &error);
-    if (ctx != nullptr) {
-        std::vector<AVDictionary *> options(ctx->nb_streams, nullptr);
-        for (auto &option: options) {
-            av_dict_set(&option, "threads", "1", 0);
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "MediaProbe: start " + url);
+    {
+        // one at a time with the other network threads (Switch)
+        pplay::Utility::NetworkLock lock;
+        AVFormatContext *ctx = pplay::AvOpen::open(url, &error);
+        if (ctx != nullptr) {
+            std::vector<AVDictionary *> options(ctx->nb_streams, nullptr);
+            for (auto &option: options) {
+                av_dict_set(&option, "threads", "1", 0);
+            }
+            avformat_find_stream_info(ctx, options.empty() ? nullptr : options.data());
+            for (auto &option: options) {
+                av_dict_free(&option);
+            }
+            info = read(ctx);
+            if (info.hasCover()) {
+                std::string coverError;
+                pplay::Cover::save(ctx, url, &coverError);
+            }
+            avformat_close_input(&ctx);
         }
-        avformat_find_stream_info(ctx, options.empty() ? nullptr : options.data());
-        for (auto &option: options) {
-            av_dict_free(&option);
-        }
-        info = read(ctx);
-        if (info.hasCover()) {
-            std::string coverError;
-            pplay::Cover::save(ctx, url, &coverError);
-        }
-        avformat_close_input(&ctx);
     }
     // known even on errors: not probed again (cache cleared, or played)
     info.known = true;

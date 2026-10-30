@@ -61,6 +61,7 @@ AVFormatContext *pplay::AvOpen::open(const std::string &url, std::string *error)
 }
 
 bool pplay::AvOpen::read(const std::string &url, size_t maxSize, std::string *data, std::string *error) {
+    Utility::NetworkLock lock;
     static thread_local Deadline deadline;
     deadline.at = Clock::now() + std::chrono::seconds(30);
     AVIOInterruptCB callback = {interrupted, &deadline};

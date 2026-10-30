@@ -46,6 +46,7 @@ bool pplay::Cover::save(AVFormatContext *ctx, const std::string &mediaUrl, std::
 }
 
 bool pplay::Cover::extract(const std::string &mediaUrl, std::string *error) {
+    Utility::NetworkLock lock;
     AVFormatContext *ctx = AvOpen::open(mediaUrl, error);
     if (ctx == nullptr) {
         return false;

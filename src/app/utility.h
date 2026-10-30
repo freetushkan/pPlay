@@ -52,6 +52,19 @@ namespace pplay {
 
         static void log(LogLevel level, const std::string &message);
 
+        // background network work one at a time where the system does not like it in
+        // parallel (Switch: resolver, TLS); nothing elsewhere
+        class NetworkLock {
+        public:
+            NetworkLock();
+
+            ~NetworkLock();
+
+            NetworkLock(const NetworkLock &) = delete;
+
+            NetworkLock &operator=(const NetworkLock &) = delete;
+        };
+
         static std::string md5hash(const std::string &input);
 
         static int hexValue(char c);

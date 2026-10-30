@@ -84,6 +84,7 @@ void Http::init() {
 }
 
 Http::Response Http::perform(const Request &request) {
+    Utility::NetworkLock lock;
     Response response;
     CURL *curl = curl_easy_init();
     if (!curl) {

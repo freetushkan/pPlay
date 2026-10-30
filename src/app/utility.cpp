@@ -37,6 +37,7 @@
 #include <cstdint>
 
 #include <chrono>
+#include <mutex>
 
 using namespace pplay;
 static Utility::LogLevel g_logLevel = Utility::LogLevel::Info;
@@ -197,6 +198,25 @@ void Utility::setLogLevel(Utility::LogLevel level) {
 Utility::LogLevel Utility::getLogLevel() {
     return g_logLevel;
 }
+
+#ifdef __SWITCH__
+static std::recursive_mutex &networkMutex() {
+    static std::recursive_mutex mutex;
+    return mutex;
+}
+
+Utility::NetworkLock::NetworkLock() {
+    networkMutex().lock();
+}
+
+Utility::NetworkLock::~NetworkLock() {
+    networkMutex().unlock();
+}
+#else
+Utility::NetworkLock::NetworkLock() = default;
+
+Utility::NetworkLock::~NetworkLock() = default;
+#endif
 
 void Utility::log(Utility::LogLevel level, const std::string &message) {
     if ((int) level > (int) g_logLevel || g_logLevel == Utility::LogLevel::Off) {

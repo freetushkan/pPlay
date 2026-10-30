@@ -151,6 +151,7 @@ bool PosterLoader::poll(const c2d::Vector2i &maxSize, c2d::Texture **texture, st
 
 int PosterLoader::downloadThread(void *data) {
     auto *self = (PosterLoader *) data;
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Details: poster start " + self->downloadUrl);
     // "embedded:<url>": the media file own cover
     if (c2d::Utility::startWith(self->downloadUrl, "embedded:")) {
         std::string error;
