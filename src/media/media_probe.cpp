@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstring>
 #include <thread>
+#include <vector>
 
 #include "av_open.h"
 #include "cover.h"
@@ -156,7 +157,14 @@ int MediaProbe::run(void *data) {
     MediaInfo info;
     AVFormatContext *ctx = pplay::AvOpen::open(url, &error);
     if (ctx != nullptr) {
-        avformat_find_stream_info(ctx, nullptr);
+        std::vector<AVDictionary *> options(ctx->nb_streams, nullptr);
+        for (auto &option: options) {
+            av_dict_set(&option, "threads", "1", 0);
+        }
+        avformat_find_stream_info(ctx, options.empty() ? nullptr : options.data());
+        for (auto &option: options) {
+            av_dict_free(&option);
+        }
         info = read(ctx);
         if (info.hasCover()) {
             std::string coverError;

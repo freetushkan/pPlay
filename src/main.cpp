@@ -351,6 +351,7 @@ StatusBar *Main::getStatusBar() {
 
 // platform, data directory, configuration and language before the ui
 int main() {
+    SDL_SetHint(SDL_HINT_THREAD_STACK_SIZE, "1048576");
     if (!pplay::Platform::init()) {
         return 0;
     }
