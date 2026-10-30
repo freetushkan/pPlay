@@ -331,6 +331,14 @@ namespace pplay::InputMap {
 #endif
         for (int i = 0; i < PLAYER_MAX; i++) {
             input->getPlayer(i)->dz = STICK_DEADZONE;
+#if defined(__PS4__) || defined(__PS5__)
+            // Options and the touchpad: Start on both consoles (the ports map them differently)
+            auto &mapping = input->getPlayer(i)->mapping;
+            mapping.push_back({Input::Button::Start, SDL_CONTROLLER_BUTTON_BACK});
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+            mapping.push_back({Input::Button::Start, SDL_CONTROLLER_BUTTON_TOUCHPAD});
+#endif
+#endif
         }
         SDL_AddEventWatch(onEvent, nullptr);
         scanDevices();
