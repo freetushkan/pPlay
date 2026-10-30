@@ -245,9 +245,9 @@ void Player::updateKeysInfo() {
     seek << main->getConfig()->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
     auto line = [](const std::string &key, const std::string &action) { return key + ": " + action + "\n"; };
     std::string out;
-    out += line(buttonName(Input::A), pplay::tr("Pause"));
-    out += line(buttonName(Input::B), pplay::tr("Minimize"));
-    out += line(buttonName(Input::X), pplay::tr("Menu"));
+    out += line(buttonName(Input::A), pplay::tr("Select"));
+    out += line(buttonName(Input::B), pplay::tr("Back/Minimize"));
+    out += line(buttonName(Input::X), pplay::tr("Player menu"));
     out += line(buttonName(seekBack) + " / " + buttonName(seekForward), "-/+ " + seek.str() + " s");
     out += line(buttonName(speedReset), pplay::tr("Speed") + " 1.00");
     out += line(buttonName(speedUp), pplay::tr("Speed") + " +0.05");
