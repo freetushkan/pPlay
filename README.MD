@@ -60,17 +60,19 @@ Fork additions
 
 Below are the main practical improvements and modernizations included in this fork:
 
-1. **Multi-network profiles**: up to 9 independent network sources (`NETWORK1..NETWORK9`) with custom labels (`NETWORKx_NAME`) and remembered last directories (`NETWORKx_LAST`).
+1. **Multi-network profiles**: up to 9 independent network sources (`NETWORK1..NETWORK9`)
+   with custom labels (`NETWORKx_NAME`) and remembered last directories (`NETWORKx_LAST`).
 2. **TorrServer integration**: torrent browsing, files playback and watched-state support.
 3. **Samba/SMB support**: custom `smb://` mpv handler, configurable SMB read buffer.
 4. **Flexible network retry/timeouts**: separate playback retry count and connection timeout settings.
-5. **UX/player options**: settings menu with configurable seek intervals, autoplay-after-finish behavior, swapped controls mode, UI accent color, logging and more.
+5. **UX/player options**: settings menu with configurable seek intervals, autoplay-after-finish behavior,
+   swapped controls mode, UI accent color, logging and more.
 6. **Interface languages**: Settings > Language (see below).
-7. **Configuration editor**: Settings > Edit files: `pplay.cfg`, `mpv/mpv.conf`, `mpv/input.conf`, the whole file in the
-   system keyboard (multiline, up to 2048 characters) or line by line. `pplay.cfg` is applied right away (an invalid
-   file is rejected), mpv files on the next start.
-8. **Playback**: preferred audio/subtitles languages, external audio and subtitles files, volume normalization
-   (normalize, night mode), network buffer settings, video quality presets, fast seeking in `.mkv` files without index.
+7. **Configuration editor**: Settings > Edit files: `pplay.cfg`, `mpv/mpv.conf`, `mpv/input.conf`,
+   the whole file in the system keyboard (multiline, up to 2048 characters) or line by line. `pplay.cfg` is applied right away (an invalid file is rejected), mpv files on the next start.
+8. **Playback**: preferred audio/subtitles languages, external audio and subtitles files, volume control
+   and normalization (incl. night mode), network buffer settings, video quality presets, fast seeking in `.mkv` files without index, visualization for audiofiles.
+9. **Distribution**: single file installation on all platfoms.
 
 Interface languages
 ----
