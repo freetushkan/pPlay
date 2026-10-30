@@ -6,6 +6,7 @@
 #define NXFILER_FILER_H
 
 #include <functional>
+#include <map>
 #include "cross2d/c2d.h"
 #include "pplay_config.h"
 #include "filer_item.h"
@@ -44,6 +45,9 @@ public:
     std::string getError();
 
     void refresh() { dirty = true; }
+
+    // the picture (cover.jpg...) of a listed directory, by a file of it ("" if none)
+    std::string folderCoverOf(const std::string &filePath) const;
 
     // the media information cache was cleared
     void clearMediaInfo();
@@ -85,6 +89,8 @@ private:
     std::string path;
     std::vector<FilerItem *> items;
     std::vector<MediaFile> files;
+    // the listed directories pictures (PosterLoader urls)
+    std::map<std::string, std::string> folderCovers;
     Highlight *highlight;
     DetailsView *details = nullptr;
     MediaProbe *probe = nullptr;

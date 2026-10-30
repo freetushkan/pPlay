@@ -56,6 +56,8 @@ void MenuVideoSubmenu::updateSelectionHighlight() {
         setSelection(main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger());
     } else if (type == MENU_VIDEO_TYPE_NORMALIZE) {
         setSelection(main->getConfig()->getOption(OPT_AUDIO_NORMALIZE)->getInteger());
+    } else if (type == MENU_VIDEO_TYPE_VISUALIZER) {
+        setSelection(main->getConfig()->getOption(OPT_AUDIO_VISUALIZER)->getInteger());
     } else if (type == MENU_VIDEO_TYPE_PLAYLIST) {
         if (main->getPlayer()->isPlaylistFile()) {
             setSelection(main->getPlayer()->getMpv()->getPlaylistPos());
@@ -118,6 +120,8 @@ void MenuVideoSubmenu::onOptionSelection(MenuItem *item) {
                                                                          + option->getString());
         } else if (type == MENU_VIDEO_TYPE_NORMALIZE) {
             main->getPlayer()->setAudioNormalize(item->id);
+        } else if (type == MENU_VIDEO_TYPE_VISUALIZER) {
+            main->getPlayer()->setAudioScreenMode(item->id);
         } else if (type == MENU_VIDEO_TYPE_PLAYLIST) {
             main->getStatus()->show("Please Wait...", "Switching playlist item...");
             if (main->getPlayer()->isPlaylistFile()) {

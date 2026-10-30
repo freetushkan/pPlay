@@ -2,7 +2,9 @@
 // Mpv playback controls and properties.
 //
 
+#include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include "mpv.h"
 #include "utility.h"
 
@@ -105,6 +107,11 @@ int Mpv::setVid(int id) {
 }
 
 int Mpv::setAid(int id) {
+    if (hasVisualizer()) {
+        visualAid = id;
+        applyVisualizer();
+        return 0;
+    }
     std::string cmd = "no-osd set aid ";
     cmd += id < 0 ? "no" : std::to_string(id);
     return mpv_command_string(handle, cmd.c_str());
@@ -128,6 +135,9 @@ int Mpv::getVid() {
 }
 
 int Mpv::getAid() {
+    if (hasVisualizer()) {
+        return visualAid;
+    }
     int64_t aid = -1;
     mpv_get_property(handle, "aid", MPV_FORMAT_INT64, &aid);
     return (int) aid;
@@ -435,4 +445,46 @@ MediaInfo Mpv::getMediaInfo(const c2d::Io::File &file) {
     mediaInfo.format = getString("file-format");
     mediaInfo.title = getString("metadata/by-key/title");
     return mediaInfo;
+}
+
+void Mpv::setVisualizer(const std::string &graph) {
+    if (graph == visualGraph) {
+        return;
+    }
+    if (graph.empty()) {
+        // the track back to the normal output
+        visualGraph.clear();
+        mpv_set_property_string(handle, "lavfi-complex", "");
+        setAid(visualAid);
+        return;
+    }
+    if (visualGraph.empty()) {
+        visualAid = getAid();
+    }
+    visualGraph = graph;
+    applyVisualizer();
+}
+
+void Mpv::applyVisualizer() {
+    std::string complex;
+    if (visualAid > 0) {
+        std::string track = "[aid" + std::to_string(visualAid) + "]";
+        complex = track + "asplit[ao][visual];[visual]" + visualGraph + "[vo]";
+    }
+    int res = mpv_set_property_string(handle, "lavfi-complex", complex.c_str());
+    if (visualAid <= 0) {
+        mpv_set_property_string(handle, "aid", "no");
+    }
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Mpv::applyVisualizer: aid=" + std::to_string(visualAid)
+                                                                + (res < 0 ? std::string(": ") + mpv_error_string(res) : ""));
+}
+
+void Mpv::setFrameLayout(float left, float top, float right, float bottom) {
+    const char *names[] = {"video-margin-ratio-left", "video-margin-ratio-top", "video-margin-ratio-right",
+                           "video-margin-ratio-bottom"};
+    float values[] = {left, top, right, bottom};
+    for (int i = 0; i < 4; i++) {
+        double value = values[i];
+        mpv_set_property(handle, names[i], MPV_FORMAT_DOUBLE, &value);
+    }
 }

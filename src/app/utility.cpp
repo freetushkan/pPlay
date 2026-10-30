@@ -22,6 +22,7 @@
 
 #include "utility.h"
 #include "io.h"
+#include "poster_cache.h"
 #include <string>
 #include <vector>
 #ifdef __PS5__
@@ -59,9 +60,10 @@ std::string Utility::getMediaInfoPath(const c2d::Io::File &file) {
 }
 
 std::vector<std::string> Utility::getMediaExtensions() {
-    return {".8svx", ".aac", ".ac3", ".aif", ".asf", ".avi",  ".dv",  ".flv", ".m2ts", ".m2v",
-            ".m4a",  ".mkv", ".mov", ".mp3", ".mp4", ".mpeg", ".mpg", ".mts", ".ogg",  ".rmvb",
-            ".swf",  ".ts",  ".vob", ".wav", ".wma", ".wmv",  ".m3u", ".m3u8"};
+    return {".8svx", ".aac", ".ac3",  ".aif",  ".aiff", ".ape", ".asf", ".avi",  ".dsf",  ".dts", ".dv",
+            ".eac3", ".flac", ".flv", ".m2ts", ".m2v", ".m4a", ".m4b", ".m4v", ".mka", ".mkv",  ".mov",
+            ".mp3",  ".mp4", ".mpc", ".mpeg", ".mpg",  ".mts", ".oga", ".ogg",  ".ogv", ".opus", ".rmvb",
+            ".swf",  ".ts",  ".tta", ".vob",  ".wav",  ".webm", ".wma", ".wmv",  ".wv",  ".3gp",  ".m3u", ".m3u8"};
 }
 
 bool Utility::isMedia(const c2d::Io::File &file) {
@@ -416,17 +418,15 @@ void Utility::setCpuClock(const CpuClock &clock) {
 }
 
 int Utility::clearCache() {
-    int count = 0;
-    for (const std::string &dir: {getDataPath() + "cache/", getDataPath() + "cache/posters/"}) {
-        DIR *d = opendir(dir.c_str());
-        if (d == nullptr) {
-            continue;
-        }
+    int count = pplay::PosterCache::clear();
+    // the media information files only
+    std::string dir = getDataPath() + "cache/";
+    DIR *d = opendir(dir.c_str());
+    if (d != nullptr) {
         std::vector<std::string> names;
         while (struct dirent *entry = readdir(d)) {
             std::string name = entry->d_name;
-            // the posters and the ".info" files, not the directories
-            if (name != "." && name != ".." && name != "posters") {
+            if (c2d::Utility::endsWith(name, ".info")) {
                 names.push_back(name);
             }
         }

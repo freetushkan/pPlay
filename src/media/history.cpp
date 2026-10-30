@@ -65,8 +65,10 @@ namespace {
             fprintf(f, "%lld\t%s\n", (long long) entry.first, entry.second.c_str());
         }
         fclose(f);
-        remove(historyPath().c_str());
-        rename(tmp.c_str(), historyPath().c_str());
+        if (rename(tmp.c_str(), historyPath().c_str()) != 0) {
+            remove(historyPath().c_str());
+            rename(tmp.c_str(), historyPath().c_str());
+        }
     }
 }
 

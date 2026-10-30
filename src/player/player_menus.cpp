@@ -72,6 +72,17 @@ void Player::buildMenus() {
         add(menuNormalize);
     }
 
+    if (menuVisualizer == nullptr) {
+        menuVisualizer = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Visualization",
+                                              {MenuItem("Cover > visualizer", "", MenuItem::Position::Top, 0),
+                                               MenuItem("Visualizer", "", MenuItem::Position::Top, 1),
+                                               MenuItem("Icon only", "", MenuItem::Position::Top, 2)},
+                                              MENU_VIDEO_TYPE_VISUALIZER);
+        menuVisualizer->setLayer(3);
+        menuVisualizer->setVisibility(Visibility::Hidden, false);
+        add(menuVisualizer);
+    }
+
     if (menuSpeed == nullptr) {
         menuSpeed = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Speed", adjustItems(),
                                          MENU_VIDEO_TYPE_SPEED);
@@ -145,7 +156,7 @@ void Player::buildTrackMenus() {
 std::vector<MenuVideoSubmenu *> Player::menus() const {
     std::vector<MenuVideoSubmenu *> list;
     for (auto *menu: {menuVideoStreams, menuAudioStreams, menuSubtitlesStreams, menuPlaylist, menuPlaybackMode,
-                      menuNormalize, menuSpeed, menuBrightness}) {
+                      menuNormalize, menuVisualizer, menuSpeed, menuBrightness}) {
         if (menu != nullptr) {
             list.push_back(menu);
         }
@@ -174,10 +185,10 @@ void Player::hideMenus() {
 
 void Player::deleteMenus(bool all) {
     for (auto **menu: {&menuVideoStreams, &menuAudioStreams, &menuSubtitlesStreams, &menuPlaylist, &menuPlaybackMode,
-                       &menuNormalize, &menuSpeed, &menuBrightness}) {
+                       &menuNormalize, &menuVisualizer, &menuSpeed, &menuBrightness}) {
         // the file independent ones are kept between files
-        bool kept =
-                menu == &menuPlaybackMode || menu == &menuNormalize || menu == &menuSpeed || menu == &menuBrightness;
+        bool kept = menu == &menuPlaybackMode || menu == &menuNormalize || menu == &menuVisualizer
+                    || menu == &menuSpeed || menu == &menuBrightness;
         if (*menu != nullptr && (all || !kept)) {
             delete (*menu);
             *menu = nullptr;
@@ -207,6 +218,10 @@ MenuVideoSubmenu *Player::getMenuPlaybackMode() {
 
 MenuVideoSubmenu *Player::getMenuNormalize() {
     return menuNormalize;
+}
+
+MenuVideoSubmenu *Player::getMenuVisualizer() {
+    return menuVisualizer;
 }
 
 MenuVideoSubmenu *Player::getMenuSpeed() {

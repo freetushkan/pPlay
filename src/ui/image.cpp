@@ -130,4 +130,26 @@ namespace pplay::Image {
         delete (texture);
         return loadFfmpeg(path, maxSize, error);
     }
+
+    c2d::Color average(c2d::Texture *texture) {
+        uint8_t *pixels = nullptr;
+        int pitch = 0;
+        Vector2i size = texture->getTextureSize();
+        if (texture->lock(&pixels, &pitch) != 0 || pixels == nullptr || size.x <= 0 || size.y <= 0) {
+            return Color::Black;
+        }
+        // the pixels kept by the texture: read only, no unlock (upload)
+        uint64_t sum[3] = {0, 0, 0}, count = 0;
+        int step = std::max(1, std::min(size.x, size.y) / 64);
+        for (int y = 0; y < size.y; y += step) {
+            const uint8_t *row = pixels + (size_t) y * pitch;
+            for (int x = 0; x < size.x; x += step) {
+                sum[0] += row[x * 4];
+                sum[1] += row[x * 4 + 1];
+                sum[2] += row[x * 4 + 2];
+                count++;
+            }
+        }
+        return {(uint8_t) (sum[0] / count), (uint8_t) (sum[1] / count), (uint8_t) (sum[2] / count), 255};
+    }
 }

@@ -136,8 +136,7 @@ void PlayerOSD::onDraw(c2d::Transform &transform, bool draw) {
         return;
     }
 
-    bool hasVideo = player->hasVideo();
-    if (hasVideo && !mpv->isPaused() && clock.getElapsedTime().asSeconds() >= OSD_HIDE_TIME) {
+    if (!mpv->isPaused() && clock.getElapsedTime().asSeconds() >= OSD_HIDE_TIME) {
         setVisibility(Visibility::Hidden, true);
         main->getStatusBar()->setVisibility(Visibility::Hidden, true);
     }
@@ -180,11 +179,7 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
     }
 
     if (keys & Input::B) {
-        if (!player->hasVideo()) {
-            player->setFullscreen(false);
-        } else {
-            hideOSD();
-        }
+        hideOSD();
     } else if (keys & Input::X) {
         hideOSD();
         main->getMenuVideo()->setVisibility(Visibility::Visible, true);

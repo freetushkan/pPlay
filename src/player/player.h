@@ -17,6 +17,8 @@ class PlayerOSD;
 
 class VideoTexture;
 
+class AudioView;
+
 class Player : public c2d::Rectangle {
 
 public:
@@ -104,9 +106,31 @@ public:
 
     MenuVideoSubmenu *getMenuNormalize();
 
+    MenuVideoSubmenu *getMenuVisualizer();
+
     MenuVideoSubmenu *getMenuSpeed();
 
     MenuVideoSubmenu *getMenuBrightness();
+
+    // what an audio file shows (None: a video file, or stopped)
+    enum class AudioScreen {
+        None,
+        Picture,
+        Visualizer,
+        Note
+    };
+
+    AudioScreen getAudioScreen() const { return audioScreen; }
+
+    // audio screen setting changed (settings or player menu): 0 cover > visualizer > note,
+    // 1 visualizer > note, 2 note
+    void setAudioScreenMode(int mode);
+
+    // the cover candidates of the audio file (PosterLoader urls), in order
+    const std::vector<std::string> &getPictureUrls() const { return pictureUrls; }
+
+    // none of them could be shown
+    void onPicturesFailed();
 
     const std::string &getTitle() const;
 
@@ -193,6 +217,15 @@ private:
     // volume saved in the settings, a bit after the last change
     void saveVolume();
 
+    // player_visual.cpp: the audio screen of the file, its mpv settings
+    void updateAudioScreen();
+
+    void clearAudioScreen();
+
+    std::vector<std::string> pictureUrlsOf(const MediaFile &file);
+
+    std::string visualizerGraph() const;
+
     // player_controls.cpp: playback information (Start toggles it)
     void updateInfo();
 
@@ -221,6 +254,7 @@ private:
     MenuVideoSubmenu *menuPlaylist = nullptr;
     MenuVideoSubmenu *menuPlaybackMode = nullptr;
     MenuVideoSubmenu *menuNormalize = nullptr;
+    MenuVideoSubmenu *menuVisualizer = nullptr;
     MenuVideoSubmenu *menuSpeed = nullptr;
     MenuVideoSubmenu *menuBrightness = nullptr;
 
@@ -263,6 +297,11 @@ private:
     int mpvLogLevel = -1;
 
     // audio
+    AudioView *audioView = nullptr;
+    AudioScreen audioScreen = AudioScreen::None;
+    std::string appliedVisualizer;
+    std::vector<std::string> pictureUrls;
+    bool picturesFailed = false;
     std::string appliedAudioFilter;
     bool volumeDirty = false;
     c2d::C2DClock volumeClock;

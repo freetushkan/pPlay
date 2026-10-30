@@ -1,5 +1,5 @@
 //
-// Posters of the details panel: downloaded in a thread to data/cache/posters, decoded
+// Posters, covers: downloaded / extracted in a thread to the pictures cache, decoded
 // a bit after the selection settles (fast scrolling).
 //
 
@@ -32,8 +32,6 @@ private:
 
     static int downloadThread(void *data);
 
-    std::string cachePath(const std::string &url) const;
-
     Main *main;
     std::string wanted;
     std::string done;
@@ -42,7 +40,6 @@ private:
 
     c2d::C2DThread *thread = nullptr;
     std::string downloadUrl;
-    std::string downloadPath;
     std::string downloadError;
     std::atomic<bool> downloadDone{false};
     std::atomic<bool> downloadOk{false};

@@ -46,6 +46,7 @@ void Player::onMpvEvent(mpv_event *event) {
         case MPV_EVENT_END_FILE:
             pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Player::onUpdate::event MPV_EVENT_END_FILE");
             playingKey.clear();
+            clearAudioScreen();
             onStopEvent(((mpv_event_end_file *) event->data)->reason);
             main->getFiler()->refresh();
             break;

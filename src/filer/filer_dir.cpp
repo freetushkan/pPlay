@@ -78,6 +78,16 @@ namespace {
     }
 }
 
+std::string Filer::folderCoverOf(const std::string &filePath) const {
+    // the directory part (TorrServer paths: a query after the name)
+    size_t slash = filePath.rfind('/', filePath.find('?'));
+    if (slash == std::string::npos) {
+        return "";
+    }
+    auto it = folderCovers.find(filePath.substr(0, slash));
+    return it != folderCovers.end() ? it->second : "";
+}
+
 static bool compare(const MediaFile &a, const MediaFile &b) {
     if (a.type == Io::Type::Directory && b.type != Io::Type::Directory) {
         return true;
@@ -131,7 +141,8 @@ bool Filer::getDir(const std::string &p) {
     }
     // smb:// is opened by mpv only
     bool smb = Utility::startWith(cover, "smb");
-    details->setFolderCover(cover.empty() || smb ? "" : "dir:" + cover);
+    folderCovers[path] = cover.empty() || smb ? "" : "dir:" + cover;
+    details->setFolderCover(folderCovers[path]);
 
     std::sort(files.begin(), files.end(), compare);
 

@@ -9,6 +9,7 @@
 #include "net_http.h"
 #include "av_open.h"
 #include "cover.h"
+#include "poster_cache.h"
 #include "poster_loader.h"
 #include "torrserve.h"
 
@@ -82,10 +83,6 @@ PosterLoader::~PosterLoader() {
     }
 }
 
-std::string PosterLoader::cachePath(const std::string &url) const {
-    return pplay::Cover::cachePath(url);
-}
-
 void PosterLoader::request(const std::string &url) {
     if (url != wanted) {
         wanted = url;
@@ -119,14 +116,14 @@ bool PosterLoader::poll(const c2d::Vector2i &maxSize, c2d::Texture **texture, st
 
     // a local directory picture: read as is
     bool local = c2d::Utility::startWith(wanted, "dir:") && wanted.find("://") == std::string::npos;
-    std::string path = local ? wanted.substr(4) : cachePath(wanted);
-    if (main->getIo()->exist(path)) {
+    std::string path = local ? wanted.substr(4) : pplay::PosterCache::find(wanted);
+    if (!path.empty() && main->getIo()->exist(path)) {
         std::string decodeError;
         done = wanted;
         *texture = pplay::Image::load(path, maxSize, &decodeError);
         if (*texture == nullptr) {
             if (!local) {
-                pplay::Utility::deleteFile(path);
+                pplay::PosterCache::forget(wanted);
             }
             failed = wanted;
             *error = pplay::tr("unsupported image") + " (" + decodeError + ")";
@@ -145,12 +142,7 @@ bool PosterLoader::poll(const c2d::Vector2i &maxSize, c2d::Texture **texture, st
         return true;
     }
 
-    std::string dir = main->getIo()->getDataPath() + "cache/posters";
-    if (!main->getIo()->exist(dir)) {
-        main->getIo()->create(dir);
-    }
     downloadUrl = wanted;
-    downloadPath = path;
     downloadDone = false;
     downloadOk = false;
     thread = new c2d::C2DThread(downloadThread, this);
@@ -162,7 +154,7 @@ int PosterLoader::downloadThread(void *data) {
     // "embedded:<url>": the media file own cover
     if (c2d::Utility::startWith(self->downloadUrl, "embedded:")) {
         std::string error;
-        self->downloadOk = pplay::Cover::extract(self->downloadUrl.substr(9), self->downloadPath, &error);
+        self->downloadOk = pplay::Cover::extract(self->downloadUrl.substr(9), &error);
         self->downloadError = error;
         self->downloadDone = true;
         return 0;
@@ -175,15 +167,7 @@ int PosterLoader::downloadThread(void *data) {
         error = "not an image";
     }
     if (ok) {
-        FILE *f = fopen(self->downloadPath.c_str(), "wb");
-        ok = f != nullptr && fwrite(body.data(), 1, body.size(), f) == body.size();
-        if (f) {
-            fclose(f);
-        }
-        if (!ok) {
-            pplay::Utility::deleteFile(self->downloadPath);
-            error = "can't write cache file";
-        }
+        ok = pplay::PosterCache::store(self->downloadUrl, body, &error);
     }
     pplay::Utility::log(pplay::Utility::LogLevel::Info,
                         "Details: poster download " + self->downloadUrl + " size=" + std::to_string(body.size())

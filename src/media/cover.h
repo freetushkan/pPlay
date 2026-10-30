@@ -11,14 +11,14 @@ struct AVFormatContext;
 
 namespace pplay::Cover {
 
-    // the posters cache file of an url (poster or "embedded:<media url>")
-    std::string cachePath(const std::string &url);
+    // the pictures cache url of a media cover
+    std::string cacheUrl(const std::string &mediaUrl);
 
-    // the picture of an opened media written to path; false (and the reason) if none
-    bool save(AVFormatContext *ctx, const std::string &path, std::string *error);
+    // the picture of an opened media to the cache; false (and the reason) if none
+    bool save(AVFormatContext *ctx, const std::string &mediaUrl, std::string *error);
 
     // the same, the media opened
-    bool extract(const std::string &url, const std::string &path, std::string *error);
+    bool extract(const std::string &mediaUrl, std::string *error);
 }
 
 #endif //PPLAY_COVER_H

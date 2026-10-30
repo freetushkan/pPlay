@@ -7,14 +7,14 @@
 
 #include "av_open.h"
 #include "cover.h"
-#include "io.h"
+#include "poster_cache.h"
 #include "utility.h"
 
-std::string pplay::Cover::cachePath(const std::string &url) {
-    return Utility::getDataPath() + "cache/posters/" + Utility::md5hash(url);
+std::string pplay::Cover::cacheUrl(const std::string &mediaUrl) {
+    return "embedded:" + mediaUrl;
 }
 
-bool pplay::Cover::save(AVFormatContext *ctx, const std::string &path, std::string *error) {
+bool pplay::Cover::save(AVFormatContext *ctx, const std::string &mediaUrl, std::string *error) {
     // attached pictures (a "cover" one first), else image attachments
     const uint8_t *data = nullptr;
     int size = 0;
@@ -42,28 +42,16 @@ bool pplay::Cover::save(AVFormatContext *ctx, const std::string &path, std::stri
         *error = "no cover";
         return false;
     }
-    std::string dir = Utility::getDataPath() + "cache/posters";
-    if (Io::get() != nullptr && !Io::get()->exist(dir)) {
-        Io::get()->create(dir);
-    }
-    FILE *f = fopen(path.c_str(), "wb");
-    bool ok = f != nullptr && fwrite(data, 1, (size_t) size, f) == (size_t) size;
-    if (f) {
-        fclose(f);
-    }
-    if (!ok) {
-        *error = "can't write cache file";
-    }
-    return ok;
+    return PosterCache::store(cacheUrl(mediaUrl), std::string((const char *) data, (size_t) size), error);
 }
 
-bool pplay::Cover::extract(const std::string &url, const std::string &path, std::string *error) {
-    AVFormatContext *ctx = AvOpen::open(url, error);
+bool pplay::Cover::extract(const std::string &mediaUrl, std::string *error) {
+    AVFormatContext *ctx = AvOpen::open(mediaUrl, error);
     if (ctx == nullptr) {
         return false;
     }
-    bool ok = save(ctx, path, error);
+    bool ok = save(ctx, mediaUrl, error);
     avformat_close_input(&ctx);
-    Utility::log(Utility::LogLevel::Info, "Cover: " + url + (ok ? "" : ": " + *error));
+    Utility::log(Utility::LogLevel::Info, "Cover: " + mediaUrl + (ok ? "" : ": " + *error));
     return ok;
 }

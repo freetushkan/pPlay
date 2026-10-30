@@ -31,6 +31,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Subtitles language", "subtitles.png", Pos::Top),
                                   MenuItem("External tracks", "external.png", Pos::Top),
                                   MenuItem("Volume normalization", "normalize.png", Pos::Top),
+                                  MenuItem("Visualization", "visualizer.png", Pos::Top),
                                   MenuItem("Video quality", "quality.png", Pos::Top),
                                   MenuItem("Buffer length", "buffer.png", Pos::Top),
                                   MenuItem("Buffer memory", "buffer.png", Pos::Top),
@@ -162,6 +163,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Volume normalization", "Volume normalization", OPT_AUDIO_NORMALIZE,
                makeIntItems({{"Off", 0}, {"Normalize", 1}, {"Night mode", 2}}), Submenu::ValueType::Integer);
+    addSubmenu("Visualization", "Audio files screen", OPT_AUDIO_VISUALIZER,
+               makeIntItems({{"Cover > visualizer", 0}, {"Visualizer", 1}, {"Icon only", 2}}),
+               Submenu::ValueType::Integer);
     addSubmenu("Media information", "Media information on selection", OPT_MEDIA_PROBE,
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Video quality", "Video quality", OPT_VIDEO_QUALITY,

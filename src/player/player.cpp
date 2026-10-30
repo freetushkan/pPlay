@@ -13,6 +13,7 @@
 #include "paths.h"
 #include "input_map.h"
 #include "video_texture.h"
+#include "audio_view.h"
 #include "utility.h"
 #include "pplay_config.h"
 #include "encodings.h"
@@ -62,6 +63,9 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
     texture->setOutlineColor(COLOR_ACCENT);
     texture->setOutlineThickness(4);
     Player::add(texture);
+
+    audioView = new AudioView(main);
+    Player::add(audioView);
 
     osd = new PlayerOSD(main);
     Player::add(osd);
@@ -203,6 +207,7 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     externalSelect[0].clear();
     externalSelect[1].clear();
     hadWatchLater = pplay::Utility::isWatchLaterExist(path);
+    clearAudioScreen();
 
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Player::load effective_url=" + path + " options=" + opts);
     int res = mpv->load(path, Mpv::LoadType::Replace, opts);
@@ -228,6 +233,9 @@ void Player::onLoadEvent() {
     main->getFiler()->setMediaInfo(file, file.mediaInfo);
 
     buildMenus();
+    pictureUrls = pictureUrlsOf(file);
+    picturesFailed = false;
+    updateAudioScreen();
 
     mpv->restoreVolume();
     mpv->restoreSpeed();
@@ -454,4 +462,6 @@ void Player::applyConfig() {
         }
     }
     texture->setOutlineColor(COLOR_ACCENT);
+    // the accent color, the setting
+    updateAudioScreen();
 }

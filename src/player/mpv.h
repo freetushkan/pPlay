@@ -111,6 +111,15 @@ public:
     // a video track, not a cover picture
     bool hasMovingVideo();
 
+    // audio visualizer: a lavfi graph from the audio track to the video output (the
+    // audio track then set here, not with aid), "" for none
+    void setVisualizer(const std::string &graph);
+
+    bool hasVisualizer() const { return !visualGraph.empty(); }
+
+    // the picture in a part of the frame (ratios of the borders)
+    void setFrameLayout(float left, float top, float right, float bottom);
+
     bool isStopped();
 
     bool isPaused();
@@ -154,6 +163,11 @@ private:
     static const std::vector<const char *> &qualityOptions();
 
     std::map<std::string, std::string> qualityDefaults;
+
+    void applyVisualizer();
+
+    std::string visualGraph;
+    int visualAid = -1;
 
     mpv_handle *handle = nullptr;
     mpv_render_context *context = nullptr;

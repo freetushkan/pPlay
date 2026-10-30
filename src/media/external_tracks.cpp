@@ -159,8 +159,10 @@ namespace {
 namespace pplay::ExternalTracks {
 
     const std::vector<std::string> &audioExtensions() {
-        static const std::vector<std::string> extensions = {".mka", ".ac3",  ".eac3", ".dts", ".aac", ".flac", ".mp3",
-                                                            ".ogg", ".opus", ".m4a",  ".wav", ".thd", ".mlp",  ".wv"};
+        static const std::vector<std::string> extensions = {".mka", ".ac3", ".eac3", ".dts", ".aac", ".flac",
+                                                            ".mp3", ".ogg", ".oga",  ".opus", ".m4a", ".m4b",
+                                                            ".wav", ".thd", ".mlp",  ".wv",   ".ape", ".aif",
+                                                            ".aiff", ".dsf", ".mpc", ".tta",  ".wma"};
         return extensions;
     }
 
@@ -214,7 +216,8 @@ namespace pplay::ExternalTracks {
                     continue;
                 }
                 bool audio = isAudio(f.name);
-                if (!audio && !isSubtitle(f.name)) {
+                // not the played file itself (audio files)
+                if ((!audio && !isSubtitle(f.name)) || f.path == videoPath) {
                     continue;
                 }
                 std::string fileBase = baseName(f.name);

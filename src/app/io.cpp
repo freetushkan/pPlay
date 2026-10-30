@@ -321,6 +321,10 @@ bool Io::writeText(const std::string &path, const std::string &text) {
         remove(tmp.c_str());
         return false;
     }
+    // the old file kept until replaced (rename over it fails on some file systems)
+    if (rename(tmp.c_str(), path.c_str()) == 0) {
+        return true;
+    }
     remove(path.c_str());
     return rename(tmp.c_str(), path.c_str()) == 0;
 }

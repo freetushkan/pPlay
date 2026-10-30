@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "main.h"
+#include "poster_cache.h"
 #include "i18n.h"
 #include "input_map.h"
 #include "io.h"
@@ -43,8 +44,9 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
     statusBox->setLayer(10);
     Main::add(statusBox);
 
-    // media information cache
+    // media information, pictures cache: what is not used for a month removed
     pplayIo->create(pplayIo->getDataPath() + "cache");
+    pplay::PosterCache::cleanup(30);
 
     filer = new Filer(this, "/", {0, 0, Main::getSize().x, Main::getSize().y});
     filer->setLayer(1);
@@ -108,6 +110,7 @@ void Main::createMenus() {
     items.emplace_back("Video", "video.png", MenuItem::Position::Top);
     items.emplace_back("Subtitles", "subtitles.png", MenuItem::Position::Top);
     items.emplace_back("Volume normalization", "normalize.png", MenuItem::Position::Top);
+    items.emplace_back("Visualization", "visualizer.png", MenuItem::Position::Top);
     items.emplace_back("Speed", "speed.png", MenuItem::Position::Top);
     items.emplace_back("Brightness", "brightness.png", MenuItem::Position::Top);
     items.emplace_back("Information", "info.png", MenuItem::Position::Top);

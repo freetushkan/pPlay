@@ -52,6 +52,11 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
             main->getPlayer()->getMenuNormalize()->setVisibility(Visibility::Visible, true);
             setVisibility(Visibility::Hidden, true);
         }
+    } else if (item->name == "Visualization") {
+        if (main->getPlayer()->getMenuVisualizer()) {
+            main->getPlayer()->getMenuVisualizer()->setVisibility(Visibility::Visible, true);
+            setVisibility(Visibility::Hidden, true);
+        }
     } else if (item->name == "Speed" || item->name == "Brightness") {
         auto *menu = item->name == "Speed" ? main->getPlayer()->getMenuSpeed() : main->getPlayer()->getMenuBrightness();
         if (menu != nullptr) {
@@ -71,9 +76,6 @@ bool MenuVideo::onInput(c2d::Input::Player *players) {
 
     if (players[0].buttons & Input::Left || players[0].buttons & Input::B) {
         setVisibility(Visibility::Hidden, true);
-        if (!main->getPlayer()->hasVideo()) {
-            main->getPlayer()->getOSD()->setVisibility(c2d::Visibility::Visible);
-        }
         return true;
     }
 

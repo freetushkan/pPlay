@@ -160,7 +160,7 @@ int MediaProbe::run(void *data) {
         info = read(ctx);
         if (info.hasCover()) {
             std::string coverError;
-            pplay::Cover::save(ctx, pplay::Cover::cachePath("embedded:" + url), &coverError);
+            pplay::Cover::save(ctx, url, &coverError);
         }
         avformat_close_input(&ctx);
     }
