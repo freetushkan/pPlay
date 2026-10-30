@@ -143,7 +143,7 @@ bool MediaProbe::poll(MediaFile *file) {
         tried.insert(wanted.path);
         job = wanted;
         probed = done = delivered = false;
-        thread = new c2d::C2DThread(run, this);
+        thread = new pplay::Worker(run, this);
     }
     return finished;
 }
@@ -161,6 +161,7 @@ int MediaProbe::run(void *data) {
         pplay::Utility::NetworkLock lock;
         AVFormatContext *ctx = pplay::AvOpen::open(url, &error);
         if (ctx != nullptr) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Debug, "MediaProbe: opened");
             std::vector<AVDictionary *> options(ctx->nb_streams, nullptr);
             for (auto &option: options) {
                 av_dict_set(&option, "threads", "1", 0);
@@ -169,12 +170,13 @@ int MediaProbe::run(void *data) {
             for (auto &option: options) {
                 av_dict_free(&option);
             }
+            pplay::Utility::log(pplay::Utility::LogLevel::Debug, "MediaProbe: stream info read");
             info = read(ctx);
             if (info.hasCover()) {
                 std::string coverError;
                 pplay::Cover::save(ctx, url, &coverError);
             }
-            avformat_close_input(&ctx);
+            pplay::AvOpen::close(&ctx);
         }
     }
     // known even on errors: not probed again (cache cleared, or played)

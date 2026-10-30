@@ -145,7 +145,7 @@ bool PosterLoader::poll(const c2d::Vector2i &maxSize, c2d::Texture **texture, st
     downloadUrl = wanted;
     downloadDone = false;
     downloadOk = false;
-    thread = new c2d::C2DThread(downloadThread, this);
+    thread = new pplay::Worker(downloadThread, this);
     return false;
 }
 

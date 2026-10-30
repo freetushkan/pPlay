@@ -14,8 +14,10 @@ extern "C" {
 
 namespace pplay::AvOpen {
 
-    // the headers read; nullptr (and the reason) on errors. avformat_close_input() it.
+    // the headers read; nullptr (and the reason) on errors. close() it.
     AVFormatContext *open(const std::string &url, std::string *error);
+
+    void close(AVFormatContext **ctx);
 
     // a whole (small) file, up to maxSize bytes
     bool read(const std::string &url, size_t maxSize, std::string *data, std::string *error);

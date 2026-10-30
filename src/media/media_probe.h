@@ -10,6 +10,7 @@
 #include <set>
 #include <string>
 #include "cross2d/c2d.h"
+#include "worker.h"
 #include "media_file.h"
 
 class MediaProbe {
@@ -39,7 +40,7 @@ private:
     c2d::C2DClock requestClock;
     std::set<std::string> tried;
 
-    c2d::C2DThread *thread = nullptr;
+    pplay::Worker *thread = nullptr;
     MediaFile job;
     std::atomic<bool> probed{false};
     std::atomic<bool> done{false};

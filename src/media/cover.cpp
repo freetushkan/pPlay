@@ -52,7 +52,7 @@ bool pplay::Cover::extract(const std::string &mediaUrl, std::string *error) {
         return false;
     }
     bool ok = save(ctx, mediaUrl, error);
-    avformat_close_input(&ctx);
+    AvOpen::close(&ctx);
     Utility::log(Utility::LogLevel::Info, "Cover: " + mediaUrl + (ok ? "" : ": " + *error));
     return ok;
 }

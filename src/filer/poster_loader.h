@@ -9,6 +9,7 @@
 #include <atomic>
 #include <string>
 #include "cross2d/c2d.h"
+#include "worker.h"
 
 class Main;
 
@@ -38,7 +39,7 @@ private:
     std::string failed;
     c2d::C2DClock requestClock;
 
-    c2d::C2DThread *thread = nullptr;
+    pplay::Worker *thread = nullptr;
     std::string downloadUrl;
     std::string downloadError;
     std::atomic<bool> downloadDone{false};

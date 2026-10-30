@@ -41,12 +41,11 @@ namespace {
 }
 
 AVFormatContext *pplay::AvOpen::open(const std::string &url, std::string *error) {
-    // static: the callback is called during avformat_close_input() too
-    static thread_local Deadline deadline;
-    deadline.at = Clock::now() + std::chrono::seconds(30);
+    // owned by the context (the callback is called while closing too): see close()
+    auto *deadline = new Deadline{Clock::now() + std::chrono::seconds(30)};
 
     AVFormatContext *ctx = avformat_alloc_context();
-    ctx->interrupt_callback = {interrupted, &deadline};
+    ctx->interrupt_callback = {interrupted, deadline};
     AVDictionary *options = networkOptions(url);
     // the headers only (a few MB at most through the network)
     av_dict_set(&options, "probesize", "2000000", 0);
@@ -54,16 +53,26 @@ AVFormatContext *pplay::AvOpen::open(const std::string &url, std::string *error)
     int res = avformat_open_input(&ctx, url.c_str(), nullptr, &options);
     av_dict_free(&options);
     if (res < 0) {
+        // the context freed by avformat_open_input()
+        delete (deadline);
         *error = errorText(res);
         return nullptr;
     }
     return ctx;
 }
 
+void pplay::AvOpen::close(AVFormatContext **ctx) {
+    if (ctx == nullptr || *ctx == nullptr) {
+        return;
+    }
+    auto *deadline = (Deadline *) (*ctx)->interrupt_callback.opaque;
+    avformat_close_input(ctx);
+    delete (deadline);
+}
+
 bool pplay::AvOpen::read(const std::string &url, size_t maxSize, std::string *data, std::string *error) {
     Utility::NetworkLock lock;
-    static thread_local Deadline deadline;
-    deadline.at = Clock::now() + std::chrono::seconds(30);
+    Deadline deadline{Clock::now() + std::chrono::seconds(30)};
     AVIOInterruptCB callback = {interrupted, &deadline};
 
     AVIOContext *io = nullptr;
