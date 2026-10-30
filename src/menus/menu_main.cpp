@@ -39,6 +39,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     categories.push_back({"Interface",
                           {
                                   MenuItem("Language", "translate.png", Pos::Top),
+                                  MenuItem("Text encoding", "translate.png", Pos::Top),
                                   MenuItem("Accent color", "color.png", Pos::Top),
                                   MenuItem("Swap controls", "swap.png", Pos::Top),
                           }});
@@ -131,6 +132,17 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
         languageItems.push_back(item);
     }
     addSubmenu("Language", "Language", OPT_LANGUAGE, languageItems, Submenu::ValueType::String);
+    addSubmenu("Text encoding", "Old tags and file names", OPT_TEXT_ENCODING,
+               makeIntItems({{"Auto", 0},
+                             {"Cyrillic (1251)", 1251},
+                             {"Central European (1250)", 1250},
+                             {"Western (1252)", 1252},
+                             {"Greek (1253)", 1253},
+                             {"Turkish (1254)", 1254},
+                             {"Hebrew (1255)", 1255},
+                             {"Arabic (1256)", 1256},
+                             {"Baltic (1257)", 1257}}),
+               Submenu::ValueType::Integer);
     addTextSubmenu("Local home path", "Local home path", OPT_HOME_PATH);
 
 #ifdef __SWITCH__

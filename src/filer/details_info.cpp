@@ -2,6 +2,7 @@
 // Details panel texts.
 //
 
+#include <cctype>
 #include <ctime>
 
 #include "cross2d/c2d.h"
@@ -89,9 +90,25 @@ namespace {
         return out;
     }
 
-    // the metadata title, after the file name
-    std::string titled(const std::string &name, const MediaInfo &mi) {
-        return mi.title.empty() ? name : name + " \u00AB" + encoding::fix(mi.title) + "\u00BB";
+    // the tags, a line each (the album with its year)
+    std::string tagLines(const MediaInfo &mi) {
+        std::string year = mi.date.size() >= 4 && std::isdigit((unsigned char) mi.date[0]) ? mi.date.substr(0, 4) : "";
+        std::string out;
+        if (!mi.title.empty()) {
+            out += line("Title", encoding::fix(mi.title));
+        }
+        if (!mi.artist.empty()) {
+            out += line("Artist", encoding::fix(mi.artist));
+        }
+        if (!mi.album.empty()) {
+            out += line("Album", encoding::fix(mi.album) + (year.empty() ? "" : " (" + year + ")"));
+        } else if (!year.empty()) {
+            out += line("Year", year);
+        }
+        if (!mi.genre.empty()) {
+            out += line("Genre", encoding::fix(mi.genre));
+        }
+        return out;
     }
 
     // smb:// is opened by mpv only
@@ -141,7 +158,9 @@ pplay::DetailsInfo pplay::DetailsInfo::of(const MediaFile &file) {
         }
         text += noBreak(files) + "\n";
         if (ts.fileIndex >= 0) {
-            text += "\n" + pplay::TextWrap::flat(titled(encoding::fix(ts.fileName), file.mediaInfo)) + "\n\n";
+            text += "\n" + pplay::TextWrap::flat(encoding::fix(ts.fileName)) + "\n\n";
+            std::string tags = tagLines(file.mediaInfo);
+            text += tags.empty() ? "" : tags + "\n";
             text += mediaLines(file.mediaInfo, ts.fileSize > 0 ? (size_t) ts.fileSize : 0);
         }
     } else {
@@ -149,9 +168,8 @@ pplay::DetailsInfo pplay::DetailsInfo::of(const MediaFile &file) {
         if (file.type == c2d::Io::Type::Directory) {
             text += tr("Directory") + "\n";
         } else {
-            if (!file.mediaInfo.title.empty()) {
-                text += pplay::TextWrap::flat("\u00AB" + encoding::fix(file.mediaInfo.title) + "\u00BB") + "\n\n";
-            }
+            std::string tags = tagLines(file.mediaInfo);
+            text += tags.empty() ? "" : tags + "\n";
             text += mediaLines(file.mediaInfo, file.size);
         }
     }

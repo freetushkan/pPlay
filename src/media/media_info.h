@@ -57,8 +57,12 @@ public:
     bool known = false;
     long duration = 0;
     std::string format;
-    // the file metadata title
+    // the file tags
     std::string title;
+    std::string artist;
+    std::string album;
+    std::string date;
+    std::string genre;
     std::vector<Track> videos;
     std::vector<Track> audios;
     std::vector<Track> subtitles;

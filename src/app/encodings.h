@@ -12,6 +12,14 @@
 #include <string>
 
 namespace encoding {
+
+    // the code page of the single byte texts, 0: guessed
+    inline int g_preferred = 0;
+
+    inline void setPreferred(int codePage) {
+        g_preferred = codePage;
+    }
+
     namespace detail {
 
         inline bool isValidUtf8(const std::string &text) {
@@ -157,13 +165,21 @@ namespace encoding {
         }
 
         // words of a non Latin script: runs of bytes 0xC0+, more of them than Latin letters
-        inline bool nonLatin(const std::string &text) {
+        // (a code page chosen: short words too, a text without Latin letters)
+        inline bool nonLatin(const std::string &text, bool chosen = false) {
             size_t ascii = 0, high = 0;
             for (unsigned char c: text) {
                 ascii += ((c | 0x20) >= 'a' && (c | 0x20) <= 'z') ? 1 : 0;
                 high += c >= 0xC0 ? 1 : 0;
             }
+            if (chosen && high > 0 && (ascii == 0 || highRun(text) >= 2)) {
+                return true;
+            }
             return highRun(text) >= 3 && high * 2 >= ascii;
+        }
+
+        inline bool latinCodePage(int cp) {
+            return cp == 1250 || cp == 1252 || cp == 1254 || cp == 1257;
         }
 
         inline int detectWindowsCodePage(const std::string &text) {
@@ -186,13 +202,22 @@ namespace encoding {
                                                  {1256,
                                                   {0x0627, 0x0644, 0x064A, 0x0645, 0x0648, 0x0646, 0x0647, 0x0631,
                                                    0x062A, 0x0628, 0x0639, 0x062F, 0x0633, 0x0641, 0x0643, 0x0629}}};
+                // letters of the script (the frequent ones twice), bytes that are no
+                // letter there against it
                 int best = 1251;
-                size_t bestScore = 0;
+                long bestScore = 0;
                 for (auto &script: scripts) {
-                    size_t score = 0;
+                    long score = 0;
                     for (unsigned char c: text) {
+                        if (c < 0xC0) {
+                            continue;
+                        }
                         uint32_t u = winCpToUnicode(c, script.cp);
-                        score += std::count(script.letters, script.letters + 16, u);
+                        bool letter = script.cp == 1251   ? true
+                                      : script.cp == 1253 ? u >= 0x0386 && u <= 0x03CE
+                                      : script.cp == 1255 ? u >= 0x05D0 && u <= 0x05EA
+                                                          : u >= 0x0620 && u <= 0x06FF;
+                        score += letter ? 1 + 2 * std::count(script.letters, script.letters + 16, u) : -4;
                     }
                     if (score > bestScore) {
                         best = script.cp;
@@ -233,7 +258,16 @@ namespace encoding {
                     return ""; // above U+00FF: real Unicode
                 }
             }
-            return nonLatin(bytes) ? bytes : "";
+            if (latinCodePage(g_preferred)) {
+                // chosen: any letter of the upper half
+                for (unsigned char c: bytes) {
+                    if (c >= 0x80) {
+                        return bytes;
+                    }
+                }
+                return "";
+            }
+            return nonLatin(bytes, g_preferred != 0) ? bytes : "";
         }
     }
 
@@ -248,7 +282,7 @@ namespace encoding {
                 return input;
             }
         }
-        int cp = detail::detectWindowsCodePage(text);
+        int cp = g_preferred != 0 ? g_preferred : detail::detectWindowsCodePage(text);
         std::string result;
         result.reserve(text.size() * 2);
         for (unsigned char c: text) {

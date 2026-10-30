@@ -24,6 +24,17 @@ namespace {
         return entry != nullptr ? entry->value : "";
     }
 
+    // the file tag, else an audio stream one (ogg / opus: Vorbis comments)
+    std::string fileTag(AVFormatContext *ctx, const char *key) {
+        std::string value = tag(ctx->metadata, key);
+        for (unsigned int i = 0; value.empty() && i < ctx->nb_streams; i++) {
+            if (ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+                value = tag(ctx->streams[i]->metadata, key);
+            }
+        }
+        return value;
+    }
+
     // mpv names: "mkv", "mp4"...
     std::string formatName(const char *name) {
         std::string format = name != nullptr ? name : "";
@@ -48,7 +59,14 @@ namespace {
         info.known = true;
         info.duration = ctx->duration > 0 ? (long) (ctx->duration / AV_TIME_BASE) : 0;
         info.format = formatName(ctx->iformat != nullptr ? ctx->iformat->name : nullptr);
-        info.title = tag(ctx->metadata, "title");
+        info.title = fileTag(ctx, "title");
+        info.artist = fileTag(ctx, "artist");
+        info.album = fileTag(ctx, "album");
+        info.date = fileTag(ctx, "date");
+        if (info.date.empty()) {
+            info.date = fileTag(ctx, "year");
+        }
+        info.genre = fileTag(ctx, "genre");
         int ids[3] = {0, 0, 0};
         for (unsigned int i = 0; i < ctx->nb_streams; i++) {
             AVStream *st = ctx->streams[i];

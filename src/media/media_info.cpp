@@ -8,7 +8,7 @@
 #include "media_info.h"
 #include "utility.h"
 
-#define MEDIA_INFO_VERSION "pplay-media 3"
+#define MEDIA_INFO_VERSION "pplay-media 4"
 
 namespace {
     // tab separated fields, these escaped
@@ -63,6 +63,14 @@ MediaInfo::MediaInfo(const c2d::Io::File &file) {
             format = f[1];
         } else if (f[0] == "title" && f.size() > 1) {
             title = f[1];
+        } else if (f[0] == "artist" && f.size() > 1) {
+            artist = f[1];
+        } else if (f[0] == "album" && f.size() > 1) {
+            album = f[1];
+        } else if (f[0] == "date" && f.size() > 1) {
+            date = f[1];
+        } else if (f[0] == "genre" && f.size() > 1) {
+            genre = f[1];
         } else if (f[0] == "track" && f.size() >= 17) {
             Track t;
             t.type = f[1];
@@ -95,6 +103,10 @@ void MediaInfo::save(const c2d::Io::File &file) {
     out << "duration\t" << duration << "\n";
     out << "format\t" << escape(format) << "\n";
     out << "title\t" << escape(title) << "\n";
+    out << "artist\t" << escape(artist) << "\n";
+    out << "album\t" << escape(album) << "\n";
+    out << "date\t" << escape(date) << "\n";
+    out << "genre\t" << escape(genre) << "\n";
     for (auto *list: {&videos, &audios, &subtitles}) {
         for (auto &t: *list) {
             if (t.external) {

@@ -444,6 +444,13 @@ MediaInfo Mpv::getMediaInfo(const c2d::Io::File &file) {
     mediaInfo.duration = getDuration();
     mediaInfo.format = getString("file-format");
     mediaInfo.title = getString("metadata/by-key/title");
+    mediaInfo.artist = getString("metadata/by-key/artist");
+    mediaInfo.album = getString("metadata/by-key/album");
+    mediaInfo.date = getString("metadata/by-key/date");
+    if (mediaInfo.date.empty()) {
+        mediaInfo.date = getString("metadata/by-key/year");
+    }
+    mediaInfo.genre = getString("metadata/by-key/genre");
     return mediaInfo;
 }
 

@@ -49,6 +49,8 @@
 #define OPT_MEDIA_PROBE "MEDIA_PROBE"
 // audio files screen: 0 cover > visualizer > icon, 1 visualizer > icon, 2 icon
 #define OPT_AUDIO_VISUALIZER "AUDIO_VISUALIZER"
+// code page of the old tags / file names, 0: guessed
+#define OPT_TEXT_ENCODING "TEXT_ENCODING"
 #ifdef __SWITCH__
 #define CACHE_MB_MAX 500
 #else

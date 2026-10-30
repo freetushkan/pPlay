@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "main.h"
+#include "encodings.h"
 #include "poster_cache.h"
 #include "i18n.h"
 #include "input_map.h"
@@ -154,6 +155,11 @@ void Main::setLanguage(const std::string &code) {
 
 void Main::applyConfig() {
     pplay::Utility::setLogLevel((pplay::Utility::LogLevel) config->getOption(OPT_LOG_LEVEL)->getInteger());
+    int codePage = config->getOption(OPT_TEXT_ENCODING)->getInteger();
+    if (codePage != encoding::g_preferred) {
+        encoding::setPreferred(codePage);
+        filer->refresh();
+    }
     pplay::Utility::setAccentColor(config->getOption(OPT_ACCENT_COLOR)->getString());
     player->applyConfig();
     if (pplay::I18n::current() != c2d::Utility::toLower(config->getOption(OPT_LANGUAGE)->getString())) {
@@ -367,6 +373,7 @@ int main() {
     auto *config = new PPLAYConfig(io);
     io->setConfig(config);
     pplay::Utility::setLogLevel((pplay::Utility::LogLevel) config->getOption(OPT_LOG_LEVEL)->getInteger());
+    encoding::setPreferred(config->getOption(OPT_TEXT_ENCODING)->getInteger());
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "pPlay " APP_VERSION_FULL " starting");
 
     // bundled languages, then the user ones
