@@ -39,7 +39,22 @@ void pplay::FadeEdge::setBackground(const Color &color) {
         return;
     }
     background = color;
-    Color transparent = color;
+    apply();
+}
+
+void pplay::FadeEdge::setAlpha(uint8_t value, bool recursive) {
+    if (value != alpha) {
+        alpha = value;
+        apply();
+    }
+    if (recursive) {
+        C2DObject::setAlpha(value, recursive);
+    }
+}
+
+void pplay::FadeEdge::apply() {
+    Color transparent = background, opaque = background;
     transparent.a = 0;
-    setColor(transparent, color, Direction::Right);
+    opaque.a = (uint8_t) (background.a * alpha / 255);
+    setColor(transparent, opaque, Direction::Right);
 }

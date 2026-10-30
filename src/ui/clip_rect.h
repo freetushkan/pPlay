@@ -28,9 +28,17 @@ namespace pplay {
 
         void setBackground(const c2d::Color &color);
 
+        // the parents fade (TweenAlpha) the opaque end only, the gradient stays
+        void setAlpha(uint8_t alpha, bool recursive = false) override;
+
+        uint8_t getAlpha() override { return alpha; }
+
     private:
 
+        void apply();
+
         c2d::Color background;
+        uint8_t alpha = 255;
     };
 }
 

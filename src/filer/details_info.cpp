@@ -141,7 +141,7 @@ pplay::DetailsInfo pplay::DetailsInfo::of(const MediaFile &file) {
         }
         text += noBreak(files) + "\n";
         if (ts.fileIndex >= 0) {
-            text += "\n" + titled(encoding::fix(ts.fileName), file.mediaInfo) + "\n\n";
+            text += "\n" + pplay::TextWrap::flat(titled(encoding::fix(ts.fileName), file.mediaInfo)) + "\n\n";
             text += mediaLines(file.mediaInfo, ts.fileSize > 0 ? (size_t) ts.fileSize : 0);
         }
     } else {
@@ -150,7 +150,7 @@ pplay::DetailsInfo pplay::DetailsInfo::of(const MediaFile &file) {
             text += tr("Directory") + "\n";
         } else {
             if (!file.mediaInfo.title.empty()) {
-                text += "\u00AB" + encoding::fix(file.mediaInfo.title) + "\u00BB\n\n";
+                text += pplay::TextWrap::flat("\u00AB" + encoding::fix(file.mediaInfo.title) + "\u00BB") + "\n\n";
             }
             text += mediaLines(file.mediaInfo, file.size);
         }

@@ -17,6 +17,9 @@ namespace pplay::TextWrap {
     // spaces made non breaking for wrap(): kept on one line
     std::string noBreak(const std::string &text);
 
+    // a line wrapped without the hanging indent (a file name)
+    std::string flat(const std::string &line);
+
     // lines no wider than maxWidth: broken at spaces, long words after "." "_" "-"...
     // continuation lines indented (hanging) unless told otherwise
     std::string wrap(c2d::Font *font, unsigned int size, const std::string &text, float maxWidth, bool hanging = true);

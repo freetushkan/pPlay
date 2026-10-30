@@ -4,6 +4,9 @@
 
 #include "text_wrap.h"
 
+// a paragraph wrapped without the hanging indent
+#define FLAT '\x02'
+
 namespace {
     uint32_t nextCodepoint(const std::string &s, size_t &i) {
         auto c = (unsigned char) s[i++];
@@ -65,6 +68,10 @@ float pplay::TextWrap::width(c2d::Font *font, unsigned int size, const std::stri
     return x;
 }
 
+std::string pplay::TextWrap::flat(const std::string &line) {
+    return FLAT + line;
+}
+
 std::string pplay::TextWrap::wrap(c2d::Font *font, unsigned int size, const std::string &text, float maxWidth,
                                   bool hanging) {
     if (font == nullptr || maxWidth <= 0) {
@@ -76,6 +83,11 @@ std::string pplay::TextWrap::wrap(c2d::Font *font, unsigned int size, const std:
     while (true) {
         size_t eol = text.find('\n', pos);
         std::string paragraph = text.substr(pos, eol == std::string::npos ? std::string::npos : eol - pos);
+        bool hang = hanging;
+        if (!paragraph.empty() && paragraph[0] == FLAT) {
+            paragraph.erase(0, 1);
+            hang = false;
+        }
 
         // continuation lines: the paragraph indent and a bit more
         std::string indent;
@@ -84,8 +96,8 @@ std::string pplay::TextWrap::wrap(c2d::Font *font, unsigned int size, const std:
             indent += paragraph.substr(i, n);
             i += n;
         }
-        indent += hanging ? "\u00A0\u00A0\u00A0" : "";
-        if (!hanging) {
+        indent += hang ? "\u00A0\u00A0\u00A0" : "";
+        if (!hang) {
             indent.clear();
         }
         const float indentWidth = width(font, size, indent);
