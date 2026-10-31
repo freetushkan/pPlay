@@ -61,6 +61,9 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
     info->setPosition(textX + textWidth, FilerItem::getSize().y / 2);
     info->setFillColor(Color(140, 148, 158, 255));
     FilerItem::add(info);
+    check = new Text("", main->getFontSize(Main::FontSize::Small), main->getFont());
+    check->setOrigin(Origin::Right);
+    FilerItem::add(check);
     clip = new pplay::ClipRect({textX, 0, textWidth, FilerItem::getSize().y});
     textTitle->setPosition(0, FilerItem::getSize().y / 2);
     clip->add(textTitle);
@@ -116,6 +119,7 @@ void FilerItem::setFile(const MediaFile &f) {
     if (Filer::isPlaceholder(file)) {
         textTitle->setString(pplay::tr("<Empty>"));
         info->setString("");
+        check->setString("");
         fade->setVisibility(Visibility::Hidden);
         watchedTrack->setVisibility(Visibility::Hidden);
         setIcon("");
@@ -140,8 +144,19 @@ void FilerItem::setFile(const MediaFile &f) {
     } else if (duration > 0) {
         snprintf(text, sizeof(text), "%ld:%02ld", duration / 60, duration % 60);
     }
-    info->setString(text);
-    float width = textWidth - (duration > 0 ? info->getLocalBounds().width + 16 * main->getScaling().x : 0);
+    // a folder: "›"
+    info->setString(file.type == Io::Type::Directory && file.name != ".." ? "›" : text);
+    std::string marks;
+    if (file.type == Io::Type::File) {
+        bool local = pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path));
+        bool server = pplay::TorrServe::isFileViewed(file.path);
+        marks = local && server ? "✓✓" : local || server ? "✓" : "";
+    }
+    check->setString(marks);
+    check->setFillColor(COLOR_ACCENT);
+    float infoWidth = info->getString().empty() ? 0 : info->getLocalBounds().width + 16 * main->getScaling().x;
+    check->setPosition(textX + textWidth - infoWidth, getSize().y / 2);
+    float width = textWidth - infoWidth - (marks.empty() ? 0 : check->getLocalBounds().width + 10 * main->getScaling().x);
     if (width != clip->getSize().x) {
         clip->setSize(width, clip->getSize().y);
         fade->setPosition(textX + width - fade->getSize().x, fade->getPosition().y);

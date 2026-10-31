@@ -189,6 +189,10 @@ void StatusBar::onUpdate() {
 
     timeText->setString(oss.str());
 
+    // the player: off the edge as its panel; the filer: on its path line
+    bool player = main->getPlayer() != nullptr && main->getPlayer()->isFullscreen();
+    setPosition(0, std::round((player ? 18 : 6) * main->getScaling().y));
+
     // the chip around the drawn digits (not the font line), even paddings
     const Vector2f sc = main->getScaling();
     FloatRect text = timeText->getLocalBounds();

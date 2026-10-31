@@ -25,7 +25,7 @@ public:
 private:
 
     // the shown names: the place (device / host), then the directories
-    static std::vector<std::string> split(const std::string &path);
+    std::vector<std::string> split(const std::string &path) const;
 
     Main *main;
     std::string current;

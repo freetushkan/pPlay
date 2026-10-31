@@ -45,7 +45,7 @@ inline c2d::Color &COLOR_ACCENT = pplay::Utility::getAccentColor();
 #define COLOR_ORANGE Color(0xFA8231FF)
 #define COLOR_ORANGE_LIGHT Color(0xFFB142FF)
 #define COLOR_RED Color(0xEB4D4BFF)
-#define COLOR_VIEWED Color(0x5B6464FF)
+#define COLOR_VIEWED Color(0x9AA2A8FF)
 
 #ifdef __PS4__
 #include "ps4/ps4_compat.h"

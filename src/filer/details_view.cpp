@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 
 #include "main.h"
 #include "clip_rect.h"
@@ -15,6 +16,8 @@
 #include "details_info.h"
 #include "details_view.h"
 #include "text_wrap.h"
+#include "torrserve.h"
+#include "utility.h"
 #include "torrserve.h"
 
 using namespace c2d;
@@ -135,11 +138,30 @@ void DetailsView::setFocused(bool value) {
 
 void DetailsView::updateHints() {
     bool empty = Filer::isPlaceholder(file);
-    const char *open = file.type == Io::Type::Directory ? "Open" : "Play";
+    std::string open = file.type == Io::Type::Directory ? "Open" : "Play";
+    // a kept position: where it goes on
+    if (file.type == Io::Type::File) {
+        double position = pplay::Utility::watchLaterPosition(pplay::TorrServe::toStreamUrl(file.path));
+        if (position <= 0 && main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger() != 0) {
+            position = pplay::TorrServe::fileProgress(file.path);
+        }
+        if (position >= 10) {
+            int t = (int) position;
+            char time[32];
+            if (t >= 3600) {
+                snprintf(time, sizeof(time), "%d:%02d:%02d", t / 3600, t / 60 % 60, t % 60);
+            } else {
+                snprintf(time, sizeof(time), "%d:%02d", t / 60, t % 60);
+            }
+            open = pplay::tr("Continue from") + " " + time;
+        }
+    }
     bool resettable = isResettable(file);
 
     std::vector<KeyHints::Hint> list;
-    auto add = [&list](unsigned int keys, const char *action, Action id) { list.push_back({keys, action, (int) id}); };
+    auto add = [&list](unsigned int keys, const std::string &action, Action id) {
+        list.push_back({keys, action, (int) id});
+    };
     if (focused) {
         if (!empty) {
             add(Input::A, open, Action::Open);
@@ -207,14 +229,16 @@ void DetailsView::hidePoster() {
 void DetailsView::layout() {
     Vector2f scaling = main->getScaling();
     float margin = MARGIN * scaling.x;
-    float top = (32 + MARGIN) * scaling.y;
+    // the clock is over the panel (the path line)
+    float top = MARGIN * scaling.y;
     float width = getSize().x - margin * 2;
     float gap = margin / 2;
 
     // fixed bottom: the keys (above the minimized player), a separator
-    float limit = main->getSize().y - margin;
+    // (screen heights, the panel is under the path line)
+    float limit = main->getSize().y - margin - getPosition().y;
     if (playerShown) {
-        limit = main->getSize().y * 0.75f - 16 - gap;
+        limit = main->getSize().y * 0.75f - 16 - gap - getPosition().y;
     }
     hints->setPosition(margin, limit - hints->getHeight());
     float separatorY = hints->getPosition().y - margin * 0.6f;

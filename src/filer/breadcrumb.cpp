@@ -12,6 +12,7 @@
 #include "encodings.h"
 #include "i18n.h"
 #include "round_rect.h"
+#include "pplay_config.h"
 
 using namespace c2d;
 
@@ -45,27 +46,37 @@ namespace {
     }
 }
 
-std::vector<std::string> Breadcrumb::split(const std::string &path) {
+std::vector<std::string> Breadcrumb::split(const std::string &path) const {
+    // the root as named in the main menu: a network (its url starts the path), USB, local
     std::vector<std::string> parts;
     std::string rest = path;
-    size_t scheme = path.find("://");
-    if (scheme != std::string::npos) {
-        // the host only: no credentials, no port
-        size_t start = scheme + 3, end = path.find('/', start);
-        std::string host = path.substr(start, end == std::string::npos ? std::string::npos : end - start);
-        size_t at = host.rfind('@');
-        if (at != std::string::npos) {
-            host = host.substr(at + 1);
+    std::string root = pplay::tr("Local");
+    size_t best = 0;
+    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+        std::string url = main->getConfig()->getOption(PPLAYConfig::networkOption(i))->getString();
+        while (!url.empty() && url.back() == '/') {
+            url.pop_back();
         }
-        size_t colon = host.find(':');
-        if (colon != std::string::npos) {
-            host = host.substr(0, colon);
+        if (!url.empty() && url.size() > best && path.compare(0, url.size(), url) == 0) {
+            best = url.size();
+            std::string name = main->getConfig()->getOption(PPLAYConfig::networkNameOption(i))->getString();
+            root = name.empty() ? pplay::tr("Network") + " " + std::to_string(i) : name;
+            rest = path.substr(url.size());
         }
-        parts.push_back(host);
-        rest = end == std::string::npos ? "" : path.substr(end);
-    } else {
-        parts.push_back(pplay::tr("Local"));
     }
+    if (best == 0 && path.compare(0, 3, "ums") == 0) {
+        root = pplay::tr("Usb");
+        size_t slash = path.find('/');
+        rest = slash == std::string::npos ? "" : path.substr(slash);
+    } else if (best == 0 && path.find("://") != std::string::npos) {
+        // not a configured network: its host
+        size_t start = path.find("://") + 3, end = path.find('/', start);
+        root = path.substr(start, end == std::string::npos ? std::string::npos : end - start);
+        root = root.substr(root.rfind('@') == std::string::npos ? 0 : root.rfind('@') + 1);
+        root = root.substr(0, root.find(':'));
+        rest = end == std::string::npos ? "" : path.substr(end);
+    }
+    parts.push_back(root);
     size_t start = 0;
     while (start <= rest.size()) {
         size_t end = rest.find('/', start);
@@ -111,23 +122,27 @@ void Breadcrumb::setPath(const std::string &path) {
     for (auto &part: parts) {
         part = shorten(part);
     }
-    // the tail that fits, ".." first for the rest
+    // the root, then the tail that fits (".." between them for the rest)
     auto widthOf = [this](const std::string &text) {
         names[0]->setString(text);
         return names[0]->getLocalBounds().width;
     };
     float arrowWidth = widthOf("›") + 2 * gap;
-    std::vector<std::string> shown;
+    float available = getSize().x - widthOf(parts[0]) - arrowWidth;
+    std::vector<std::string> tail;
     float width = 0;
-    for (int i = (int) parts.size() - 1; i >= 0 && (int) shown.size() < CRUMB_MAX - 1; i--) {
-        float w = widthOf(parts[i]) + (shown.empty() ? 2 * pad : arrowWidth);
-        if (!shown.empty() && width + w + widthOf("..") + arrowWidth > getSize().x) {
-            shown.insert(shown.begin(), "..");
+    for (int i = (int) parts.size() - 1; i >= 1 && (int) tail.size() < CRUMB_MAX - 2; i--) {
+        float w = widthOf(parts[i]) + (tail.empty() ? 2 * pad : arrowWidth);
+        bool more = i > 1;
+        if (!tail.empty() && width + w + (more ? widthOf("..") + arrowWidth : 0) > available) {
+            tail.insert(tail.begin(), "..");
             break;
         }
         width += w;
-        shown.insert(shown.begin(), parts[i]);
+        tail.insert(tail.begin(), parts[i]);
     }
+    std::vector<std::string> shown = {parts[0]};
+    shown.insert(shown.end(), tail.begin(), tail.end());
 
     float x = 0;
     for (size_t i = 0; i < names.size(); i++) {

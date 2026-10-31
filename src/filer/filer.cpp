@@ -37,17 +37,19 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     listCard->setPosition(inset, crumbHeight);
     listCard->setFillColor(COLOR_SURFACE);
     Filer::add(listCard);
-    auto *detailsCard = new RoundRect({panelWidth - 2 * inset, rect.height - 2 * inset}, 14 * m->getScaling().y);
-    detailsCard->setPosition(listWidth + inset, inset);
+    // level with the list: the path and the clock over both
+    auto *detailsCard = new RoundRect({panelWidth - 2 * inset, rect.height - crumbHeight - inset},
+                                      14 * m->getScaling().y);
+    detailsCard->setPosition(listWidth + inset, crumbHeight);
     detailsCard->setFillColor(COLOR_SURFACE);
     Filer::add(detailsCard);
 
-    details = new DetailsView(main, {listWidth, 0, panelWidth, size.y});
+    details = new DetailsView(main, {listWidth, crumbHeight, panelWidth, size.y - crumbHeight});
     probe = new MediaProbe();
     Filer::add(details);
 
     // the path over the list
-    crumbs = new Breadcrumb(main, {16 * m->getScaling().x, 0, listWidth - 32 * m->getScaling().x, crumbHeight});
+    crumbs = new Breadcrumb(main, {16 * m->getScaling().x, 0, size.x - 200 * m->getScaling().x, crumbHeight});
     Filer::add(crumbs);
     size.y -= crumbHeight;
 
@@ -56,8 +58,7 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     list = new pplay::ClipRect({inset, crumbHeight, rowWidth, size.y});
     Filer::add(list);
 
-    // as wide as the rows content (their names, the progress line)
-    highlight = new Highlight({rowWidth - 16 * m->getScaling().x, (float) ITEM_HEIGHT * m->getScaling().y},
+    highlight = new Highlight({rowWidth, (float) ITEM_HEIGHT * m->getScaling().y},
                               Highlight::CursorPosition::Left);
     list->add(highlight);
 
