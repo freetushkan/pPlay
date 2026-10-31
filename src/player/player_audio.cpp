@@ -90,11 +90,13 @@ void Player::applyAudioFilter() {
             chain = "pan=stereo|" + side("FL", "BL", "SL", "FLC") + "|" + side("FR", "BR", "SR", "FRC") + ",";
         }
         if (mode == 2) {
-            // fast peaks down, then the level evened out
-            chain += "acompressor=threshold=0.063:ratio=6:attack=5:release=300:makeup=4,"
-                     "dynaudnorm=f=200:g=11:p=0.6:m=10";
+            // no rumble, loud peaks down softly, then a slow and limited leveling (a fast
+            // one with a big gain pumps the noise up and smears the speech)
+            chain += "highpass=f=70,"
+                     "acompressor=threshold=0.125:ratio=3:attack=15:release=250:knee=4:makeup=1.4,"
+                     "dynaudnorm=f=500:g=31:p=0.5:m=3";
         } else {
-            chain += "dynaudnorm=f=250:g=15:p=0.9:m=8";
+            chain += "dynaudnorm=f=500:g=31:p=0.7:m=4";
         }
     }
 

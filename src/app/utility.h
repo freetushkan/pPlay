@@ -90,6 +90,8 @@ namespace pplay {
 
         static bool isWatchLaterExist(const std::string &video_path);
 
+        static void fixWatchLater(const std::string &video_path);
+
         static bool deleteWatchLater(const std::string &video_path);
 
 #if defined(__PS4__) || defined(__PS5__) || defined(__LINUX__)

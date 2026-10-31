@@ -77,6 +77,7 @@ std::string Mpv::setSpeed(double speed) {
     std::string cmd = "no-osd set speed " + std::to_string(speed);
     mpv_command_string(handle, cmd.c_str());
     double currentSpeed = getSpeed();
+    lastSpeed = currentSpeed;
     return "Speed: " + std::to_string((int) (currentSpeed * 100.0)) + "%";
 }
 
@@ -86,18 +87,10 @@ double Mpv::getSpeed() {
     return res;
 }
 
-void Mpv::saveSpeed() {
-    double currentSpeed = 1.0;
-    mpv_get_property(handle, "speed", MPV_FORMAT_DOUBLE, &currentSpeed);
-    lastSpeed = currentSpeed;
-}
-
 int Mpv::restoreSpeed() {
-    if (lastSpeed > 1.0) {
-        std::string cmd = "no-osd set speed " + std::to_string(lastSpeed);
-        return mpv_command_string(handle, cmd.c_str());
-    }
-    return 0;
+    // 1 until set (an old watch later file may hold another one)
+    std::string cmd = "no-osd set speed " + std::to_string(lastSpeed > 0.0 ? lastSpeed : 1.0);
+    return mpv_command_string(handle, cmd.c_str());
 }
 
 int Mpv::setVid(int id) {
@@ -107,10 +100,15 @@ int Mpv::setVid(int id) {
 }
 
 int Mpv::setAid(int id) {
-    if (hasVisualizer()) {
+    if (hasVisualizer() && id > 0) {
         visualAid = id;
         applyVisualizer();
         return 0;
+    }
+    if (hasVisualizer()) {
+        // no audio: nothing to show
+        visualGraph.clear();
+        mpv_set_property_string(handle, "lavfi-complex", "");
     }
     std::string cmd = "no-osd set aid ";
     cmd += id < 0 ? "no" : std::to_string(id);
@@ -454,34 +452,27 @@ MediaInfo Mpv::getMediaInfo(const c2d::Io::File &file) {
     return mediaInfo;
 }
 
-void Mpv::setVisualizer(const std::string &graph) {
-    if (graph == visualGraph) {
-        return;
-    }
+void Mpv::setVisualizer(const std::string &graph, int aid) {
     if (graph.empty()) {
-        // the track back to the normal output
-        visualGraph.clear();
-        mpv_set_property_string(handle, "lavfi-complex", "");
-        setAid(visualAid);
+        if (!visualGraph.empty()) {
+            visualGraph.clear();
+            mpv_set_property_string(handle, "lavfi-complex", "");
+            // the track back to the normal output, never "no"
+            mpv_set_property_string(handle, "aid", aid > 0 ? std::to_string(aid).c_str() : "auto");
+        }
         return;
     }
-    if (visualGraph.empty()) {
-        visualAid = getAid();
+    if (graph == visualGraph && aid == visualAid) {
+        return;
     }
     visualGraph = graph;
+    visualAid = aid;
     applyVisualizer();
 }
 
 void Mpv::applyVisualizer() {
-    std::string complex;
-    if (visualAid > 0) {
-        std::string track = "[aid" + std::to_string(visualAid) + "]";
-        complex = track + "asplit[ao][visual];[visual]" + visualGraph + "[vo]";
-    }
+    std::string complex = "[aid" + std::to_string(visualAid) + "]asplit[ao][visual];[visual]" + visualGraph + "[vo]";
     int res = mpv_set_property_string(handle, "lavfi-complex", complex.c_str());
-    if (visualAid <= 0) {
-        mpv_set_property_string(handle, "aid", "no");
-    }
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "Mpv::applyVisualizer: aid=" + std::to_string(visualAid)
                                                                 + (res < 0 ? std::string(": ") + mpv_error_string(res) : ""));
 }

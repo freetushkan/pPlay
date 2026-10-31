@@ -207,7 +207,12 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     externalSelect[0].clear();
     externalSelect[1].clear();
     hadWatchLater = pplay::Utility::isWatchLaterExist(path);
+    if (hadWatchLater) {
+        pplay::Utility::fixWatchLater(path);
+    }
     clearAudioScreen();
+    // the previous file track may not exist here ("no" would fail an audio file)
+    mpv_set_property_string(mpv->getHandle(), "aid", "auto");
 
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Player::load effective_url=" + path + " options=" + opts);
     int res = mpv->load(path, Mpv::LoadType::Replace, opts);
@@ -219,8 +224,10 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
         return false;
     }
 
-    osd->setVisibility(c2d::Visibility::Visible);
-    main->getStatusBar()->setVisibility(Visibility::Visible, true);
+    if (!isMenuVisible()) {
+        osd->setVisibility(c2d::Visibility::Visible);
+        main->getStatusBar()->setVisibility(Visibility::Visible, true);
+    }
 
     return true;
 }
@@ -240,7 +247,6 @@ void Player::onLoadEvent() {
     mpv->restoreVolume();
     mpv->restoreSpeed();
     mpv->saveVolume();
-    mpv->saveSpeed();
     resume();
 
     // the tracks chosen for the previous file: mpv drops them when the tracks differ,

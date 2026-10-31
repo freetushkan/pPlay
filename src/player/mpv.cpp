@@ -58,9 +58,6 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     mpv_set_option_string(handle, "cache-pause", "yes");
     mpv_set_option_string(handle, "cache-secs", "60");
     mpv_set_option_string(handle, "stream-lavf-o", "reconnect_on_network_error=1");
-    // pPlay sets these itself (normalization filter, remembered volume): not per file
-    mpv_set_option_string(handle, "watch-later-options-remove", "af");
-    mpv_set_option_string(handle, "watch-later-options-remove", "volume");
 
 #if defined(__PS4__) || defined(__PS5__)
     mpv_set_option_string(handle, "dither", "no");
@@ -120,6 +117,12 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
         mpv_terminate_destroy(handle);
         handle = nullptr;
         return;
+    }
+
+    // pPlay sets these itself (audio filter, volume, speed): not per file
+    for (const char *name: {"af", "volume", "speed"}) {
+        const char *cmd[] = {"change-list", "watch-later-options", "remove", name, nullptr};
+        mpv_command(handle, cmd);
     }
 
     char *mpvVersion = mpv_get_property_string(handle, "mpv-version");

@@ -92,6 +92,9 @@ public:
 
     PlayerOSD *getOSD();
 
+    // the player menu or one of its submenus
+    bool isMenuVisible() const;
+
     Mpv *getMpv();
 
     MenuVideoSubmenu *getMenuVideoStreams();
@@ -160,8 +163,6 @@ private:
     void buildTrackMenus();
 
     std::vector<MenuVideoSubmenu *> menus() const;
-
-    bool isMenuVisible() const;
 
     void hideMenus();
 

@@ -44,13 +44,18 @@ void Player::onMpvEvent(mpv_event *event) {
             pplay::History::touch(playingKey);
             // "Loading file..." kept until the playback starts (resume position may be long)
             break;
-        case MPV_EVENT_END_FILE:
-            pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Player::onUpdate::event MPV_EVENT_END_FILE");
+        case MPV_EVENT_END_FILE: {
+            auto *end = (mpv_event_end_file *) event->data;
+            bool failed = end->reason == MPV_END_FILE_REASON_ERROR;
+            pplay::Utility::log(failed ? pplay::Utility::LogLevel::Error : pplay::Utility::LogLevel::Debug,
+                                std::string("Player::onUpdate::event MPV_EVENT_END_FILE")
+                                        + (failed ? std::string(": ") + mpv_error_string(end->error) : ""));
             playingKey.clear();
             clearAudioScreen();
-            onStopEvent(((mpv_event_end_file *) event->data)->reason);
+            onStopEvent(end->reason);
             main->getFiler()->refresh();
             break;
+        }
         case MPV_EVENT_AUDIO_RECONFIG:
             applyAudioFilter();
             break;
@@ -205,7 +210,8 @@ bool Player::scheduleReload(const std::string &reason, bool counted) {
         retryCount++;
     }
     reloadPending = true;
-    reloadDelayMs = counted ? std::min(2000 * retryCount, 10000) : 500;
+    // a sleeping source (TorrServer torrent) takes a while to wake up
+    reloadDelayMs = counted ? std::min(5000 * retryCount, 30000) : 500;
     reloadPosition = lastTime;
     reloadPaused = userPaused;
     reloadClock.restart();

@@ -20,7 +20,8 @@ std::string Player::visualizerGraph() const {
     char accent[160];
     snprintf(accent, sizeof(accent), "lutrgb=r='val*%d/255':g='val*%d/255':b='val*%d/255'", COLOR_ACCENT.r,
              COLOR_ACCENT.g, COLOR_ACCENT.b);
-    return "aformat=channel_layouts=mono,"
+    // no DC / rumble: the first band would stay up
+    return "aformat=channel_layouts=mono,highpass=f=40,"
            "showfreqs=s=32x40:mode=bar:ascale=log:fscale=log:win_size=2048:overlap=0.5:averaging=2:colors=white,"
            "crop=32:24:0:0,format=gray,split[bands][held];"
            "[held]lagfun=decay=0.95,lut=y='if(gt(val,40),255,0)',split[peaks][below];"
@@ -39,7 +40,7 @@ void Player::clearAudioScreen() {
     }
     audioScreen = AudioScreen::None;
     appliedVisualizer.clear();
-    mpv->setVisualizer("");
+    mpv->setVisualizer("", mpv->getAid());
     mpv->setFrameLayout(0, 0, 0, 0);
 }
 
@@ -76,11 +77,13 @@ void Player::updateAudioScreen() {
     }
     // cover > visualizer > icon, each one if possible and wanted
     int mode = main->getConfig()->getOption(OPT_AUDIO_VISUALIZER)->getInteger();
+    // the playing track (the "aid" option may still be "auto")
+    int aid = mpv->hasVisualizer() ? mpv->getAid() : (int) mpv->getInt("current-tracks/audio/id", -1);
     AudioScreen screen = AudioScreen::None;
     if (!moving) {
         if (mode == 0 && !pictureUrls.empty() && !picturesFailed) {
             screen = AudioScreen::Picture;
-        } else if (mode <= 1 && !file.mediaInfo.audios.empty()) {
+        } else if (mode <= 1 && aid > 0) {
             screen = AudioScreen::Visualizer;
         } else {
             screen = AudioScreen::Note;
@@ -104,7 +107,7 @@ void Player::updateAudioScreen() {
     }
     audioScreen = screen;
     appliedVisualizer = graph;
-    mpv->setVisualizer(graph);
+    mpv->setVisualizer(graph, aid);
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::updateAudioScreen: " + std::to_string((int) screen));
 }
 

@@ -165,6 +165,10 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
 
     Player *player = main->getPlayer();
     Mpv *mpv = player->getMpv();
+    // the menus over it get the keys
+    if (player->isMenuVisible()) {
+        return false;
+    }
 
     auto hideOSD = [&]() {
         setVisibility(Visibility::Hidden, true);

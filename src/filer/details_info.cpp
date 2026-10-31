@@ -90,23 +90,39 @@ namespace {
         return out;
     }
 
-    // the tags, a line each (the album with its year)
+    // a tag as shown, "" for an empty one (spaces, control characters)
+    std::string tagText(const std::string &value) {
+        std::string text = encoding::fix(value);
+        size_t start = 0, end = text.size();
+        while (start < end && (unsigned char) text[start] <= ' ') {
+            start++;
+        }
+        while (end > start && (unsigned char) text[end - 1] <= ' ') {
+            end--;
+        }
+        return text.substr(start, end - start);
+    }
+
+    // the tags, a line each (the album with its year), "" without any
     std::string tagLines(const MediaInfo &mi) {
-        std::string year = mi.date.size() >= 4 && std::isdigit((unsigned char) mi.date[0]) ? mi.date.substr(0, 4) : "";
+        std::string date = tagText(mi.date);
+        std::string year = date.size() >= 4 && std::isdigit((unsigned char) date[0]) ? date.substr(0, 4) : "";
+        std::string title = tagText(mi.title), artist = tagText(mi.artist), album = tagText(mi.album);
+        std::string genre = tagText(mi.genre);
         std::string out;
-        if (!mi.title.empty()) {
-            out += line("Title", encoding::fix(mi.title));
+        if (!title.empty()) {
+            out += line("Title", title);
         }
-        if (!mi.artist.empty()) {
-            out += line("Artist", encoding::fix(mi.artist));
+        if (!artist.empty()) {
+            out += line("Artist", artist);
         }
-        if (!mi.album.empty()) {
-            out += line("Album", encoding::fix(mi.album) + (year.empty() ? "" : " (" + year + ")"));
+        if (!album.empty()) {
+            out += line("Album", album + (year.empty() ? "" : " (" + year + ")"));
         } else if (!year.empty()) {
             out += line("Year", year);
         }
-        if (!mi.genre.empty()) {
-            out += line("Genre", encoding::fix(mi.genre));
+        if (!genre.empty()) {
+            out += line("Genre", genre);
         }
         return out;
     }

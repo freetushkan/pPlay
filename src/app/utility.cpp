@@ -363,6 +363,30 @@ bool Utility::isWatchLaterExist(const std::string &video_path) {
     return fileExists(path);
 }
 
+void Utility::fixWatchLater(const std::string &video_path) {
+    // "aid=no": saved while the visualizer had the track, the file then fails to load
+    std::string path = getWatchLater(video_path);
+    std::ifstream in(path);
+    if (!in.is_open()) {
+        return;
+    }
+    std::string text, line;
+    bool changed = false;
+    while (std::getline(in, line)) {
+        if (line == "aid=no" || line.rfind("lavfi-complex=", 0) == 0) {
+            changed = true;
+            continue;
+        }
+        text += line + "\n";
+    }
+    in.close();
+    if (changed) {
+        std::ofstream out(path, std::ios::trunc);
+        out << text;
+        log(LogLevel::Info, "Utility::fixWatchLater: " + path);
+    }
+}
+
 bool Utility::deleteWatchLater(const std::string &video_path) {
     std::string path = getWatchLater(video_path);
     if (fileExists(path)) {

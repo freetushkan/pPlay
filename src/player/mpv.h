@@ -65,8 +65,7 @@ public:
 
     double getSpeed();
 
-    void saveSpeed();
-
+    // the last speed set, kept for the next files
     int restoreSpeed();
 
     int setVid(int id);
@@ -112,8 +111,8 @@ public:
     bool hasMovingVideo();
 
     // audio visualizer: a lavfi graph from the audio track to the video output (the
-    // audio track then set here, not with aid), "" for none
-    void setVisualizer(const std::string &graph);
+    // track then changed with setAid()); "" for none, aid then the track to keep
+    void setVisualizer(const std::string &graph, int aid);
 
     bool hasVisualizer() const { return !visualGraph.empty(); }
 
