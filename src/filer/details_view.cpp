@@ -141,10 +141,7 @@ void DetailsView::updateHints() {
     std::string open = file.type == Io::Type::Directory ? "Open" : "Play";
     // a kept position: where it goes on
     if (file.type == Io::Type::File) {
-        double position = pplay::Utility::watchLaterPosition(pplay::TorrServe::toStreamUrl(file.path));
-        if (position <= 0 && main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger() != 0) {
-            position = pplay::TorrServe::fileProgress(file.path);
-        }
+        double position = pplay::TorrServe::keptPosition(file.path, main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger());
         if (position >= 10) {
             int t = (int) position;
             char time[32];

@@ -234,6 +234,8 @@ Filipino = Filipino
 # keys hints, keyboard text box, text editor (Linux)
 Select = Select
 Open = Open
+Local first = Local first
+TorrServer first = TorrServer first
 Continue from = Continue from
 Play = Play
 Back = Back

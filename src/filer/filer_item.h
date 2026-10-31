@@ -41,6 +41,7 @@ private:
     c2d::Text *info;
     // watched: ✓ here (watch later) or on TorrServer, ✓✓ both
     c2d::Text *check;
+    c2d::Text *check2;
     float textX = 0, textWidth = 0;
     c2d::Sprite *icon;
     c2d::Rectangle *clip;

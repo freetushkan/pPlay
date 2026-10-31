@@ -492,6 +492,18 @@ namespace pplay::TorrServe {
         g_progressWorker = new pplay::Worker(progressThread, nullptr);
     }
 
+    double keptPosition(const std::string &path, int mode) {
+        double local = pplay::Utility::watchLaterPosition(toStreamUrl(path));
+        if (mode == 0) {
+            return local;
+        }
+        double server = fileProgress(path);
+        if (mode == 2) {
+            return server > 0 ? server : local;
+        }
+        return local > 0 ? local : server;
+    }
+
     bool remFileViewed(const std::string &path) {
         std::string hash;
         int index;

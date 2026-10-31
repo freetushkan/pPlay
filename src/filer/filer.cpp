@@ -49,7 +49,7 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     Filer::add(details);
 
     // the path over the list
-    crumbs = new Breadcrumb(main, {16 * m->getScaling().x, 0, size.x - 200 * m->getScaling().x, crumbHeight});
+    crumbs = new Breadcrumb(main, {16 * m->getScaling().x, 0, size.x - 150 * m->getScaling().x, crumbHeight});
     Filer::add(crumbs);
     size.y -= crumbHeight;
 

@@ -214,8 +214,9 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     if (hadWatchLater && !moving) {
         pplay::Utility::fixWatchLater(path);
     }
-    // no local position: the one TorrServer keeps, if any
-    if (!hadWatchLater && opts.find("start=") == std::string::npos && syncsProgress()) {
+    // the TorrServer position: first (its setting), or without a local one
+    bool serverFirst = main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger() == 2;
+    if ((!hadWatchLater || serverFirst) && opts.find("start=") == std::string::npos && syncsProgress()) {
         double position = pplay::TorrServe::fileProgress(file.path);
         long duration = file.mediaInfo.duration;
         if (position > 10 && (duration <= 0 || position < (double) duration - 30)) {

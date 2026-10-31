@@ -233,6 +233,8 @@ Filipino = Филиппинский
 # keys hints, keyboard text box, text editor (Linux)
 Select = Выбор
 Open = Открыть
+Local first = Сначала локальная
+TorrServer first = Сначала TorrServer
 Continue from = Продолжить с
 Play = Воспроизвести
 Back = Назад

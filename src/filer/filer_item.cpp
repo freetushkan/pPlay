@@ -64,6 +64,10 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
     FilerItem::add(info);
     check = new Text("", main->getFontSize(Main::FontSize::Small), main->getFont());
     check->setOrigin(Origin::Right);
+    // both kept: a second mark overlapping, as in the messengers
+    check2 = new Text("✓", main->getFontSize(Main::FontSize::Small), main->getFont());
+    check2->setOrigin(Origin::Right);
+    FilerItem::add(check2);
     FilerItem::add(check);
     clip = new pplay::ClipRect({textX, 0, textWidth, FilerItem::getSize().y});
     textTitle->setPosition(0, FilerItem::getSize().y / 2);
@@ -71,7 +75,9 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
     FilerItem::add(clip);
 
     float line = std::max(2.0f, std::round(3 * main->getScaling().y));
-    watchedTrack = new RectangleShape({textX, FilerItem::getSize().y - line - 2 * main->getScaling().y, textWidth, line});
+    // right under the name, as long as the row up to the time
+    float lineY = std::round(FilerItem::getSize().y / 2 + (float) textTitle->getCharacterSize() * 0.55f);
+    watchedTrack = new RectangleShape({textX, lineY, textWidth, line});
     watchedTrack->setFillColor(Color(255, 255, 255, 30));
     watchedTrack->setVisibility(Visibility::Hidden);
     FilerItem::add(watchedTrack);
@@ -116,6 +122,7 @@ void FilerItem::setFile(const MediaFile &f) {
         textTitle->setString(pplay::tr("<Empty>"));
         info->setString("");
         check->setString("");
+        check2->setVisibility(Visibility::Hidden);
         watchedTrack->setVisibility(Visibility::Hidden);
         setIcon("");
         setColor(COLOR_GRAY);
@@ -142,16 +149,23 @@ void FilerItem::setFile(const MediaFile &f) {
     // a folder: "›"
     info->setString(file.type == Io::Type::Directory && file.name != ".." ? "›" : text);
     std::string marks;
+    bool both = false;
     if (file.type == Io::Type::File) {
         bool local = pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path));
         bool server = pplay::TorrServe::isFileViewed(file.path);
-        marks = local && server ? "✓✓" : local || server ? "✓" : "";
+        marks = local || server ? "✓" : "";
+        both = local && server;
     }
     check->setString(marks);
     check->setFillColor(COLOR_ACCENT);
     float infoWidth = info->getString().empty() ? 0 : info->getLocalBounds().width + 16 * main->getScaling().x;
     check->setPosition(textX + textWidth - infoWidth, getSize().y / 2);
-    float width = textWidth - infoWidth - (marks.empty() ? 0 : check->getLocalBounds().width + 10 * main->getScaling().x);
+    float shift = std::round(check->getLocalBounds().width * 0.45f);
+    check2->setVisibility(both ? Visibility::Visible : Visibility::Hidden);
+    check2->setFillColor(COLOR_ACCENT);
+    check2->setPosition(check->getPosition().x - shift, getSize().y / 2);
+    float width = textWidth - infoWidth
+                  - (marks.empty() ? 0 : check->getLocalBounds().width + (both ? shift : 0) + 10 * main->getScaling().x);
     if (width != clip->getSize().x) {
         clip->setSize(width, clip->getSize().y);
     }
@@ -165,10 +179,7 @@ void FilerItem::setFile(const MediaFile &f) {
 void FilerItem::updateWatched() {
     float part = 0;
     if (file.type == Io::Type::File && file.mediaInfo.duration > 0) {
-        double position = pplay::Utility::watchLaterPosition(pplay::TorrServe::toStreamUrl(file.path));
-        if (position <= 0 && main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger() != 0) {
-            position = pplay::TorrServe::fileProgress(file.path);
-        }
+        double position = pplay::TorrServe::keptPosition(file.path, main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger());
         part = (float) std::min(1.0, position / (double) file.mediaInfo.duration);
     }
     if (part < 0.01f) {

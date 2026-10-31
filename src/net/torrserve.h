@@ -36,6 +36,8 @@ namespace pplay::TorrServe {
     // sent in a thread
     void setFileProgress(const std::string &path, double seconds);
     bool remFileViewed(const std::string &path);
+    // the kept position: mode 0 local only, 1 local first, 2 TorrServer first
+    double keptPosition(const std::string &path, int mode);
 }
 
 #endif // PPLAY_TORRSERVE_H

@@ -12,12 +12,12 @@
 #include "encodings.h"
 #include "i18n.h"
 #include "round_rect.h"
+#include "text_wrap.h"
 #include "pplay_config.h"
 
 using namespace c2d;
 
 #define CRUMB_MAX 10
-#define CRUMB_CHARS 24
 
 namespace {
     std::string decode(const std::string &text) {
@@ -32,17 +32,6 @@ namespace {
             }
         }
         return out;
-    }
-
-    // utf-8 aware cut: a name longer than CRUMB_CHARS ends with ".."
-    std::string shorten(const std::string &text) {
-        size_t chars = 0, i = 0;
-        for (; i < text.size(); i++) {
-            if (((unsigned char) text[i] & 0xC0) != 0x80 && ++chars > CRUMB_CHARS) {
-                return text.substr(0, i) + "..";
-            }
-        }
-        return text;
     }
 }
 
@@ -118,31 +107,57 @@ void Breadcrumb::setPath(const std::string &path) {
     const float sc = main->getScaling().y;
     const float pad = 10 * sc, gap = 6 * sc, y = getSize().y / 2;
 
-    std::vector<std::string> parts = split(path);
-    for (auto &part: parts) {
-        part = shorten(part);
-    }
-    // the root, then the tail that fits (".." between them for the rest)
-    auto widthOf = [this](const std::string &text) {
-        names[0]->setString(text);
-        return names[0]->getLocalBounds().width;
-    };
+    // the whole path when it fits; else the middle names shortened first, then gone
+    // (".." for them), the current one and the root last
+    std::vector<std::string> shown = split(path);
+    Font *font = main->getFont();
+    unsigned int fontSize = names[0]->getCharacterSize();
+    auto widthOf = [&](const std::string &text) { return pplay::TextWrap::width(font, fontSize, text); };
     float arrowWidth = widthOf("›") + 2 * gap;
-    float available = getSize().x - widthOf(parts[0]) - arrowWidth;
-    std::vector<std::string> tail;
-    float width = 0;
-    for (int i = (int) parts.size() - 1; i >= 1 && (int) tail.size() < CRUMB_MAX - 2; i--) {
-        float w = widthOf(parts[i]) + (tail.empty() ? 2 * pad : arrowWidth);
-        bool more = i > 1;
-        if (!tail.empty() && width + w + (more ? widthOf("..") + arrowWidth : 0) > available) {
-            tail.insert(tail.begin(), "..");
+    auto total = [&]() {
+        float w = 2 * pad;
+        for (auto &part: shown) {
+            w += widthOf(part) + arrowWidth;
+        }
+        return w;
+    };
+    const float minWidth = widthOf("abcdef…");
+    float available = getSize().x;
+    while (total() > available) {
+        // the widest middle name, a bit shorter
+        int widest = -1;
+        for (int i = 1; i + 1 < (int) shown.size(); i++) {
+            if (shown[i] != ".." && widthOf(shown[i]) > minWidth
+                && (widest < 0 || widthOf(shown[i]) > widthOf(shown[widest]))) {
+                widest = i;
+            }
+        }
+        if (widest > 0) {
+            shown[widest] = pplay::TextWrap::ellipsize(font, fontSize, shown[widest],
+                                                       std::max(minWidth, widthOf(shown[widest]) * 0.8f));
+            continue;
+        }
+        // the middle names gone, from the root side
+        if (shown.size() > 3 || (shown.size() == 3 && shown[1] != "..")) {
+            shown.erase(shown.begin() + 1);
+            if (shown[1] != "..") {
+                shown.insert(shown.begin() + 1, "..");
+            }
+            continue;
+        }
+        // the current one, then the root
+        float over = total() - available;
+        std::string &cut = widthOf(shown.back()) > minWidth ? shown.back() : shown.front();
+        std::string shorter = pplay::TextWrap::ellipsize(font, fontSize, cut, std::max(minWidth, widthOf(cut) - over));
+        if (shorter == cut) {
             break;
         }
-        width += w;
-        tail.insert(tail.begin(), parts[i]);
+        cut = shorter;
     }
-    std::vector<std::string> shown = {parts[0]};
-    shown.insert(shown.end(), tail.begin(), tail.end());
+    if ((int) shown.size() > CRUMB_MAX) {
+        shown.erase(shown.begin() + 1, shown.end() - (CRUMB_MAX - 1));
+        shown[1] = "..";
+    }
 
     float x = 0;
     for (size_t i = 0; i < names.size(); i++) {
