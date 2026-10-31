@@ -352,16 +352,9 @@ void MenuMain::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
 }
 
 bool MenuMain::onInput(c2d::Input::Player *players) {
-    if (players[0].buttons & Input::Right || players[0].buttons & Input::B) {
+    // the arrows change values only (none here): A opens, B goes back
+    if (players[0].buttons & Input::B) {
         setVisibility(Visibility::Hidden, true);
-        return true;
-    }
-
-    if (players[0].buttons & Input::Left) {
-        MenuItem *item = getSelection();
-        if (item->name == "Settings") {
-            onOptionSelection(item);
-        }
         return true;
     }
 

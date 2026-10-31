@@ -106,7 +106,9 @@ void Main::createMenus() {
     }
     items.emplace_back("Settings", "options.png", MenuItem::Position::Top);
     items.emplace_back("Exit", "exit.png", MenuItem::Position::Bottom);
-    menu_main = new MenuMain(this, {-300 * scaling.x, 0, 300 * scaling.x, Main::getSize().y}, items);
+    // the menus float off the screen edges, the same on both sides
+    const float inset = 28 * scaling.y;
+    menu_main = new MenuMain(this, {-300 * scaling.x, inset, 300 * scaling.x, Main::getSize().y - 2 * inset}, items);
     menu_main->setVisibility(Visibility::Hidden, false);
     menu_main->setLayer(3);
     Main::add(menu_main);
@@ -123,7 +125,6 @@ void Main::createMenus() {
     items.emplace_back("Brightness", "brightness.png", MenuItem::Position::Top);
     items.emplace_back("Information", "info.png", MenuItem::Position::Top);
     items.emplace_back("Stop", "stop.png", MenuItem::Position::Bottom);
-    float inset = 16 * scaling.y;
     menu_video = new MenuVideo(this, {Main::getSize().x, inset, 420 * scaling.x, Main::getSize().y - 2 * inset},
                                items);
     menu_video->setVisibility(Visibility::Hidden, false);

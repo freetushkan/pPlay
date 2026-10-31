@@ -55,7 +55,8 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title, const
     setItems(items);
 
     if (left) {
-        Menu::add(new TweenPosition({-rect.width, 0}, {0, 0}, 0.2f));
+        // as far from the left edge as from the top
+        Menu::add(new TweenPosition({-rect.width - rect.top, rect.top}, {rect.top, rect.top}, 0.2f));
     } else {
         // as far from the right edge as from the top
         Menu::add(new TweenPosition({main->getSize().x, rect.top},

@@ -361,15 +361,10 @@ bool MenuMainOptionsSubmenu::onInput(c2d::Input::Player *players) {
     // a group: left / right change the values of its options (back: B)
     if ((keys & (Input::Left | Input::Right)) && !hasOption() && !buttons.empty()) {
         MenuItem *item = getSelection();
-        if (onOptionChange(item, (keys & Input::Right) ? 1 : -1)) {
-            return true;
-        }
-        if (keys & Input::Left) {
-            onOptionSelection(item);
-            return true;
-        }
+        onOptionChange(item, (keys & Input::Right) ? 1 : -1);
+        return true;
     }
-    if (keys & Input::Right || keys & Input::B) {
+    if (keys & Input::B) {
         setVisibility(Visibility::Hidden, true);
         main->getMenuMain()->showParent(key);
         return true;

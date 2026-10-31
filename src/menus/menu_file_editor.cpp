@@ -300,7 +300,7 @@ void MenuFileEditor::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
 }
 
 bool MenuFileEditor::onInput(c2d::Input::Player *players) {
-    if (players[0].buttons & Input::Right || players[0].buttons & Input::B) {
+    if (players[0].buttons & Input::B) {
         if (!currentFile.empty()) {
             showFiles();
             Menu::setVisibility(Visibility::Visible, false);

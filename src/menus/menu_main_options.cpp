@@ -25,14 +25,9 @@ void MenuMainOptions::onOptionSelection(MenuItem *item) {
 }
 
 bool MenuMainOptions::onInput(c2d::Input::Player *players) {
-    if (players[0].buttons & Input::Right || players[0].buttons & Input::B) {
+    if (players[0].buttons & Input::B) {
         setVisibility(Visibility::Hidden, true);
         main->getMenuMain()->setVisibility(Visibility::Visible, true);
-        return true;
-    }
-
-    if (players[0].buttons & Input::Left) {
-        onOptionSelection(getSelection());
         return true;
     }
 

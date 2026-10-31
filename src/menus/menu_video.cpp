@@ -213,11 +213,5 @@ bool MenuVideo::onInput(c2d::Input::Player *players) {
         setVisibility(Visibility::Hidden, true);
         return true;
     }
-    // right on a list item: its submenu (left / right change the values otherwise)
-    MenuItem *item = getSelection();
-    if ((keys & Input::Right) && item->opens) {
-        onOptionSelection(item);
-        return true;
-    }
     return Menu::onInput(players);
 }
