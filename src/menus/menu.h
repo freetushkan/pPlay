@@ -9,6 +9,8 @@
 #include "highlight.h"
 #include "menu_button.h"
 
+class RoundRect;
+
 class Main;
 
 class Menu : public c2d::RectangleShape {
@@ -86,6 +88,12 @@ protected:
     std::vector<MenuButton *> buttons;
     Highlight *highlight;
     Highlight *current;
+    RoundRect *card;
+    c2d::TweenPosition *slide = nullptr;
+    float inset = 0;
+    bool leftSide = false;
+
+    void fit();
     float scrollOffset = 0.0f;
     int index = 0;
 

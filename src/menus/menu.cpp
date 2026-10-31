@@ -23,7 +23,7 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title, const
     : RectangleShape(rect), main(m) {
     // a rounded card, no border
     Menu::setFillColor(Color::Transparent);
-    auto *card = new RoundRect(Menu::getSize(), 16 * main->getScaling().y);
+    card = new RoundRect(Menu::getSize(), 16 * main->getScaling().y);
     card->setFillColor({COLOR_BG.r, COLOR_BG.g, COLOR_BG.b, 245});
     card->setLayer(-2);
     Menu::add(card);
@@ -54,14 +54,18 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title, const
 
     setItems(items);
 
+    // the height made to the items (fit()), the screen at most
+    inset = rect.top;
+    leftSide = left;
     if (left) {
         // as far from the left edge as from the top
-        Menu::add(new TweenPosition({-rect.width - rect.top, rect.top}, {rect.top, rect.top}, 0.2f));
+        Menu::add(slide = new TweenPosition({-rect.width - rect.top, rect.top}, {rect.top, rect.top}, 0.2f));
     } else {
         // as far from the right edge as from the top
-        Menu::add(new TweenPosition({main->getSize().x, rect.top},
+        Menu::add(slide = new TweenPosition({main->getSize().x, rect.top},
                                     {main->getSize().x - Menu::getSize().x - rect.top, rect.top}, 0.2f));
     }
+    fit();
 }
 
 Menu::~Menu() {
@@ -77,14 +81,15 @@ float Menu::menuTop() const {
     // under the title; when they fit, the items and the bottom ones (exit / stop, a row
     // apart) centered in the space left
     float top = title->getPosition().y + std::max((float) title->getCharacterSize(), title->getLocalBounds().height)
-                + 32.0f * main->getScaling().y;
+                + 56.0f * main->getScaling().y;
     int bottomItems = 0, topItems = 0;
     for (auto *button: buttons) {
         bottomItems += button->item.position == MenuItem::Position::Bottom;
         topItems += button->item.enabled && button->item.position == MenuItem::Position::Top;
     }
     float area = getLocalBounds().height - 32.0f * main->getScaling().y - top;
-    float used = (float) (topItems + (bottomItems > 0 ? bottomItems + 1 : 0)) * itemHeight();
+    // from the first item center to the last one bottom
+    float used = ((float) (topItems + bottomItems - 1) + (bottomItems > 0 ? 0.5f : 0)) * itemHeight() + itemHeight() / 2;
     return used <= area ? std::round(top + (area - used) / 2) : top;
 }
 
@@ -258,13 +263,14 @@ void Menu::updateScroll() {
         topIndex++;
     }
 
-    // the bottom ones: a row under the list when it fits, else at the bottom
+    // the bottom ones: half a row under the list when it fits, else at the bottom
     int bottomCount = 0;
     for (auto &button: buttons) {
         bottomCount += button->item.position == MenuItem::Position::Bottom;
     }
-    bool fits = top + (float) (topIndex + bottomCount + 1) * height <= getSize().y - 32.0f * main->getScaling().y;
-    float lowest = fits ? top + (float) (topIndex + bottomCount) * height : getSize().y - 32.0f * main->getScaling().y;
+    float last = top + ((float) (topIndex + bottomCount) - 0.5f) * height;
+    bool fits = last + height / 2 <= getSize().y - 32.0f * main->getScaling().y + 1;
+    float lowest = fits ? last : getSize().y - 32.0f * main->getScaling().y;
     int k = 0;
     for (auto &button: buttons) {
         if (button->item.position == MenuItem::Position::Bottom) {
@@ -359,9 +365,35 @@ void Menu::setItems(const std::vector<MenuItem> &items) {
     moveDirection = 0;
     moveWrapped = false;
     skipEnsure = false;
+    fit();
     updateScroll();
     if (!buttons.empty()) {
         highlight->setPosition(0, buttons[index]->getPosition().y);
+    }
+}
+
+void Menu::fit() {
+    // as high as the title and the items (the bottom ones half a row apart), centered
+    const float sc = main->getScaling().y, h = itemHeight();
+    int topItems = 0, bottomItems = 0;
+    for (auto *button: buttons) {
+        topItems += button->item.enabled && button->item.position == MenuItem::Position::Top;
+        bottomItems += button->item.position == MenuItem::Position::Bottom;
+    }
+    float titleBottom = title->getPosition().y + std::max((float) title->getCharacterSize(), title->getLocalBounds().height);
+    float needed = titleBottom + 56 * sc + ((float) (topItems + bottomItems) + (bottomItems > 0 ? 0.5f : 0)) * h
+                   + 32 * sc - h / 2;
+    float height = std::round(std::min(needed, main->getSize().y - 2 * inset));
+    float y = std::round((main->getSize().y - height) / 2);
+    setSize(getSize().x, height);
+    card->setSize(getSize().x, height);
+    float x = leftSide ? inset : main->getSize().x - getSize().x - inset;
+    if (slide == nullptr) {
+        return;
+    }
+    slide->setFromTo({leftSide ? -getSize().x - inset : main->getSize().x, y}, {x, y}, 0.2f);
+    if (isVisible()) {
+        setPosition(x, y);
     }
 }
 
