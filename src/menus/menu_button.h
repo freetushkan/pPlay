@@ -38,6 +38,13 @@ public:
     bool selectable = true;
     std::string data_str;
     bool enabled = true;
+    // on the right: a value (changed with left / right), a slider (0..1, < 0: none);
+    // the value in the accent color when not the default one
+    std::string value;
+    bool valueAccent = false;
+    float slider = -1;
+    // opens a submenu ("›" without a value)
+    bool opens = false;
 };
 
 class MenuButton : public c2d::Rectangle {
@@ -48,6 +55,9 @@ public:
 
     // after item.name / item.label changes
     void refreshText();
+
+    // after item.value / valueAccent / slider changes
+    void refreshValue();
 
     void onUpdate() override;
 
@@ -62,6 +72,10 @@ private:
 
     void startScroll();
 
+    c2d::Text *valueText = nullptr;
+    c2d::RectangleShape *sliderTrack = nullptr;
+    c2d::RectangleShape *sliderFill = nullptr;
+    c2d::CircleShape *sliderKnob = nullptr;
     float iconSize = 0;
     float maxTextWidth = 0;
     // the text, clipped at maxTextWidth; scrolled when selected and too long

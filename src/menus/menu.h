@@ -46,6 +46,9 @@ public:
 
     virtual void onOptionSelection(MenuItem *item) {};
 
+    // left / right on an item: its value changed, false if it has none
+    virtual bool onOptionChange(MenuItem *item, int direction) { return false; }
+
     virtual MenuItem *getSelection();
 
     bool isButtonSelectable(int buttonIndex) const;

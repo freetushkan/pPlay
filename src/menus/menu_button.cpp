@@ -72,8 +72,36 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
                                                                       : COLOR_FONT);
 
     float textX = 16.0f * main->getScaling().x + (item.icon.empty() ? 0 : iconSize + 16.0f * main->getScaling().x);
-    // up to the button edge (the highlight cursor), long texts faded there
-    maxTextWidth = std::max(0.0f, MenuButton::getSize().x - textX - 6.0f);
+    // up to the button edge (the highlight cursor), or the value part; long texts faded there
+    const float sc = main->getScaling().x;
+    float right = MenuButton::getSize().x - 18 * sc;
+    bool valued = !item.value.empty() || item.slider >= 0 || item.opens;
+    // the name gets what the value leaves (refreshValue), at least half the row
+    float valueWidth = item.slider >= 0 ? MenuButton::getSize().x * 0.45f
+                                        : (item.opens && item.value.empty() ? 24 * sc : MenuButton::getSize().x * 0.5f);
+    maxTextWidth = std::max(0.0f, (valued ? right - valueWidth - 12 * sc : MenuButton::getSize().x - 6.0f) - textX);
+    if (valued) {
+        valueText = new Text("", main->getFontSize(Main::FontSize::Small), main->getFont());
+        valueText->setOrigin(Origin::Right);
+        valueText->setPosition(right, MenuButton::getSize().y / 2);
+        MenuButton::add(valueText);
+    }
+    if (item.slider >= 0) {
+        // between the name and the value: 52 px of value text at 720p
+        float line = std::max(2.0f, std::round(4 * main->getScaling().y));
+        float left = right - valueWidth, end = right - 60 * sc;
+        sliderTrack = new RectangleShape({left, MenuButton::getSize().y / 2 - line / 2, end - left, line});
+        sliderTrack->setFillColor(Color(255, 255, 255, 40));
+        MenuButton::add(sliderTrack);
+        sliderFill = new RectangleShape({0, 0, 0, line});
+        sliderTrack->add(sliderFill);
+        float knob = std::round(12 * main->getScaling().y);
+        // not a RoundRect: its texture in a menu breaks the video frame (to be found)
+        sliderKnob = new CircleShape(knob / 2, 32);
+        sliderKnob->setOrigin(Origin::Center);
+        sliderKnob->setFillColor(COLOR_WHITE);
+        sliderTrack->add(sliderKnob);
+    }
     scrollSpeed = SCROLL_SPEED * main->getScaling().x;
     clip = new pplay::ClipRect({textX, 0, maxTextWidth, MenuButton::getSize().y});
     clip->add(name);
@@ -82,6 +110,45 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
     fade = new pplay::FadeEdge({textX + maxTextWidth - fadeWidth, 0, fadeWidth, MenuButton::getSize().y});
     MenuButton::add(fade);
     refreshText();
+    refreshValue();
+}
+
+void MenuButton::refreshValue() {
+    if (valueText == nullptr) {
+        return;
+    }
+    std::string text = item.value.empty() && item.opens ? "›" : oneLine(item.value);
+    if (!item.value.empty() && item.opens) {
+        text += "  ›";
+    }
+    valueText->setString(text);
+    if (sliderTrack == nullptr) {
+        // the name up to the value
+        float gap = 28 * (getSize().y / BUTTON_HEIGHT);
+        float textX = clip->getPosition().x;
+        float fullWidth = std::max(0.0f, getSize().x - 6.0f - textX);
+        // a long value cut, the name keeps half the row at least
+        name->setSizeMax(0, 0);
+        float nameWidth = std::min(name->getLocalBounds().width, fullWidth / 2);
+        valueText->setSizeMax(std::max(0.0f, fullWidth - nameWidth - gap), 0);
+        float width = std::max(fullWidth / 2, valueText->getPosition().x - valueText->getLocalBounds().width - gap - textX);
+        width = std::min(width, fullWidth);
+        if (width != maxTextWidth) {
+            maxTextWidth = width;
+            clip->setSize(width, clip->getSize().y);
+            float fadeWidth = std::min(fade->getSize().x, width / 3);
+            fade->setPosition(textX + width - fadeWidth, fade->getPosition().y);
+            refreshText();
+        }
+    }
+    valueText->setFillColor(item.valueAccent ? COLOR_ACCENT : Color(160, 168, 178, 255));
+    if (sliderTrack != nullptr) {
+        float part = std::min(1.0f, std::max(0.0f, item.slider));
+        float width = sliderTrack->getSize().x;
+        sliderFill->setSize(std::round(part * width), sliderFill->getSize().y);
+        sliderFill->setFillColor(COLOR_ACCENT);
+        sliderKnob->setPosition(std::round(part * width), sliderTrack->getSize().y / 2);
+    }
 }
 
 void MenuButton::refreshText() {

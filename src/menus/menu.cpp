@@ -20,10 +20,10 @@ static std::vector<Menu *> &menuRegistry() {
 Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title, const std::vector<MenuItem> &items,
            bool left)
     : RectangleShape(rect), main(m) {
+    // a card, no border (a texture here, rounded, breaks the video frame of the
+    // menus made for each file)
     Menu::setFillColor(COLOR_BG);
     Menu::setAlpha(245);
-    Menu::setOutlineColor(Color::GrayLight);
-    Menu::setOutlineThickness(main->getScaling().y * 2);
 
     highlight = new Highlight({Menu::getSize().x, itemHeight()});
     highlight->setOrigin(Origin::Left);
@@ -53,7 +53,9 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title, const
     if (left) {
         Menu::add(new TweenPosition({-rect.width, 0}, {0, 0}, 0.2f));
     } else {
-        Menu::add(new TweenPosition({main->getSize().x, 0}, {main->getSize().x - Menu::getSize().x, 0}, 0.2f));
+        // as far from the right edge as from the top
+        Menu::add(new TweenPosition({main->getSize().x, rect.top},
+                                    {main->getSize().x - Menu::getSize().x - rect.top, rect.top}, 0.2f));
     }
 }
 
@@ -145,6 +147,9 @@ bool Menu::onInput(c2d::Input::Player *players) {
     } else if (keys & Input::Down) {
         moveSelection(1);
         updateSelectionState();
+    } else if (keys & (Input::Left | Input::Right) && isButtonSelectable(index)
+               && onOptionChange(&buttons[index]->item, (keys & Input::Right) ? 1 : -1)) {
+        buttons[index]->refreshValue();
     } else if (keys & Input::A && isButtonSelectable(index)) {
         onOptionSelection(&buttons[index]->item);
     }

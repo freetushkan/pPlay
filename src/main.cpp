@@ -116,7 +116,9 @@ void Main::createMenus() {
     items.emplace_back("Brightness", "brightness.png", MenuItem::Position::Top);
     items.emplace_back("Information", "info.png", MenuItem::Position::Top);
     items.emplace_back("Stop", "stop.png", MenuItem::Position::Bottom);
-    menu_video = new MenuVideo(this, {Main::getSize().x, 0, 250 * scaling.x, Main::getSize().y}, items);
+    float inset = 16 * scaling.y;
+    menu_video = new MenuVideo(this, {Main::getSize().x, inset, 420 * scaling.x, Main::getSize().y - 2 * inset},
+                               items);
     menu_video->setVisibility(Visibility::Hidden, false);
     menu_video->setLayer(3);
     Main::add(menu_video);

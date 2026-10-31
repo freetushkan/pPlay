@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <map>
+#include <tuple>
 
 #include "round_rect.h"
 
@@ -13,9 +15,9 @@ RoundRect::RoundRect(const Vector2f &size, float r) : RectangleShape(size), radi
     build();
 }
 
-RoundRect::~RoundRect() {
-    delete (texture);
-}
+// textures shared by size and kept: the menus are made again for each file, a texture
+// deleted then breaks the frame being drawn
+RoundRect::~RoundRect() = default;
 
 void RoundRect::setSize(const Vector2f &size) {
     RectangleShape::setSize(size);
@@ -27,8 +29,18 @@ void RoundRect::setSize(float width, float height) {
 }
 
 void RoundRect::build() {
+    static std::map<std::tuple<int, int, int>, Texture *> cache;
     Vector2i size = {std::max(1, (int) std::lround(getSize().x)), std::max(1, (int) std::lround(getSize().y))};
     if (size == built && texture != nullptr) {
+        return;
+    }
+    float r = radius < 0 ? (float) size.y / 2 : std::min(radius, (float) std::min(size.x, size.y) / 2);
+    auto key = std::make_tuple(size.x, size.y, (int) std::lround(r * 4));
+    auto found = cache.find(key);
+    if (found != cache.end()) {
+        setTexture(found->second, true);
+        texture = found->second;
+        built = size;
         return;
     }
     auto *tex = new C2DTexture(size, Texture::Format::RGBA8);
@@ -38,7 +50,6 @@ void RoundRect::build() {
         delete (tex);
         return;
     }
-    float r = radius < 0 ? (float) size.y / 2 : std::min(radius, (float) std::min(size.x, size.y) / 2);
     for (int y = 0; y < size.y; y++) {
         uint8_t *row = pixels + (size_t) y * pitch;
         for (int x = 0; x < size.x; x++) {
@@ -53,8 +64,8 @@ void RoundRect::build() {
         }
     }
     tex->unlock();
+    cache[key] = tex;
     setTexture(tex, true);
-    delete (texture);
     texture = tex;
     built = size;
 }
