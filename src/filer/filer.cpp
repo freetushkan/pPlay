@@ -7,6 +7,7 @@
 #include "main.h"
 #include "paths.h"
 #include "filer.h"
+#include "round_rect.h"
 #include "utility.h"
 #include "torrserve.h"
 #include "details_view.h"
@@ -28,21 +29,35 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     // files list, information panel on the right
     float panelWidth = 560 * m->getScaling().x;
     listWidth = size.x - panelWidth;
+    // the list and the details on cards
+    const float inset = 8 * m->getScaling().y;
+    float crumbHeight = std::round(44 * m->getScaling().y);
+    // down to the key hints of the details panel
+    auto *listCard = new RoundRect({listWidth - 2 * inset, rect.height - crumbHeight - inset}, 14 * m->getScaling().y);
+    listCard->setPosition(inset, crumbHeight);
+    listCard->setFillColor(COLOR_SURFACE);
+    Filer::add(listCard);
+    auto *detailsCard = new RoundRect({panelWidth - 2 * inset, rect.height - 2 * inset}, 14 * m->getScaling().y);
+    detailsCard->setPosition(listWidth + inset, inset);
+    detailsCard->setFillColor(COLOR_SURFACE);
+    Filer::add(detailsCard);
+
     details = new DetailsView(main, {listWidth, 0, panelWidth, size.y});
     probe = new MediaProbe();
     Filer::add(details);
 
     // the path over the list
-    float crumbHeight = std::round(44 * m->getScaling().y);
     crumbs = new Breadcrumb(main, {16 * m->getScaling().x, 0, listWidth - 32 * m->getScaling().x, crumbHeight});
     Filer::add(crumbs);
     size.y -= crumbHeight;
 
-    list = new pplay::ClipRect({0, crumbHeight, listWidth, size.y});
+    // the rows inside the card
+    float rowWidth = listWidth - 2 * inset;
+    list = new pplay::ClipRect({inset, crumbHeight, rowWidth, size.y});
     Filer::add(list);
 
     // as wide as the rows content (their names, the progress line)
-    highlight = new Highlight({listWidth - 16 * m->getScaling().x, (float) ITEM_HEIGHT * m->getScaling().y},
+    highlight = new Highlight({rowWidth - 16 * m->getScaling().x, (float) ITEM_HEIGHT * m->getScaling().y},
                               Highlight::CursorPosition::Left);
     list->add(highlight);
 
@@ -53,7 +68,7 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     }
 
     for (int i = 0; i < item_max + 2; i++) {
-        items.emplace_back(new FilerItem(main, {0, item_height * (float) (i - 1), listWidth, item_height}));
+        items.emplace_back(new FilerItem(main, {0, item_height * (float) (i - 1), rowWidth, item_height}));
         list->add(items.back());
     }
 

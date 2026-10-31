@@ -37,6 +37,9 @@ private:
     c2d::C2DClock updateClock;
 
     c2d::Text *textTitle;
+    // duration
+    c2d::Text *info;
+    float textX = 0, textWidth = 0;
     c2d::Sprite *icon;
     c2d::Rectangle *clip;
     pplay::FadeEdge *fade;

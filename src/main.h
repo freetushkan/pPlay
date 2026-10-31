@@ -26,6 +26,8 @@
 #define COLOR_BG_ALPHA Color(20, 22, 24, 128)
 #define COLOR_FONT Color(230, 230, 230, 255)
 #define COLOR_HIGHLIGHT Color(255, 255, 255, 60)
+// filer panels
+#define COLOR_SURFACE Color(27, 30, 35, 255)
 inline c2d::Color &COLOR_ACCENT = pplay::Utility::getAccentColor();
 
 #define COLOR_BLACK Color(0x000000FF)
