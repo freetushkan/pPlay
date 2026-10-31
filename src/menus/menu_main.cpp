@@ -82,7 +82,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     const FloatRect wide = {-420 * main->getScaling().x, rect.top, 420 * main->getScaling().x, rect.height};
 
     menuMainOptions = new MenuMainOptions(main, wide, it);
-    menuMainOptions->setLayer(2);
+    // over the shade under the menus (see Main)
+    menuMainOptions->setLayer(3);
     menuMainOptions->setVisibility(Visibility::Hidden, false);
     main->add(menuMainOptions);
 
@@ -93,7 +94,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                           float maxValue = 0.0f, float stepValue = 1.0f, const std::string &unit = "") {
         auto *submenu = new MenuMainOptionsSubmenu(main, wide, title, submenuItems, optionName, valueType, menuType,
                                                    minValue, maxValue, stepValue, unit);
-        submenu->setLayer(2);
+        submenu->setLayer(3);
         submenu->setVisibility(Visibility::Hidden, false);
         submenu->setKey(name);
         submenu->refresh();
@@ -205,7 +206,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     addSubmenu("Accent color", "Accent color", OPT_ACCENT_COLOR, makeAccentColorItems(), Submenu::ValueType::String);
 
     fileEditor = new MenuFileEditor(main, rect);
-    fileEditor->setLayer(2);
+    fileEditor->setLayer(3);
     fileEditor->setVisibility(Visibility::Hidden, false);
     main->add(fileEditor);
 

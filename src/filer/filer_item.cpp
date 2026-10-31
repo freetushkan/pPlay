@@ -174,5 +174,12 @@ void FilerItem::onUpdate() {
         }
         updateClock.restart();
     }
+    // what is behind the fade: the list, the selection highlight over it
+    float x = (fade->getPosition().x + fade->getSize().x / 2) / std::max(1.0f, highlightWidth);
+    fade->setBackground(selected ? Highlight::seenThrough(COLOR_BG, x, Highlight::CursorPosition::Left) : COLOR_BG);
+    // the filer fade in sets all the alphas: the track keeps its own
+    uint8_t alpha = textTitle->getAlpha();
+    watchedTrack->setFillColor(Color(255, 255, 255, (uint8_t) (30 * alpha / 255)));
+    watched->setFillColor(Color(COLOR_ACCENT.r, COLOR_ACCENT.g, COLOR_ACCENT.b, alpha));
     Rectangle::onUpdate();
 }

@@ -41,7 +41,9 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     list = new pplay::ClipRect({0, crumbHeight, listWidth, size.y});
     Filer::add(list);
 
-    highlight = new Highlight({listWidth, (float) ITEM_HEIGHT * m->getScaling().y}, Highlight::CursorPosition::Left);
+    // as wide as the rows content (their names, the progress line)
+    highlight = new Highlight({listWidth - 16 * m->getScaling().x, (float) ITEM_HEIGHT * m->getScaling().y},
+                              Highlight::CursorPosition::Left);
     list->add(highlight);
 
     item_height = highlight->getSize().y;
@@ -314,6 +316,10 @@ void Filer::resetProgress(const MediaFile &file) {
 
 void Filer::onUpdate() {
     crumbs->setPath(path);
+    for (int i = 0; i < (int) items.size(); i++) {
+        items[i]->selected = top + i - 1 == item_index;
+        items[i]->highlightWidth = highlight->getSize().x;
+    }
     float dt = std::min(0.1f, scrollClock.restart().asSeconds());
     if (scrollOffset != 0) {
         scrollOffset -= scrollOffset * std::min(1.0f, dt * 16);

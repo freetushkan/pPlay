@@ -44,6 +44,9 @@ public:
 
     bool step(int direction);
 
+    // a number option: where it is between its bounds (0..1), -1 for the others
+    float sliderPart() const;
+
     // name in MenuMain (back navigation)
     void setKey(const std::string &k) { key = k; }
 

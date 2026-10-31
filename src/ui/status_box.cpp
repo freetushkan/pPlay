@@ -66,9 +66,10 @@ void StatusBox::show(const std::string &title, const std::string &message, bool 
     messageText->setString(pplay::tr(message));
     messageText->setFillColor(title == "Error..." ? Color(240, 120, 110, 255) : COLOR_FONT);
     // the spinner while waiting only
-    icon->setVisibility(inf || title == "Please Wait..." ? Visibility::Visible : Visibility::Hidden);
-    messageText->setPosition((icon->isVisible() ? icon->getPosition().x * 2 + 10 * main->getScaling().x
-                                                : 4 * main->getScaling().x),
+    bool spinning = inf || title == "Please Wait...";
+    icon->setVisibility(spinning ? Visibility::Visible : Visibility::Hidden);
+    messageText->setPosition(spinning ? icon->getPosition().x * 2 + 10 * main->getScaling().x
+                                      : 4 * main->getScaling().x,
                              messageText->getPosition().y);
     SDL_UnlockMutex(mutex);
 

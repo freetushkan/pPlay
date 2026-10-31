@@ -72,12 +72,17 @@ private:
 
     void showStatic();
 
+    void createSlider();
+
+    void placeFade();
+
     void startScroll();
 
     c2d::Text *valueText = nullptr;
     c2d::RectangleShape *sliderTrack = nullptr;
     c2d::RectangleShape *sliderFill = nullptr;
     RoundRect *sliderKnob = nullptr;
+    c2d::Vector2f scaling;
     float iconSize = 0;
     float maxTextWidth = 0;
     // the text, clipped at maxTextWidth; scrolled when selected and too long

@@ -149,6 +149,13 @@ std::string MenuMainOptionsSubmenu::currentText() {
     return option->getString();
 }
 
+float MenuMainOptionsSubmenu::sliderPart() const {
+    if (menu_type != MenuType::Adjust || max_value <= min_value) {
+        return -1;
+    }
+    return std::min(1.0f, std::max(0.0f, (getCurrentValue() - min_value) / (max_value - min_value)));
+}
+
 bool MenuMainOptionsSubmenu::step(int direction) {
     if (menu_type == MenuType::TextInput || buttons.empty()) {
         return false;
@@ -185,6 +192,7 @@ void MenuMainOptionsSubmenu::refreshValues() {
         auto *sub = main->getMenuMain()->getMenuMainOptionsSubmenu(button->item.name);
         bool option = sub != nullptr && sub->hasOption();
         button->item.value = option ? sub->currentText() : "";
+        button->item.slider = option ? sub->sliderPart() : -1;
         button->item.opens = sub != nullptr && !option;
         button->refreshValue();
     }

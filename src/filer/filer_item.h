@@ -48,6 +48,12 @@ private:
     float iconSize = 0;
 
     bool lastFullscreen = false;
+
+public:
+
+    // the selected row, the highlight width (its fade matches the highlight)
+    bool selected = false;
+    float highlightWidth = 1;
 };
 
 #endif //PPLAY_FILERITEM_H

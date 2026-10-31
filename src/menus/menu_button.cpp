@@ -9,6 +9,7 @@
 #include "clip_rect.h"
 #include "menu_button.h"
 #include "round_rect.h"
+#include "highlight.h"
 
 using namespace c2d;
 
@@ -78,7 +79,7 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
     float right = MenuButton::getSize().x - 18 * sc;
     bool valued = !item.value.empty() || item.slider >= 0 || item.opens;
     // the name gets what the value leaves (refreshValue), at least half the row
-    float valueWidth = item.slider >= 0 ? MenuButton::getSize().x * 0.45f
+    float valueWidth = item.slider >= 0 ? MenuButton::getSize().x * 0.36f
                                         : (item.opens && item.value.empty() ? 24 * sc : MenuButton::getSize().x * 0.5f);
     maxTextWidth = std::max(0.0f, (valued ? right - valueWidth - 12 * sc : MenuButton::getSize().x - 6.0f) - textX);
     if (valued) {
@@ -87,20 +88,9 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
         valueText->setPosition(right, MenuButton::getSize().y / 2);
         MenuButton::add(valueText);
     }
+    scaling = main->getScaling();
     if (item.slider >= 0) {
-        // between the name and the value: 52 px of value text at 720p
-        float line = std::max(2.0f, std::round(4 * main->getScaling().y));
-        float left = right - valueWidth, end = right - 60 * sc;
-        sliderTrack = new RectangleShape({left, MenuButton::getSize().y / 2 - line / 2, end - left, line});
-        sliderTrack->setFillColor(Color(255, 255, 255, 40));
-        MenuButton::add(sliderTrack);
-        sliderFill = new RectangleShape({0, 0, 0, line});
-        sliderTrack->add(sliderFill);
-        float knob = std::round(12 * main->getScaling().y);
-        sliderKnob = new RoundRect({knob, knob});
-        sliderKnob->setOrigin(Origin::Center);
-        sliderKnob->setFillColor(COLOR_WHITE);
-        sliderTrack->add(sliderKnob);
+        createSlider();
     }
     scrollSpeed = SCROLL_SPEED * main->getScaling().x;
     clip = new pplay::ClipRect({textX, 0, maxTextWidth, MenuButton::getSize().y});
@@ -113,9 +103,48 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
     refreshValue();
 }
 
+void MenuButton::createSlider() {
+    // between the name and the value: 60 px of value text at 720p
+    float right = getSize().x - 18 * scaling.x, valueWidth = getSize().x * 0.36f;
+    float line = std::max(2.0f, std::round(4 * scaling.y));
+    float left = right - valueWidth, end = right - 60 * scaling.x;
+    sliderTrack = new RectangleShape({left, getSize().y / 2 - line / 2, end - left, line});
+    sliderTrack->setFillColor(Color(255, 255, 255, 40));
+    add(sliderTrack);
+    sliderFill = new RectangleShape({0, 0, 0, line});
+    sliderTrack->add(sliderFill);
+    float knob = std::round(12 * scaling.y);
+    sliderKnob = new RoundRect({knob, knob});
+    sliderKnob->setOrigin(Origin::Center);
+    sliderKnob->setFillColor(COLOR_WHITE);
+    sliderTrack->add(sliderKnob);
+    if (clip != nullptr) {
+        // the name before the slider
+        float width = std::max(0.0f, left - 12 * scaling.x - clip->getPosition().x);
+        maxTextWidth = width;
+        clip->setSize(width, clip->getSize().y);
+        placeFade();
+        refreshText();
+    }
+}
+
+void MenuButton::placeFade() {
+    // over the end of the name, wherever it ends
+    float width = std::min(48.0f * scaling.x, clip->getSize().x / 3);
+    fade->setSize(width, fade->getSize().y);
+    fade->setPosition(clip->getPosition().x + clip->getSize().x - width, fade->getPosition().y);
+}
+
 void MenuButton::refreshValue() {
     if (valueText == nullptr) {
         return;
+    }
+    // a slider known later (settings groups)
+    if (item.slider >= 0 && sliderTrack == nullptr) {
+        createSlider();
+    }
+    if (sliderTrack != nullptr) {
+        sliderTrack->setVisibility(item.slider >= 0 ? Visibility::Visible : Visibility::Hidden);
     }
     std::string text = item.value.empty() && item.opens ? "›" : oneLine(item.value);
     if (!item.value.empty() && item.opens) {
@@ -136,8 +165,7 @@ void MenuButton::refreshValue() {
         if (width != maxTextWidth) {
             maxTextWidth = width;
             clip->setSize(width, clip->getSize().y);
-            float fadeWidth = std::min(fade->getSize().x, width / 3);
-            fade->setPosition(textX + width - fadeWidth, fade->getPosition().y);
+            placeFade();
             refreshText();
         }
     }
@@ -177,17 +205,10 @@ void MenuButton::startScroll() {
 
 void MenuButton::onUpdate() {
     Rectangle::onUpdate();
-    // the selection highlight is the strongest at the right end
-    Color background = COLOR_BG;
-    if (selected) {
-        uint8_t a = COLOR_HIGHLIGHT.a;
-        background = {(uint8_t) (background.r + (255 - background.r) * a / 255),
-                      (uint8_t) (background.g + (255 - background.g) * a / 255),
-                      (uint8_t) (background.b + (255 - background.b) * a / 255), 255};
-    }
-    fade->setBackground(background);
-    // a plain cut: a fade over a highlight or the video behind never matches
-    fade->setVisibility(Visibility::Hidden);
+    // what is behind the fade: the menu, the selection highlight over it
+    float x = (fade->getPosition().x + fade->getSize().x / 2) / std::max(1.0f, getSize().x);
+    fade->setBackground(selected ? Highlight::seenThrough(COLOR_BG, x, Highlight::CursorPosition::Right) : COLOR_BG);
+    fade->setVisibility(scrollable ? Visibility::Visible : Visibility::Hidden);
     if (!scrollable || !isVisible()) {
         return;
     }
