@@ -31,7 +31,7 @@ void Player::buildMenus() {
                                                 MENU_VIDEO_TYPE_VID);
         menuVideoStreams->setVisibility(Visibility::Hidden, false);
         menuVideoStreams->setLayer(3);
-        add(menuVideoStreams);
+        main->add(menuVideoStreams);
     }
 
     buildTrackMenus();
@@ -57,7 +57,7 @@ void Player::buildMenus() {
                                             MENU_VIDEO_TYPE_PLAYLIST);
         menuPlaylist->setVisibility(Visibility::Hidden, false);
         menuPlaylist->setLayer(3);
-        add(menuPlaylist);
+        main->add(menuPlaylist);
     }
 
     if (menuNormalize == nullptr) {
@@ -68,7 +68,7 @@ void Player::buildMenus() {
                                              MENU_VIDEO_TYPE_NORMALIZE);
         menuNormalize->setLayer(3);
         menuNormalize->setVisibility(Visibility::Hidden, false);
-        add(menuNormalize);
+        main->add(menuNormalize);
     }
 
     if (menuVisualizer == nullptr) {
@@ -79,7 +79,7 @@ void Player::buildMenus() {
                                               MENU_VIDEO_TYPE_VISUALIZER);
         menuVisualizer->setLayer(3);
         menuVisualizer->setVisibility(Visibility::Hidden, false);
-        add(menuVisualizer);
+        main->add(menuVisualizer);
     }
 
     if (menuSpeed == nullptr) {
@@ -87,14 +87,14 @@ void Player::buildMenus() {
                                          MENU_VIDEO_TYPE_SPEED);
         menuSpeed->setLayer(3);
         menuSpeed->setVisibility(Visibility::Hidden, false);
-        add(menuSpeed);
+        main->add(menuSpeed);
     }
     if (menuBrightness == nullptr) {
         menuBrightness = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Brightness",
                                               adjustItems(), MENU_VIDEO_TYPE_BRIGHTNESS);
         menuBrightness->setLayer(3);
         menuBrightness->setVisibility(Visibility::Hidden, false);
-        add(menuBrightness);
+        main->add(menuBrightness);
     }
 
     if (menuPlaybackMode == nullptr) {
@@ -106,7 +106,7 @@ void Player::buildMenus() {
                                                 MENU_VIDEO_TYPE_PL_MODE);
         menuPlaybackMode->setLayer(3);
         menuPlaybackMode->setVisibility(Visibility::Hidden, false);
-        add(menuPlaybackMode);
+        main->add(menuPlaybackMode);
     }
 }
 
@@ -133,7 +133,7 @@ void Player::buildTrackMenus() {
                                                 MENU_VIDEO_TYPE_AUD);
         menuAudioStreams->setVisibility(audioVisible ? Visibility::Visible : Visibility::Hidden, false);
         menuAudioStreams->setLayer(3);
-        add(menuAudioStreams);
+        main->add(menuAudioStreams);
     }
 
     // subtitles: none, the tracks, then a file to add
@@ -148,7 +148,7 @@ void Player::buildTrackMenus() {
                                                     MENU_VIDEO_TYPE_SUB);
         menuSubtitlesStreams->setVisibility(subtitlesVisible ? Visibility::Visible : Visibility::Hidden, false);
         menuSubtitlesStreams->setLayer(3);
-        add(menuSubtitlesStreams);
+        main->add(menuSubtitlesStreams);
     }
 }
 

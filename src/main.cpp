@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <cmath>
 
 #include "main.h"
 #include "encodings.h"
@@ -63,6 +64,12 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
     player = new Player(this);
     player->setLayer(2);
     Main::add(player);
+
+    // under the menus: the rest darkened while one is open
+    dim = new RectangleShape(Main::getSize());
+    dim->setFillColor(Color::Transparent);
+    dim->setLayer(3);
+    Main::add(dim);
 
     createMenus();
     createMessageBox();
@@ -219,6 +226,15 @@ void Main::onUpdate() {
     getInput()->setRepeatDelay(pplay::InputMap::repeatDelay(heldMs));
 
     messageBox->setOutlineColor(COLOR_ACCENT);
+
+    bool menu = false;
+    for (auto *m: Menu::all()) {
+        menu |= m->isVisible();
+    }
+    float dt = std::min(0.1f, dimClock.restart().asSeconds());
+    dimAlpha += ((menu ? 110.0f : 0.0f) - dimAlpha) * std::min(1.0f, dt * 12);
+    dim->setFillColor(Color(0, 0, 0, (uint8_t) std::lround(dimAlpha)));
+    dim->setVisibility(dimAlpha >= 1 ? Visibility::Visible : Visibility::Hidden);
 
     std::string clockWarning;
     if (!messageBox->isVisible() && pplay::NetTime::takeWarning(&clockWarning)) {

@@ -94,7 +94,10 @@ void FilerItem::setColor(const c2d::Color &color) {
     uint8_t alpha = textTitle->getAlpha();
     textTitle->setFillColor(color);
     textTitle->setAlpha(alpha);
-    icon->setFillColor(color);
+    // the icons quieter than the names, the accent for the playing file only
+    bool playing = file.type == Io::Type::File && main->getPlayer() != nullptr && main->getPlayer()->isPlaying(file.path);
+    Color iconColor = playing ? COLOR_ACCENT : color == COLOR_FONT ? Color(140, 148, 158, 255) : color;
+    icon->setFillColor(iconColor);
     icon->setAlpha(alpha);
 }
 
@@ -147,7 +150,7 @@ void FilerItem::updateWatched() {
 
 c2d::Color FilerItem::color() {
     if (file.type == Io::Type::Directory) {
-        return COLOR_ACCENT;
+        return COLOR_FONT;
     }
     if (file.type == Io::Type::File) {
         const std::string streamUrl = pplay::TorrServe::toStreamUrl(file.path);

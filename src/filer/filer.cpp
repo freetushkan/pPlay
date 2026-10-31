@@ -32,7 +32,13 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     probe = new MediaProbe();
     Filer::add(details);
 
-    list = new pplay::ClipRect({0, 0, listWidth, size.y});
+    // the path over the list
+    float crumbHeight = std::round(44 * m->getScaling().y);
+    crumbs = new Breadcrumb(main, {16 * m->getScaling().x, 0, listWidth - 32 * m->getScaling().x, crumbHeight});
+    Filer::add(crumbs);
+    size.y -= crumbHeight;
+
+    list = new pplay::ClipRect({0, crumbHeight, listWidth, size.y});
     Filer::add(list);
 
     highlight = new Highlight({listWidth, (float) ITEM_HEIGHT * m->getScaling().y}, Highlight::CursorPosition::Left);
@@ -307,6 +313,7 @@ void Filer::resetProgress(const MediaFile &file) {
 }
 
 void Filer::onUpdate() {
+    crumbs->setPath(path);
     float dt = std::min(0.1f, scrollClock.restart().asSeconds());
     if (scrollOffset != 0) {
         scrollOffset -= scrollOffset * std::min(1.0f, dt * 16);

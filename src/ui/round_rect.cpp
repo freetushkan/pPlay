@@ -15,8 +15,7 @@ RoundRect::RoundRect(const Vector2f &size, float r) : RectangleShape(size), radi
     build();
 }
 
-// textures shared by size and kept: the menus are made again for each file, a texture
-// deleted then breaks the frame being drawn
+// textures shared by size and kept (the menus are made again for each file)
 RoundRect::~RoundRect() = default;
 
 void RoundRect::setSize(const Vector2f &size) {

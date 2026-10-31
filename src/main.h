@@ -152,6 +152,9 @@ private:
     c2d::Font *font;
     c2d::Clock *timer;
     c2d::MessageBox *messageBox;
+    c2d::RectangleShape *dim = nullptr;
+    float dimAlpha = 0;
+    c2d::C2DClock dimClock;
     StatusBox *statusBox;
     PPLAYConfig *config = nullptr;
     Filer *filer = nullptr;

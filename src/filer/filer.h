@@ -12,6 +12,7 @@
 #include "filer_item.h"
 #include "media_file.h"
 #include "highlight.h"
+#include "breadcrumb.h"
 #include "details_view.h"
 #include "clip_rect.h"
 
@@ -92,6 +93,7 @@ private:
     // (scrolling smoothly)
     std::vector<FilerItem *> items;
     pplay::ClipRect *list = nullptr;
+    Breadcrumb *crumbs = nullptr;
     int top = 0;
     float scrollOffset = 0;
     c2d::C2DClock scrollClock;

@@ -36,6 +36,7 @@ private:
     c2d::TweenAlpha *fadeTween;
     bool forceDraw = false;
     bool waiting = false;
+    bool blank = false;
 };
 
 #endif //PPLAY_VIDEO_TEXTURE_H

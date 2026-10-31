@@ -8,6 +8,7 @@
 #include "main.h"
 #include "menu.h"
 #include "text_wrap.h"
+#include "round_rect.h"
 
 using namespace c2d;
 
@@ -20,10 +21,12 @@ static std::vector<Menu *> &menuRegistry() {
 Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title, const std::vector<MenuItem> &items,
            bool left)
     : RectangleShape(rect), main(m) {
-    // a card, no border (a texture here, rounded, breaks the video frame of the
-    // menus made for each file)
-    Menu::setFillColor(COLOR_BG);
-    Menu::setAlpha(245);
+    // a rounded card, no border
+    Menu::setFillColor(Color::Transparent);
+    auto *card = new RoundRect(Menu::getSize(), 16 * main->getScaling().y);
+    card->setFillColor({COLOR_BG.r, COLOR_BG.g, COLOR_BG.b, 245});
+    card->setLayer(-2);
+    Menu::add(card);
 
     highlight = new Highlight({Menu::getSize().x, itemHeight()});
     highlight->setOrigin(Origin::Left);

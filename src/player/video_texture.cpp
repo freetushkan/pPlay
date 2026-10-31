@@ -38,11 +38,11 @@ void VideoTexture::showFade() {
 }
 
 void VideoTexture::clearFrame() {
-    glBindFramebuffer(GL_FRAMEBUFFER, (GLuint) fbo);
-    glViewport(0, 0, (GLsizei) getSize().x, (GLsizei) getSize().y);
-    glClearColor(0, 0, 0, 1);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // the previous frame stays in the buffer: drawn black until a new one
+    if (!blank) {
+        blank = true;
+        setFillColor(Color::Black);
+    }
 }
 
 void VideoTexture::drawFrame() {
@@ -76,6 +76,9 @@ void VideoTexture::onDraw(c2d::Transform &transform, bool draw) {
                 mpv_render_context_render(ctx, r_params);
                 if (waiting) {
                     clearFrame();
+                } else if (blank) {
+                    blank = false;
+                    setFillColor(Color::White);
                 }
                 forceDraw = false;
             }

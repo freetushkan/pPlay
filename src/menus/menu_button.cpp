@@ -8,6 +8,7 @@
 #include "main.h"
 #include "clip_rect.h"
 #include "menu_button.h"
+#include "round_rect.h"
 
 using namespace c2d;
 
@@ -96,8 +97,7 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
         sliderFill = new RectangleShape({0, 0, 0, line});
         sliderTrack->add(sliderFill);
         float knob = std::round(12 * main->getScaling().y);
-        // not a RoundRect: its texture in a menu breaks the video frame (to be found)
-        sliderKnob = new CircleShape(knob / 2, 32);
+        sliderKnob = new RoundRect({knob, knob});
         sliderKnob->setOrigin(Origin::Center);
         sliderKnob->setFillColor(COLOR_WHITE);
         sliderTrack->add(sliderKnob);

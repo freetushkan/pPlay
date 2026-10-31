@@ -9,6 +9,8 @@
 #include "cross2d/c2d.h"
 #include "clip_rect.h"
 
+class RoundRect;
+
 class Main;
 
 class MenuItem {
@@ -75,7 +77,7 @@ private:
     c2d::Text *valueText = nullptr;
     c2d::RectangleShape *sliderTrack = nullptr;
     c2d::RectangleShape *sliderFill = nullptr;
-    c2d::CircleShape *sliderKnob = nullptr;
+    RoundRect *sliderKnob = nullptr;
     float iconSize = 0;
     float maxTextWidth = 0;
     // the text, clipped at maxTextWidth; scrolled when selected and too long
