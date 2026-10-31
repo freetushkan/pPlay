@@ -164,6 +164,8 @@ bool Filer::getDir(const std::string &p) {
                             "Filer::file[" + std::to_string(i) + "] name=" + files[i].name + " path=" + files[i].path
                                     + " type=" + std::to_string((int) files[i].type));
     }
+    top = 0;
+    scrollOffset = 0;
     setSelection(0);
 
     return true;

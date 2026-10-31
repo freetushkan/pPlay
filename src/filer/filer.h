@@ -13,6 +13,7 @@
 #include "media_file.h"
 #include "highlight.h"
 #include "details_view.h"
+#include "clip_rect.h"
 
 class Main;
 
@@ -87,7 +88,15 @@ private:
 
     Main *main;
     std::string path;
+    // the rows: the file above the first visible one, the visible ones, one under them
+    // (scrolling smoothly)
     std::vector<FilerItem *> items;
+    pplay::ClipRect *list = nullptr;
+    int top = 0;
+    float scrollOffset = 0;
+    c2d::C2DClock scrollClock;
+
+    void placeItems();
     std::vector<MediaFile> files;
     // the listed directories pictures (PosterLoader urls)
     std::map<std::string, std::string> folderCovers;

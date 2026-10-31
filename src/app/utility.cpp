@@ -343,6 +343,9 @@ std::string Utility::getWatchLater(const std::string &video_path) {
     // ignore-path-in-watch-later-config: mpv hashes the part after the last slash
     // (urls: full, but mpv 0.39)
     const bool basename = !isMpvUrl(mpvPath) || watchLaterUrlBaseName;
+#elif defined(__LINUX__)
+    // the whole path
+    const bool basename = false;
 #else
     const bool basename = !mpvPath.empty() && mpvPath[0] == '/';
 #endif
@@ -385,6 +388,23 @@ void Utility::fixWatchLater(const std::string &video_path) {
         out << text;
         log(LogLevel::Info, "Utility::fixWatchLater: " + path);
     }
+}
+
+double Utility::watchLaterPosition(const std::string &video_path) {
+    FILE *f = fopen(getWatchLater(video_path).c_str(), "rb");
+    if (f == nullptr) {
+        return 0;
+    }
+    char line[256];
+    double position = 0;
+    while (fgets(line, sizeof(line), f) != nullptr) {
+        if (std::strncmp(line, "start=", 6) == 0) {
+            position = std::atof(line + 6);
+            break;
+        }
+    }
+    fclose(f);
+    return position;
 }
 
 bool Utility::deleteWatchLater(const std::string &video_path) {

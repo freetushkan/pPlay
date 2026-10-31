@@ -282,3 +282,5 @@ Artist = Исполнитель
 Album = Альбом
 Year = Год
 Genre = Жанр
+TorrServer progress = Прогресс в TorrServer
+Playback position on the server = Позиция просмотра на сервере

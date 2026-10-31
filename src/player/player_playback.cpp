@@ -15,6 +15,7 @@
 #include "history.h"
 #include "i18n.h"
 #include "filer.h"
+#include "torrserve.h"
 
 using namespace c2d;
 
@@ -246,6 +247,9 @@ void Player::saveProgress() {
         }
     }
     mpv->save();
+    if (syncsProgress() && lastKnownPosition > 0) {
+        pplay::TorrServe::setFileProgress(file.path, (double) lastKnownPosition);
+    }
 }
 
 void Player::updateWatchdog() {

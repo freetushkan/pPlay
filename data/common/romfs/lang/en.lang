@@ -283,3 +283,5 @@ Artist = Artist
 Album = Album
 Year = Year
 Genre = Genre
+TorrServer progress = TorrServer progress
+Playback position on the server = Playback position on the server

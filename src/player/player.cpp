@@ -210,6 +210,15 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     if (hadWatchLater) {
         pplay::Utility::fixWatchLater(path);
     }
+    // no local position: the one TorrServer keeps, if any
+    if (!hadWatchLater && opts.find("start=") == std::string::npos && syncsProgress()) {
+        double position = pplay::TorrServe::fileProgress(file.path);
+        long duration = file.mediaInfo.duration;
+        if (position > 10 && (duration <= 0 || position < (double) duration - 30)) {
+            opts += std::string(opts.empty() ? "" : ",") + "start=" + std::to_string((int) position);
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: TorrServer position " + std::to_string((int) position));
+        }
+    }
     clearAudioScreen();
     // the previous file track may not exist here ("no" would fail an audio file)
     mpv_set_property_string(mpv->getHandle(), "aid", "auto");
@@ -421,6 +430,11 @@ const std::string &Player::getTitle() const {
         displayTitle = file.name;
     }
     return displayTitle;
+}
+
+bool Player::syncsProgress() const {
+    return main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger() != 0
+           && pplay::Io::get()->getDeviceType(file.path) == pplay::Io::DeviceType::TorrServe;
 }
 
 bool Player::hasVideo() const {

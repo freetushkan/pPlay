@@ -51,6 +51,8 @@
 #define OPT_AUDIO_VISUALIZER "AUDIO_VISUALIZER"
 // code page of the old tags / file names, 0: guessed
 #define OPT_TEXT_ENCODING "TEXT_ENCODING"
+// playback position kept by TorrServer (its "track timecode" setting) read and sent
+#define OPT_TS_PROGRESS "TS_PROGRESS_SYNC"
 #ifdef __SWITCH__
 #define CACHE_MB_MAX 500
 #else

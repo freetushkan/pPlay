@@ -40,6 +40,11 @@ private:
     c2d::Sprite *icon;
     c2d::Rectangle *clip;
     pplay::FadeEdge *fade;
+    void updateWatched();
+
+    // the watched part (watch later / TorrServer position)
+    c2d::RectangleShape *watchedTrack;
+    c2d::RectangleShape *watched;
     float iconSize = 0;
 
     bool lastFullscreen = false;

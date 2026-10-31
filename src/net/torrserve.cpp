@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cctype>
 #include <cstdlib>
+#include <map>
 #include <mutex>
 #include <set>
 #include <cstring>
@@ -19,6 +20,7 @@
 #include "net_http.h"
 #include "torrserve.h"
 #include "utility.h"
+#include "worker.h"
 
 namespace {
 
@@ -266,14 +268,71 @@ namespace {
 
     // viewed files of a torrent, cached a bit (the filer asks for each item)
     std::mutex g_viewedMutex;
+    // viewed file index -> position (seconds, 0 if the server keeps none)
     struct Viewed {
-        std::set<int> files;
+        std::map<int, double> files;
         time_t updated = 0;
     };
     std::unordered_map<std::string, Viewed> g_viewed;
     bool g_viewedDirty = false;
 
-    std::set<int> getViewed(const std::string &root, const std::string &hash) {
+    // positions sent to the server in a thread (the player saves them on the main one)
+    struct ProgressJob {
+        std::string root, hash;
+        int index = -1;
+        double seconds = 0;
+    };
+    std::mutex g_progressMutex;
+    ProgressJob g_progressJob;
+    bool g_progressBusy = false;
+    pplay::Worker *g_progressWorker = nullptr;
+    // server root -> keeps positions (its "track timecode" setting): unknown until checked
+    std::unordered_map<std::string, bool> g_timecodes;
+
+    int progressThread(void *) {
+        while (true) {
+            ProgressJob job;
+            {
+                std::lock_guard<std::mutex> lock(g_progressMutex);
+                if (g_progressJob.root.empty()) {
+                    g_progressBusy = false;
+                    return 0;
+                }
+                job = g_progressJob;
+                g_progressJob = {};
+            }
+            nlohmann::json request;
+            request["action"] = "set";
+            request["hash"] = job.hash;
+            request["file_index"] = job.index;
+            request["timecode"] = job.seconds;
+            httpRequest(job.root + "viewed", 5, request.dump());
+            {
+                std::lock_guard<std::mutex> lock(g_progressMutex);
+                if (g_timecodes.count(job.root) > 0) {
+                    continue;
+                }
+            }
+            // the first one: read it back, a server without positions gets no more
+            request = {{"action", "list"}, {"hash", job.hash}};
+            auto response = nlohmann::json::parse(httpRequest(job.root + "viewed", 5, request.dump()), nullptr, false);
+            if (response.is_discarded() || !response.is_array()) {
+                continue;
+            }
+            bool kept = false;
+            for (const auto &item: response) {
+                kept |= item.is_object() && item.contains("file_index") && item["file_index"].is_number_integer()
+                        && item["file_index"].get<int>() == job.index && item.contains("timecode")
+                        && item["timecode"].is_number() && item["timecode"].get<double>() > 0;
+            }
+            std::lock_guard<std::mutex> lock(g_progressMutex);
+            g_timecodes[job.root] = kept;
+            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                                std::string("TorrServe: positions ") + (kept ? "kept" : "not kept") + " by " + job.root);
+        }
+    }
+
+    std::map<int, double> getViewed(const std::string &root, const std::string &hash) {
         const std::string key = root + "|" + hash;
         {
             std::lock_guard<std::mutex> lock(g_viewedMutex);
@@ -283,7 +342,7 @@ namespace {
             }
         }
 
-        std::set<int> viewed;
+        std::map<int, double> viewed;
         nlohmann::json request;
         request["action"] = "list";
         request["hash"] = hash;
@@ -292,7 +351,10 @@ namespace {
         if (!response.is_discarded() && response.is_array()) {
             for (const auto &item: response) {
                 if (item.contains("file_index") && item["file_index"].is_number_integer()) {
-                    viewed.insert(item["file_index"].get<int>());
+                    double timecode = item.contains("timecode") && item["timecode"].is_number()
+                                              ? item["timecode"].get<double>()
+                                              : 0;
+                    viewed[item["file_index"].get<int>()] = timecode;
                 }
             }
         }
@@ -378,6 +440,56 @@ namespace pplay::TorrServe {
         std::string hash;
         int index;
         return isTorrServe(path) && fileLink(path, hash, index) && getViewed(apiRoot(path), hash).count(index) > 0;
+    }
+
+    double fileProgress(const std::string &path) {
+        std::string hash;
+        int index;
+        if (!isTorrServe(path) || !fileLink(path, hash, index)) {
+            return 0;
+        }
+        auto viewed = getViewed(apiRoot(path), hash);
+        auto it = viewed.find(index);
+        return it != viewed.end() ? it->second : 0;
+    }
+
+    void setFileProgress(const std::string &path, double seconds) {
+        std::string hash;
+        int index;
+        if (!isTorrServe(path) || !fileLink(path, hash, index)) {
+            return;
+        }
+        if (seconds < 1) {
+            return;
+        }
+        std::string root = apiRoot(path);
+        {
+            std::lock_guard<std::mutex> lock(g_progressMutex);
+            auto support = g_timecodes.find(root);
+            if (support != g_timecodes.end() && !support->second) {
+                return;
+            }
+        }
+        {
+            std::lock_guard<std::mutex> lock(g_viewedMutex);
+            auto cached = g_viewed.find(root + "|" + hash);
+            if (cached != g_viewed.end()) {
+                cached->second.files[index] = seconds;
+            }
+        }
+        {
+            std::lock_guard<std::mutex> lock(g_progressMutex);
+            g_progressJob = {root, hash, index, seconds};
+            if (g_progressBusy) {
+                return; // sent by the running worker: the last value only
+            }
+            g_progressBusy = true;
+        }
+        if (g_progressWorker != nullptr) {
+            g_progressWorker->join();
+            delete (g_progressWorker);
+        }
+        g_progressWorker = new pplay::Worker(progressThread, nullptr);
     }
 
     bool remFileViewed(const std::string &path) {

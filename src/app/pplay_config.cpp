@@ -98,6 +98,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_MEDIA_PROBE, (int) 1});
     addOption({OPT_AUDIO_VISUALIZER, (int) 0});
     addOption({OPT_TEXT_ENCODING, (int) 0});
+    addOption({OPT_TS_PROGRESS, (int) 1});
 
     // load the configuration from file, overwriting default values
     load();

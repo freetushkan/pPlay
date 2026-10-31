@@ -48,6 +48,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
         networks.emplace_back(networkKey(i), "network.png", Pos::Top);
     }
     networks.emplace_back("Connection timeout", "timeout.png", Pos::Top);
+    networks.emplace_back("TorrServer progress", "time.png", Pos::Top);
 #ifdef __SMB2__
     networks.emplace_back("SMB buffer", "buffer.png", Pos::Top);
 #endif
@@ -152,6 +153,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
 
     addSubmenu("Connection timeout", "Connection timeout", OPT_NETWORK_TIMEOUT, makeAdjustItems(),
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 300.0f, 5.0f, "s");
+    addSubmenu("TorrServer progress", "Playback position on the server", OPT_TS_PROGRESS,
+               makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Playback retry", "Playback retry", OPT_NETWORK_RETRIES, makeAdjustItems(), Submenu::ValueType::Integer,
                Submenu::MenuType::Adjust, 0.0f, 10.0f, 1.0f);
 #ifdef __SMB2__

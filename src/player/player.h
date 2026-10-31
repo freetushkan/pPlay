@@ -178,8 +178,11 @@ private:
 
     void updateWatchdog();
 
-    // watch later save (aid / sid left out while an external track is selected)
+    // watch later save (aid / sid left out while an external track is selected), the
+    // TorrServer position too
     void saveProgress();
+
+    bool syncsProgress() const;
 
     void updateMpvLog();
 

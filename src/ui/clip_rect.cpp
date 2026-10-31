@@ -24,10 +24,26 @@ void pplay::ClipRect::onDraw(Transform &transform, bool draw) {
     auto w = (GLsizei) std::ceil(rect.width);
     auto h = (GLsizei) std::ceil(rect.height);
 
+    // inside another clip: both
+    GLboolean outer = glIsEnabled(GL_SCISSOR_TEST);
+    GLint box[4] = {0, 0, 0, 0};
+    if (outer) {
+        glGetIntegerv(GL_SCISSOR_BOX, box);
+        GLint right = std::min(left + w, box[0] + box[2]), top = std::min(bottom + h, box[1] + box[3]);
+        left = std::max(left, box[0]);
+        bottom = std::max(bottom, box[1]);
+        w = right - left;
+        h = top - bottom;
+    }
+
     glEnable(GL_SCISSOR_TEST);
     glScissor(left, bottom, std::max(w, 0), std::max(h, 0));
     Rectangle::onDraw(transform, draw);
-    glDisable(GL_SCISSOR_TEST);
+    if (outer) {
+        glScissor(box[0], box[1], box[2], box[3]);
+    } else {
+        glDisable(GL_SCISSOR_TEST);
+    }
 }
 
 pplay::FadeEdge::FadeEdge(const FloatRect &rect) : GradientRectangle(rect) {

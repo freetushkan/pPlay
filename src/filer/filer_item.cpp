@@ -64,6 +64,14 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
     fade->setBackground(COLOR_BG);
     fade->setVisibility(Visibility::Hidden);
     FilerItem::add(fade);
+
+    float line = std::max(2.0f, std::round(3 * main->getScaling().y));
+    watchedTrack = new RectangleShape({textX, FilerItem::getSize().y - line - 2 * main->getScaling().y, textWidth, line});
+    watchedTrack->setFillColor(Color(255, 255, 255, 30));
+    watchedTrack->setVisibility(Visibility::Hidden);
+    FilerItem::add(watchedTrack);
+    watched = new RectangleShape({0, 0, 1, line});
+    watchedTrack->add(watched);
 }
 
 void FilerItem::setIcon(const std::string &name) {
@@ -99,6 +107,7 @@ void FilerItem::setFile(const MediaFile &f) {
     if (Filer::isPlaceholder(file)) {
         textTitle->setString(pplay::tr("<Empty>"));
         fade->setVisibility(Visibility::Hidden);
+        watchedTrack->setVisibility(Visibility::Hidden);
         setIcon("");
         setColor(COLOR_GRAY);
         return;
@@ -115,6 +124,25 @@ void FilerItem::setFile(const MediaFile &f) {
     setColor(color());
     fade->setVisibility(textTitle->getLocalBounds().width > clip->getSize().x ? Visibility::Visible
                                                                               : Visibility::Hidden);
+    updateWatched();
+}
+
+void FilerItem::updateWatched() {
+    float part = 0;
+    if (file.type == Io::Type::File && file.mediaInfo.duration > 0) {
+        double position = pplay::Utility::watchLaterPosition(pplay::TorrServe::toStreamUrl(file.path));
+        if (position <= 0 && main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger() != 0) {
+            position = pplay::TorrServe::fileProgress(file.path);
+        }
+        part = (float) std::min(1.0, position / (double) file.mediaInfo.duration);
+    }
+    if (part < 0.01f) {
+        watchedTrack->setVisibility(Visibility::Hidden);
+        return;
+    }
+    watched->setSize(std::round(watchedTrack->getSize().x * part), watchedTrack->getSize().y);
+    watched->setFillColor(COLOR_ACCENT);
+    watchedTrack->setVisibility(Visibility::Visible);
 }
 
 c2d::Color FilerItem::color() {
@@ -138,6 +166,9 @@ void FilerItem::onUpdate() {
         || (file.type == Io::Type::File && !isFullscreen
             && (updateClock.getElapsedTime().asSeconds() > 30.0f || fullscreenExited))) {
         setColor(color());
+        if (file.type == Io::Type::File) {
+            updateWatched();
+        }
         updateClock.restart();
     }
     Rectangle::onUpdate();

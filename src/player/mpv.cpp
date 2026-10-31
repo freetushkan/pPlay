@@ -39,6 +39,10 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
 
     mpv_set_option_string(handle, "config", "yes");
     mpv_set_option_string(handle, "config-dir", configPath.c_str());
+#ifdef __LINUX__
+    // where Utility::getWatchLater() looks (default: ~/.local/state/mpv)
+    mpv_set_option_string(handle, "watch-later-directory", (configPath + "/watch_later").c_str());
+#endif
     mpv_set_option_string(handle, "osd-scale", "0.5");
 #ifndef NDEBUG
     mpv_set_option_string(handle, "terminal", "yes");

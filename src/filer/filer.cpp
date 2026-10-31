@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <cmath>
 #include "main.h"
 #include "paths.h"
 #include "filer.h"
@@ -31,9 +32,11 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     probe = new MediaProbe();
     Filer::add(details);
 
-    // highlight
+    list = new pplay::ClipRect({0, 0, listWidth, size.y});
+    Filer::add(list);
+
     highlight = new Highlight({listWidth, (float) ITEM_HEIGHT * m->getScaling().y}, Highlight::CursorPosition::Left);
-    Filer::add(highlight);
+    list->add(highlight);
 
     // files items
     item_height = highlight->getSize().y;
@@ -42,10 +45,9 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
         item_height = size.y / (float) item_max;
     }
 
-    for (unsigned int i = 0; i < (unsigned int) item_max; i++) {
-        FloatRect r = {0, item_height * (float) i, listWidth, item_height};
-        items.emplace_back(new FilerItem(main, r));
-        Filer::add(items[i]);
+    for (int i = 0; i < item_max + 2; i++) {
+        items.emplace_back(new FilerItem(main, {0, item_height * (float) (i - 1), listWidth, item_height}));
+        list->add(items.back());
     }
 
     // tween
@@ -65,44 +67,57 @@ void Filer::setMediaInfo(const MediaFile &target, const MediaInfo &mediaInfo) {
 }
 
 void Filer::setSelection(int index) {
-    item_index = index;
-    int page = item_index / item_max;
-    unsigned int index_start = (unsigned int) page * item_max;
-
     mutex->lock();
+    int count = (int) files.size();
+    item_index = index;
+    // the selection kept in view, a row at a time scrolled smoothly
+    int first = top;
+    if (index < first) {
+        first = index;
+    } else if (index >= first + item_max) {
+        first = index - item_max + 1;
+    }
+    first = std::max(0, std::min(first, count - item_max));
+    if (std::abs(first - top) == 1) {
+        scrollOffset = std::max(-item_height, std::min(item_height, scrollOffset + (float) (first - top) * item_height));
+    } else if (first != top) {
+        scrollOffset = 0;
+    }
+    top = first;
 
-    for (unsigned int i = 0; i < (unsigned int) item_max; i++) {
-        if (index_start + i >= files.size()) {
+    for (int i = 0; i < (int) items.size(); i++) {
+        int fileIndex = top - 1 + i;
+        if (fileIndex < 0 || fileIndex >= count) {
             items[i]->setVisibility(Visibility::Hidden);
-        } else {
-            // load media info, set file
-            MediaFile file = files[index_start + i];
-            items[i]->setFile(file);
-            items[i]->setVisibility(Visibility::Visible);
-            // set highlight position
-            if (index_start + i == (unsigned int) item_index) {
-                highlight->tweenTo(items[i]->getPosition());
-                details->setFile(file);
-                if (main->getConfig()->getOption(OPT_MEDIA_PROBE)->getInteger() != 0) {
-                    probe->request(file);
-                }
+            continue;
+        }
+        const MediaFile &file = files[fileIndex];
+        items[i]->setFile(file);
+        items[i]->setVisibility(Visibility::Visible);
+        if (fileIndex == item_index) {
+            details->setFile(file);
+            if (main->getConfig()->getOption(OPT_MEDIA_PROBE)->getInteger() != 0) {
+                probe->request(file);
             }
         }
     }
-
-    if (files.empty()) {
-        highlight->setVisibility(Visibility::Hidden);
-    } else {
-        highlight->setVisibility(Visibility::Visible);
-    }
-
+    highlight->tweenTo({0, (float) (item_index - top) * item_height});
+    highlight->setVisibility(files.empty() ? Visibility::Hidden : Visibility::Visible);
     mutex->unlock();
+    placeItems();
+
     MediaFile selected = getSelection();
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
                         "Filer::setSelection finished index=" + std::to_string(item_index) + " path=" + path
                                 + " selectedName=" + selected.name + " selectedPath=" + selected.path
                                 + " selectedType=" + std::to_string((int) selected.type));
     main->syncLastLocation();
+}
+
+void Filer::placeItems() {
+    for (int i = 0; i < (int) items.size(); i++) {
+        items[i]->setPosition(0, std::round((float) (i - 1) * item_height + scrollOffset));
+    }
 }
 
 MediaFile Filer::getSelection() const {
@@ -294,6 +309,14 @@ void Filer::resetProgress(const MediaFile &file) {
 }
 
 void Filer::onUpdate() {
+    float dt = std::min(0.1f, scrollClock.restart().asSeconds());
+    if (scrollOffset != 0) {
+        scrollOffset -= scrollOffset * std::min(1.0f, dt * 16);
+        if (std::fabs(scrollOffset) < 0.5f) {
+            scrollOffset = 0;
+        }
+        placeItems();
+    }
     MediaFile probed;
     if (probe->poll(&probed)) {
         setMediaInfo(probed, probed.mediaInfo);
