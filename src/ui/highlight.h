@@ -30,10 +30,6 @@ public:
 
     void tweenTo(const c2d::Vector2f &position);
 
-    // a background as seen through a highlight at x (0..1 of its width): the gradient is
-    // the strongest on its cursor side (fades over it match)
-    static c2d::Color seenThrough(const c2d::Color &background, float x, const CursorPosition &cursor);
-
     void resize(const c2d::Vector2f &size);
 
 private:

@@ -7,9 +7,6 @@
 #include "main.h"
 #include "highlight.h"
 
-#include <algorithm>
-#include <cmath>
-
 using namespace c2d;
 
 // setAlpha() (parents fade) multiplies the base colors alpha instead of replacing it.
@@ -91,16 +88,6 @@ void Highlight::resize(const c2d::Vector2f &size) {
     if (cursorPosition == CursorPosition::Right) {
         cursor->setPosition(size.x - cursor->getSize().x, 0);
     }
-}
-
-c2d::Color Highlight::seenThrough(const c2d::Color &background, float x, const CursorPosition &cursor) {
-    // as applyColors(): the full alpha on the cursor side, a quarter on the other
-    float strong = COLOR_HIGHLIGHT.a, weak = (float) (COLOR_HIGHLIGHT.a / 4);
-    float f = std::min(1.0f, std::max(0.0f, cursor == CursorPosition::Right ? x : 1 - x));
-    float a = (weak + (strong - weak) * f) / 255;
-    auto mix = [a](uint8_t from, uint8_t to) { return (uint8_t) std::lround(from + (to - from) * a); };
-    return {mix(background.r, COLOR_HIGHLIGHT.r), mix(background.g, COLOR_HIGHLIGHT.g),
-            mix(background.b, COLOR_HIGHLIGHT.b), 255};
 }
 
 void Highlight::tweenTo(const c2d::Vector2f &position) {

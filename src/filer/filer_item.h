@@ -44,7 +44,6 @@ private:
     float textX = 0, textWidth = 0;
     c2d::Sprite *icon;
     c2d::Rectangle *clip;
-    pplay::FadeEdge *fade;
     void updateWatched();
 
     // the watched part (watch later / TorrServer position)
@@ -54,11 +53,6 @@ private:
 
     bool lastFullscreen = false;
 
-public:
-
-    // the selected row, the highlight width (its fade matches the highlight)
-    bool selected = false;
-    float highlightWidth = 1;
 };
 
 #endif //PPLAY_FILERITEM_H

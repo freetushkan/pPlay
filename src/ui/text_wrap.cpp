@@ -2,6 +2,8 @@
 // Word wrap measured with the font.
 //
 
+#include <vector>
+
 #include "text_wrap.h"
 
 // a paragraph wrapped without the hanging indent
@@ -154,4 +156,33 @@ std::string pplay::TextWrap::wrap(c2d::Font *font, unsigned int size, const std:
         out.replace(nbsp, 2, " ");
     }
     return out;
+}
+
+std::string pplay::TextWrap::ellipsize(c2d::Font *font, unsigned int size, const std::string &text, float maxWidth) {
+    if (width(font, size, text) <= maxWidth) {
+        return text;
+    }
+    // the character starts, then the longest prefix that fits
+    std::vector<size_t> starts;
+    for (size_t i = 0; i < text.size(); i++) {
+        if (((unsigned char) text[i] & 0xC0) != 0x80) {
+            starts.push_back(i);
+        }
+    }
+    // k characters: the most that fit with the ellipsis
+    auto prefix_of = [&](size_t k) { return text.substr(0, k < starts.size() ? starts[k] : text.size()); };
+    size_t low = 0, high = starts.empty() ? 0 : starts.size() - 1;
+    while (low < high) {
+        size_t mid = (low + high + 1) / 2;
+        if (width(font, size, prefix_of(mid) + "\u2026") <= maxWidth) {
+            low = mid;
+        } else {
+            high = mid - 1;
+        }
+    }
+    std::string prefix = prefix_of(low);
+    while (!prefix.empty() && (prefix.back() == ' ' || prefix.back() == '.')) {
+        prefix.pop_back();
+    }
+    return prefix + "\u2026";
 }

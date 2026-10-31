@@ -14,6 +14,9 @@ namespace pplay::TextWrap {
     // text width on one line, in pixels
     float width(c2d::Font *font, unsigned int size, const std::string &text);
 
+    // cut to maxWidth with "…" at the end (whole utf-8 characters)
+    std::string ellipsize(c2d::Font *font, unsigned int size, const std::string &text, float maxWidth);
+
     // spaces made non breaking for wrap(): kept on one line
     std::string noBreak(const std::string &text);
 

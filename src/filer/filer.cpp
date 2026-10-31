@@ -332,10 +332,6 @@ void Filer::resetProgress(const MediaFile &file) {
 
 void Filer::onUpdate() {
     crumbs->setPath(path);
-    for (int i = 0; i < (int) items.size(); i++) {
-        items[i]->selected = top + i - 1 == item_index;
-        items[i]->highlightWidth = highlight->getSize().x;
-    }
     float dt = std::min(0.1f, scrollClock.restart().asSeconds());
     if (scrollOffset != 0) {
         scrollOffset -= scrollOffset * std::min(1.0f, dt * 16);

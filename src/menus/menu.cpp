@@ -46,7 +46,7 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title, const
     // on several lines when needed
     titleKey = _title;
     title = new Text("", main->getFontSize(Main::FontSize::Big), main->getFont());
-    title->setPosition(main->getScaled(32, 32));
+    title->setPosition(main->getScaled(40, 40));
     title->setFillColor(COLOR_FONT);
     setTitleText(pplay::tr(_title));
     Menu::add(title);
@@ -74,8 +74,8 @@ const std::vector<Menu *> &Menu::all() {
 }
 
 float Menu::menuTop() const {
-    // under the title; the items centered in the space left when they fit (the bottom
-    // ones, exit / stop, stay at the bottom)
+    // under the title; when they fit, the items and the bottom ones (exit / stop, a row
+    // apart) centered in the space left
     float top = title->getPosition().y + std::max((float) title->getCharacterSize(), title->getLocalBounds().height)
                 + 32.0f * main->getScaling().y;
     int bottomItems = 0, topItems = 0;
@@ -83,9 +83,9 @@ float Menu::menuTop() const {
         bottomItems += button->item.position == MenuItem::Position::Bottom;
         topItems += button->item.enabled && button->item.position == MenuItem::Position::Top;
     }
-    float bottom = getLocalBounds().height - 32.0f * main->getScaling().y - (float) bottomItems * itemHeight();
-    float used = (float) topItems * itemHeight();
-    return used < bottom - top ? std::round(top + (bottom - top - used) / 2) : top;
+    float area = getLocalBounds().height - 32.0f * main->getScaling().y - top;
+    float used = (float) (topItems + (bottomItems > 0 ? bottomItems + 1 : 0)) * itemHeight();
+    return used <= area ? std::round(top + (area - used) / 2) : top;
 }
 
 float Menu::menuBottom() {
@@ -256,6 +256,20 @@ void Menu::updateScroll() {
         button->setPosition(0, y);
         button->setVisibility(y + height > top && y < bottom ? Visibility::Visible : Visibility::Hidden);
         topIndex++;
+    }
+
+    // the bottom ones: a row under the list when it fits, else at the bottom
+    int bottomCount = 0;
+    for (auto &button: buttons) {
+        bottomCount += button->item.position == MenuItem::Position::Bottom;
+    }
+    bool fits = top + (float) (topIndex + bottomCount + 1) * height <= getSize().y - 32.0f * main->getScaling().y;
+    float lowest = fits ? top + (float) (topIndex + bottomCount) * height : getSize().y - 32.0f * main->getScaling().y;
+    int k = 0;
+    for (auto &button: buttons) {
+        if (button->item.position == MenuItem::Position::Bottom) {
+            button->setPosition(0, lowest - (float) k++ * height);
+        }
     }
 }
 

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "cross2d/c2d.h"
+#include "clip_rect.h"
 
 class Main;
 
@@ -70,6 +71,10 @@ private:
 
     void updateTexts();
 
+    void placeTitle();
+
+    void scrollTitle();
+
     void updateChips();
 
     void updateProgress();
@@ -89,7 +94,11 @@ private:
 
     c2d::GradientRectangle *scrim = nullptr;
     c2d::Rectangle *panel = nullptr;
+    pplay::ClipRect *titleClip = nullptr;
     c2d::Text *title = nullptr;
+    std::string titleShown;
+    float titleMax = 0, titleY = 0;
+    c2d::C2DClock titleClock;
     c2d::Text *meta = nullptr;
     c2d::RectangleShape *track = nullptr;
     c2d::RectangleShape *buffered = nullptr;

@@ -9,7 +9,7 @@
 #include "clip_rect.h"
 #include "menu_button.h"
 #include "round_rect.h"
-#include "highlight.h"
+#include "text_wrap.h"
 
 using namespace c2d;
 
@@ -74,7 +74,7 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
                                                                       : COLOR_FONT);
 
     float textX = 12.0f * main->getScaling().x + (item.icon.empty() ? 0 : iconSize + 12.0f * main->getScaling().x);
-    // up to the button edge (the highlight cursor), or the value part; long texts faded there
+    // up to the button edge (the highlight cursor), or the value part
     const float sc = main->getScaling().x;
     float right = MenuButton::getSize().x - 18 * sc;
     bool valued = !item.value.empty() || item.slider >= 0 || item.opens;
@@ -96,9 +96,6 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
     clip = new pplay::ClipRect({textX, 0, maxTextWidth, MenuButton::getSize().y});
     clip->add(name);
     MenuButton::add(clip);
-    float fadeWidth = std::min(48.0f * main->getScaling().x, maxTextWidth / 3);
-    fade = new pplay::FadeEdge({textX + maxTextWidth - fadeWidth, 0, fadeWidth, MenuButton::getSize().y});
-    MenuButton::add(fade);
     refreshText();
     refreshValue();
 }
@@ -123,16 +120,8 @@ void MenuButton::createSlider() {
         float width = std::max(0.0f, left - 12 * scaling.x - clip->getPosition().x);
         maxTextWidth = width;
         clip->setSize(width, clip->getSize().y);
-        placeFade();
         refreshText();
     }
-}
-
-void MenuButton::placeFade() {
-    // over the end of the name, wherever it ends
-    float width = std::min(48.0f * scaling.x, clip->getSize().x / 3);
-    fade->setSize(width, fade->getSize().y);
-    fade->setPosition(clip->getPosition().x + clip->getSize().x - width, fade->getPosition().y);
 }
 
 void MenuButton::refreshValue() {
@@ -165,8 +154,7 @@ void MenuButton::refreshValue() {
         if (width != maxTextWidth) {
             maxTextWidth = width;
             clip->setSize(width, clip->getSize().y);
-            placeFade();
-            refreshText();
+                refreshText();
         }
     }
     valueText->setFillColor(item.valueAccent ? COLOR_ACCENT : Color(160, 168, 178, 255));
@@ -189,7 +177,9 @@ void MenuButton::refreshText() {
 }
 
 void MenuButton::showStatic() {
-    name->setString(oneLine(item.text()));
+    // too long: cut with "…"
+    name->setString(pplay::TextWrap::ellipsize(name->getFont(), name->getCharacterSize(), oneLine(item.text()),
+                                               clip->getSize().x));
     name->setPosition(0, clip->getSize().y / 2);
 }
 
@@ -205,10 +195,6 @@ void MenuButton::startScroll() {
 
 void MenuButton::onUpdate() {
     Rectangle::onUpdate();
-    // what is behind the fade: the menu, the selection highlight over it
-    float x = (fade->getPosition().x + fade->getSize().x / 2) / std::max(1.0f, getSize().x);
-    fade->setBackground(selected ? Highlight::seenThrough(COLOR_BG, x, Highlight::CursorPosition::Right) : COLOR_BG);
-    fade->setVisibility(scrollable ? Visibility::Visible : Visibility::Hidden);
     if (!scrollable || !isVisible()) {
         return;
     }

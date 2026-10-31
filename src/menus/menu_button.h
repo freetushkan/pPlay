@@ -74,8 +74,6 @@ private:
 
     void createSlider();
 
-    void placeFade();
-
     void startScroll();
 
     c2d::Text *valueText = nullptr;
@@ -87,7 +85,6 @@ private:
     float maxTextWidth = 0;
     // the text, clipped at maxTextWidth; scrolled when selected and too long
     c2d::Rectangle *clip = nullptr;
-    pplay::FadeEdge *fade = nullptr;
     bool scrollable = false;
     bool scrolling = false;
     bool scrollSelected = false;

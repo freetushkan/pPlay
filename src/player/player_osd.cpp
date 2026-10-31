@@ -11,6 +11,7 @@
 #include "player_osd.h"
 #include "audio_view.h"
 #include "round_rect.h"
+#include "clip_rect.h"
 #include "encodings.h"
 #include "i18n.h"
 
@@ -69,9 +70,13 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     panel = new Rectangle(size);
     PlayerOSD::add(panel);
 
+    // the title scrolls when too long
+    titleClip = new pplay::ClipRect({0, 0, 10, std::round(40 * sc)});
+    panel->add(titleClip);
     title = new Text("", main->getFontSize(Main::FontSize::Bigger), main->getFont());
     title->setOutlineThickness(1);
-    panel->add(title);
+    title->setOrigin(Origin::Left);
+    titleClip->add(title);
 
     meta = new Text("", main->getFontSize(Main::FontSize::Small), main->getFont());
     meta->setOutlineThickness(1);
@@ -145,7 +150,7 @@ void PlayerOSD::layout(bool audio) {
     audioLayout = audio;
     laidOut = true;
 
-    float trackY, trackX, trackW, buttonsY, titleY;
+    float trackY, trackX, trackW, buttonsY;
     if (audio) {
         // under the cover / visualizer zone, centered
         FloatRect zone = AudioView::zone();
@@ -155,9 +160,7 @@ void PlayerOSD::layout(bool audio) {
         trackX = (size.x - trackW) / 2;
         trackY = bottom + 104 * sc;
         buttonsY = trackY + 84 * sc;
-        title->setOrigin(Origin::Center);
-        title->setPosition(size.x / 2, titleY);
-        title->setSizeMax(size.x * 0.8f, 0);
+        titleMax = size.x * 0.8f;
         meta->setOrigin(Origin::Center);
         meta->setPosition(size.x / 2, titleY + 28 * sc);
         peekOffset = 0;
@@ -168,9 +171,7 @@ void PlayerOSD::layout(bool audio) {
         titleY = trackY - 26 * sc;
         trackX = margin + 80 * sc;
         trackW = size.x - 2 * trackX;
-        title->setOrigin(Origin::Left);
-        title->setPosition(margin, titleY);
-        title->setSizeMax(size.x * 0.5f, 0);
+        titleMax = size.x * 0.5f;
         meta->setOrigin(Origin::Left);
         peekOffset = 50 * sc;
     }
@@ -277,7 +278,11 @@ void PlayerOSD::updateTexts() {
             parts.push_back(std::to_string(bitrate / 1000) + " kb/s");
         }
     } else {
-        name = encoding::fix(player->getTitle());
+        // the title tag, else the player title (file name, playlist entry)
+        name = encoding::fix(mpv->getString("metadata/by-key/title"));
+        if (name.empty()) {
+            name = encoding::fix(player->getTitle());
+        }
         long height = mpv->getInt("video-params/h", 0);
         std::string codec = c2d::Utility::toUpper(mpv->getString("video-codec-name"));
         if (height > 0) {
@@ -300,15 +305,44 @@ void PlayerOSD::updateTexts() {
     for (auto &part: parts) {
         line += (line.empty() ? "" : " · ") + part;
     }
-    title->setString(name);
+    if (name != titleShown) {
+        titleShown = name;
+        title->setString(name);
+        titleClock.restart();
+    }
     meta->setString(line);
     std::string following = player->nextTitle();
     next->setString(following.empty() ? "" : pplay::tr("Next") + ": " + encoding::fix(following));
-    if (!audioLayout) {
-        const float sc = main->getScaling().y;
-        meta->setPosition(title->getPosition().x + title->getLocalBounds().width + 14 * sc,
-                          title->getPosition().y + 2 * sc);
+    placeTitle();
+}
+
+void PlayerOSD::placeTitle() {
+    const float sc = main->getScaling().y;
+    float width = std::min(title->getLocalBounds().width, titleMax);
+    if (titleClip->getSize().x != width) {
+        titleClip->setSize(width, titleClip->getSize().y);
     }
+    float x = audioLayout ? (main->getSize().x - width) / 2 : 54 * sc;
+    titleClip->setPosition(std::round(x), std::round(titleY - titleClip->getSize().y / 2));
+    if (!audioLayout) {
+        meta->setPosition(x + width + 14 * sc, titleY + 2 * sc);
+    }
+}
+
+void PlayerOSD::scrollTitle() {
+    // too long: a pause, to the end, a pause, back to the start
+    float overflow = title->getLocalBounds().width - titleClip->getSize().x;
+    float offset = 0;
+    if (overflow > 0) {
+        float speed = 60 * main->getScaling().y, wait = 2;
+        float moved = (titleClock.getElapsedTime().asSeconds() - wait) * speed;
+        if (moved > overflow + wait * speed) {
+            titleClock.restart();
+            moved = 0;
+        }
+        offset = std::min(overflow, std::max(0.0f, moved));
+    }
+    title->setPosition(-std::round(offset), titleClip->getSize().y / 2);
 }
 
 void PlayerOSD::updateChips() {
@@ -359,7 +393,7 @@ void PlayerOSD::updateChips() {
         used.push_back(i);
     }
     float x = audioLayout ? (size.x - width) / 2 : size.x - 54 * sc - width;
-    float y = audioLayout ? track->getPosition().y + 32 * sc : title->getPosition().y;
+    float y = audioLayout ? track->getPosition().y + 32 * sc : titleY;
     for (size_t i = 0; i < chips.size(); i++) {
         bool shown = i < used.size();
         chips[i].back->setVisibility(shown ? Visibility::Visible : Visibility::Hidden);
@@ -479,6 +513,7 @@ void PlayerOSD::onUpdate() {
             updateChips();
         }
         updateProgress();
+        scrollTitle();
     }
     applyFade();
     Rectangle::onUpdate();

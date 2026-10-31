@@ -162,6 +162,7 @@ void DetailsView::updateHints() {
     auto add = [&list](unsigned int keys, const std::string &action, Action id) {
         list.push_back({keys, action, (int) id});
     };
+    // the action first, the navigation, the reset last
     if (focused) {
         if (!empty) {
             add(Input::A, open, Action::Open);
@@ -169,10 +170,10 @@ void DetailsView::updateHints() {
         if (playing) {
             add(Input::X, "Player", Action::Player);
         }
+        add(Input::B, "Back", Action::Files);
         if (resettable) {
             add(Input::Y, "Reset progress", Action::Reset);
         }
-        add(Input::B, "Back", Action::Files);
     } else if (picking) {
         add(Input::Up | Input::Down, "Select", Action::None);
         if (!empty) {
@@ -181,13 +182,13 @@ void DetailsView::updateHints() {
         add(Input::B, "Back", Action::Parent);
         add(Input::X, "cancel", Action::None);
     } else {
-        add(Input::Up | Input::Down, "Select", Action::None);
         if (!empty) {
             add(Input::A, open, Action::Open);
         }
+        add(Input::Right, "Details", Action::Panel);
+        add(Input::Up | Input::Down, "Select", Action::None);
         add(Input::B, "Back", Action::Parent);
         add(Input::Left, "Menu", Action::Menu);
-        add(Input::Right, "Details", Action::Panel);
         if (playing) {
             add(Input::X, "Player", Action::Player);
         }
