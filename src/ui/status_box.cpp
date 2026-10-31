@@ -82,7 +82,8 @@ void StatusBox::onDraw(c2d::Transform &transform, bool draw) {
     } else {
         PlayerOSD *osd = main->getPlayer()->getOSD();
         if (osd && main->getPlayer()->isFullscreen()) {
-            setPosition(pos.x, osd->getTop() - 24 * main->getScaling().y);
+            // top left, the clock on the other side
+            setPosition(32 * main->getScaling().x, 20 * main->getScaling().y + getSize().y);
         } else {
             FloatRect bounds = main->getMenuMain()->getGlobalBounds();
             setPosition(bounds.left + bounds.width + pos.x, main->getSize().y - (16 * main->getScaling().x));

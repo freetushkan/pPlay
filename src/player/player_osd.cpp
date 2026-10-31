@@ -63,7 +63,7 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     const Vector2f size = main->getSize();
     const float sc = main->getScaling().y;
 
-    scrim = new GradientRectangle({0, size.y - 220 * sc, size.x, 220 * sc});
+    scrim = new GradientRectangle({0, size.y - 260 * sc, size.x, 260 * sc});
     PlayerOSD::add(scrim);
 
     panel = new Rectangle(size);
@@ -128,6 +128,10 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
                addButton("btn_seek_forward_short.png"), addButton("btn_seek_forward_long.png"),
                addButton("btn_next.png"), addButton("btn_settings.png"), addButton("btn_stop.png")};
 
+    next = new Text("", main->getFontSize(Main::FontSize::Small), main->getFont());
+    next->setOutlineThickness(1);
+    panel->add(next);
+
     edge = new RectangleShape({0, size.y - std::max(2.0f, std::round(3 * sc)), 0, std::max(2.0f, std::round(3 * sc))});
     PlayerOSD::add(edge);
 
@@ -162,7 +166,7 @@ void PlayerOSD::layout(bool audio) {
         buttonsY = size.y - 40 * sc;
         trackY = buttonsY - 38 * sc;
         titleY = trackY - 26 * sc;
-        trackX = margin + 64 * sc;
+        trackX = margin + 80 * sc;
         trackW = size.x - 2 * trackX;
         title->setOrigin(Origin::Left);
         title->setPosition(margin, titleY);
@@ -174,7 +178,6 @@ void PlayerOSD::layout(bool audio) {
     track->setSize(trackW, track->getSize().y);
     elapsed->setPosition(trackX - 14 * sc, trackY);
     remaining->setPosition(trackX + trackW + 14 * sc, trackY);
-    top = titleY - 24 * sc;
 
     // transport in a row, settings and stop apart
     float step = 52 * sc;
@@ -197,6 +200,16 @@ void PlayerOSD::layout(bool audio) {
         buttons[i]->setPosition(xs[i], buttonsY);
     }
     btn_play->setPosition(xs[(size_t) ButtonID::Pause], buttonsY);
+    // video: before settings; audio: under the buttons
+    if (audio) {
+        next->setOrigin(Origin::Center);
+        next->setPosition(size.x / 2, buttonsY + 40 * sc);
+        next->setSizeMax(size.x * 0.6f, 0);
+    } else {
+        next->setOrigin(Origin::Right);
+        next->setPosition(xs[(size_t) ButtonID::Settings] - 44 * sc, buttonsY);
+        next->setSizeMax(xs[(size_t) ButtonID::Settings] - xs[(size_t) ButtonID::Next] - 100 * sc, 0);
+    }
     focus->setPosition(focusX = xs[(size_t) index], buttonsY);
     textKey.clear();
 }
@@ -273,12 +286,18 @@ void PlayerOSD::updateTexts() {
             parts.push_back(audio + (layout.empty() ? "" : " " + layout));
         }
     }
+    long duration = mpv->getDuration();
+    if (duration > 0) {
+        parts.push_back(clockText((double) duration));
+    }
     std::string line;
     for (auto &part: parts) {
         line += (line.empty() ? "" : " · ") + part;
     }
     title->setString(name);
     meta->setString(line);
+    std::string following = player->nextTitle();
+    next->setString(following.empty() ? "" : pplay::tr("Next") + ": " + encoding::fix(following));
     if (!audioLayout) {
         const float sc = main->getScaling().y;
         meta->setPosition(title->getPosition().x + title->getLocalBounds().width + 14 * sc,
@@ -290,17 +309,13 @@ void PlayerOSD::updateChips() {
     Player *player = main->getPlayer();
     Mpv *mpv = player->getMpv();
     PPLAYConfig *config = main->getConfig();
+    // by priority: the normalization only if there is room left
     std::vector<std::string> labels;
-
     double speed = mpv->getSpeed();
     if (speed > 0 && std::fabs(speed - 1.0) > 0.001) {
         char text[16];
         snprintf(text, sizeof(text), "%.2fx", speed);
         labels.emplace_back(text);
-    }
-    int normalize = config->getOption(OPT_AUDIO_NORMALIZE)->getInteger();
-    if (normalize == 1 || normalize == 2) {
-        labels.push_back(pplay::tr(normalize == 1 ? "Normalize" : "Night mode"));
     }
     long volume = mpv->getInt("volume", 100);
     if (volume != 100) {
@@ -310,29 +325,42 @@ void PlayerOSD::updateChips() {
     if (mode == 2 || mode == 3) {
         labels.push_back(pplay::tr(mode == 2 ? "Loop file" : "Loop directory"));
     }
+    int normalize = config->getOption(OPT_AUDIO_NORMALIZE)->getInteger();
+    if (normalize == 1 || normalize == 2) {
+        labels.push_back(pplay::tr(normalize == 1 ? "Normalize" : "Night mode"));
+    }
 
     const Vector2f size = main->getSize();
     const float sc = main->getScaling().y;
-    float pad = 10 * sc, gap = 6 * sc;
+    float pad = 12 * sc, gap = 8 * sc;
+    // video: right of the title line; audio: the bar width
+    float room = audioLayout ? track->getSize().x
+                             : size.x - 54 * sc - (meta->getPosition().x + meta->getLocalBounds().width + 24 * sc);
+    std::vector<size_t> used;
     float width = 0;
-    for (size_t i = 0; i < chips.size(); i++) {
-        bool used = i < labels.size();
-        chips[i].back->setVisibility(used ? Visibility::Visible : Visibility::Hidden);
-        if (used) {
-            chips[i].text->setString(labels[i]);
-            float w = std::round(chips[i].text->getLocalBounds().width + 2 * pad);
-            chips[i].back->setSize(w, chips[i].back->getSize().y);
-            chips[i].text->setPosition(w / 2, chips[i].back->getSize().y / 2);
-            width += w + (i > 0 ? gap : 0);
+    for (size_t i = 0; i < labels.size() && used.size() < chips.size(); i++) {
+        Chip &chip = chips[used.size()];
+        chip.text->setString(labels[i]);
+        float w = std::round(chip.text->getLocalBounds().width + 2 * pad);
+        float needed = width + (used.empty() ? 0 : gap) + w;
+        if (needed > room) {
+            continue;
         }
+        chip.back->setSize(w, chip.back->getSize().y);
+        chip.text->setPosition(w / 2, chip.back->getSize().y / 2);
+        width = needed;
+        used.push_back(i);
     }
-    // video: on the title line, right side; audio: centered under the bar
     float x = audioLayout ? (size.x - width) / 2 : size.x - 54 * sc - width;
     float y = audioLayout ? track->getPosition().y + 32 * sc : title->getPosition().y;
-    for (size_t i = 0; i < labels.size() && i < chips.size(); i++) {
-        chips[i].back->setOrigin(Origin::Left);
-        chips[i].back->setPosition(x, y);
-        x += chips[i].back->getSize().x + gap;
+    for (size_t i = 0; i < chips.size(); i++) {
+        bool shown = i < used.size();
+        chips[i].back->setVisibility(shown ? Visibility::Visible : Visibility::Hidden);
+        if (shown) {
+            chips[i].back->setOrigin(Origin::Left);
+            chips[i].back->setPosition(x, y);
+            x += chips[i].back->getSize().x + gap;
+        }
     }
 }
 
@@ -362,7 +390,7 @@ void PlayerOSD::applyFade() {
 
     scrim->setVisibility(audioLayout || base <= 0 ? Visibility::Hidden : Visibility::Visible);
     // Up: the first color at the bottom
-    scrim->setColor(faded(Color(5, 7, 10, 230), base * (0.6f + 0.4f * full)), Color(5, 7, 10, 0), GradientRectangle::Up);
+    scrim->setColor(faded(Color(5, 7, 10, 245), base * (0.7f + 0.3f * full)), Color(5, 7, 10, 0), GradientRectangle::Up);
 
     fadeText(title, COLOR_FONT, base);
     fadeText(meta, TEXT_DIM, base);
@@ -380,6 +408,7 @@ void PlayerOSD::applyFade() {
         chip.text->setFillColor(faded(COLOR_FONT, extra));
     }
     focus->setFillColor(faded(COLOR_WHITE, extra));
+    fadeText(next, TEXT_DIM, extra);
     for (size_t i = 0; i < buttons.size(); i++) {
         bool focused = (int) i == index;
         buttons[i]->setFillColor(faded(focused ? Color(16, 18, 22, 255) : COLOR_FONT, extra));

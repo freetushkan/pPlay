@@ -103,6 +103,8 @@ StatusBar::StatusBar(Main *m) : Rectangle({0, 0, 64, 64}) {
     main = m;
     const float sc = m->getScaling().y;
     StatusBar::setSize(m->getSize().x, 32 * sc);
+    // off the screen edge, as the player panel at the bottom
+    StatusBar::setPosition(0, 18 * sc);
 
     // a chip on the right: battery (Switch) and clock
     chip = new RoundRect({10, std::round(26 * sc)});
@@ -111,7 +113,7 @@ StatusBar::StatusBar(Main *m) : Rectangle({0, 0, 64, 64}) {
 
 #ifdef __SWITCH__
     battery = new Battery(StatusBar::getGlobalBounds(), m->getScaling());
-    battery->setPosition(battery->getPosition().x - 12 * m->getScaling().x, battery->getPosition().y);
+    battery->setPosition(battery->getPosition().x - 20 * m->getScaling().x, battery->getPosition().y);
     StatusBar::add(battery);
 #endif
 
@@ -121,7 +123,7 @@ StatusBar::StatusBar(Main *m) : Rectangle({0, 0, 64, 64}) {
     timeText->setPosition(battery->getPosition().x - battery->getSize().x - (m->getScaling().x * 16),
                           StatusBar::getSize().y / 2);
 #else
-    timeText->setPosition(StatusBar::getGlobalBounds().width - (m->getScaling().x * 32), StatusBar::getSize().y / 2);
+    timeText->setPosition(StatusBar::getGlobalBounds().width - (m->getScaling().x * 38), StatusBar::getSize().y / 2);
 #endif
     StatusBar::add(timeText);
     applyAlpha();
@@ -187,11 +189,18 @@ void StatusBar::onUpdate() {
 
     timeText->setString(oss.str());
 
-    const float sc = main->getScaling().y;
-    float right = getSize().x - 18 * main->getScaling().x;
-    float left = timeText->getPosition().x - timeText->getLocalBounds().width - 14 * main->getScaling().x;
-    chip->setSize(std::round(right - left), chip->getSize().y);
-    chip->setPosition(right, getSize().y / 2 + 1 * sc);
+    // the chip around the drawn digits (not the font line), even paddings
+    const Vector2f sc = main->getScaling();
+    FloatRect text = timeText->getLocalBounds();
+    float originY = std::max(text.height, (float) timeText->getCharacterSize()) / 2;
+    float centerY = timeText->getPosition().y - originY + text.top + text.height / 2;
+    float right = getSize().x - 22 * sc.x;
+    float left = timeText->getPosition().x - text.width - 16 * sc.x;
+    Vector2f chipSize = {std::round(right - left), std::round(text.height + 20 * sc.y)};
+    if (chip->getSize().x != chipSize.x || chip->getSize().y != chipSize.y) {
+        chip->setSize(chipSize);
+    }
+    chip->setPosition(right, std::round(centerY));
     Rectangle::onUpdate();
 }
 

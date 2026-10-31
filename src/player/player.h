@@ -140,6 +140,9 @@ public:
 
     bool isPlaylistFile() const;
 
+    // the file the playback mode goes to at the end, "" if none
+    std::string nextTitle() const;
+
     const std::vector<MediaFile> &getAutoplayFiles() const;
 
     bool onInput(c2d::Input::Player *players) override;

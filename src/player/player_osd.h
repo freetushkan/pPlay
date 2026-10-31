@@ -48,9 +48,6 @@ public:
 
     void setPaused(bool paused);
 
-    // where the shown part starts (screen y), messages go above
-    float getTop() const { return top; }
-
 private:
 
     enum class State {
@@ -82,7 +79,7 @@ private:
     bool laidOut = false;
     // animated: the panel shown, its full part shown
     float shown = 0, full = 0;
-    float peekOffset = 0, top = 0;
+    float peekOffset = 0;
     c2d::C2DClock clock, frameClock, textClock;
     std::string textKey;
 
@@ -102,6 +99,7 @@ private:
     std::vector<float> buttonScales;
     c2d::Texture *btn_play = nullptr;
     c2d::Texture *btn_pause = nullptr;
+    c2d::Text *next = nullptr;
     c2d::RectangleShape *edge = nullptr;
     int index = (int) ButtonID::Pause;
     float focusX = 0;

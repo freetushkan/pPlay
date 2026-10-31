@@ -345,6 +345,33 @@ void Player::onMpvLog(const mpv_event_log_message *message) {
                                        + (message->level ? message->level : "") + ": " + text);
 }
 
+std::string Player::nextTitle() const {
+    int mode = main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger();
+    if (isPlaylistFile() || (mode != 1 && mode != 3)) {
+        return "";
+    }
+    int current = -1;
+    for (size_t i = 0; i < autoplayFiles.size(); i++) {
+        if (autoplayFiles[i].path == file.path) {
+            current = (int) i;
+            break;
+        }
+    }
+    if (current < 0) {
+        return "";
+    }
+    size_t count = autoplayFiles.size();
+    // the directory loop goes on from the first one
+    size_t last = mode == 3 ? count : count - (size_t) current - 1;
+    for (size_t step = 1; step <= last && step < count + 1; step++) {
+        const MediaFile &next = autoplayFiles[((size_t) current + step) % count];
+        if (pplay::Utility::isMedia(next) && ((size_t) current + step) % count != (size_t) current) {
+            return next.name;
+        }
+    }
+    return "";
+}
+
 bool Player::playSibling(int direction) {
     if (mpv->isStopped()) {
         return false;
