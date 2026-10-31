@@ -37,12 +37,24 @@ public:
 
     void refresh();
 
+    // an option menu: its value as shown, one step to the next / previous one
+    bool hasOption() const { return !option_name.empty(); }
+
+    std::string currentText();
+
+    bool step(int direction);
+
     // name in MenuMain (back navigation)
     void setKey(const std::string &k) { key = k; }
 
 private:
 
     void onOptionSelection(MenuItem *item) override;
+
+    bool onOptionChange(MenuItem *item, int direction) override;
+
+    // a group: the values of its options
+    void refreshValues();
 
     void updateSelectionHighlight() override;
 

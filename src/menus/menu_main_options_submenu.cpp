@@ -129,6 +129,79 @@ void MenuMainOptionsSubmenu::updateSelectionHighlight() {
     }
 }
 
+std::string MenuMainOptionsSubmenu::currentText() {
+    auto *option = main->getConfig()->getOption(option_name);
+    if (menu_type == MenuType::TextInput) {
+        std::string value = option->getString();
+        return value.empty() ? pplay::tr("<empty>") : value;
+    }
+    if (menu_type == MenuType::Adjust) {
+        return formatValue(getCurrentValue());
+    }
+    for (auto *button: buttons) {
+        if (value_type == ValueType::Integer ? button->item.id == (int) getCurrentValue()
+                                             : (Utility::toLower(button->item.name) == Utility::toLower(option->getString())
+                                                || Utility::toLower(button->item.data_str)
+                                                           == Utility::toLower(option->getString()))) {
+            return button->item.text();
+        }
+    }
+    return option->getString();
+}
+
+bool MenuMainOptionsSubmenu::step(int direction) {
+    if (menu_type == MenuType::TextInput || buttons.empty()) {
+        return false;
+    }
+    if (menu_type == MenuType::Adjust) {
+        // the "-" / "+" items
+        MenuItem change("", "", MenuItem::Position::Top, direction);
+        onOptionSelection(&change);
+        return true;
+    }
+    std::string current = currentText();
+    int count = (int) buttons.size(), index = 0;
+    for (int i = 0; i < count; i++) {
+        if (buttons[i]->item.text() == current) {
+            index = i;
+        }
+    }
+    for (int i = 1; i < count; i++) {
+        MenuButton *next = buttons[(index + direction * i + count * i) % count];
+        if (next->item.selectable && next->item.position == MenuItem::Position::Top) {
+            onOptionSelection(&next->item);
+            return true;
+        }
+    }
+    return false;
+}
+
+void MenuMainOptionsSubmenu::refreshValues() {
+    // (the main menu still being made)
+    if (hasOption() || main->getMenuMain() == nullptr) {
+        return;
+    }
+    for (auto *button: buttons) {
+        auto *sub = main->getMenuMain()->getMenuMainOptionsSubmenu(button->item.name);
+        bool option = sub != nullptr && sub->hasOption();
+        button->item.value = option ? sub->currentText() : "";
+        button->item.opens = sub != nullptr && !option;
+        button->refreshValue();
+    }
+}
+
+bool MenuMainOptionsSubmenu::onOptionChange(MenuItem *item, int direction) {
+    if (hasOption()) {
+        return false;
+    }
+    auto *sub = main->getMenuMain()->getMenuMainOptionsSubmenu(item->name);
+    if (sub == nullptr || !sub->hasOption() || !sub->step(direction)) {
+        return false;
+    }
+    refreshValues();
+    return true;
+}
+
 void MenuMainOptionsSubmenu::refresh() {
     if (menu_type == MenuType::Adjust && buttons.size() >= 3) {
         hideCurrent();
@@ -147,6 +220,7 @@ void MenuMainOptionsSubmenu::refresh() {
 
     // shown on the current value only (none in groups / categories)
     hideCurrent();
+    refreshValues();
 
     updateSelectionHighlight();
 }
@@ -275,7 +349,19 @@ void MenuMainOptionsSubmenu::setVisibility(c2d::Visibility visibility, bool twee
 }
 
 bool MenuMainOptionsSubmenu::onInput(c2d::Input::Player *players) {
-    if (players[0].buttons & Input::Right || players[0].buttons & Input::B) {
+    unsigned int keys = players[0].buttons;
+    // a group: left / right change the values of its options (back: B)
+    if ((keys & (Input::Left | Input::Right)) && !hasOption() && !buttons.empty()) {
+        MenuItem *item = getSelection();
+        if (onOptionChange(item, (keys & Input::Right) ? 1 : -1)) {
+            return true;
+        }
+        if (keys & Input::Left) {
+            onOptionSelection(item);
+            return true;
+        }
+    }
+    if (keys & Input::Right || keys & Input::B) {
         setVisibility(Visibility::Hidden, true);
         main->getMenuMain()->showParent(key);
         return true;

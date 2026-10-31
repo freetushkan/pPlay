@@ -186,7 +186,8 @@ void MenuButton::onUpdate() {
                       (uint8_t) (background.b + (255 - background.b) * a / 255), 255};
     }
     fade->setBackground(background);
-    fade->setVisibility(scrollable ? Visibility::Visible : Visibility::Hidden);
+    // a plain cut: a fade over a highlight or the video behind never matches
+    fade->setVisibility(Visibility::Hidden);
     if (!scrollable || !isVisible()) {
         return;
     }

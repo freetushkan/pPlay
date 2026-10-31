@@ -70,8 +70,18 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
             MenuItem("Networks", "network.png", Pos::Top), MenuItem("System", "system.png", Pos::Top),
             MenuItem("About", "info.png", Pos::Top),
     };
+    for (auto &item: it) {
+        item.opens = true;
+    }
+    // the settings: wider, the values on the right
+    for (auto &category: categories) {
+        for (auto &item: category.second) {
+            item.value = "-";
+        }
+    }
+    const FloatRect wide = {-420 * main->getScaling().x, rect.top, 420 * main->getScaling().x, rect.height};
 
-    menuMainOptions = new MenuMainOptions(main, rect, it);
+    menuMainOptions = new MenuMainOptions(main, wide, it);
     menuMainOptions->setLayer(2);
     menuMainOptions->setVisibility(Visibility::Hidden, false);
     main->add(menuMainOptions);
@@ -81,7 +91,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                           Submenu::ValueType valueType = Submenu::ValueType::String,
                           Submenu::MenuType menuType = Submenu::MenuType::List, float minValue = 0.0f,
                           float maxValue = 0.0f, float stepValue = 1.0f, const std::string &unit = "") {
-        auto *submenu = new MenuMainOptionsSubmenu(main, rect, title, submenuItems, optionName, valueType, menuType,
+        auto *submenu = new MenuMainOptionsSubmenu(main, wide, title, submenuItems, optionName, valueType, menuType,
                                                    minValue, maxValue, stepValue, unit);
         submenu->setLayer(2);
         submenu->setVisibility(Visibility::Hidden, false);
