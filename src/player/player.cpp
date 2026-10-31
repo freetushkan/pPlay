@@ -206,7 +206,12 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     externalSelect[0].clear();
     externalSelect[1].clear();
     hadWatchLater = pplay::Utility::isWatchLaterExist(path);
-    if (hadWatchLater) {
+    // a video may have its audio off on purpose
+    bool moving = false;
+    for (auto &video: file.mediaInfo.videos) {
+        moving |= !video.albumart;
+    }
+    if (hadWatchLater && !moving) {
         pplay::Utility::fixWatchLater(path);
     }
     // no local position: the one TorrServer keeps, if any

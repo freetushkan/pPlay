@@ -367,7 +367,7 @@ bool Utility::isWatchLaterExist(const std::string &video_path) {
 }
 
 void Utility::fixWatchLater(const std::string &video_path) {
-    // "aid=no": saved while the visualizer had the track, the file then fails to load
+    // audio files: "aid=no" saved while the visualizer had the track, the file then fails to load
     std::string path = getWatchLater(video_path);
     std::ifstream in(path);
     if (!in.is_open()) {
