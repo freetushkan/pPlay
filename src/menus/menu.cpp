@@ -30,14 +30,15 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title, const
 
     highlight = new Highlight({Menu::getSize().x, itemHeight()});
     highlight->setOrigin(Origin::Left);
-    highlight->setPosition(0, menuTop());
+    highlight->setPosition(0, 0);
     Menu::add(highlight);
 
     current = new Highlight({Menu::getSize().x, itemHeight()}, Highlight::CursorPosition::Left);
-    current->setFillColor(COLOR_ACCENT, 60);
+    // the current value: the accent bar only
+    current->setFillColor(COLOR_ACCENT, 0);
     current->setCursorColor(COLOR_ACCENT);
     current->setOrigin(Origin::Left);
-    current->setPosition(0, menuTop());
+    current->setPosition(0, 0);
     current->setLayer(-1);
     current->setVisibility(Visibility::Hidden);
     Menu::add(current);
@@ -72,7 +73,18 @@ const std::vector<Menu *> &Menu::all() {
 }
 
 float Menu::menuTop() const {
-    return 200.0f * main->getScaling().y;
+    // under the title; the items centered in the space left when they fit (the bottom
+    // ones, exit / stop, stay at the bottom)
+    float top = title->getPosition().y + std::max((float) title->getCharacterSize(), title->getLocalBounds().height)
+                + 32.0f * main->getScaling().y;
+    int bottomItems = 0, topItems = 0;
+    for (auto *button: buttons) {
+        bottomItems += button->item.position == MenuItem::Position::Bottom;
+        topItems += button->item.enabled && button->item.position == MenuItem::Position::Top;
+    }
+    float bottom = getLocalBounds().height - 32.0f * main->getScaling().y - (float) bottomItems * itemHeight();
+    float used = (float) topItems * itemHeight();
+    return used < bottom - top ? std::round(top + (bottom - top - used) / 2) : top;
 }
 
 float Menu::menuBottom() {
@@ -303,7 +315,7 @@ void Menu::hideCurrent() {
 void Menu::onUpdate() {
     highlight->setFillColor(COLOR_HIGHLIGHT);
     highlight->setCursorColor(COLOR_ACCENT);
-    current->setFillColor(COLOR_ACCENT, 60);
+    current->setFillColor(COLOR_ACCENT, 0);
     current->setCursorColor(COLOR_ACCENT);
     RectangleShape::onUpdate();
 }

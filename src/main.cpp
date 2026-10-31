@@ -106,7 +106,7 @@ void Main::createMenus() {
     }
     items.emplace_back("Settings", "options.png", MenuItem::Position::Top);
     items.emplace_back("Exit", "exit.png", MenuItem::Position::Bottom);
-    menu_main = new MenuMain(this, {-250 * scaling.x, 0, 250 * scaling.x, Main::getSize().y}, items);
+    menu_main = new MenuMain(this, {-300 * scaling.x, 0, 300 * scaling.x, Main::getSize().y}, items);
     menu_main->setVisibility(Visibility::Hidden, false);
     menu_main->setLayer(3);
     Main::add(menu_main);
