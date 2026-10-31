@@ -38,7 +38,6 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     highlight = new Highlight({listWidth, (float) ITEM_HEIGHT * m->getScaling().y}, Highlight::CursorPosition::Left);
     list->add(highlight);
 
-    // files items
     item_height = highlight->getSize().y;
     item_max = (int) (size.y / item_height);
     if (((float) item_max * item_height) < size.y) {
@@ -50,7 +49,6 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
         list->add(items.back());
     }
 
-    // tween
     Filer::add(new TweenAlpha(0, 255, 0.5f));
 }
 

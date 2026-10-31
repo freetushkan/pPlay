@@ -23,7 +23,6 @@ static std::vector<MenuItem> adjustItems() {
 void Player::buildMenus() {
     // build video track selection menu
     if (!file.mediaInfo.videos.empty()) {
-        // videos menu options
         std::vector<MenuItem> items;
         for (auto &stream: file.mediaInfo.videos) {
             items.emplace_back(trackItem(stream), "", MenuItem::Position::Top, stream.id);

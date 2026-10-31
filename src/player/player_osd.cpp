@@ -78,7 +78,6 @@ PlayerOSD::PlayerOSD(Main *m) : GradientRectangle({0, 0, 64, 64}) {
     duration_text->setPosition(right - step - 48 * sc.x, PlayerOSD::getSize().y / 2);
     PlayerOSD::add(duration_text);
 
-    // TITLE
     title = new Text("Unknown Title", main->getFontSize(Main::FontSize::XL), main->getFont());
     title->setFillColor(COLOR_FONT);
     title->setOrigin(Origin::Left);

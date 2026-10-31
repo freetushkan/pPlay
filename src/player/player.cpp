@@ -72,7 +72,6 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
 
     applyConfig();
 
-    // OSD message
     message_text = new Text("", main->getFontSize(Main::FontSize::Bigger), main->getFont());
     message_text->setFillColor(COLOR_FONT);
     message_text->setOrigin(Origin::Left);
@@ -242,7 +241,6 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
 }
 
 void Player::onLoadEvent() {
-    // load/update media information
     file.mediaInfo = mpv->getMediaInfo(file);
     file.mediaInfo.save(file);
     // the details panel shows it

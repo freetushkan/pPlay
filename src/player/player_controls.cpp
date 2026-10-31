@@ -89,9 +89,6 @@ bool Player::onInput(c2d::Input::Player *players) {
         return true;
     }
 
-    //////////////////
-    /// handle inputs
-    //////////////////
     if (keys & Input::B) {
         setFullscreen(false);
     } else if (keys & Input::X) {

@@ -47,7 +47,6 @@ public:
     // the previous / next file (or playlist entry), false if none
     bool playSibling(int direction);
 
-    // settings changed
     void applyConfig();
 
     // pplay::InputMap media buttons

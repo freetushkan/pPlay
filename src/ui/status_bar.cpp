@@ -103,7 +103,6 @@ StatusBar::StatusBar(Main *m) : GradientRectangle({0, 0, 64, 64}) {
     StatusBar::add(battery);
 #endif
 
-    // time
     timeText = new Text("12:00", m->getFontSize(Main::FontSize::Big), m->getFont());
     timeText->setOrigin(Origin::Right);
 #ifdef __SWITCH__
