@@ -6,6 +6,7 @@
 
 #include "main.h"
 #include "player.h"
+#include "player_osd.h"
 
 using namespace c2d;
 
@@ -122,7 +123,14 @@ void Player::applyAudioFilter() {
 }
 
 void Player::changeVolume(double delta) {
-    showMessage(mpv->changeVolume(delta));
+    std::string message = mpv->changeVolume(delta);
+    // the panel shows it (a chip) when there is one
+    if (isFullscreen()) {
+        osd->expand();
+        osd->showVolume();
+    } else {
+        showMessage(message);
+    }
     volumeDirty = true;
     volumeClock.restart();
 }

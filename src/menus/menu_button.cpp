@@ -57,9 +57,9 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
     if (!item.icon.empty()) {
         icon = new C2DTexture(main->getIo()->getDataPath() + "skin/" + item.icon);
         icon->setOrigin(Origin::Left);
-        icon->setPosition(16 * main->getScaling().x, MenuButton::getSize().y / 2);
+        icon->setPosition(12 * main->getScaling().x, MenuButton::getSize().y / 2);
         // any resolution: 36 px at 720p, smaller in compact menus
-        iconSize = std::min(36.0f * main->getScaling().y, MenuButton::getSize().y * 0.75f);
+        iconSize = std::min(30.0f * main->getScaling().y, MenuButton::getSize().y * 0.65f);
         float scale = iconSize / (float) icon->getTextureSize().x;
         icon->setScale(scale, scale);
         icon->setFillColor(COLOR_FONT);
@@ -71,7 +71,7 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
     name->setFillColor(pplay::Utility::isValidHexColor(item.data_str) ? pplay::Utility::hexToColor(item.data_str)
                                                                       : COLOR_FONT);
 
-    float textX = 16.0f * main->getScaling().x + (item.icon.empty() ? 0 : iconSize + 16.0f * main->getScaling().x);
+    float textX = 12.0f * main->getScaling().x + (item.icon.empty() ? 0 : iconSize + 12.0f * main->getScaling().x);
     // up to the button edge (the highlight cursor), or the value part; long texts faded there
     const float sc = main->getScaling().x;
     float right = MenuButton::getSize().x - 18 * sc;

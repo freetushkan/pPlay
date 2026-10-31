@@ -2,6 +2,7 @@
 // Created by cpasjuste on 08/12/18.
 //
 
+#include <algorithm>
 #include "cross2d/c2d.h"
 #include "main.h"
 #include "status_box.h"
@@ -17,10 +18,13 @@ StatusBox::StatusBox(Main *m, const c2d::Vector2f &position) : Rectangle(m->getS
     pos = m->getScaled(position);
     StatusBox::setPosition(pos);
 
+    // as high as the two text lines
     icon = new C2DTexture(main->getIo()->getDataPath() + "skin/wait.png");
+    float iconSize = 30 * m->getScaling().y;
+    float iconScale = iconSize / (float) std::max(1, icon->getTextureSize().y);
     icon->setOrigin(Origin::Center);
-    icon->setPosition(icon->getSize().x / 2 + (8 * m->getScaling().x), StatusBox::getSize().y / 2);
-    icon->setScale(main->getScaling());
+    icon->setPosition(iconSize / 2 + (4 * m->getScaling().x), StatusBox::getSize().y / 2);
+    icon->setScale(iconScale, iconScale);
     icon->setFillColor(COLOR_FONT);
     icon->setAlpha(200);
     icon->add(new TweenRotation(360, 0, 2, TweenLoop::Loop, TweenState::Playing));
@@ -28,16 +32,16 @@ StatusBox::StatusBox(Main *m, const c2d::Vector2f &position) : Rectangle(m->getS
 
     titleText = new Text("Please Wait...", main->getFontSize(Main::FontSize::Medium), main->getFont());
     titleText->setFillColor(COLOR_ACCENT);
-    titleText->setPosition(icon->getSize().x + (16 * m->getScaling().x), (4 * m->getScaling().y));
+    titleText->setPosition(iconSize + (14 * m->getScaling().x), (4 * m->getScaling().y));
     StatusBox::add(titleText);
 
     messageText = new Text("Doing something in background, please wait", main->getFontSize(Main::FontSize::Small),
                            main->getFont());
     messageText->setFillColor(COLOR_FONT);
-    messageText->setPosition(icon->getSize().x + (16 * m->getScaling().x),
+    messageText->setPosition(iconSize + (14 * m->getScaling().x),
                              titleText->getPosition().y + (float) main->getFontSize(Main::FontSize::Medium)
                                      + (4 * m->getScaling().y));
-    messageText->setSizeMax(StatusBox::getSize().x - icon->getSize().x - (16 * m->getScaling().x), 0);
+    messageText->setSizeMax(StatusBox::getSize().x - iconSize - (14 * m->getScaling().x), 0);
     StatusBox::add(messageText);
 
     clock = new C2DClock();

@@ -48,6 +48,9 @@ public:
 
     void setPaused(bool paused);
 
+    // the volume chip for a while, even at 100%
+    void showVolume();
+
 private:
 
     enum class State {
@@ -80,7 +83,8 @@ private:
     // animated: the panel shown, its full part shown
     float shown = 0, full = 0;
     float peekOffset = 0;
-    c2d::C2DClock clock, frameClock, textClock;
+    c2d::C2DClock clock, frameClock, textClock, volumeClock;
+    bool volumeShown = false;
     std::string textKey;
 
     c2d::GradientRectangle *scrim = nullptr;

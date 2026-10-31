@@ -75,6 +75,10 @@ bool Player::onInput(c2d::Input::Player *players) {
         int delta = (keys & Input::Up) ? 1 : -1;
         if (keys & Input::Y) {
             changeBrightness(delta);
+        } else if (!osd->isExpanded()) {
+            // the first press shows the panel only
+            osd->expand();
+            return true;
         } else {
             changeVolume(delta);
         }

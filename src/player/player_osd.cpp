@@ -234,6 +234,12 @@ void PlayerOSD::hide() {
     clock.restart();
 }
 
+void PlayerOSD::showVolume() {
+    volumeShown = true;
+    volumeClock.restart();
+    updateChips();
+}
+
 void PlayerOSD::setPaused(bool paused) {
     btn_play->setVisibility(paused ? Visibility::Visible : Visibility::Hidden);
     btn_pause->setVisibility(paused ? Visibility::Hidden : Visibility::Visible);
@@ -318,7 +324,8 @@ void PlayerOSD::updateChips() {
         labels.emplace_back(text);
     }
     long volume = mpv->getInt("volume", 100);
-    if (volume != 100) {
+    volumeShown &= volumeClock.getElapsedTime().asSeconds() < OSD_FULL_TIME;
+    if (volume != 100 || volumeShown) {
         labels.push_back(pplay::tr("Volume") + " " + std::to_string(volume) + "%");
     }
     int mode = config->getOption(OPT_AUTOPLAY_MODE)->getInteger();
