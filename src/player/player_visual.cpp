@@ -20,10 +20,10 @@ std::string Player::visualizerGraph() const {
     char accent[160];
     snprintf(accent, sizeof(accent), "lutrgb=r='val*%d/255':g='val*%d/255':b='val*%d/255'", COLOR_ACCENT.r,
              COLOR_ACCENT.g, COLOR_ACCENT.b);
-    // no DC / rumble: the first band would stay up
+    // no DC / rumble: the first two bins (log scale) dropped, they would stay up
     return "aformat=channel_layouts=mono,highpass=f=40,"
-           "showfreqs=s=32x40:mode=bar:ascale=log:fscale=log:win_size=2048:overlap=0.5:averaging=2:colors=white,"
-           "crop=32:24:0:0,format=gray,split[bands][held];"
+           "showfreqs=s=34x40:mode=bar:ascale=log:fscale=log:win_size=2048:overlap=0.5:averaging=2:colors=white,"
+           "crop=32:24:2:0,format=gray,split[bands][held];"
            "[held]lagfun=decay=0.95,lut=y='if(gt(val,40),255,0)',split[peaks][below];"
            "[below]pad=32:25:0:1,crop=32:24:0:0[shifted];"
            "[peaks][shifted]blend=all_mode=subtract,format=gbrp,"

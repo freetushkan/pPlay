@@ -40,7 +40,10 @@ Highlight::Highlight(const c2d::Vector2f &size, const CursorPosition &pos) : Rec
 void Highlight::applyColors() {
     c2d::Color fill = hlFillColor;
     fill.a = scaleAlpha(hlFillColor.a, hlAlpha);
-    gradientRectangle->setColor(fill, Color::Transparent, hlDirection);
+    // a soft end, not a fade out: the whole row reads as selected
+    c2d::Color end = fill;
+    end.a = (uint8_t) (fill.a / 4);
+    gradientRectangle->setColor(fill, end, hlDirection);
 
     c2d::Color cur = hlCursorColor;
     cur.a = scaleAlpha(hlCursorColor.a, hlAlpha);

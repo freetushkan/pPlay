@@ -66,8 +66,9 @@ bool Player::onInput(c2d::Input::Player *players) {
             setSpeed(new_speed);
         }
     } else if (keys & (btnSeekBack | btnSeekForward)) {
-        osd->setVisibility(c2d::Visibility::Visible);
+        osd->peek();
         getMpv()->seek(((keys & btnSeekBack) ? -seek : seek));
+        return true;
     } else if (keys & Input::Start) {
         setInfoVisible(!isInfoVisible());
     } else if (keys & (Input::Up | Input::Down)) {
@@ -79,7 +80,7 @@ bool Player::onInput(c2d::Input::Player *players) {
         }
     }
 
-    if (osd->isVisible()) {
+    if (osd->isExpanded()) {
         return C2DObject::onInput(players);
     }
 
@@ -98,13 +99,11 @@ bool Player::onInput(c2d::Input::Player *players) {
         bool paused = mpv->isPaused();
         main->getStatus()->show("Info...", paused ? "Resuming playback..." : "Pausing playback...");
         paused ? resume() : pause();
-        osd->btn_play->setVisibility(paused ? Visibility::Hidden : Visibility::Visible);
-        osd->btn_pause->setVisibility(paused ? Visibility::Visible : Visibility::Hidden);
+        osd->setPaused(!paused);
     }
 
-    if (keys && !osd->isVisible()) {
-        osd->setVisibility(Visibility::Visible, true);
-        main->getStatusBar()->setVisibility(Visibility::Visible, true);
+    if (keys && !osd->isExpanded()) {
+        osd->expand();
     }
 
     return true;
@@ -121,16 +120,15 @@ void Player::onMediaKeys(unsigned int keys) {
         bool paused = mpv->isPaused();
         main->getStatus()->show("Info...", paused ? "Resuming playback..." : "Pausing playback...");
         paused ? resume() : pause();
-        osd->btn_play->setVisibility(paused ? Visibility::Hidden : Visibility::Visible);
-        osd->btn_pause->setVisibility(paused ? Visibility::Visible : Visibility::Hidden);
+        osd->setPaused(!paused);
     } else if (keys & pplay::InputMap::Stop) {
         main->getStatus()->show("Info...", "Stopping playback...");
         stop();
     } else if (keys & (pplay::InputMap::FastForward | pplay::InputMap::Rewind)) {
-        osd->setVisibility(Visibility::Visible, true);
+        osd->peek();
         mpv->seek((keys & pplay::InputMap::Rewind) ? -seekShort : seekShort);
     } else if (keys & (pplay::InputMap::Next | pplay::InputMap::Previous)) {
-        osd->setVisibility(Visibility::Visible, true);
+        osd->peek();
         mpv->seek((keys & pplay::InputMap::Previous) ? -seekLong : seekLong);
     } else if (keys & (pplay::InputMap::VolumeUp | pplay::InputMap::VolumeDown)) {
         changeVolume((keys & pplay::InputMap::VolumeUp) ? 1 : -1);

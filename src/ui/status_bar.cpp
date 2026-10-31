@@ -5,12 +5,15 @@
 #include <sstream>
 #include <iomanip>
 #include <ctime>
+#include <cmath>
+#include <algorithm>
 
 #include "cross2d/c2d.h"
 #include "main.h"
 #include "status_bar.h"
 #include "utility.h"
 #include "pplay_config.h"
+#include "round_rect.h"
 
 #ifdef __SWITCH__
 
@@ -43,7 +46,7 @@ public:
         batteryRect->setPosition(Battery::getSize().x - (2 * scaling.x), (Battery::getSize().y + (outline / 2)) / 2);
         Battery::add(batteryRect);
 
-        auto leftRect = new RectangleShape({scaling.x * 6, rect.height / 3});
+        leftRect = new RectangleShape({scaling.x * 6, rect.height / 3});
         leftRect->setFillColor(COLOR_FONT);
         leftRect->setOrigin(Origin::Right);
         leftRect->setPosition(0, batteryRect->getPosition().y);
@@ -79,48 +82,87 @@ public:
         RectangleShape::onUpdate();
     }
 
+    // its fill stays transparent
+    void fade(uint8_t alpha) {
+        setOutlineColor({COLOR_FONT.r, COLOR_FONT.g, COLOR_FONT.b, alpha});
+        batteryRect->setAlpha(alpha);
+        leftRect->setAlpha(alpha);
+    }
+
     RectangleShape *batteryRect = nullptr;
+    RectangleShape *leftRect = nullptr;
     unsigned int percent = 100;
     float maxWidth;
 };
 #endif
 
-StatusBar::StatusBar(Main *m) : GradientRectangle({0, 0, 64, 64}) {
-
+StatusBar::StatusBar(Main *m) : Rectangle({0, 0, 64, 64}) {
 #ifdef __SWITCH__
     psmInitialize();
 #endif
-
     main = m;
+    const float sc = m->getScaling().y;
+    StatusBar::setSize(m->getSize().x, 32 * sc);
 
-    setColor(COLOR_BG, Color::Transparent, Direction::Left);
-    StatusBar::setSize(m->getSize().x, 32 * m->getScaling().y);
-    StatusBar::setPosition(0, -StatusBar::getSize().y);
-    StatusBar::add(new TweenPosition(StatusBar::getPosition(), {0, 0}, 0.5f));
+    // a chip on the right: battery (Switch) and clock
+    chip = new RoundRect({10, std::round(26 * sc)});
+    chip->setOrigin(Origin::Right);
+    StatusBar::add(chip);
 
 #ifdef __SWITCH__
     battery = new Battery(StatusBar::getGlobalBounds(), m->getScaling());
+    battery->setPosition(battery->getPosition().x - 12 * m->getScaling().x, battery->getPosition().y);
     StatusBar::add(battery);
 #endif
 
     timeText = new Text("12:00", m->getFontSize(Main::FontSize::Big), m->getFont());
     timeText->setOrigin(Origin::Right);
 #ifdef __SWITCH__
-    timeText->setPosition(battery->getPosition().x - battery->getSize().x - (m->getScaling().x * 20),
+    timeText->setPosition(battery->getPosition().x - battery->getSize().x - (m->getScaling().x * 16),
                           StatusBar::getSize().y / 2);
 #else
-    timeText->setPosition(StatusBar::getGlobalBounds().width - (m->getScaling().x * 20), StatusBar::getSize().y / 2);
+    timeText->setPosition(StatusBar::getGlobalBounds().width - (m->getScaling().x * 32), StatusBar::getSize().y / 2);
 #endif
-    timeText->setFillColor(COLOR_FONT);
     StatusBar::add(timeText);
+    applyAlpha();
+}
 
-    StatusBar::setVisibility(Visibility::Visible, true);
+void StatusBar::setVisibility(Visibility visibility, bool tweenPlay) {
+    target = visibility == Visibility::Visible ? 1.0f : 0.0f;
+    if (!tweenPlay) {
+        alpha = target;
+    }
+    if (visibility == Visibility::Visible || alpha <= 0) {
+        Rectangle::setVisibility(visibility, false);
+    }
+    applyAlpha();
+}
+
+void StatusBar::applyAlpha() {
+    uint8_t a = (uint8_t) std::lround(255 * alpha);
+    timeText->setFillColor({COLOR_FONT.r, COLOR_FONT.g, COLOR_FONT.b, a});
+    chip->setFillColor({10, 12, 16, (uint8_t) std::lround(170 * alpha)});
+#ifdef __SWITCH__
+    battery->fade(a);
+#endif
 }
 
 void StatusBar::onUpdate() {
-
     if (!isVisible()) {
         return;
+    }
+    float dt = std::min(0.1f, fadeClock.restart().asSeconds());
+    if (alpha != target) {
+        alpha += (target > alpha ? 1 : -1) * dt * 4;
+        alpha = std::min(1.0f, std::max(0.0f, alpha));
+        if (std::fabs(alpha - target) < 0.02f) {
+            alpha = target;
+        }
+        applyAlpha();
+        if (alpha <= 0) {
+            Rectangle::setVisibility(Visibility::Hidden, false);
+            return;
+        }
     }
 
 #ifdef __PS4__
@@ -144,7 +186,13 @@ void StatusBar::onUpdate() {
     oss << std::setfill('0') << std::setw(2) << min;
 
     timeText->setString(oss.str());
-    GradientRectangle::onUpdate();
+
+    const float sc = main->getScaling().y;
+    float right = getSize().x - 18 * main->getScaling().x;
+    float left = timeText->getPosition().x - timeText->getLocalBounds().width - 14 * main->getScaling().x;
+    chip->setSize(std::round(right - left), chip->getSize().y);
+    chip->setPosition(right, getSize().y / 2 + 1 * sc);
+    Rectangle::onUpdate();
 }
 
 StatusBar::~StatusBar() {

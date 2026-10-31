@@ -233,8 +233,7 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     }
 
     if (!isMenuVisible()) {
-        osd->setVisibility(c2d::Visibility::Visible);
-        main->getStatusBar()->setVisibility(Visibility::Visible, true);
+        osd->peek();
     }
 
     return true;
@@ -413,7 +412,7 @@ void Player::setFullscreen(bool fs, bool hide) {
         tweenScale->play(TweenDirection::Forward);
         tweenPosition->play(TweenDirection::Forward);
         texture->hideFade();
-        osd->setVisibility(c2d::Visibility::Visible);
+        osd->peek();
     }
 }
 

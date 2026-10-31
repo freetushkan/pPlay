@@ -31,8 +31,6 @@ private:
 
     void update();
 
-    void updateTexts();
-
     // the cover: the player candidates one after the other
     void updatePicture();
 
@@ -49,16 +47,6 @@ private:
     std::vector<std::string> pictureUrls;
     size_t pictureIndex = 0;
     c2d::Sprite *note = nullptr;
-    c2d::Text *title = nullptr;
-    c2d::Text *format = nullptr;
-    c2d::Rectangle *bar = nullptr;
-    c2d::Progress *progress = nullptr;
-    c2d::RectangleShape *buffered = nullptr;
-    c2d::CircleShape *knob = nullptr;
-    c2d::Text *elapsed = nullptr;
-    c2d::Text *remaining = nullptr;
-    c2d::C2DClock textClock;
-    std::string playerTitle;
 };
 
 #endif //PPLAY_AUDIO_VIEW_H

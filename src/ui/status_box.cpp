@@ -81,9 +81,8 @@ void StatusBox::onDraw(c2d::Transform &transform, bool draw) {
         setVisibility(Visibility::Hidden, true);
     } else {
         PlayerOSD *osd = main->getPlayer()->getOSD();
-        if (osd && osd->isVisible()) {
-            FloatRect bounds = main->getPlayer()->getOSD()->getGlobalBounds();
-            setPosition(pos.x, bounds.top - ((static_cast<int>(Main::FontSize::XL) + 32) * main->getScaling().y));
+        if (osd && main->getPlayer()->isFullscreen()) {
+            setPosition(pos.x, osd->getTop() - 24 * main->getScaling().y);
         } else {
             FloatRect bounds = main->getMenuMain()->getGlobalBounds();
             setPosition(bounds.left + bounds.width + pos.x, main->getSize().y - (16 * main->getScaling().x));

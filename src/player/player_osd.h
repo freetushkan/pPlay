@@ -6,12 +6,17 @@
 #define PPLAY_PLAYER_OSD_H
 
 #include <string>
+#include <vector>
 
-#include "cross2d/skeleton/sfml/Rectangle.hpp"
+#include "cross2d/c2d.h"
 
 class Main;
 
-class PlayerOSD : public c2d::GradientRectangle {
+class RoundRect;
+
+// The player panel, video and audio: full (buttons, modes), a short look (title and
+// progress), or hidden (not for audio files)
+class PlayerOSD : public c2d::Rectangle {
 
 public:
 
@@ -32,31 +37,74 @@ public:
 
     void reset();
 
-    void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
+    void expand();
 
-    c2d::Texture *btn_play = nullptr;
-    c2d::Texture *btn_pause = nullptr;
+    // title and progress for a while (new file, seek)
+    void peek();
+
+    void hide();
+
+    bool isExpanded() const { return state == State::Full; }
+
+    void setPaused(bool paused);
+
+    // where the shown part starts (screen y), messages go above
+    float getTop() const { return top; }
 
 private:
 
-    void onDraw(c2d::Transform &transform, bool draw = true) override;
+    enum class State {
+        Hidden, Peek, Full
+    };
+
+    struct Chip {
+        RoundRect *back;
+        c2d::Text *text;
+    };
+
+    void onUpdate() override;
 
     bool onInput(c2d::Input::Player *players) override;
 
-    Main *main;
-    Highlight *highlight = nullptr;
-    c2d::RectangleShape *buffered = nullptr;
-    c2d::Progress *progress = nullptr;
-    c2d::Text *title = nullptr;
-    c2d::Text *progress_text = nullptr;
-    c2d::Text *duration_text = nullptr;
-    std::vector<c2d::Texture *> buttons;
-    c2d::TweenAlpha *titleTween;
-    float position = 0;
-    float duration = 0;
-    int index = 0;
+    void layout(bool audio);
 
-    c2d::C2DClock clock;
+    void updateTexts();
+
+    void updateChips();
+
+    void updateProgress();
+
+    void applyFade();
+
+    Main *main;
+    State state = State::Hidden;
+    bool audioLayout = false;
+    bool laidOut = false;
+    // animated: the panel shown, its full part shown
+    float shown = 0, full = 0;
+    float peekOffset = 0, top = 0;
+    c2d::C2DClock clock, frameClock, textClock;
+    std::string textKey;
+
+    c2d::GradientRectangle *scrim = nullptr;
+    c2d::Rectangle *panel = nullptr;
+    c2d::Text *title = nullptr;
+    c2d::Text *meta = nullptr;
+    c2d::RectangleShape *track = nullptr;
+    c2d::RectangleShape *buffered = nullptr;
+    c2d::RectangleShape *played = nullptr;
+    RoundRect *knob = nullptr;
+    c2d::Text *elapsed = nullptr;
+    c2d::Text *remaining = nullptr;
+    std::vector<Chip> chips;
+    RoundRect *focus = nullptr;
+    std::vector<c2d::Texture *> buttons;
+    std::vector<float> buttonScales;
+    c2d::Texture *btn_play = nullptr;
+    c2d::Texture *btn_pause = nullptr;
+    c2d::RectangleShape *edge = nullptr;
+    int index = (int) ButtonID::Pause;
+    float focusX = 0;
 };
 
 #endif //PPLAY_PLAYER_OSD_H
