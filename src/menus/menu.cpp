@@ -111,7 +111,8 @@ float Menu::itemHeight() const {
 
 int Menu::visibleSlots() {
     float usable = menuBottom() - menuTop() - itemHeight();
-    return usable <= 0 ? 1 : (int) (usable / itemHeight()) + 1;
+    // the last one fits with half of its height under the center
+    return usable <= 0 ? 1 : (int) ((usable + itemHeight() / 2) / itemHeight()) + 1;
 }
 
 int Menu::topButtonCount() const {
@@ -341,7 +342,17 @@ void Menu::onUpdate() {
     RectangleShape::onUpdate();
 }
 
-void Menu::setItems(const std::vector<MenuItem> &items) {
+void Menu::setItems(const std::vector<MenuItem> &list) {
+    // the bottom ones (exit, stop) last in the list: no footer
+    std::vector<MenuItem> items;
+    for (int bottom = 0; bottom < 2; bottom++) {
+        for (auto &item: list) {
+            if ((item.position == MenuItem::Position::Bottom) == (bottom == 1)) {
+                items.push_back(item);
+                items.back().position = MenuItem::Position::Top;
+            }
+        }
+    }
     for (auto *button: buttons) {
         delete (button);
     }

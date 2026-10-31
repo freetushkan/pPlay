@@ -232,6 +232,10 @@ void Main::onUpdate() {
     for (auto *m: Menu::all()) {
         menu |= m->isVisible();
     }
+    // the player menus: no shade (brightness set there)
+    if (player->isFullscreen()) {
+        menu = false;
+    }
     float dt = std::min(0.1f, dimClock.restart().asSeconds());
     dimAlpha += ((menu ? 110.0f : 0.0f) - dimAlpha) * std::min(1.0f, dt * 12);
     dim->setFillColor(Color(0, 0, 0, (uint8_t) std::lround(dimAlpha)));
