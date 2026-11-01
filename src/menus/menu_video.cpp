@@ -153,28 +153,28 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
             main->getPlayer()->getMenuVideoStreams()->setVisibility(Visibility::Visible, true);
             setVisibility(Visibility::Hidden, true);
         } else {
-            main->getStatus()->show("Information...", "No video streams found in media", false, false);
+            main->getStatus()->show("Info", "No video streams found in media", false, false);
         }
     } else if (item->name == "Audio") {
         if (main->getPlayer()->getMenuAudioStreams()) {
             main->getPlayer()->getMenuAudioStreams()->setVisibility(Visibility::Visible, true);
             setVisibility(Visibility::Hidden, true);
         } else {
-            main->getStatus()->show("Information...", "No audio streams found in media", false, false);
+            main->getStatus()->show("Info", "No audio streams found in media", false, false);
         }
     } else if (item->name == "Subtitles") {
         if (main->getPlayer()->getMenuSubtitlesStreams()) {
             main->getPlayer()->getMenuSubtitlesStreams()->setVisibility(Visibility::Visible, true);
             setVisibility(Visibility::Hidden, true);
         } else {
-            main->getStatus()->show("Information...", "No subtitles streams found in media", false, false);
+            main->getStatus()->show("Info", "No subtitles streams found in media", false, false);
         }
     } else if (item->name == "Playlist") {
         if (main->getPlayer()->getMenuPlaylist()) {
             main->getPlayer()->getMenuPlaylist()->setVisibility(Visibility::Visible, true);
             setVisibility(Visibility::Hidden, true);
         } else {
-            main->getStatus()->show("Information...", "Playlist is empty", false, false);
+            main->getStatus()->show("Info", "Playlist is empty", false, false);
         }
     } else if (item->name == "Playback mode") {
         if (main->getPlayer()->getMenuPlaybackMode()) {

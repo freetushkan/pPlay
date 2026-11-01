@@ -128,7 +128,7 @@ void Player::buildTrackMenus() {
         for (auto &stream: file.mediaInfo.audios) {
             items.emplace_back(trackItem(stream), "", MenuItem::Position::Top, stream.id);
         }
-        items.emplace_back("Add file...", "", MenuItem::Position::Top, MENU_TRACK_ADD);
+        items.emplace_back("Add file", "", MenuItem::Position::Top, MENU_TRACK_ADD);
         menuAudioStreams = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Audio", items,
                                                 MENU_VIDEO_TYPE_AUD);
         menuAudioStreams->setVisibility(audioVisible ? Visibility::Visible : Visibility::Hidden, false);
@@ -143,7 +143,7 @@ void Player::buildTrackMenus() {
         for (auto &stream: file.mediaInfo.subtitles) {
             items.emplace_back(trackItem(stream), "", MenuItem::Position::Top, stream.id);
         }
-        items.emplace_back("Add file...", "", MenuItem::Position::Top, MENU_TRACK_ADD);
+        items.emplace_back("Add file", "", MenuItem::Position::Top, MENU_TRACK_ADD);
         menuSubtitlesStreams = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Subtitles", items,
                                                     MENU_VIDEO_TYPE_SUB);
         menuSubtitlesStreams->setVisibility(subtitlesVisible ? Visibility::Visible : Visibility::Hidden, false);

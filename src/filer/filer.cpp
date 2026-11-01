@@ -334,11 +334,11 @@ void Filer::resetProgress(const MediaFile &file) {
     }
     std::string url = pplay::TorrServe::toStreamUrl(file.path);
     if (pplay::Utility::isWatchLaterExist(url)) {
-        main->getStatus()->show("Info...", "Removing local watch later data...");
+        main->getStatus()->show("Info", "Removing local watch later data");
         pplay::Utility::deleteWatchLater(url);
     }
     if (pplay::TorrServe::isFileViewed(file.path)) {
-        main->getStatus()->show("Info...", "Removing TorrServer watched state...");
+        main->getStatus()->show("Info", "Removing TorrServer watched state");
         pplay::TorrServe::remFileViewed(file.path);
     }
     dirty = true;

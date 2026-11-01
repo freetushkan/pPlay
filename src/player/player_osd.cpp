@@ -552,7 +552,7 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
             case ButtonID::Pause: {
                 bool pause = !mpv->isPaused();
                 setPaused(pause);
-                main->getStatus()->show("Info...", pause ? "Pausing playback..." : "Resuming playback...");
+                main->getStatus()->show("Info", pause ? "Pausing playback" : "Resuming playback");
                 pause ? player->pause() : player->resume();
                 break;
             }
@@ -579,7 +579,7 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
                 break;
             case ButtonID::Stop:
                 hide();
-                main->getStatus()->show("Info...", "Stopping playback...");
+                main->getStatus()->show("Info", "Stopping playback");
                 player->stop();
                 break;
         }

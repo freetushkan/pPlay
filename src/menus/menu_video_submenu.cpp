@@ -98,16 +98,16 @@ void MenuVideoSubmenu::onOptionSelection(MenuItem *item) {
         std::string name = item->name;
         std::replace(name.begin(), name.end(), '\n', ' ');
         if (type == MENU_VIDEO_TYPE_VID && main->getPlayer()->getVideoStream() != item->id) {
-            main->getStatus()->show("Please Wait...",
-                                    "Loading video stream: " + name + ".\nThis can take a few seconds...");
+            main->getStatus()->show("Wait", pplay::tr("Loading video") + " \"" + name + "\". "
+                                          + pplay::tr("This can take a few seconds"));
             main->getPlayer()->setVideoStream(item->id);
         } else if (type == MENU_VIDEO_TYPE_AUD && main->getPlayer()->getAudioStream() != item->id) {
-            main->getStatus()->show("Please Wait...",
-                                    "Loading audio stream: " + name + ".\nThis can take a few seconds...");
+            main->getStatus()->show("Wait", pplay::tr("Loading audio") + " \"" + name + "\". "
+                                          + pplay::tr("This can take a few seconds"));
             main->getPlayer()->setAudioStream(item->id);
         } else if (type == MENU_VIDEO_TYPE_SUB && main->getPlayer()->getSubtitleStream() != item->id) {
-            main->getStatus()->show("Please Wait...",
-                                    "Loading subtitle stream: " + name + ".\nThis can take a few seconds...");
+            main->getStatus()->show("Wait", pplay::tr("Loading subtitles") + " \"" + name + "\". "
+                                          + pplay::tr("This can take a few seconds"));
             main->getPlayer()->setSubtitleStream(item->id);
         } else if (type == MENU_VIDEO_TYPE_PL_MODE) {
             auto *option = main->getConfig()->getOption(OPT_AUTOPLAY_MODE);
@@ -115,15 +115,15 @@ void MenuVideoSubmenu::onOptionSelection(MenuItem *item) {
             option->setType(c2d::config::Option::Type::Integer);
             option->setInteger(item->id);
             main->getConfig()->save();
-            pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Options: " + std::string(OPT_AUTOPLAY_MODE)
-                                                                         + " changed from " + oldValue + " to "
-                                                                         + option->getString());
+            pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+                "Options: " + std::string(OPT_AUTOPLAY_MODE)
+                            + " changed from " + oldValue + " to " + option->getString());
         } else if (type == MENU_VIDEO_TYPE_NORMALIZE) {
             main->getPlayer()->setAudioNormalize(item->id);
         } else if (type == MENU_VIDEO_TYPE_VISUALIZER) {
             main->getPlayer()->setAudioScreenMode(item->id);
         } else if (type == MENU_VIDEO_TYPE_PLAYLIST) {
-            main->getStatus()->show("Please Wait...", "Switching playlist item...");
+            main->getStatus()->show("Wait", "Switching playlist item");
             if (main->getPlayer()->isPlaylistFile()) {
                 main->getPlayer()->getMpv()->setPlaylistPos(item->id);
             } else {

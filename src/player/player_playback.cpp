@@ -31,7 +31,7 @@ void Player::onMpvEvent(mpv_event *event) {
                 mpv_command(mpv->getHandle(), remove);
             }
             appliedAudioFilter = AudioFilterUnknown;
-            main->getStatus()->show("Please Wait...", pplay::tr("Loading file")
+            main->getStatus()->show("Wait", pplay::tr("Loading file")
                                                     + " \"" + encoding::fix(file.name) + "\"", true);
             startPlaybackPosition = -1;
             frameDrawn = false;
@@ -130,14 +130,14 @@ void Player::onStopEvent(int reason) {
 
     if (stalledStop) {
         stalledStop = false;
-        main->getStatus()->show("Error...", "Playback stalled");
+        main->getStatus()->show("Error", "Playback stalled");
     }
 
     if (reason == MPV_END_FILE_REASON_ERROR) {
         if (scheduleReload("error", true)) {
             return;
         }
-        main->getStatus()->show("Error...", "Could not load file");
+        main->getStatus()->show("Error", "Could not load file");
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent could not load file");
     } else if (reason == MPV_END_FILE_REASON_EOF && playbackCompleted && !isPlaylistFile()) {
         const int autoplayMode = main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger();
@@ -186,7 +186,7 @@ void Player::onStopEvent(int reason) {
         if (scheduleReload("early end of file", true)) {
             return;
         }
-        main->getStatus()->show("Error...", "Unexpected end of file");
+        main->getStatus()->show("Error", "Unexpected end of file");
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent Unexpected end of file");
     }
 
@@ -221,11 +221,11 @@ bool Player::scheduleReload(const std::string &reason, bool counted) {
                         "Player: reload (" + reason + ") at " + std::to_string((int) reloadPosition) + " s in "
                                 + std::to_string(reloadDelayMs) + " ms, try " + std::to_string(retryCount) + "/"
                                 + (retries ? std::to_string(retries) : "-"));
-    std::string text = pplay::tr("Reconnecting...");
+    std::string text = pplay::tr("Reconnecting");
     if (counted) {
         text += " (" + std::to_string(retryCount) + (retries ? "/" + std::to_string(retries) : "") + ")";
     }
-    main->getStatus()->show("Please Wait...", text, true);
+    main->getStatus()->show("Wait", text, true);
     return true;
 }
 

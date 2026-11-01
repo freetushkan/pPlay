@@ -40,7 +40,7 @@ void Filer::startPick(const std::vector<std::string> &extensions, const std::str
     picking = true;
     details->setFocused(false);
     details->setPicking(true);
-    main->getStatus()->show("Info...", hint, true);
+    main->getStatus()->show("Info", hint, true);
     if (!getDir(dir)) {
         getDir(pickPrevPath);
     }

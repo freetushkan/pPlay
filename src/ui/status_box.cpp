@@ -37,7 +37,7 @@ StatusBox::StatusBox(Main *m) : Rectangle(m->getScaled({0, 0, 64, 48})) {
     icon->add(new TweenRotation(360, 0, 2, TweenLoop::Loop, TweenState::Playing));
     StatusBox::add(icon);
 
-    titleText = new Text("Please Wait...", m->getFontSize(Main::FontSize::Medium), m->getFont());
+    titleText = new Text("Wait", m->getFontSize(Main::FontSize::Medium), m->getFont());
     titleText->setFillColor(COLOR_ACCENT);
     titleText->setPosition(iconSize + (38 * m->getScaling().x), (4 * m->getScaling().y));
     titleText->setVisibility(Visibility::Hidden);
@@ -67,8 +67,8 @@ void StatusBox::show(const std::string &title, const std::string &message, bool 
     SDL_LockMutex(mutex);
     titleText->setString(pplay::tr(title));
     messageText->setString(pplay::tr(message));
-    messageText->setFillColor(title == "Error..." ? Color(240, 120, 110, 255) : COLOR_FONT);
-    bool spinning = inf || title == "Please Wait...";
+    messageText->setFillColor(title == "Error" ? Color(240, 120, 110, 255) : COLOR_FONT);
+    bool spinning = inf || title == "Wait";
     icon->setVisibility(spinning ? Visibility::Visible : Visibility::Hidden);
     float iconSize = 22 * main->getScaling().y;
     messageText->setPosition(spinning ? icon->getPosition().x + (iconSize / 2) + 16 * main->getScaling().x

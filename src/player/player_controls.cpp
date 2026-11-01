@@ -104,7 +104,7 @@ bool Player::onInput(c2d::Input::Player *players) {
         return true;
     } else if (keys & Input::A) {
         bool paused = mpv->isPaused();
-        main->getStatus()->show("Info...", paused ? "Resuming playback..." : "Pausing playback...");
+        main->getStatus()->show("Info", paused ? "Resuming playback" : "Pausing playback");
         paused ? resume() : pause();
         osd->setPaused(!paused);
     }
@@ -125,11 +125,11 @@ void Player::onMediaKeys(unsigned int keys) {
 
     if (keys & pplay::InputMap::PlayPause) {
         bool paused = mpv->isPaused();
-        main->getStatus()->show("Info...", paused ? "Resuming playback..." : "Pausing playback...");
+        main->getStatus()->show("Info", paused ? "Resuming playback" : "Pausing playback");
         paused ? resume() : pause();
         osd->setPaused(!paused);
     } else if (keys & pplay::InputMap::Stop) {
-        main->getStatus()->show("Info...", "Stopping playback...");
+        main->getStatus()->show("Info", "Stopping playback");
         stop();
     } else if (keys & (pplay::InputMap::FastForward | pplay::InputMap::Rewind)) {
         osd->peek();

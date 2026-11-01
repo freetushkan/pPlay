@@ -148,7 +148,7 @@ bool LogView::onInput(c2d::Input::Player *players) {
     }
     if (keys & Input::Y) {
         pplay::Utility::clearLog();
-        main->getStatus()->show(pplay::tr("Info..."), pplay::tr("Log cleared"));
+        main->getStatus()->show(pplay::tr("Info"), pplay::tr("Log cleared"));
         load();
     } else if (keys & (Input::Up | Input::Down)) {
         first += (keys & Input::Up) ? -1 : 1;

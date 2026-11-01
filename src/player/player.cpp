@@ -234,7 +234,7 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
         pplay::Utility::log(pplay::Utility::LogLevel::Error, "Player::load error code=" + std::to_string(res) + " msg="
                                                                      + std::string(mpv_error_string(res)) + " opts="
                                                                      + opts + " try=" + std::to_string(retryCount));
-        main->getStatus()->show("Error...", "Could not play file: " + std::string(mpv_error_string(res)));
+        main->getStatus()->show("Error", "Could not play file: " + std::string(mpv_error_string(res)));
         return false;
     }
 
