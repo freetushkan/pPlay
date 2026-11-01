@@ -92,6 +92,8 @@ MediaInfo::MediaInfo(const c2d::Io::File &file) {
             list.push_back(t);
         }
     }
+    // a failed probe of the older versions: probed again
+    known = !videos.empty() || !audios.empty();
 }
 
 void MediaInfo::save(const c2d::Io::File &file) {

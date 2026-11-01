@@ -15,6 +15,7 @@
 #include "utility.h"
 
 #define SETTLE_MS 400
+#define PROBE_TRIES 3
 // TorrServer marks the streamed files viewed
 #define UNVIEW_DELAY_MS 2000
 
@@ -140,6 +141,7 @@ void MediaProbe::request(const MediaFile &file) {
 
 void MediaProbe::reset() {
     tried.clear();
+    failures.clear();
 }
 
 bool MediaProbe::poll(MediaFile *file) {
@@ -155,12 +157,15 @@ bool MediaProbe::poll(MediaFile *file) {
         thread = nullptr;
         *file = job;
         finished = true;
+        if (failed && ++failures[job.path] < PROBE_TRIES) {
+            tried.erase(job.path);
+        }
     }
     if (thread == nullptr && pending && requestClock.getElapsedTime().asMilliseconds() > SETTLE_MS) {
         pending = false;
         tried.insert(wanted.path);
         job = wanted;
-        probed = done = delivered = false;
+        probed = done = delivered = failed = false;
         thread = new pplay::Worker(run, this);
     }
     return finished;
@@ -173,6 +178,7 @@ int MediaProbe::run(void *data) {
     bool viewed = torrent && pplay::TorrServe::isFileViewed(self->job.path);
     std::string error;
     MediaInfo info;
+    bool failed = true;
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "MediaProbe: start " + url);
     {
         // one at a time with the other network threads (Switch)
@@ -184,12 +190,16 @@ int MediaProbe::run(void *data) {
             for (auto &option: options) {
                 av_dict_set(&option, "threads", "1", 0);
             }
-            avformat_find_stream_info(ctx, options.empty() ? nullptr : options.data());
+            int res = avformat_find_stream_info(ctx, options.empty() ? nullptr : options.data());
             for (auto &option: options) {
                 av_dict_free(&option);
             }
             pplay::Utility::log(pplay::Utility::LogLevel::Debug, "MediaProbe: stream info read");
             info = read(ctx);
+            failed = res < 0 || (info.videos.empty() && info.audios.empty());
+            if (failed && error.empty()) {
+                error = res < 0 ? "no stream info" : "no streams";
+            }
             if (info.hasCover()) {
                 std::string coverError;
                 pplay::Cover::save(ctx, url, &coverError);
@@ -197,9 +207,12 @@ int MediaProbe::run(void *data) {
             pplay::AvOpen::close(&ctx);
         }
     }
-    // known even on errors: not probed again (cache cleared, or played)
-    info.known = true;
-    info.save(self->job);
+    // errors (network...) not cached: tried again
+    info.known = !failed;
+    if (!failed) {
+        info.save(self->job);
+    }
+    self->failed = failed;
     self->job.mediaInfo = info;
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "MediaProbe: " + url + (error.empty() ? "" : ": " + error)
                                                                 + " (" + std::to_string(info.videos.size()) + "v "

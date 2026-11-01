@@ -43,6 +43,9 @@ using namespace pplay;
 static Utility::LogLevel g_logLevel = Utility::LogLevel::Info;
 static c2d::Color g_accentColor = c2d::Color(16, 120, 200, 255);
 static std::string g_dataPath;
+static std::string g_logHeader;
+
+static void writeLog(const std::string &message);
 
 void Utility::setDataPath(const std::string &path) {
     g_dataPath = path;
@@ -192,7 +195,11 @@ std::string Utility::formatSize(size_t size) {
 }
 
 void Utility::setLogLevel(Utility::LogLevel level) {
+    bool wasOff = g_logLevel == Utility::LogLevel::Off;
     g_logLevel = level;
+    if (wasOff && level != Utility::LogLevel::Off && !g_logHeader.empty()) {
+        writeLog(g_logHeader);
+    }
 }
 
 Utility::LogLevel Utility::getLogLevel() {
@@ -222,14 +229,41 @@ void Utility::log(Utility::LogLevel level, const std::string &message) {
     if ((int) level > (int) g_logLevel || g_logLevel == Utility::LogLevel::Off) {
         return;
     }
+    writeLog(message);
+}
+
+void Utility::setLogHeader(const std::string &header) {
+    g_logHeader = header;
+    if (g_logLevel != Utility::LogLevel::Off) {
+        writeLog(header);
+    }
+}
+
+std::string Utility::getLogPath() {
+    return g_dataPath.empty() ? "" : g_dataPath + "pplay.log";
+}
+
+bool Utility::clearLog() {
+    std::string path = getLogPath();
+    if (path.empty()) {
+        return false;
+    }
+    std::remove(path.c_str());
+    if (!g_logHeader.empty() && g_logLevel != Utility::LogLevel::Off) {
+        writeLog(g_logHeader);
+    }
+    return true;
+}
+
+static void writeLog(const std::string &message) {
 #ifdef __PS4__
     sceKernelDebugOutText(0, ("[pPlay] " + message + "\n").c_str());
 #endif
     if (g_dataPath.empty()) {
         return;
     }
-    std::string path = g_dataPath + "pplay.log";
-    bool writeBom = !fileExists(path);
+    std::string path = Utility::getLogPath();
+    bool writeBom = !Utility::fileExists(path);
     std::ofstream out(path, std::ios::app);
     if (!out.is_open()) {
         return;

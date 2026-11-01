@@ -186,7 +186,8 @@ bool Menu::onInput(c2d::Input::Player *players) {
 }
 
 void Menu::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
-    C2DObject::setVisibility(visibility, true);
+    // hidden without the slide (menus created hidden, rebuilt on each file)
+    C2DObject::setVisibility(visibility, tweenPlay || visibility == Visibility::Visible);
     for (auto &button: buttons) {
         button->setVisibility(visibility, false);
     }

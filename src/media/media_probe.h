@@ -7,6 +7,7 @@
 #define PPLAY_MEDIA_PROBE_H
 
 #include <atomic>
+#include <map>
 #include <set>
 #include <string>
 #include "cross2d/c2d.h"
@@ -39,11 +40,13 @@ private:
     bool pending = false;
     c2d::C2DClock requestClock;
     std::set<std::string> tried;
+    std::map<std::string, int> failures;
 
     pplay::Worker *thread = nullptr;
     MediaFile job;
     std::atomic<bool> probed{false};
     std::atomic<bool> done{false};
+    std::atomic<bool> failed{false};
     bool delivered = false;
 };
 

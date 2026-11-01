@@ -52,6 +52,13 @@ namespace pplay {
 
         static void log(LogLevel level, const std::string &message);
 
+        // the first line, whatever the level (again after clearLog())
+        static void setLogHeader(const std::string &header);
+
+        static std::string getLogPath();
+
+        static bool clearLog();
+
         // background network work one at a time where the system does not like it in
         // parallel (Switch: resolver, TLS); nothing elsewhere
         class NetworkLock {

@@ -408,6 +408,7 @@ void Player::setFullscreen(bool fs, bool hide) {
             tweenPosition->play(TweenDirection::Backward);
         }
         texture->showFade();
+        osd->hide();
         hideMenus();
         main->getFiler()->setVisibility(Visibility::Visible, true);
         main->getStatusBar()->setVisibility(Visibility::Visible, true);

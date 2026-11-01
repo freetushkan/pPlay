@@ -145,6 +145,35 @@ namespace pplay::Platform {
         return true;
     }
 
+    std::string name() {
+#ifdef __SWITCH__
+        std::string out = "Switch";
+        SetSysFirmwareVersion fw;
+        if (R_SUCCEEDED(setsysInitialize())) {
+            if (R_SUCCEEDED(setsysGetFirmwareVersion(&fw))) {
+                out += std::string(" ") + fw.display_version;
+            }
+            setsysExit();
+        }
+        out += appletGetAppletType() == AppletType_Application ? " (title)" : " (applet)";
+        return out;
+#elif __PS5__
+        return "PS5";
+#elif __PS4__
+#ifdef PPLAY_PS4_JAILBREAK
+        return "PS4 (jailbreak)";
+#else
+        return "PS4";
+#endif
+#elif defined(_WIN32)
+        return "Windows";
+#elif defined(__linux__)
+        return "Linux";
+#else
+        return "unknown";
+#endif
+    }
+
     c2d::Vector2f resolution() {
         return {1920, 1080};
     }

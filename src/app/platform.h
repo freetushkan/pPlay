@@ -5,6 +5,7 @@
 #ifndef PPLAY_PLATFORM_H
 #define PPLAY_PLATFORM_H
 
+#include <string>
 #include "cross2d/c2d.h"
 
 class Main;
@@ -15,6 +16,9 @@ namespace pplay::Platform {
     bool init();
 
     c2d::Vector2f resolution();
+
+    // "Switch", "PS4"... with the system version when known
+    std::string name();
 
     // ui created
     void started(Main *main);

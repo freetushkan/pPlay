@@ -92,15 +92,16 @@ void StatusBox::onDraw(c2d::Transform &transform, bool draw) {
 
     if (isVisible() && !infinite && clock->getElapsedTime().asSeconds() > 2) {
         setVisibility(Visibility::Hidden, true);
+    }
+    // fading out too
+    if (main->getPlayer()->getOSD() && main->getPlayer()->isFullscreen()) {
+        // top left, the clock on the other side
+        setPosition(32 * main->getScaling().x, 20 * main->getScaling().y + getSize().y);
     } else {
-        PlayerOSD *osd = main->getPlayer()->getOSD();
-        if (osd && main->getPlayer()->isFullscreen()) {
-            // top left, the clock on the other side
-            setPosition(32 * main->getScaling().x, 20 * main->getScaling().y + getSize().y);
-        } else {
-            FloatRect bounds = main->getMenuMain()->getGlobalBounds();
-            setPosition(bounds.left + bounds.width + pos.x, main->getSize().y - (16 * main->getScaling().x));
-        }
+        // the hidden menu is off the screen (left of it)
+        FloatRect bounds = main->getMenuMain()->getGlobalBounds();
+        setPosition(std::max(0.0f, bounds.left + bounds.width) + pos.x,
+                    main->getSize().y - (16 * main->getScaling().y));
     }
     if (isVisible() && titleText->getAlpha() > 0) {
         titleText->setFillColor(COLOR_ACCENT);

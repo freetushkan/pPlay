@@ -397,7 +397,7 @@ int main() {
     io->setConfig(config);
     pplay::Utility::setLogLevel((pplay::Utility::LogLevel) config->getOption(OPT_LOG_LEVEL)->getInteger());
     encoding::setPreferred(config->getOption(OPT_TEXT_ENCODING)->getInteger());
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "pPlay " APP_VERSION_FULL " starting");
+    pplay::Utility::setLogHeader("pPlay " APP_VERSION_FULL " on " + pplay::Platform::name());
 
     // bundled languages, then the user ones
     pplay::I18n::setSearchPaths({io->getRomFsPath() + "lang", io->getDataPath() + "lang"});

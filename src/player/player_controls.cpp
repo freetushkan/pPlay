@@ -43,15 +43,17 @@ bool Player::onInput(c2d::Input::Player *players) {
         showMessage(pplay::Utility::formatTime(target) + " / " + pplay::Utility::formatTime(duration));
     };
 
-    // the player menus (tracks...): seeking still works (to listen again while choosing)
+    // the menus (tracks, settings...): seeking still works (to listen again while choosing)
     bool menu = isMenuVisible();
-    if (menu && !mpv->isStopped() && isFullscreen() && (keys & (btnSeekBack | btnSeekForward))) {
+    bool mainMenu = main->getMenuMain()->isMenuVisible();
+    if (((menu && isFullscreen()) || mainMenu) && !mpv->isStopped() && (keys & (btnSeekBack | btnSeekForward))) {
         quietSeek((keys & btnSeekBack) ? -seek : seek);
         return true;
     }
 
-    if (mpv->isStopped() || main->getFiler()->isVisible() || menu) {
-        return C2DObject::onInput(players);
+    // minimized: the OSD keeps nothing
+    if (mpv->isStopped() || main->getFiler()->isVisible() || menu || mainMenu) {
+        return isFullscreen() && !mainMenu && C2DObject::onInput(players);
     }
 
     if (keys & btnSpeedReset) {
@@ -96,6 +98,7 @@ bool Player::onInput(c2d::Input::Player *players) {
 
     if (keys & Input::B) {
         setFullscreen(false);
+        return true;
     } else if (keys & Input::X) {
         main->getMenuVideo()->setVisibility(Visibility::Visible, true);
         return true;
