@@ -25,21 +25,19 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
 
     Filer::setSize(main->getSize().x, main->getScaling().y);
     Vector2f size;
-    size = {rect.width, rect.height - (64 * m->getScaling().y)};
-    // files list, information panel on the right
+    size = {rect.width, rect.height - (16 * m->getScaling().y)};
     float panelWidth = 560 * m->getScaling().x;
     listWidth = size.x - panelWidth;
-    // the list and the details on cards
     const float inset = 8 * m->getScaling().y;
     float crumbHeight = std::round(44 * m->getScaling().y);
-    // down to the key hints of the details panel
-    auto *listCard = new RoundRect({listWidth - 2 * inset, rect.height - crumbHeight - inset}, 14 * m->getScaling().y);
+    auto *listCard = new RoundRect({listWidth - 2 * inset, rect.height - crumbHeight - inset},
+                                      13 * m->getScaling().y);
     listCard->setPosition(inset, crumbHeight);
     listCard->setFillColor(COLOR_SURFACE);
     Filer::add(listCard);
-    // level with the list: the path and the clock over both
+
     auto *detailsCard = new RoundRect({panelWidth - 2 * inset, rect.height - crumbHeight - inset},
-                                      14 * m->getScaling().y);
+                                      13 * m->getScaling().y);
     detailsCard->setPosition(listWidth + inset, crumbHeight);
     detailsCard->setFillColor(COLOR_SURFACE);
     Filer::add(detailsCard);
@@ -48,14 +46,11 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     probe = new MediaProbe();
     Filer::add(details);
 
-    // the path over the list
     crumbs = new Breadcrumb(main, {16 * m->getScaling().x, 0, size.x - 150 * m->getScaling().x, crumbHeight});
     Filer::add(crumbs);
-    // the highlight under the card corners
-    float padTop = std::round(14 * m->getScaling().y);
+    float padTop = std::round(12 * m->getScaling().y);
     size.y -= crumbHeight + padTop;
 
-    // the rows inside the card
     float rowWidth = listWidth - 2 * inset;
     list = new pplay::ClipRect({inset, crumbHeight + padTop, rowWidth, size.y});
     Filer::add(list);
@@ -65,14 +60,11 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     if (((float) item_max * item_height) < size.y) {
         item_height = size.y / (float) item_max;
     }
-    // as high as a row: its progress covered, not the next one
     highlight = new Highlight({rowWidth, item_height}, Highlight::CursorPosition::Left);
     list->add(highlight);
 
-    // as the details panel one
     scrollBar = new RectangleShape(Vector2f{std::max(2.0f, 3 * m->getScaling().x), 1});
     scrollBar->setPosition(inset + rowWidth - (12 * m->getScaling().x - inset), list->getPosition().y);
-    scrollBar->setFillColor(Color(255, 255, 255, 60));
     scrollBar->setVisibility(Visibility::Hidden);
     Filer::add(scrollBar);
 
@@ -379,6 +371,7 @@ void Filer::onUpdate() {
     // the panel focused: dimmed
     highlight->setFillColor(COLOR_HIGHLIGHT, details->isFocused() ? 25 : 60);
     highlight->setCursorColor(details->isFocused() ? COLOR_GRAY : COLOR_ACCENT);
+    scrollBar->setFillColor(details->isFocused() ? Color(255, 255, 255, 60) : COLOR_ACCENT);
 
     C2DObject::onUpdate();
 }

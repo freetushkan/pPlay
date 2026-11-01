@@ -9,11 +9,13 @@
 
 class Main;
 
+class RoundRect;
+
 class StatusBox : public c2d::Rectangle {
 
 public:
 
-    explicit StatusBox(Main *main, const c2d::Vector2f &position);
+    explicit StatusBox(Main *main);
 
     ~StatusBox() override;
 
@@ -28,6 +30,7 @@ private:
     virtual void onDraw(c2d::Transform &transform, bool draw = true) override;
 
     Main *main;
+    RoundRect *chip = nullptr;
     c2d::Vector2f pos;
     c2d::Texture *icon;
     c2d::Text *titleText;

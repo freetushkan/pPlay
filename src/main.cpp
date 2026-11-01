@@ -42,7 +42,7 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
 
     createFont();
 
-    statusBox = new StatusBox(this, {0, Main::getSize().y - 16});
+    statusBox = new StatusBox(this);
     statusBox->setOrigin(Origin::BottomLeft);
     statusBox->setLayer(10);
     Main::add(statusBox);
