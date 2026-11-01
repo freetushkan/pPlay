@@ -63,6 +63,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     system.emplace_back("CPU boost", "cpu.png", Pos::Top);
 #endif
     system.emplace_back("Logging", "log.png", Pos::Top);
+    system.emplace_back("View log", "log.png", Pos::Top);
+    system.emplace_back("Clear log", "clear_cache.png", Pos::Top);
     categories.push_back({"System", system});
 
     std::vector<MenuItem> it = {

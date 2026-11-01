@@ -6,6 +6,7 @@
 #include <cmath>
 
 #include "main.h"
+#include "log_view.h"
 #include "encodings.h"
 #include "poster_cache.h"
 #include "i18n.h"
@@ -72,6 +73,12 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
     Main::add(dim);
 
     createMenus();
+
+    // over the menus
+    logView = new LogView(this);
+    logView->setLayer(4);
+    Main::add(logView);
+
     createMessageBox();
 
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Main: ui created");
@@ -203,6 +210,10 @@ bool Main::onInput(c2d::Input::Player *players) {
     if (keys & pplay::InputMap::Media) {
         player->onMediaKeys(keys);
         return true;
+    }
+
+    if (logView->isVisible()) {
+        return logView->onInput(players);
     }
 
     if (keys & Input::Quit) {
@@ -376,6 +387,10 @@ unsigned int Main::getFontSize(FontSize fontSize) {
 
 StatusBar *Main::getStatusBar() {
     return statusBar;
+}
+
+LogView *Main::getLogView() {
+    return logView;
 }
 
 // platform, data directory, configuration and language before the ui

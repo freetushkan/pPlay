@@ -51,6 +51,8 @@ inline c2d::Color &COLOR_ACCENT = pplay::Utility::getAccentColor();
 #include "ps4/ps4_compat.h"
 #endif
 
+class LogView;
+
 class Main : public c2d::C2DRenderer {
 
 public:
@@ -117,6 +119,8 @@ public:
 
     StatusBar *getStatusBar();
 
+    LogView *getLogView();
+
     c2d::Vector2f getScaling();
 
     c2d::Vector2f getScaled(const c2d::Vector2f &v) { return {v.x * scaling.x, v.y * scaling.y}; }
@@ -164,6 +168,7 @@ private:
     Player *player = nullptr;
     MenuMain *menu_main = nullptr;
     MenuVideo *menu_video = nullptr;
+    LogView *logView = nullptr;
     unsigned int oldKeys = 0;
     c2d::Vector2f scaling = {1, 1};
 

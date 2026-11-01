@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include "main.h"
+#include "log_view.h"
 #include "utility.h"
 #include "menu_main_options_submenu.h"
 #include "menu_file_editor.h"
@@ -272,6 +273,15 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
             int count = pplay::Utility::clearCache();
             main->getFiler()->clearMediaInfo();
             main->getStatus()->show(pplay::tr("Info..."), pplay::tr("Cache cleared") + ": " + std::to_string(count));
+            return;
+        }
+        if (item->name == "Clear log") {
+            pplay::Utility::clearLog();
+            main->getStatus()->show(pplay::tr("Info..."), pplay::tr("Log cleared"));
+            return;
+        }
+        if (item->name == "View log") {
+            main->getLogView()->show();
             return;
         }
         if (item->name == "Edit files") {
