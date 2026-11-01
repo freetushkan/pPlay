@@ -99,7 +99,6 @@ private:
     c2d::RectangleShape *posterFrame;
     c2d::Text *detailsText;
     c2d::RectangleShape *scrollBar;
-    c2d::RectangleShape *focusBar;
     c2d::RectangleShape *separator;
     KeyHints *hints;
 

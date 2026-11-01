@@ -14,7 +14,6 @@
 #include "i18n.h"
 #include "filer.h"
 #include "clip_rect.h"
-#include "text_wrap.h"
 #include "skin.h"
 #include "external_tracks.h"
 
@@ -54,9 +53,10 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
     icon->setVisibility(Visibility::Hidden);
     FilerItem::add(icon);
 
-    // clipped on pixels, long names cut with "…"
+    // clipped on pixels (not characters), the end faded
     textX = 16 * main->getScaling().x + iconSize + 12 * main->getScaling().x;
-    textWidth = FilerItem::getSize().x - textX - 16 * main->getScaling().x;
+    // the scrollbar on the right
+    textWidth = FilerItem::getSize().x - textX - 24 * main->getScaling().x;
     info = new Text("", main->getFontSize(Main::FontSize::Small), main->getFont());
     info->setOrigin(Origin::Right);
     info->setPosition(textX + textWidth, FilerItem::getSize().y / 2);
@@ -73,10 +73,16 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
     textTitle->setPosition(0, FilerItem::getSize().y / 2);
     clip->add(textTitle);
     FilerItem::add(clip);
+    float fadeWidth = 48 * main->getScaling().x;
+    fade = new pplay::FadeEdge({textX + textWidth - fadeWidth, 0, fadeWidth, FilerItem::getSize().y});
+    fade->setBackground(COLOR_SURFACE);
+    fade->setVisibility(Visibility::Hidden);
+    FilerItem::add(fade);
 
     float line = std::max(2.0f, std::round(3 * main->getScaling().y));
-    // right under the name, as long as the row up to the time
+    // right under the name, as long as the row up to the time; inside the row (its highlight)
     float lineY = std::round(FilerItem::getSize().y / 2 + (float) textTitle->getCharacterSize() * 0.55f);
+    lineY = std::min(lineY, std::floor(FilerItem::getSize().y - line));
     watchedTrack = new RectangleShape({textX, lineY, textWidth, line});
     watchedTrack->setFillColor(Color(255, 255, 255, 30));
     watchedTrack->setVisibility(Visibility::Hidden);
@@ -123,6 +129,7 @@ void FilerItem::setFile(const MediaFile &f) {
         info->setString("");
         check->setString("");
         check2->setVisibility(Visibility::Hidden);
+        fade->setVisibility(Visibility::Hidden);
         watchedTrack->setVisibility(Visibility::Hidden);
         setIcon("");
         setColor(COLOR_GRAY);
@@ -168,11 +175,10 @@ void FilerItem::setFile(const MediaFile &f) {
                   - (marks.empty() ? 0 : check->getLocalBounds().width + (both ? shift : 0) + 10 * main->getScaling().x);
     if (width != clip->getSize().x) {
         clip->setSize(width, clip->getSize().y);
+        fade->setPosition(textX + width - fade->getSize().x, fade->getPosition().y);
     }
-    // too long: cut with "…"
-    std::string shown = file.name == ".." ? pplay::tr("BACK") : encoding::fix(file.name);
-    textTitle->setString(pplay::TextWrap::ellipsize(textTitle->getFont(), textTitle->getCharacterSize(), shown,
-                                                    clip->getSize().x));
+    fade->setVisibility(textTitle->getLocalBounds().width > clip->getSize().x ? Visibility::Visible
+                                                                              : Visibility::Hidden);
     updateWatched();
 }
 
@@ -217,6 +223,9 @@ void FilerItem::onUpdate() {
         }
         updateClock.restart();
     }
+    // what is behind the fade: the list, the selection highlight over it
+    float x = (fade->getPosition().x + fade->getSize().x / 2) / std::max(1.0f, getSize().x);
+    fade->setBackground(highlight ? highlight->seenThrough(COLOR_SURFACE, x) : COLOR_SURFACE);
     // the filer fade in sets all the alphas: the track keeps its own
     uint8_t alpha = textTitle->getAlpha();
     watchedTrack->setFillColor(Color(255, 255, 255, (uint8_t) (30 * alpha / 255)));

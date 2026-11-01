@@ -8,6 +8,7 @@
 #include "cross2d/skeleton/sfml/RectangleShape.hpp"
 #include "media_file.h"
 #include "clip_rect.h"
+#include "highlight.h"
 
 class Main;
 
@@ -45,6 +46,7 @@ private:
     float textX = 0, textWidth = 0;
     c2d::Sprite *icon;
     c2d::Rectangle *clip;
+    pplay::FadeEdge *fade;
     void updateWatched();
 
     // the watched part (watch later / TorrServer position)
@@ -54,6 +56,10 @@ private:
 
     bool lastFullscreen = false;
 
+public:
+
+    // the selection highlight over this row (its fade matches it), nullptr otherwise
+    const Highlight *highlight = nullptr;
 };
 
 #endif //PPLAY_FILERITEM_H

@@ -103,6 +103,7 @@ private:
     // the listed directories pictures (PosterLoader urls)
     std::map<std::string, std::string> folderCovers;
     Highlight *highlight;
+    c2d::RectangleShape *scrollBar = nullptr;
     DetailsView *details = nullptr;
     MediaProbe *probe = nullptr;
     float listWidth = 0;

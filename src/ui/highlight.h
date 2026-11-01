@@ -30,6 +30,9 @@ public:
 
     void tweenTo(const c2d::Vector2f &position);
 
+    // a background as seen through the highlight at x (0..1 of its width)
+    c2d::Color seenThrough(const c2d::Color &background, float x) const;
+
     void resize(const c2d::Vector2f &size);
 
 private:

@@ -51,22 +51,30 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     // the path over the list
     crumbs = new Breadcrumb(main, {16 * m->getScaling().x, 0, size.x - 150 * m->getScaling().x, crumbHeight});
     Filer::add(crumbs);
-    size.y -= crumbHeight;
+    // the highlight under the card corners
+    float padTop = std::round(14 * m->getScaling().y);
+    size.y -= crumbHeight + padTop;
 
     // the rows inside the card
     float rowWidth = listWidth - 2 * inset;
-    list = new pplay::ClipRect({inset, crumbHeight, rowWidth, size.y});
+    list = new pplay::ClipRect({inset, crumbHeight + padTop, rowWidth, size.y});
     Filer::add(list);
 
-    highlight = new Highlight({rowWidth, (float) ITEM_HEIGHT * m->getScaling().y},
-                              Highlight::CursorPosition::Left);
-    list->add(highlight);
-
-    item_height = highlight->getSize().y;
+    item_height = (float) ITEM_HEIGHT * m->getScaling().y;
     item_max = (int) (size.y / item_height);
     if (((float) item_max * item_height) < size.y) {
         item_height = size.y / (float) item_max;
     }
+    // as high as a row: its progress covered, not the next one
+    highlight = new Highlight({rowWidth, item_height}, Highlight::CursorPosition::Left);
+    list->add(highlight);
+
+    // as the details panel one
+    scrollBar = new RectangleShape(Vector2f{std::max(2.0f, 3 * m->getScaling().x), 1});
+    scrollBar->setPosition(inset + rowWidth - (12 * m->getScaling().x - inset), list->getPosition().y);
+    scrollBar->setFillColor(Color(255, 255, 255, 60));
+    scrollBar->setVisibility(Visibility::Hidden);
+    Filer::add(scrollBar);
 
     for (int i = 0; i < item_max + 2; i++) {
         items.emplace_back(new FilerItem(main, {0, item_height * (float) (i - 1), rowWidth, item_height}));
@@ -139,7 +147,21 @@ void Filer::setSelection(int index) {
 void Filer::placeItems() {
     for (int i = 0; i < (int) items.size(); i++) {
         items[i]->setPosition(0, std::round((float) (i - 1) * item_height + scrollOffset));
+        items[i]->highlight = top - 1 + i == item_index ? highlight : nullptr;
     }
+    mutex->lock();
+    int count = (int) files.size();
+    mutex->unlock();
+    if (count <= item_max) {
+        scrollBar->setVisibility(Visibility::Hidden);
+        return;
+    }
+    float viewHeight = list->getSize().y;
+    float barHeight = std::max(viewHeight * (float) item_max / (float) count, 24 * main->getScaling().y);
+    float shown = std::max(0.0f, std::min(1.0f, ((float) top - scrollOffset / item_height) / (float) (count - item_max)));
+    scrollBar->setSize(scrollBar->getSize().x, std::round(barHeight));
+    scrollBar->setPosition(scrollBar->getPosition().x, std::round(list->getPosition().y + (viewHeight - barHeight) * shown));
+    scrollBar->setVisibility(Visibility::Visible);
 }
 
 MediaFile Filer::getSelection() const {

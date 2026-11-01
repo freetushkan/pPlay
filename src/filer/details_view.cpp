@@ -64,9 +64,6 @@ DetailsView::DetailsView(Main *m, const c2d::FloatRect &rect) : Rectangle(rect),
     scrollBar->setVisibility(Visibility::Hidden);
     DetailsView::add(scrollBar);
 
-    focusBar = new RectangleShape(Vector2f{bar, 1});
-    focusBar->setVisibility(Visibility::Hidden);
-    DetailsView::add(focusBar);
 
     separator = new RectangleShape(Vector2f{rect.width - margin * 2, std::max(1.0f, main->getScaling().y)});
     separator->setFillColor(Color(255, 255, 255, 50));
@@ -131,7 +128,6 @@ void DetailsView::setFocused(bool value) {
     button = -1;
     scroll = 0;
     hints->setButtons(focused);
-    focusBar->setVisibility(focused ? Visibility::Visible : Visibility::Hidden);
     updateHints();
     layout();
 }
@@ -244,8 +240,6 @@ void DetailsView::layout() {
     float viewHeight = std::max(1.0f, separatorY - margin * 0.6f - top);
     view->setPosition(0, top);
     view->setSize(getSize().x, viewHeight);
-    focusBar->setPosition(0, top);
-    focusBar->setSize(focusBar->getSize().x, limit - top);
 
     // title, the poster with the details right of it (narrow) or below
     float y = 0;
@@ -407,7 +401,6 @@ void DetailsView::onUpdate() {
     }
 
     posterFrame->setOutlineColor(COLOR_ACCENT);
-    focusBar->setFillColor(COLOR_ACCENT);
     scrollBar->setFillColor(focused && button < 0 ? COLOR_ACCENT : Color(255, 255, 255, 60));
 
     Rectangle::onUpdate();

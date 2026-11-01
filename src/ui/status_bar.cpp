@@ -113,7 +113,8 @@ StatusBar::StatusBar(Main *m) : Rectangle({0, 0, 64, 64}) {
 
 #ifdef __SWITCH__
     battery = new Battery(StatusBar::getGlobalBounds(), m->getScaling());
-    battery->setPosition(battery->getPosition().x - 20 * m->getScaling().x, battery->getPosition().y);
+    // as far from the chip edge as the clock from the other one
+    battery->setPosition(battery->getPosition().x - 30 * m->getScaling().x, battery->getPosition().y);
     StatusBar::add(battery);
 #endif
 
