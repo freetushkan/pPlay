@@ -272,13 +272,11 @@ void Player::onUpdate() {
     if (volumeDirty && volumeClock.getElapsedTime().asSeconds() >= 2) {
         saveVolume();
     }
-    if (info_text->isVisible()) {
-        if (mpv->isStopped()) {
-            info_text->setVisibility(Visibility::Hidden);
-            info_keys->setVisibility(Visibility::Hidden);
-        } else if (infoClock.getElapsedTime().asMilliseconds() >= 500) {
-            updateInfo();
-        }
+    // playback-abort may briefly become true while mpv replaces a decoder
+    // or switches tracks. Preserve the user's overlay choice; only pause refresh.
+    if (info_text->isVisible() && !mpv->isStopped()
+        && infoClock.getElapsedTime().asMilliseconds() >= 500) {
+        updateInfo();
     }
 
     if (reloadPending && reloadClock.getElapsedTime().asMilliseconds() >= reloadDelayMs) {
@@ -375,6 +373,7 @@ void Player::stop() {
         reloadPending = false;
         main->getStatus()->hide();
     }
+    setInfoVisible(false);
     mpv->stop();
 }
 
