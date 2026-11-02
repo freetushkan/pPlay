@@ -197,7 +197,7 @@ Mpv::~Mpv() {
 int Mpv::load(const std::string &file, LoadType loadType, const std::string &options) {
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Mpv::load(" + file + ")");
     if (handle) {
-        stop();
+        // loadfile replace already stops the current file; Append/AppendPlay must not stop it.
         std::string type = "replace";
         if (loadType == LoadType::Append) {
             type = "append";
