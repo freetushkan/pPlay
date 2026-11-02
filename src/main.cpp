@@ -14,6 +14,9 @@
 #include "io.h"
 #include "net_time.h"
 #include "platform.h"
+#ifdef __LINUX__
+#include "crashlog.h"
+#endif
 #include "pplay_config.h"
 #include "utility.h"
 
@@ -402,6 +405,9 @@ int main() {
     auto *io = new pplay::Io();
     io->create(io->getDataPath());
     pplay::Utility::setDataPath(io->getDataPath());
+#ifdef __LINUX__
+    pplay::CrashLog::install();
+#endif
 #if defined(__PS4__) || defined(__SWITCH__) || defined(__LINUX__)
     // romfs (skin, mpv, lang...) -> data directory
     io->syncRomFs();
