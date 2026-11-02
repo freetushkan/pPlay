@@ -11,6 +11,8 @@
 #define MAX_MESSAGE_SIZE 0x1000
 #define MAX_STACK_FRAMES 32
 
+static volatile sig_atomic_t crash_in_progress = 0;
+
 /**
  * A callframe captures the stack and program pointer of a
  * frame in the call path.
@@ -78,6 +80,11 @@ static void backtrace(const char *reason) {
  * Log fatal signals to kernel log.
  **/
 static void fatal_signal(int sig) {
+    if (crash_in_progress) {
+        _exit(128 + sig);
+    }
+    crash_in_progress = 1;
+
     char reason[64];
 
     snprintf(reason, sizeof(reason), "Received the fatal POSIX signal %d", sig);

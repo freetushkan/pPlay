@@ -131,6 +131,7 @@ set(PPLAY_LDFLAGS
 # PLATORM SPECIFIC
 #####################
 if (PLATFORM_SWITCH)
+    list(APPEND PPLAY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/switch/crashlog.cpp)
     #####################
     # SWITCH PLATORM
     #####################
@@ -176,6 +177,7 @@ elseif (PLATFORM_PS4)
         list(APPEND PPLAY_CFLAGS -DPPLAY_PS4_JAILBREAK)
     endif ()
 elseif (PLATFORM_PS5)
+    list(APPEND PPLAY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/ps5/crashlog.cpp)
     #####################
     # PS5 PLATORM
     #####################
@@ -315,6 +317,15 @@ if (PLATFORM_LINUX)
     # libcross2d's release target adds LINK_FLAGS_RELEASE=-s after the app target
     # is configured. Remove it for Linux diagnostics so objcopy can extract DWARF.
     set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES LINK_FLAGS_RELEASE "")
+    if (TARGET cross2d)
+        target_compile_options(cross2d PRIVATE -g -fno-omit-frame-pointer)
+    endif ()
+endif ()
+
+if (PLATFORM_PS5 OR PLATFORM_SWITCH)
+    # Keep symbols in the linked ELF; release packaging receives a separately stripped copy.
+    set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES LINK_FLAGS_RELEASE "")
+    target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -g -fno-omit-frame-pointer)
     if (TARGET cross2d)
         target_compile_options(cross2d PRIVATE -g -fno-omit-frame-pointer)
     endif ()

@@ -14,7 +14,7 @@
 #include "io.h"
 #include "net_time.h"
 #include "platform.h"
-#ifdef __LINUX__
+#if defined(__LINUX__) || defined(__PS5__) || defined(__SWITCH__)
 #include "crashlog.h"
 #endif
 #include "pplay_config.h"
@@ -408,6 +408,8 @@ int main() {
     pplay::Utility::setDataPath(io->getDataPath());
 #ifdef __LINUX__
     pplay::CrashLog::install();
+#elif defined(__PS5__) || defined(__SWITCH__)
+    pplay::CrashLog::install(io->getDataPath() + "crash.log");
 #endif
 #if defined(__PS4__) || defined(__SWITCH__) || defined(__LINUX__)
     // romfs (skin, mpv, lang...) -> data directory

@@ -103,7 +103,19 @@ jobs:
       - name: Build pPlay
         run: |
           cd cmake-build
+          # Keep an unstripped ELF for crash.log address resolution.
+          make pplay -j$(nproc) VERBOSE=1
+          cp pplay pplay.debug
+          /opt/devkitpro/devkitA64/bin/aarch64-none-elf-readelf -S pplay.debug | grep -q '\.debug_info'
+          /opt/devkitpro/devkitA64/bin/aarch64-none-elf-strip --strip-debug pplay
           make pplay_switch_release -j$(nproc) VERBOSE=1 --trace
+
+      - name: Upload Switch debug ELF
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-Switch-elf
+          path: "cmake-build/pplay.debug"
+          retention-days: 90
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -164,7 +176,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/compiled_libs
-          key: ps4-v4
+          key: ps4-v5
 
       - name: Build FFmpeg
         if: steps.ps4-cache.outputs.cache-hit != 'true'
@@ -317,7 +329,18 @@ jobs:
         run: |
           cd cmake-build
           make pplay_ps5_release pplay_loader -j$(nproc) VERBOSE=1
+          # Preserve the exact unstripped payload ELF for crash.log address resolution.
+          cp pplay.elf pplay.debug
+          readelf -S pplay.debug | grep -q '\.debug_info'
+          strip --strip-debug release/pplay/pplay.elf
           strip --strip-unneeded release/pplay/libOSMesa.so.8
+
+      - name: Upload PS5 debug ELF
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-PS5-elf
+          path: "cmake-build/pplay.debug"
+          retention-days: 90
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
