@@ -114,11 +114,8 @@ static void logRenderer(Main *main) {
 namespace pplay::Platform {
 
     size_t threadStackSize() {
-#if defined(__LINUX__) || defined(__SWITCH__)
+        // FFmpeg probing, embedded covers and external-track workers need a generous stack.
         return 4 * 1024 * 1024;
-#else
-        return 1 * 1024 * 1024;
-#endif
     }
 
     bool init() {
