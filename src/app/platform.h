@@ -5,12 +5,16 @@
 #ifndef PPLAY_PLATFORM_H
 #define PPLAY_PLATFORM_H
 
+#include <cstddef>
 #include <string>
 #include "cross2d/c2d.h"
 
 class Main;
 
 namespace pplay::Platform {
+
+    // stack size for SDL workers and explicit pthread workers (FFmpeg, covers)
+    size_t threadStackSize();
 
     // first call; false: exit now (already running...)
     bool init();
