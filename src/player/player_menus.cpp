@@ -199,10 +199,12 @@ void Player::processDeferredMenus() {
     const bool deletePending = menusDeletePending;
     const bool deleteAll = menusDeleteAllPending;
     const bool buildPending = menusBuildPending;
+    const bool trackBuildPending = menusTrackBuildPending;
 
     menusDeletePending = false;
     menusDeleteAllPending = false;
     menusBuildPending = false;
+    menusTrackBuildPending = false;
 
     // These menus are children of Main, not Player. Mutating Main's child vector
     // from Player::onUpdate() invalidates C2DObject::onUpdate()'s active iterators.
@@ -211,6 +213,8 @@ void Player::processDeferredMenus() {
     }
     if (buildPending && !main->isExiting()) {
         buildMenus();
+    } else if (trackBuildPending && !main->isExiting() && !deleteAll && !mpv->isStopped()) {
+        buildTrackMenus();
     }
 }
 
