@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <execinfo.h>
+#include <dlfcn.h>
 #include <fcntl.h>
 #include <sys/syscall.h>
 #include <ucontext.h>
@@ -26,6 +27,7 @@ namespace {
     constexpr int MaxFrames = 64;
 
     int crashFd = -1;
+    uintptr_t executableBase = 0;
     volatile sig_atomic_t handlingCrash = 0;
 
     struct SignalStack {
