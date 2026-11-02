@@ -137,11 +137,20 @@ void Player::forgetProgress() {
 }
 
 bool Player::load(const MediaFile &f, bool firstTry, const std::string &options) {
-    // loadfile replace stops the previous item itself; only cancel a pending retry here.
     if (reloadPending) {
         reloadPending = false;
         main->getStatus()->hide();
     }
+
+    // Keep the explicit pre-load stop: it prevents the previous file's frame from
+    // surviving a replacement on platforms where loadfile takes longer to switch.
+    texture->clearFrame();
+    texture->setWaiting(true);
+    if (!mpv->isStopped()) {
+        skipStopEvent = true;
+        mpv->stop();
+    }
+
     file = f;
     std::string opts = options;
     if (!isPlaylistFile()) {
