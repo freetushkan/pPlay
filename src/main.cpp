@@ -395,10 +395,6 @@ LogView *Main::getLogView() {
 
 // platform, data directory, configuration and language before the ui
 int main() {
-#ifdef __LINUX__
-    // FFmpeg media probes and embedded-cover reads run in SDL workers; 1 MiB is too small.
-#else
-#endif
     if (!pplay::Platform::init()) {
         return 0;
     }
