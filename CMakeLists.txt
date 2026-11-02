@@ -310,3 +310,12 @@ if (TARGET smb2)
     endif ()
 endif ()
 include(libcross2d/cmake/targets.cmake)
+
+if (PLATFORM_LINUX)
+    # libcross2d's release target adds LINK_FLAGS_RELEASE=-s after the app target
+    # is configured. Remove it for Linux diagnostics so objcopy can extract DWARF.
+    set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES LINK_FLAGS_RELEASE "")
+    if (TARGET cross2d)
+        target_compile_options(cross2d PRIVATE -g -fno-omit-frame-pointer)
+    endif ()
+endif ()
