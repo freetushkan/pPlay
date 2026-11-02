@@ -273,7 +273,7 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE APP_VERSION_FULL="${APP
 if (PLATFORM_LINUX)
     # Export executable symbols so crash.log can resolve application frames.
     target_link_options(${CMAKE_PROJECT_NAME} PRIVATE -rdynamic)
-    target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -g)
+    target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -g -fno-omit-frame-pointer)
 endif ()
 if(NOT MSVC)
     target_link_options(${CMAKE_PROJECT_NAME} PRIVATE "LINKER:--allow-multiple-definition")
