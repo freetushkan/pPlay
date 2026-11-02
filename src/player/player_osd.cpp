@@ -318,11 +318,20 @@ void PlayerOSD::updateTexts() {
 
 void PlayerOSD::placeTitle() {
     const float sc = main->getScaling().y;
-    float width = std::min(title->getLocalBounds().width, titleMax);
-    if (titleClip->getSize().x != width) {
-        titleClip->setSize(width, titleClip->getSize().y);
+    FloatRect bounds = title->getLocalBounds();
+    float width = std::min(bounds.width, titleMax);
+    // Keep equal room for the text outline and glyph antialiasing on both sides.
+    float padding = audioLayout ? std::ceil(2.0f * sc) : 0.0f;
+    float clipWidth = width + 2 * padding;
+    if (titleClip->getSize().x != clipWidth) {
+        titleClip->setSize(clipWidth, titleClip->getSize().y);
     }
-    float x = audioLayout ? (main->getSize().x - width) / 2 : 54 * sc;
+    float x = 54 * sc;
+    if (audioLayout) {
+        FloatRect zone = AudioView::zone();
+        float center = (zone.left + zone.width / 2) * main->getSize().x;
+        x = center - clipWidth / 2;
+    }
     titleClip->setPosition(std::round(x), std::round(titleY - titleClip->getSize().y / 2));
     if (!audioLayout) {
         meta->setPosition(x + width + 14 * sc, titleY + 2 * sc);
@@ -331,10 +340,14 @@ void PlayerOSD::placeTitle() {
 
 void PlayerOSD::scrollTitle() {
     // too long: a pause, to the end, a pause, back to the start
-    float overflow = title->getLocalBounds().width - titleClip->getSize().x;
+    const float sc = main->getScaling().y;
+    FloatRect bounds = title->getLocalBounds();
+    float padding = audioLayout ? std::ceil(2.0f * sc) : 0.0f;
+    float contentWidth = titleClip->getSize().x - 2 * padding;
+    float overflow = bounds.width - contentWidth;
     float offset = 0;
     if (overflow > 0) {
-        float speed = 60 * main->getScaling().y, wait = 2;
+        float speed = 60 * sc, wait = 2;
         float moved = (titleClock.getElapsedTime().asSeconds() - wait) * speed;
         if (moved > overflow + wait * speed) {
             titleClock.restart();
@@ -342,7 +355,9 @@ void PlayerOSD::scrollTitle() {
         }
         offset = std::min(overflow, std::max(0.0f, moved));
     }
-    title->setPosition(-std::round(offset), titleClip->getSize().y / 2);
+    // Text::Origin::Left includes a negative outline origin; compensate it and the glyph bearing.
+    float inset = audioLayout ? padding - title->getOutlineThickness() - bounds.left : 0.0f;
+    title->setPosition(inset - std::round(offset), titleClip->getSize().y / 2);
 }
 
 void PlayerOSD::updateChips() {
