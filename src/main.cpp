@@ -271,6 +271,7 @@ void Main::onUpdate() {
     }
 
     Renderer::onUpdate();
+    player->processDeferredMenus();
 }
 
 bool Main::isExiting() {
