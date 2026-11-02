@@ -449,6 +449,10 @@ jobs:
         run: |
           cd cmake-build
           make pplay_linux_release -j$(nproc) VERBOSE=1
+          # Keep a matching separate debug file; the AppImage remains compact.
+          objcopy --only-keep-debug release/pplay/pplay pplay.debug
+          strip --strip-debug release/pplay/pplay
+          objcopy --add-gnu-debuglink=pplay.debug release/pplay/pplay
           ldd release/pplay/pplay || true
 
       - name: Build AppImage
@@ -460,6 +464,13 @@ jobs:
         with:
           name: pPlay-Linux
           path: "cmake-build/pPlay-x86_64.AppImage"
+
+      - name: Upload Linux debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: pPlay-Linux-debug
+          path: "cmake-build/pplay.debug"
+          retention-days: 30
 
   publish:
     needs: [ps4, ps5, ps5-pkg, switch, linux]
