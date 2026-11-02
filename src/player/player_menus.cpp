@@ -195,6 +195,25 @@ void Player::deleteMenus(bool all) {
     }
 }
 
+void Player::processDeferredMenus() {
+    const bool deletePending = menusDeletePending;
+    const bool deleteAll = menusDeleteAllPending;
+    const bool buildPending = menusBuildPending;
+
+    menusDeletePending = false;
+    menusDeleteAllPending = false;
+    menusBuildPending = false;
+
+    // These menus are children of Main, not Player. Mutating Main's child vector
+    // from Player::onUpdate() invalidates C2DObject::onUpdate()'s active iterators.
+    if (deletePending) {
+        deleteMenus(deleteAll);
+    }
+    if (buildPending && !main->isExiting()) {
+        buildMenus();
+    }
+}
+
 MenuVideoSubmenu *Player::getMenuVideoStreams() {
     return menuVideoStreams;
 }
