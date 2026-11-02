@@ -7,6 +7,12 @@
 #include <atomic>
 #include <mutex>
 #include <vector>
+#ifdef __PS4__
+#include <cstddef>
+#include <cstdint>
+#include <orbis/Pad.h>
+#include <orbis/UserService.h>
+#endif
 
 #include "input_map.h"
 #include "utility.h"
@@ -236,6 +242,195 @@ namespace {
         return held;
     }
 
+#ifdef __PS4__
+    // HDMI-CEC remotes are exposed by Orbis through a separate native pad port.
+    // They are not SDL joysticks, so the regular SDL polling path cannot see them.
+    constexpr int Ps4RemotePortType = 16;
+    constexpr uint32_t Ps4RemoteIntercepted = 0x80000000u;
+    constexpr int Ps4RemoteKeyCodeOffset = 3;
+    static_assert(offsetof(OrbisPadData, unknown) + Ps4RemoteKeyCodeOffset == 108,
+                  "OpenOrbis PS4 remote key-code offset changed");
+
+    int g_ps4RemoteHandle = -1;
+    bool g_ps4RemoteHandleOwned = false;
+    bool g_ps4RemoteApiInitialized = false;
+    bool g_ps4RemoteRetryArmed = false;
+    bool g_ps4RemoteConnected = false;
+    bool g_ps4RemoteHaveSample = false;
+    uint32_t g_ps4RemoteLastRawButtons = 0;
+    uint8_t g_ps4RemoteLastKeyCode = 0;
+    uint32_t g_ps4RemoteLastOpenError = 0;
+    uint32_t g_ps4RemoteLastReadError = 0;
+    c2d::C2DClock *g_ps4RemoteRetryClock = nullptr;
+
+    void retryPs4Remote() {
+        if (g_ps4RemoteRetryClock == nullptr) {
+            g_ps4RemoteRetryClock = new c2d::C2DClock();
+        }
+        g_ps4RemoteRetryClock->restart();
+        g_ps4RemoteRetryArmed = true;
+        g_ps4RemoteConnected = false;
+        g_ps4RemoteHaveSample = false;
+    }
+
+    bool openPs4Remote() {
+        if (g_ps4RemoteHandle >= 0) {
+            return true;
+        }
+        if (g_ps4RemoteRetryArmed && g_ps4RemoteRetryClock != nullptr
+            && g_ps4RemoteRetryClock->getElapsedTime().asMilliseconds() < 1000) {
+            return false;
+        }
+        g_ps4RemoteRetryArmed = false;
+
+        if (!g_ps4RemoteApiInitialized) {
+            OrbisUserServiceInitializeParams userParams {};
+            userParams.priority = ORBIS_KERNEL_PRIO_FIFO_LOWEST;
+            int userResult = sceUserServiceInitialize(&userParams);
+            const bool userReady = userResult == 0
+                                   || (uint32_t) userResult == ORBIS_USER_SERVICE_ERROR_ALREADY_INITIALIZED;
+            if (!userReady) {
+                char message[128];
+                snprintf(message, sizeof(message),
+                         "Input: PS4 TV remote user-service init failed: 0x%08x",
+                         (unsigned) userResult);
+                pplay::Utility::log(pplay::Utility::LogLevel::Info, message);
+            }
+
+            int padResult = scePadInit();
+            const bool padReady = padResult == 0;
+            if (!padReady) {
+                char message[128];
+                snprintf(message, sizeof(message), "Input: PS4 TV remote pad init failed: 0x%08x",
+                         (unsigned) padResult);
+                pplay::Utility::log(pplay::Utility::LogLevel::Info, message);
+            }
+            g_ps4RemoteApiInitialized = userReady && padReady;
+            if (!g_ps4RemoteApiInitialized) {
+                retryPs4Remote();
+                return false;
+            }
+        }
+
+        constexpr int systemUser = ORBIS_USER_SERVICE_USER_ID_SYSTEM;
+        int handle = scePadOpen(systemUser, Ps4RemotePortType, 0, nullptr);
+        if ((uint32_t) handle == ORBIS_PAD_ERROR_ALREADY_OPENED) {
+            // Another native reader already owns this port. Borrow, do not close it.
+            handle = scePadGetHandle(systemUser, Ps4RemotePortType, 0);
+            g_ps4RemoteHandleOwned = false;
+        } else {
+            g_ps4RemoteHandleOwned = handle >= 0;
+        }
+
+        if (handle < 0) {
+            if (g_ps4RemoteLastOpenError != (uint32_t) handle) {
+                char message[160];
+                snprintf(message, sizeof(message),
+                         "Input: PS4 TV remote open failed (system user, port 16): 0x%08x",
+                         (unsigned) handle);
+                pplay::Utility::log(pplay::Utility::LogLevel::Info, message);
+                g_ps4RemoteLastOpenError = (uint32_t) handle;
+            }
+            retryPs4Remote();
+            return false;
+        }
+
+        g_ps4RemoteHandle = handle;
+        g_ps4RemoteLastOpenError = 0;
+        pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                            std::string("Input: PS4 TV remote opened (system user, port 16, ")
+                                    + (g_ps4RemoteHandleOwned ? "owned)" : "shared)"));
+        return true;
+    }
+
+    unsigned int pollPs4Remote() {
+        using B = Input::Button;
+        if (!openPs4Remote()) {
+            return 0;
+        }
+
+        OrbisPadData sample {};
+        int result = scePadReadState(g_ps4RemoteHandle, &sample);
+        if (result != 0) {
+            if (g_ps4RemoteLastReadError != (uint32_t) result) {
+                char message[128];
+                snprintf(message, sizeof(message), "Input: PS4 TV remote read failed: 0x%08x",
+                         (unsigned) result);
+                pplay::Utility::log(pplay::Utility::LogLevel::Info, message);
+                g_ps4RemoteLastReadError = (uint32_t) result;
+            }
+            if (g_ps4RemoteHandleOwned) {
+                scePadClose(g_ps4RemoteHandle);
+            }
+            g_ps4RemoteHandle = -1;
+            g_ps4RemoteHandleOwned = false;
+            retryPs4Remote();
+            return 0;
+        }
+        g_ps4RemoteLastReadError = 0;
+
+        if (!sample.connected) {
+            if (g_ps4RemoteConnected) {
+                pplay::Utility::log(pplay::Utility::LogLevel::Info, "Input: PS4 TV remote disconnected");
+            }
+            g_ps4RemoteConnected = false;
+            g_ps4RemoteHaveSample = false;
+            return 0;
+        }
+
+        const uint32_t raw = sample.buttons;
+        const uint8_t keyCode = sample.unknown[Ps4RemoteKeyCodeOffset];
+        if (!g_ps4RemoteHaveSample || raw != g_ps4RemoteLastRawButtons || keyCode != g_ps4RemoteLastKeyCode) {
+            if (raw != 0 || keyCode != 0) {
+                char message[160];
+                snprintf(message, sizeof(message),
+                         "Input: PS4 TV remote sample buttons=0x%08x keyCode=%u",
+                         (unsigned) raw, (unsigned) keyCode);
+                pplay::Utility::log(pplay::Utility::LogLevel::Debug, message);
+            }
+            g_ps4RemoteLastRawButtons = raw;
+            g_ps4RemoteLastKeyCode = keyCode;
+            g_ps4RemoteHaveSample = true;
+        }
+        if (!g_ps4RemoteConnected) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Input: PS4 TV remote connected");
+        }
+        g_ps4RemoteConnected = true;
+
+        unsigned int held = 0;
+        if (raw & ORBIS_PAD_BUTTON_UP) held |= B::Up;
+        if (raw & ORBIS_PAD_BUTTON_DOWN) held |= B::Down;
+        if (raw & ORBIS_PAD_BUTTON_LEFT) held |= B::Left;
+        if (raw & ORBIS_PAD_BUTTON_RIGHT) held |= B::Right;
+        if (raw & ORBIS_PAD_BUTTON_CROSS) held |= B::A;
+        if (raw & ORBIS_PAD_BUTTON_CIRCLE) held |= B::B;
+        if (raw & ORBIS_PAD_BUTTON_OPTIONS) held |= B::X;
+
+        // The system-intercepted flag guards the additional remote key-code
+        // translation only. Keep ordinary D-pad/button bits intact.
+        if ((raw & Ps4RemoteIntercepted) == 0) {
+            // Some remote keys arrive in byte 108 rather than OrbisPadData::buttons.
+            // 13/15/18 follow Sony's PS5 remote table (Enter/Back/Menu); PS4 firmware
+            // may expose different values, so the raw sample above remains diagnostic.
+            switch (keyCode) {
+                case 13: held |= B::A; break; // Enter / OK
+                case 15: held |= B::B; break; // Back
+                case 18: held |= B::X; break; // Menu / Options
+                default:
+                    if (keyCode != 0) {
+                        char message[160];
+                        snprintf(message, sizeof(message),
+                                 "Input: unknown PS4 TV remote keyCode=%u buttons=0x%08x",
+                                 (unsigned) keyCode, (unsigned) raw);
+                        pplay::Utility::log(pplay::Utility::LogLevel::Debug, message);
+                    }
+                    break;
+            }
+        }
+        return held;
+    }
+#endif
+
     // other devices auto repeat, with a debounce (CEC remotes may report a held key
     // as quick release/press)
 #define DEBOUNCE_MS 120
@@ -342,10 +537,17 @@ namespace pplay::InputMap {
         }
         SDL_AddEventWatch(onEvent, nullptr);
         scanDevices();
+#ifdef __PS4__
+        pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                            "Input: probing native PS4 HDMI-CEC remote on system pad port 16");
+#endif
     }
 
     unsigned int update() {
         unsigned int held = pollDevices();
+#ifdef __PS4__
+        const unsigned int remoteHeld = pollPs4Remote();
+#endif
         // buttons of the other game controllers, as mapped for player 1 (no sticks and
         // triggers: remotes may report them off-center)
         auto mapped = [](SDL_GameController *pad) {
@@ -385,6 +587,10 @@ namespace pplay::InputMap {
                 }
             }
         }
+#ifdef __PS4__
+        // Keep the remote independent from the DS4 mirror suppression above.
+        held |= remoteHeld;
+#endif
         unsigned int fire = extraFire(held);
         if (fire) {
             pplay::Utility::log(pplay::Utility::LogLevel::Debug,
