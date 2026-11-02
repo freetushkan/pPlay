@@ -98,7 +98,8 @@ void Player::onStopEvent(int reason) {
     main->getMenuVideo()->reset();
     osd->reset();
 
-    deleteMenus(main->isExiting());
+    menusDeletePending = true;
+    menusDeleteAllPending = menusDeleteAllPending || main->isExiting();
 
     if (main->isExiting()) {
         if (volumeDirty) {
