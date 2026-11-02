@@ -264,7 +264,7 @@ void Player::onLoadEvent() {
     // the details panel shows it
     main->getFiler()->setMediaInfo(file, file.mediaInfo);
 
-    buildMenus();
+    menusBuildPending = true;
     pictureUrls = pictureUrlsOf(file);
     picturesFailed = false;
     updateAudioScreen();
