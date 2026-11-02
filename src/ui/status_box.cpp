@@ -14,66 +14,71 @@
 
 using namespace c2d;
 
-StatusBox::StatusBox(Main *m) : Rectangle(m->getScaled({0, 0, 64, 48})) {
+StatusBox::StatusBox(Main *m) : Rectangle({0, 0, 64, 64}) {
 
     main = m;
-    const float sc = m->getScaling().y;
-    StatusBox::setSize(m->getSize().x, 32 * sc);
-    StatusBox::setPosition(0, 18 * sc);
+    const Vector2f sc = m->getScaling();
+    StatusBox::setSize(m->getSize().x, std::round(32 * sc.y));
+    // Main sets BottomLeft as the origin, so position the bottom edge below the top margin.
+    StatusBox::setPosition(0, std::round(18 * sc.y + StatusBox::getSize().y));
 
-    chip = new RoundRect({10, std::round(26 * sc)});
+    chip = new RoundRect({10, std::round(26 * sc.y)});
     chip->setOrigin(Origin::Left);
     chip->setFillColor(Color(10, 12, 16, 170));
     StatusBox::add(chip);
 
     icon = new C2DTexture(m->getIo()->getDataPath() + "skin/wait.png");
-    float iconSize = 22 * m->getScaling().y;
-    float iconScale = iconSize / (float) std::max(1, icon->getTextureSize().y);
     icon->setOrigin(Origin::Center);
-    icon->setPosition(iconSize / 2 + (22 * m->getScaling().x), StatusBox::getSize().y / 2);
-    icon->setScale(iconScale, iconScale);
     icon->setFillColor(COLOR_FONT);
-    icon->setAlpha(200);
+    icon->setAlpha(255);
     icon->add(new TweenRotation(360, 0, 2, TweenLoop::Loop, TweenState::Playing));
     StatusBox::add(icon);
 
-    titleText = new Text("Wait", m->getFontSize(Main::FontSize::Medium), m->getFont());
-    titleText->setFillColor(COLOR_ACCENT);
-    titleText->setPosition(iconSize + (38 * m->getScaling().x), (4 * m->getScaling().y));
-    titleText->setVisibility(Visibility::Hidden);
-    StatusBox::add(titleText);
-
-    messageText = new Text("Wait", m->getFontSize(Main::FontSize::Small), m->getFont());
+    messageText = new Text("Wait", m->getFontSize(Main::FontSize::Medium), m->getFont());
     messageText->setFillColor(COLOR_FONT);
     messageText->setOrigin(Origin::Left);
-    messageText->setPosition(iconSize + (38 * m->getScaling().x), StatusBox::getSize().y / 2 - (1 * m->getScaling().y));
+    messageText->setOverflow(Text::Clamp);
+    messageText->setPosition(0, StatusBox::getSize().y / 2);
     StatusBox::add(messageText);
 
+    textColor = COLOR_FONT;
     clock = new C2DClock();
     mutex = SDL_CreateMutex();
 
-    tween = new TweenAlpha(0, 255, 0.5f);
-    StatusBox::add(tween);
     StatusBox::setVisibility(Visibility::Hidden);
 }
 
 StatusBox::~StatusBox() {
-    delete (clock);
+    delete clock;
     SDL_DestroyMutex(mutex);
 }
 
-void StatusBox::show(const std::string &title, const std::string &message, bool inf, bool drawNow) {
+void StatusBox::setVisibility(Visibility visibility, bool tweenPlay) {
+    target = visibility == Visibility::Visible ? 1.0f : 0.0f;
+    if (!tweenPlay) {
+        alpha = target;
+    }
+    if (visibility == Visibility::Visible || alpha <= 0) {
+        Rectangle::setVisibility(visibility, false);
+    }
+    applyAlpha();
+}
+
+void StatusBox::applyAlpha() {
+    uint8_t a = (uint8_t) std::lround(255 * alpha);
+    chip->setFillColor({10, 12, 16, (uint8_t) std::lround(170 * alpha)});
+    icon->setAlpha(a);
+    messageText->setFillColor({textColor.r, textColor.g, textColor.b, a});
+}
+
+void StatusBox::show(const std::string &type, const std::string &message, bool inf, bool drawNow) {
 
     SDL_LockMutex(mutex);
-    titleText->setString(pplay::tr(title));
     messageText->setString(pplay::tr(message));
-    messageText->setFillColor(title == "Error" ? Color(240, 120, 110, 255) : COLOR_FONT);
-    bool spinning = inf || title == "Wait";
+    textColor = type == "Error" ? Color(240, 120, 110, 255) : COLOR_FONT;
+    bool spinning = inf || type == "Wait";
     icon->setVisibility(spinning ? Visibility::Visible : Visibility::Hidden);
-    float iconSize = 22 * main->getScaling().y;
-    messageText->setPosition(spinning ? icon->getPosition().x + (iconSize / 2) + 16 * main->getScaling().x
-                                      : 22 * main->getScaling().x,
-                             messageText->getPosition().y);
+    applyAlpha();
     SDL_UnlockMutex(mutex);
 
     infinite = inf;
@@ -91,29 +96,83 @@ void StatusBox::hide() {
     infinite = false;
 }
 
-void StatusBox::onDraw(c2d::Transform &transform, bool draw) {
+void StatusBox::onUpdate() {
+    if (!isVisible()) {
+        return;
+    }
 
+    float dt = std::min(0.1f, fadeClock.restart().asSeconds());
+    if (alpha != target) {
+        alpha += (target > alpha ? 1 : -1) * dt * 4;
+        alpha = std::min(1.0f, std::max(0.0f, alpha));
+        if (std::fabs(alpha - target) < 0.02f) {
+            alpha = target;
+        }
+        applyAlpha();
+        if (alpha <= 0) {
+            Rectangle::setVisibility(Visibility::Hidden, false);
+            return;
+        }
+    }
+
+    const Vector2f sc = main->getScaling();
+    bool player = main->getPlayer() != nullptr && main->getPlayer()->isFullscreen();
+
+    // Match StatusBar's top edge; this object's origin is BottomLeft.
+    float top = std::round((player ? 18 : 6) * sc.y);
+    setPosition(0, top + getSize().y);
+
+    float centerY = getSize().y / 2;
+    float iconSize = std::round(22 * sc.y);
+    float left = std::round(22 * sc.x);
+    float padding = std::round(14 * sc.x);
+    float currentX = left + padding;
+
+    if (icon->isVisible()) {
+        float iconScale = iconSize / (float) std::max(1, icon->getTextureSize().y);
+        icon->setScale(iconScale, iconScale);
+        currentX += iconSize + std::round(10 * sc.x);
+    }
+
+    // Keep a gap before the StatusBar clock chip.
+    float maxRight = getSize().x;
+    StatusBar *bar = main->getStatusBar();
+    if (bar != nullptr && bar->timeText != nullptr) {
+        FloatRect barText = bar->timeText->getLocalBounds();
+        float barLeft = bar->timeText->getPosition().x - (barText.width * bar->timeText->getScale().x)
+                        - (16 * sc.x);
+        maxRight = std::min(maxRight, barLeft - (8 * sc.x));
+    }
+
+    float maxText = std::max(1.0f, maxRight - currentX - padding);
+    if (std::fabs(maxText - textMaxWidth) > 0.5f) {
+        textMaxWidth = maxText;
+        messageText->setSizeMax(textMaxWidth, 0);
+    }
+
+    FloatRect text = messageText->getLocalBounds();
+    float textWidth = std::round(text.width * messageText->getScale().x);
+    float right = std::min(maxRight, currentX + textWidth + padding);
+
+    if (icon->isVisible()) {
+        icon->setPosition(std::round(left + padding + iconSize / 2), centerY);
+    }
+
+    messageText->setPosition(currentX, centerY);
+    unsigned int fontSize = main->getFontSize(Main::FontSize::Medium);
+    Vector2f chipSize = {std::round(std::max(1.0f, right - left)), std::round(fontSize + 20 * sc.y)};
+    if (chip->getSize().x != chipSize.x || chip->getSize().y != chipSize.y) {
+        chip->setSize(chipSize);
+    }
+    chip->setPosition(left, std::round(centerY));
+    Rectangle::onUpdate();
+}
+
+void StatusBox::onDraw(c2d::Transform &transform, bool draw) {
     if (isVisible() && !infinite && clock->getElapsedTime().asSeconds() > 2) {
         setVisibility(Visibility::Hidden, true);
     }
-    setPosition(32 * main->getScaling().x, 20 * main->getScaling().y + getSize().y);
-    if (isVisible() && titleText->getAlpha() > 0) {
-        titleText->setFillColor(COLOR_ACCENT);
-    }
-
     SDL_LockMutex(mutex);
-    if (isVisible() && chip != nullptr) {
-        const Vector2f sc = main->getScaling();
-        FloatRect textBounds = messageText->getLocalBounds();
-        float chipLeft = 0;
-        float chipRight = messageText->getPosition().x + textBounds.width + 22 * sc.x;
-        float chipWidth = std::round(chipRight - chipLeft);
-        float chipHeight = std::round(textBounds.height + 20 * sc.y);
-        if (chip->getSize().x != chipWidth || chip->getSize().y != chipHeight) {
-            chip->setSize({chipWidth, chipHeight});
-        }
-        chip->setPosition(chipLeft, std::round((StatusBox::getSize().y - chipHeight) / 2));
-    }
     C2DObject::onDraw(transform, draw);
     SDL_UnlockMutex(mutex);
 }
