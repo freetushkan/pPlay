@@ -122,7 +122,9 @@ void Player::onExternalTracksAdded() {
         return;
     }
     file.mediaInfo = mpv->getMediaInfo(file);
-    buildTrackMenus();
+    // External track replies are processed from Player::onUpdate(). Defer the menu
+    // rebuild: these menus are children of Main, whose child vector is being traversed.
+    menusTrackBuildPending = true;
 
     std::vector<Mpv::TrackEntry> tracks = mpv->getTrackList();
     for (int t = 0; t < 2; t++) {
