@@ -113,7 +113,17 @@ static void logRenderer(Main *main) {
 
 namespace pplay::Platform {
 
+    size_t threadStackSize() {
+#if defined(__LINUX__) || defined(__SWITCH__)
+        return 4 * 1024 * 1024;
+#else
+        return 1 * 1024 * 1024;
+#endif
+    }
+
     bool init() {
+        const std::string stackSize = std::to_string(threadStackSize());
+        SDL_SetHint(SDL_HINT_THREAD_STACK_SIZE, stackSize.c_str());
 #ifdef __SWITCH__
 #ifdef NDEBUG
         socketInitializeDefault();
