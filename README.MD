@@ -37,7 +37,7 @@ Installation
 
 Usage and controls
 -----
-| Action | PS4 / PS5 | Switch | Keyboard/Remote (PS5) | Linux |
+| Action | PS4 / PS5 | Switch | Keyboard/Remote (PS4/PS5) | Linux |
 | :--- | :--- | :--- | :--- | :--- |
 | Move / Switch windows | Analog Sticks / D-Pad | Analog Sticks / D-Pad | Arrows (or Numpad) | Arrows |
 | Confirm (OK) / Pause | `CROSS` | `A` | `Enter` / `Space` | `Enter` / `Space` |
