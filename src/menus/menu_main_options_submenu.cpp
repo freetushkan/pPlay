@@ -272,12 +272,12 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
         if (item->name == "Clear cache") {
             int count = pplay::Utility::clearCache();
             main->getFiler()->clearMediaInfo();
-            main->getStatus()->show(pplay::tr("Info"), pplay::tr("Cache cleared") + ": " + std::to_string(count));
+            main->getStatus()->show("Info", pplay::tr("Cache cleared") + ": " + std::to_string(count));
             return;
         }
         if (item->name == "Clear log") {
             pplay::Utility::clearLog();
-            main->getStatus()->show(pplay::tr("Info"), pplay::tr("Log cleared"));
+            main->getStatus()->show("Info", pplay::tr("Log cleared"));
             return;
         }
         if (item->name == "View log") {

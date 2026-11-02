@@ -40,7 +40,7 @@ bool Player::onInput(c2d::Input::Player *players) {
         double target = std::max(0.0, mpv->getTime() + delta);
         target = duration > 0 ? std::min(target, duration) : target;
         mpv->seek(delta);
-        showMessage(pplay::Utility::formatTime(target) + " / " + pplay::Utility::formatTime(duration));
+        main->getStatus()->show("Info", pplay::Utility::formatTime(target) + " / " + pplay::Utility::formatTime(duration));
     };
 
     // the menus (tracks, settings...): seeking still works (to listen again while choosing)
@@ -143,11 +143,11 @@ void Player::onMediaKeys(unsigned int keys) {
 }
 
 void Player::setSpeed(double speed) {
-    showMessage(mpv->setSpeed(speed));
+    main->getStatus()->show("Info", mpv->setSpeed(speed));
 }
 
 void Player::changeBrightness(double delta) {
-    showMessage(mpv->changeBrightness(delta));
+    main->getStatus()->show("Info", mpv->changeBrightness(delta));
 }
 
 void Player::updateInfo() {

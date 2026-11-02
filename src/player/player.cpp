@@ -72,16 +72,6 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
 
     applyConfig();
 
-    message_text = new Text("", main->getFontSize(Main::FontSize::Bigger), main->getFont());
-    message_text->setFillColor(COLOR_FONT);
-    message_text->setOrigin(Origin::Left);
-    message_text->setOutlineColor(COLOR_GRAY_DARK);
-    message_text->setOutlineThickness(5.0f);
-    message_text->setPosition((20 * main->getScaling().x), (20 * main->getScaling().y));
-    message_text->setVisibility(Visibility::Hidden);
-    message_text->setLayer(3);
-    add(message_text);
-
     info_text = new Text("", main->getFontSize(Main::FontSize::Medium), main->getFont());
     info_text->setFillColor(COLOR_FONT);
     info_text->setOutlineColor(COLOR_GRAY_DARK);
@@ -110,12 +100,6 @@ Player::~Player() {
         delete (externalThread);
     }
     delete (mpv);
-}
-
-void Player::showMessage(const std::string &message) {
-    message_text->setString(message);
-    message_text->setVisibility(Visibility::Visible);
-    messageClock.restart();
 }
 
 std::string Player::keyOf(const std::string &path) {
@@ -351,10 +335,6 @@ void Player::onUpdate() {
                 }
             }
         }
-    }
-
-    if (message_text->isVisible() && messageClock.getElapsedTime().asSeconds() >= 2.0f) {
-        message_text->setVisibility(Visibility::Hidden);
     }
 
     if (isVisible()) {

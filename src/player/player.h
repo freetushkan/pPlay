@@ -87,7 +87,7 @@ public:
     // "Add file..." of the audio / subtitles menus: pick a file in the filer
     void pickExternalTrack(bool audio);
 
-    void showMessage(const std::string &message);
+    // void showMessage(const std::string &message);
 
     PlayerOSD *getOSD();
 
@@ -251,8 +251,6 @@ private:
     c2d::TweenScale *tweenScale = nullptr;
     c2d::TweenPosition *tweenPosition = nullptr;
 
-    c2d::Text *message_text = nullptr;
-    c2d::C2DClock messageClock;
     c2d::Text *info_text = nullptr;
     c2d::Text *info_keys = nullptr;
     c2d::C2DClock infoClock;

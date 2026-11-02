@@ -400,6 +400,6 @@ bool Player::playSibling(int direction) {
             return load(next);
         }
     }
-    showMessage(pplay::tr(direction > 0 ? "Next" : "Previous") + ": -");
+    main->getStatus()->show("Info", pplay::tr(direction > 0 ? "Next" : "Previous") + ": -");
     return false;
 }

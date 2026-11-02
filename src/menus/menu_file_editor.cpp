@@ -149,9 +149,9 @@ bool MenuFileEditor::save(const std::vector<std::string> &newLines) {
             return false;
         }
         main->applyConfig();
-        main->getStatus()->show(pplay::tr("Info"), pplay::tr("Configuration applied"));
+        main->getStatus()->show("Info", pplay::tr("Configuration applied"));
     } else {
-        main->getStatus()->show(pplay::tr("Info"), pplay::tr("Saved, restart pPlay to apply mpv changes"));
+        main->getStatus()->show("Info", pplay::tr("Saved, restart pPlay to apply mpv changes"));
     }
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "MenuFileEditor: saved " + path);
     return true;
@@ -251,7 +251,7 @@ void MenuFileEditor::openExternal() {
     externalPid = pid;
     externalFile = currentFile;
     externalTime = fileTime(path);
-    main->getStatus()->show(pplay::tr("Info"), pplay::tr("Opened in the text editor, applied when saved"));
+    main->getStatus()->show("Info", pplay::tr("Opened in the text editor, applied when saved"));
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "MenuFileEditor: xdg-open " + path);
 #endif
 }
@@ -279,12 +279,12 @@ void MenuFileEditor::onUpdate() {
     if (externalFile == "pplay.cfg") {
         if (main->getConfig()->reload()) {
             main->applyConfig();
-            main->getStatus()->show(pplay::tr("Info"), pplay::tr("Configuration applied"));
+            main->getStatus()->show("Info", pplay::tr("Configuration applied"));
         } else {
             main->showMessage(pplay::tr("Error"), pplay::tr("Invalid configuration, fix the file"), pplay::tr("OK"));
         }
     } else {
-        main->getStatus()->show(pplay::tr("Info"), pplay::tr("Saved, restart pPlay to apply mpv changes"));
+        main->getStatus()->show("Info", pplay::tr("Saved, restart pPlay to apply mpv changes"));
     }
     if (currentFile == externalFile && isVisible()) {
         openFile(currentFile);
