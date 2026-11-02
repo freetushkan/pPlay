@@ -269,6 +269,7 @@ private:
 
     // Main's child vector must not be mutated from Player::onUpdate().
     bool menusBuildPending = false;
+    bool menusTrackBuildPending = false;
     bool menusDeletePending = false;
     bool menusDeleteAllPending = false;
 
