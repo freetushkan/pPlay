@@ -397,9 +397,7 @@ LogView *Main::getLogView() {
 int main() {
 #ifdef __LINUX__
     // FFmpeg media probes and embedded-cover reads run in SDL workers; 1 MiB is too small.
-    SDL_SetHint(SDL_HINT_THREAD_STACK_SIZE, "4194304");
 #else
-    SDL_SetHint(SDL_HINT_THREAD_STACK_SIZE, "1048576");
 #endif
     if (!pplay::Platform::init()) {
         return 0;
