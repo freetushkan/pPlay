@@ -94,6 +94,9 @@ public:
     // the player menu or one of its submenus
     bool isMenuVisible() const;
 
+    // Called after Main has finished traversing its UI children.
+    void processDeferredMenus();
+
     Mpv *getMpv();
 
     MenuVideoSubmenu *getMenuVideoStreams();
@@ -263,6 +266,11 @@ private:
     MenuVideoSubmenu *menuVisualizer = nullptr;
     MenuVideoSubmenu *menuSpeed = nullptr;
     MenuVideoSubmenu *menuBrightness = nullptr;
+
+    // Main's child vector must not be mutated from Player::onUpdate().
+    bool menusBuildPending = false;
+    bool menusDeletePending = false;
+    bool menusDeleteAllPending = false;
 
     // the file
     MediaFile file;
