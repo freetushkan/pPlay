@@ -285,7 +285,8 @@ void PlayerOSD::updateTexts() {
             name = encoding::fix(player->getTitle());
         }
         long height = mpv->getInt("video-params/h", 0);
-        std::string codec = c2d::Utility::toUpper(mpv->getString("video-codec-name"));
+        // (mpv has no "video-codec-name")
+        std::string codec = c2d::Utility::toUpper(mpv->getString("current-tracks/video/codec"));
         if (!codec.empty()) {
             parts.push_back(codec);
         }
