@@ -99,6 +99,10 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_AUDIO_VISUALIZER, (int) 0});
     addOption({OPT_TEXT_ENCODING, (int) 0});
     addOption({OPT_TS_PROGRESS, (int) 2});
+    addOption({OPT_PROGRESS_LINE, (int) 1});
+    addOption({OPT_PROGRESS_MIN_LENGTH, (int) 5});
+    addOption({OPT_PROGRESS_INTERVAL, (int) 10});
+    addOption({OPT_PROGRESS_TO_END, (int) 0});
 
     // load the configuration from file, overwriting default values
     load();
@@ -175,6 +179,8 @@ void PPLAYConfig::sanitize() {
     clamp(OPT_CACHE_SECS, 10, 600);
     clamp(OPT_CACHE_MB, 50, CACHE_MB_MAX);
     clamp(OPT_VIDEO_QUALITY, 0, 2);
+    clamp(OPT_PROGRESS_MIN_LENGTH, 0, 60);
+    clamp(OPT_PROGRESS_INTERVAL, 5, 120);
 
     if (!pplay::Utility::isValidHexColor(getOption(OPT_ACCENT_COLOR)->getString())) {
         getOption(OPT_ACCENT_COLOR)->setString("#1078C8");

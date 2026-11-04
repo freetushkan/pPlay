@@ -8,6 +8,7 @@
 #include "player_osd.h"
 #include "pplay_config.h"
 #include "utility.h"
+#include "input_map.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -36,7 +37,18 @@ namespace {
     const char *normalizeNames[] = {"Off", "Normalize", "Night mode"};
     const char *screenNames[] = {"Cover > visualizer", "Visualizer", "Icon only"};
 
+    void toggleProgressLine(PPLAYConfig *config) {
+        auto *option = config->getOption(OPT_PROGRESS_LINE);
+        option->setType(c2d::config::Option::Type::Integer);
+        option->setInteger(option->getInteger() ? 0 : 1);
+        config->save();
+    }
+
     int cycle(int value, int direction, int count) {
+        // a held key stops at the last value
+        if (pplay::InputMap::isRepeat() && (value + direction < 0 || value + direction >= count)) {
+            return value;
+        }
         return (value + direction + count) % count;
     }
 }
@@ -99,6 +111,8 @@ void MenuVideo::refreshValues() {
         } else if (n == "Information") {
             item.value = pplay::tr(player->isInfoVisible() ? "On" : "Off");
             item.valueAccent = player->isInfoVisible();
+        } else if (n == "Progress line") {
+            item.value = pplay::tr(config->getOption(OPT_PROGRESS_LINE)->getInteger() ? "On" : "Off");
         }
         button->refreshValue();
     }
@@ -139,6 +153,8 @@ bool MenuVideo::onOptionChange(MenuItem *item, int direction) {
         player->changeBrightness(direction);
     } else if (n == "Information") {
         player->setInfoVisible(!player->isInfoVisible());
+    } else if (n == "Progress line") {
+        toggleProgressLine(config);
     } else {
         return false;
     }
@@ -200,6 +216,9 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
         refreshValues();
     } else if (item->name == "Information") {
         main->getPlayer()->setInfoVisible(!main->getPlayer()->isInfoVisible());
+        refreshValues();
+    } else if (item->name == "Progress line") {
+        toggleProgressLine(main->getConfig());
         refreshValues();
     } else if (item->name == "Stop") {
         main->getPlayer()->stop();

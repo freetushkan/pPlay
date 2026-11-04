@@ -9,6 +9,7 @@
 #include "menu.h"
 #include "text_wrap.h"
 #include "round_rect.h"
+#include "input_map.h"
 
 using namespace c2d;
 
@@ -220,6 +221,16 @@ int Menu::findFirstSelectableIndex() const {
 void Menu::moveSelection(int direction) {
     if (buttons.empty()) {
         return;
+    }
+    // a held key stops on the last item, a new press wraps
+    if (pplay::InputMap::isRepeat()) {
+        int ahead = index + direction;
+        while (ahead >= 0 && ahead < (int) buttons.size() && !isButtonSelectable(ahead)) {
+            ahead += direction;
+        }
+        if (ahead < 0 || ahead >= (int) buttons.size()) {
+            return;
+        }
     }
     moveDirection = direction;
     moveWrapped = false;

@@ -53,6 +53,13 @@
 #define OPT_TEXT_ENCODING "TEXT_ENCODING"
 // playback position kept by TorrServer (its "track timecode" setting) read and sent
 #define OPT_TS_PROGRESS "TS_PROGRESS_SYNC"
+// thin progress line under the hidden panel (and on the minimized player)
+#define OPT_PROGRESS_LINE "PROGRESS_LINE"
+// progress kept for files from this length (minutes), saved every n seconds,
+// in the last minute too (1) or not (0)
+#define OPT_PROGRESS_MIN_LENGTH "PROGRESS_MIN_LENGTH"
+#define OPT_PROGRESS_INTERVAL "PROGRESS_INTERVAL"
+#define OPT_PROGRESS_TO_END "PROGRESS_TO_END"
 #ifdef __SWITCH__
 #define CACHE_MB_MAX 500
 #else

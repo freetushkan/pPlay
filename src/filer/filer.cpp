@@ -12,6 +12,7 @@
 #include "torrserve.h"
 #include "details_view.h"
 #include "media_probe.h"
+#include "input_map.h"
 
 #define ITEM_HEIGHT 30
 
@@ -263,6 +264,10 @@ bool Filer::onInput(c2d::Input::Player *players) {
     } else if (keys & (Input::Up | Input::Down)) {
         if (filesSize > 0) {
             int next = item_index + ((keys & Input::Up) ? -1 : 1);
+            // a held key stops at the end, a new press wraps
+            if (pplay::InputMap::isRepeat()) {
+                next = std::max(0, std::min(next, (int) filesSize - 1));
+            }
             setSelection(next < 0 ? (int) filesSize - 1 : next >= (int) filesSize ? 0 : next);
         }
     } else if (keys & (Input::LB | Input::RB | Input::Left)) {
@@ -319,6 +324,16 @@ void Filer::run(DetailsView::Action action) {
         case Action::Reset:
             resetProgress(selection);
             break;
+        case Action::StartOver:
+            if (pplay::Utility::isMedia(selection)) {
+                details->setFocused(false);
+                player->setFullscreen(true);
+                player->load(selection, true, "pause=yes,start=0");
+            }
+            break;
+        case Action::Watched:
+            markWatched(selection);
+            break;
         default:
             break;
     }
@@ -341,6 +356,27 @@ void Filer::resetProgress(const MediaFile &file) {
         main->getStatus()->show("Info", "Removing TorrServer watched state");
         pplay::TorrServe::remFileViewed(file.path);
     }
+    dirty = true;
+}
+
+void Filer::markWatched(const MediaFile &file) {
+    if (file.type != Io::Type::File || isPlaceholder(file)) {
+        return;
+    }
+    Player *player = main->getPlayer();
+    long duration = file.mediaInfo.duration;
+    // the opened file: its own duration, and no more saves over the mark
+    if (player->isPlaying(file.path)) {
+        duration = std::max(duration, player->getMpv()->getDuration());
+        player->forgetProgress();
+    }
+    if (duration <= 0) {
+        main->getStatus()->show("Error", "Unknown duration, play the file first");
+        return;
+    }
+    pplay::Utility::setWatchLaterWatched(pplay::TorrServe::toStreamUrl(file.path), (double) duration);
+    pplay::TorrServe::setFileViewed(file.path, (double) duration);
+    main->getStatus()->show("Info", "Marked as watched");
     dirty = true;
 }
 

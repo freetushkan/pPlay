@@ -85,6 +85,16 @@ bool DetailsView::isResettable(const MediaFile &file) {
                || pplay::TorrServe::isFileViewed(file.path));
 }
 
+bool DetailsView::isWatched(const MediaFile &file, double position) {
+    std::string url = pplay::TorrServe::toStreamUrl(file.path);
+    if (pplay::Utility::isWatchLaterExist(url)) {
+        return pplay::Utility::isWatchLaterWatched(url);
+    }
+    // the server one only: at its end (the player then starts over)
+    long duration = file.mediaInfo.duration;
+    return duration > 0 && position >= (double) duration - 30;
+}
+
 void DetailsView::setFile(const MediaFile &f) {
     if (f.path != file.path || f.name != file.name) {
         scroll = scrollShown = 0;
@@ -135,10 +145,13 @@ void DetailsView::setFocused(bool value) {
 void DetailsView::updateHints() {
     bool empty = Filer::isPlaceholder(file);
     std::string open = file.type == Io::Type::Directory ? "Open" : "Play";
+    bool resume = false, watched = false;
     // a kept position: where it goes on
-    if (file.type == Io::Type::File) {
+    if (file.type == Io::Type::File && !empty) {
         double position = pplay::TorrServe::keptPosition(file.path, main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger());
-        if (position >= 10) {
+        watched = isWatched(file, position);
+        if (position >= 10 && !watched) {
+            resume = true;
             int t = (int) position;
             char time[32];
             if (t >= 3600) {
@@ -160,12 +173,19 @@ void DetailsView::updateHints() {
         if (!empty) {
             add(Input::A, open, Action::Open);
         }
+        // buttons only (no key)
+        if (resume) {
+            add(0, "Start over", Action::StartOver);
+        }
         if (playing) {
             add(Input::X, "Player", Action::Player);
         }
         add(Input::B, "Back", Action::Files);
         if (resettable) {
             add(Input::Y, "Reset progress", Action::Reset);
+        }
+        if (file.type == Io::Type::File && !empty && !watched && pplay::Utility::isMedia(file)) {
+            add(0, "Mark watched", Action::Watched);
         }
     } else if (picking) {
         add(Input::Up | Input::Down, "Select", Action::None);
@@ -390,6 +410,15 @@ void DetailsView::onUpdate() {
         playerShown = nowShown;
         updateHints();
         layout();
+        hintsClock.restart();
+    } else if (playing && hintsClock.getElapsedTime().asSeconds() >= 2 && player->isPlaying(file.path)) {
+        // its position saved meanwhile ("Continue from")
+        hintsClock.restart();
+        float height = hints->getHeight();
+        updateHints();
+        if (hints->getHeight() != height) {
+            layout();
+        }
     }
 
     if (scrollShown != scroll) {

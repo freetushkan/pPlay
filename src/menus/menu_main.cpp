@@ -26,6 +26,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Playback mode", "pl_mode.png", Pos::Top),
                                   MenuItem("Short seek step", "short_seek.png", Pos::Top),
                                   MenuItem("Long seek step", "long_seek.png", Pos::Top),
+                                  MenuItem("Keep progress from", "time.png", Pos::Top),
+                                  MenuItem("Progress save interval", "time.png", Pos::Top),
+                                  MenuItem("Progress at the end", "time.png", Pos::Top),
                                   MenuItem("Playback retry", "pl_retry.png", Pos::Top),
                                   MenuItem("Audio language", "audio.png", Pos::Top),
                                   MenuItem("Subtitles language", "subtitles.png", Pos::Top),
@@ -41,6 +44,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Language", "translate.png", Pos::Top),
                                   MenuItem("Text encoding", "translate.png", Pos::Top),
                                   MenuItem("Accent color", "color.png", Pos::Top),
+                                  MenuItem("Progress line", "time.png", Pos::Top),
                                   MenuItem("Swap controls", "swap.png", Pos::Top),
                           }});
     std::vector<MenuItem> networks;
@@ -183,6 +187,14 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::MenuType::Adjust, 1.0f, 600.0f, 1.0f, "s");
     addSubmenu("Long seek step", "Seek long step", OPT_SEEK_LONG_SEC, makeAdjustItems(), Submenu::ValueType::Float,
                Submenu::MenuType::Adjust, 10.0f, 3600.0f, 10.0f, "s");
+    addSubmenu("Keep progress from", "Keep progress of files from", OPT_PROGRESS_MIN_LENGTH, makeAdjustItems(),
+               Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 60.0f, 1.0f, "min");
+    addSubmenu("Progress save interval", "Progress save interval", OPT_PROGRESS_INTERVAL, makeAdjustItems(),
+               Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 5.0f, 120.0f, 5.0f, "s");
+    addSubmenu("Progress at the end", "Progress in the last minute", OPT_PROGRESS_TO_END,
+               makeIntItems({{"Not kept", 0}, {"Kept", 1}}), Submenu::ValueType::Integer);
+    addSubmenu("Progress line", "Progress line of the hidden panel", OPT_PROGRESS_LINE,
+               makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Audio language", "Audio language", OPT_AUDIO_LANGUAGE, makeTrackLanguageItems("Auto"),
                Submenu::ValueType::String);
     addSubmenu("Subtitles language", "Subtitles language", OPT_SUB_LANGUAGE, makeTrackLanguageItems("Off"),

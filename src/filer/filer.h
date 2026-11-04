@@ -80,6 +80,9 @@ private:
 
     void resetProgress(const MediaFile &file);
 
+    // the full duration kept, locally and on TorrServer
+    void markWatched(const MediaFile &file);
+
     virtual void enter(int index);
 
     virtual void exit();

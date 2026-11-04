@@ -87,6 +87,8 @@ private:
     bool laidOut = false;
     // animated: the panel shown, its full part shown
     float shown = 0, full = 0;
+    // the thin progress line (setting, a file playing)
+    bool lineShown = false;
     float peekOffset = 0;
     c2d::C2DClock clock, frameClock, textClock, volumeClock;
     bool volumeShown = false;

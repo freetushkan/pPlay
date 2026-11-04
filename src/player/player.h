@@ -141,6 +141,9 @@ public:
 
     bool hasVideo() const;
 
+    // the first frame (or the audio screen) shown: the panel may appear
+    bool isPlaybackStarted() const { return playbackStarted; }
+
     bool isPlaylistFile() const;
 
     // the file the playback mode goes to at the end, "" if none
@@ -188,6 +191,9 @@ private:
     void saveProgress();
 
     bool syncsProgress() const;
+
+    // the position is worth keeping (settings: file length, the last minute)
+    bool keepsProgress(long position, long duration) const;
 
     void updateMpvLog();
 

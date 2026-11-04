@@ -504,6 +504,29 @@ namespace pplay::TorrServe {
         return local > 0 ? local : server;
     }
 
+    bool setFileViewed(const std::string &path, double seconds) {
+        std::string hash;
+        int index;
+        if (!isTorrServe(path) || !fileLink(path, hash, index)) {
+            return false;
+        }
+        // "set" marks it viewed, the timecode is kept by the servers that support it
+        nlohmann::json request;
+        request["action"] = "set";
+        request["hash"] = hash;
+        request["file_index"] = index;
+        if (seconds >= 1) {
+            request["timecode"] = seconds;
+        }
+        httpRequest(apiRoot(path) + "viewed", 5, request.dump());
+        {
+            std::lock_guard<std::mutex> lock(g_viewedMutex);
+            g_viewedDirty = true;
+        }
+        getViewed(apiRoot(path), hash);
+        return true;
+    }
+
     bool remFileViewed(const std::string &path) {
         std::string hash;
         int index;

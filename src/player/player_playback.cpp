@@ -377,6 +377,11 @@ bool Player::playSibling(int direction) {
     if (mpv->isStopped()) {
         return false;
     }
+    // previous, some seconds in: the start of this one first
+    if (direction < 0 && mpv->getTime() > 5) {
+        const char *cmd[] = {"seek", "0", "absolute", nullptr};
+        return mpv_command(mpv->getHandle(), cmd) >= 0;
+    }
     if (isPlaylistFile()) {
         const char *cmd[] = {direction > 0 ? "playlist-next" : "playlist-prev", nullptr};
         return mpv_command(mpv->getHandle(), cmd) >= 0;

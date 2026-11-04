@@ -441,6 +441,37 @@ double Utility::watchLaterPosition(const std::string &video_path) {
     return position;
 }
 
+// "watched": the end kept, with a mark (a comment for mpv) so it starts over
+#define WATCHED_MARK "# pplay: watched"
+
+bool Utility::setWatchLaterWatched(const std::string &video_path, double duration) {
+    std::string path = getWatchLater(video_path);
+    if (pplay::Io::get() != nullptr) {
+        pplay::Io::get()->create(path.substr(0, path.find_last_of('/')));
+    }
+    FILE *f = fopen(path.c_str(), "wb");
+    if (f == nullptr) {
+        return false;
+    }
+    fprintf(f, WATCHED_MARK "\nstart=%.6f\n", duration);
+    fclose(f);
+    return true;
+}
+
+bool Utility::isWatchLaterWatched(const std::string &video_path) {
+    FILE *f = fopen(getWatchLater(video_path).c_str(), "rb");
+    if (f == nullptr) {
+        return false;
+    }
+    char line[256];
+    bool watched = false;
+    while (!watched && fgets(line, sizeof(line), f) != nullptr) {
+        watched = std::strncmp(line, WATCHED_MARK, strlen(WATCHED_MARK)) == 0;
+    }
+    fclose(f);
+    return watched;
+}
+
 bool Utility::deleteWatchLater(const std::string &video_path) {
     std::string path = getWatchLater(video_path);
     if (fileExists(path)) {

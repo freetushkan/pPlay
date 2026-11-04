@@ -294,3 +294,18 @@ Year = Год
 Genre = Жанр
 TorrServer progress = Прогресс в TorrServer
 Playback position on the server = Позиция просмотра на сервере
+
+# Progress
+Progress line = Линия прогресса
+Progress line of the hidden panel = Линия прогресса скрытой панели
+Keep progress from = Сохранять прогресс от
+Keep progress of files from = Сохранять прогресс файлов от
+Progress save interval = Интервал сохранения прогресса
+Progress at the end = Прогресс в конце
+Progress in the last minute = Прогресс на последней минуте
+Not kept = Не сохранять
+Kept = Сохранять
+Start over = Начать с начала
+Mark watched = Отметить просмотренным
+Marked as watched = Отмечено как просмотренное
+Unknown duration, play the file first = Длительность неизвестна, сначала запустите файл

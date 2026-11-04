@@ -133,6 +133,7 @@ void Main::createMenus() {
     items.emplace_back("Visualization", "visualizer.png", MenuItem::Position::Top);
     items.emplace_back("Speed", "speed.png", MenuItem::Position::Top);
     items.emplace_back("Brightness", "brightness.png", MenuItem::Position::Top);
+    items.emplace_back("Progress line", "time.png", MenuItem::Position::Top);
     items.emplace_back("Information", "info.png", MenuItem::Position::Top);
     items.emplace_back("Stop", "stop.png", MenuItem::Position::Bottom);
     menu_video = new MenuVideo(this, {Main::getSize().x, inset, 420 * scaling.x, Main::getSize().y - 2 * inset},
@@ -239,6 +240,8 @@ void Main::onUpdate() {
     }
     int heldMs = oldKeys ? (int) timer->getElapsedTime().asMilliseconds() : 0;
     getInput()->setRepeatDelay(pplay::InputMap::repeatDelay(heldMs));
+    // the keys of this frame: a new press fires at once, a held one after the delay
+    bool held = oldKeys != 0 && heldMs >= REPEAT_DELAY / 2;
 
     messageBox->setOutlineColor(COLOR_ACCENT);
 
@@ -261,15 +264,18 @@ void Main::onUpdate() {
     }
 
     // media keys and other devices
-    unsigned int pending = pplay::InputMap::takePending() | pplay::InputMap::update();
+    unsigned int other = pplay::InputMap::update();
+    unsigned int pending = pplay::InputMap::takePending() | other;
     if (pending != 0) {
         Input::Player *players = getInput()->getPlayers();
         unsigned int saved = players[0].buttons;
         players[0].buttons = pending;
+        pplay::InputMap::setRepeat(other != 0 && pplay::InputMap::updateRepeated());
         onInput(players);
         players[0].buttons = saved;
     }
 
+    pplay::InputMap::setRepeat(held);
     Renderer::onUpdate();
     player->processDeferredMenus();
 }

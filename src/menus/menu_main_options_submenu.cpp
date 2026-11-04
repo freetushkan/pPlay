@@ -16,6 +16,7 @@
 
 #include "keyboard.h"
 #include "i18n.h"
+#include "input_map.h"
 
 using namespace c2d;
 
@@ -61,7 +62,7 @@ std::string MenuMainOptionsSubmenu::formatValue(float value) const {
     }
 
     if (!value_unit.empty()) {
-        oss << " " << value_unit;
+        oss << " " << pplay::tr(value_unit);
     }
 
     return oss.str();
@@ -175,6 +176,10 @@ bool MenuMainOptionsSubmenu::step(int direction) {
         }
     }
     for (int i = 1; i < count; i++) {
+        // a held key stops at the last value
+        if (pplay::InputMap::isRepeat() && (index + direction * i < 0 || index + direction * i >= count)) {
+            return false;
+        }
         MenuButton *next = buttons[(index + direction * i + count * i) % count];
         if (next->item.selectable && next->item.position == MenuItem::Position::Top) {
             onOptionSelection(&next->item);

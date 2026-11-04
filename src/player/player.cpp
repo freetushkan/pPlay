@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <sstream>
 #include "main.h"
 #include "player.h"
@@ -211,6 +212,10 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     if (hadWatchLater && !moving) {
         pplay::Utility::fixWatchLater(path);
     }
+    // marked watched (its end kept): from the start
+    if (hadWatchLater && opts.find("start=") == std::string::npos && pplay::Utility::isWatchLaterWatched(path)) {
+        opts += std::string(opts.empty() ? "" : ",") + "start=0";
+    }
     // the TorrServer position: first (its setting), or without a local one
     bool serverFirst = main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger() == 2;
     if ((!hadWatchLater || serverFirst) && opts.find("start=") == std::string::npos && syncsProgress()) {
@@ -302,8 +307,8 @@ void Player::onUpdate() {
         if (position > 0.0) {
             lastKnownPosition = position;
         }
-        if (position > 0.0 && duration > 300 && !progressForgotten && (position - lastProgressSave) >= 10
-            && (duration - position) >= 60) {
+        int interval = main->getConfig()->getOption(OPT_PROGRESS_INTERVAL)->getInteger();
+        if (keepsProgress(position, duration) && std::labs(position - lastProgressSave) >= interval) {
             saveProgress();
             pplay::Utility::log(pplay::Utility::LogLevel::Debug,
                                 "Player::onUpdate::saveProgress position=" + std::to_string(position)
@@ -343,8 +348,7 @@ void Player::onUpdate() {
 
 void Player::pause() {
     mpv->pause();
-    if (lastKnownPosition > 0 && lastKnownDuration > 300 && !progressForgotten
-        && (lastKnownDuration - lastKnownPosition) >= 60) {
+    if (keepsProgress(lastKnownPosition, lastKnownDuration)) {
         saveProgress();
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
                             "Player::pause::saveProgress lastKnownPosition=" + std::to_string(lastKnownPosition)
@@ -431,6 +435,14 @@ const std::string &Player::getTitle() const {
 bool Player::syncsProgress() const {
     return main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger() != 0
            && pplay::Io::get()->getDeviceType(file.path) == pplay::Io::DeviceType::TorrServe;
+}
+
+bool Player::keepsProgress(long position, long duration) const {
+    PPLAYConfig *config = main->getConfig();
+    long minLength = (long) config->getOption(OPT_PROGRESS_MIN_LENGTH)->getInteger() * 60;
+    bool toEnd = config->getOption(OPT_PROGRESS_TO_END)->getInteger() != 0;
+    return position > 0 && duration > 0 && duration >= minLength && !progressForgotten
+           && (toEnd || duration - position >= 60);
 }
 
 bool Player::hasVideo() const {

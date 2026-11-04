@@ -42,6 +42,15 @@ namespace pplay::InputMap {
 
     int repeatDelay(int heldMs);
 
+    // the keys being handled come from a held key (auto repeat), not a new press:
+    // lists stop at their ends instead of wrapping
+    void setRepeat(bool value);
+
+    bool isRepeat();
+
+    // the last update() buttons were a repeat
+    bool updateRepeated();
+
     std::string toString(unsigned int buttons);
 
     // the button as printed on the platform pad (PlayStation symbols), for hints

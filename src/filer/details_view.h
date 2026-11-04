@@ -35,7 +35,9 @@ public:
         Panel,
         Files,
         Player,
-        Reset
+        Reset,
+        StartOver,
+        Watched
     };
 
     DetailsView(Main *main, const c2d::FloatRect &rect);
@@ -49,6 +51,9 @@ public:
 
     // watch later / TorrServer viewed state to reset
     static bool isResettable(const MediaFile &file);
+
+    // marked watched (its end kept)
+    static bool isWatched(const MediaFile &file, double position);
 
     bool isFocused() const { return focused; }
 
@@ -113,6 +118,8 @@ private:
     // the minimized player covers the panel bottom
     bool playerShown = false;
     c2d::C2DClock frameClock;
+    // the kept position of the playing file changes
+    c2d::C2DClock hintsClock;
 };
 
 #endif //PPLAY_DETAILS_VIEW_H

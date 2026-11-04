@@ -443,6 +443,8 @@ namespace {
     c2d::C2DClock *g_extraClock = nullptr;
     c2d::C2DClock *g_holdClock = nullptr;
     c2d::C2DClock *g_releaseClock = nullptr;
+    bool g_extraRepeat = false;
+    bool g_repeat = false;
 
     unsigned int extraFire(unsigned int held) {
         if (g_extraClock == nullptr) {
@@ -453,6 +455,7 @@ namespace {
         unsigned int fire = 0;
         unsigned int pressed = held & ~g_extraHeld;
         bool bounce = pressed && g_extraHeld == 0 && g_releaseClock->getElapsedTime().asMilliseconds() < DEBOUNCE_MS;
+        g_extraRepeat = false;
         if (pressed && !bounce) {
             fire = held;
             g_extraClock->restart();
@@ -462,6 +465,7 @@ namespace {
             int sinceMs = g_extraClock->getElapsedTime().asMilliseconds();
             if (sinceMs >= pplay::InputMap::repeatDelay(heldMs)) {
                 fire = held;
+                g_extraRepeat = true;
                 g_extraClock->restart();
             }
         }
@@ -610,6 +614,18 @@ namespace pplay::InputMap {
             return REPEAT_LEVEL2;
         }
         return REPEAT_LEVEL3;
+    }
+
+    void setRepeat(bool value) {
+        g_repeat = value;
+    }
+
+    bool isRepeat() {
+        return g_repeat;
+    }
+
+    bool updateRepeated() {
+        return g_extraRepeat;
     }
 
     unsigned int takePending() {

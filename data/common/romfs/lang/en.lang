@@ -295,3 +295,18 @@ Year = Year
 Genre = Genre
 TorrServer progress = TorrServer progress
 Playback position on the server = Playback position on the server
+
+# Progress
+Progress line = Progress line
+Progress line of the hidden panel = Progress line of the hidden panel
+Keep progress from = Keep progress from
+Keep progress of files from = Keep progress of files from
+Progress save interval = Progress save interval
+Progress at the end = Progress at the end
+Progress in the last minute = Progress in the last minute
+Not kept = Not kept
+Kept = Kept
+Start over = Start over
+Mark watched = Mark watched
+Marked as watched = Marked as watched
+Unknown duration, play the file first = Unknown duration, play the file first

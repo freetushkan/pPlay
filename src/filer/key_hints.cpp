@@ -73,13 +73,14 @@ void KeyHints::setHints(const std::vector<Hint> &list) {
 
     for (auto &hint: hints) {
         auto *item = new RectangleShape(Vector2f{1, 1});
-        c2d::Texture *glyph = pplay::Skin::texture(pplay::InputMap::buttonIcon(hint.keys));
+        // no keys: a button only
+        c2d::Texture *glyph = hint.keys ? pplay::Skin::texture(pplay::InputMap::buttonIcon(hint.keys)) : nullptr;
         Sprite *icon = nullptr;
         std::string label = pplay::tr(hint.action);
         if (glyph != nullptr) {
             icon = new Sprite(glyph);
             item->add(icon);
-        } else {
+        } else if (hint.keys != 0) {
             // no glyph: the key name
             std::string name;
             for (unsigned int bit = 1; bit != 0; bit <<= 1) {

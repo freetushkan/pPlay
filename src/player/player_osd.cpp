@@ -14,6 +14,7 @@
 #include "clip_rect.h"
 #include "encodings.h"
 #include "i18n.h"
+#include "input_map.h"
 
 using namespace c2d;
 
@@ -285,11 +286,11 @@ void PlayerOSD::updateTexts() {
         }
         long height = mpv->getInt("video-params/h", 0);
         std::string codec = c2d::Utility::toUpper(mpv->getString("video-codec-name"));
-        if (height > 0) {
-            parts.push_back(std::to_string(height) + "p");
-        }
         if (!codec.empty()) {
             parts.push_back(codec);
+        }
+        if (height > 0) {
+            parts.push_back(std::to_string(height) + "p");
         }
         std::string audio = c2d::Utility::toUpper(mpv->getString("audio-codec-name"));
         std::string layout = channels(mpv->getInt("audio-params/channel-count", 0));
@@ -472,7 +473,7 @@ void PlayerOSD::applyFade() {
     btn_play->setFillColor(faded(index == (int) ButtonID::Pause ? Color(16, 18, 22, 255) : COLOR_FONT, extra));
 
     // hidden video: a thin progress line left
-    edge->setFillColor(faded(COLOR_ACCENT, audioLayout ? 0 : (1 - shown) * 0.8f));
+    edge->setFillColor(faded(COLOR_ACCENT, audioLayout || !lineShown ? 0 : (1 - shown) * 0.8f));
 }
 
 void PlayerOSD::onUpdate() {
@@ -480,13 +481,16 @@ void PlayerOSD::onUpdate() {
     Mpv *mpv = player->getMpv();
     float dt = std::min(0.1f, frameClock.restart().asSeconds());
 
-    bool active = player->isFullscreen() && !mpv->isStopped();
     bool audio = player->getAudioScreen() != Player::AudioScreen::None;
+    // shown once the file shows something (a video panel over an audio file else)
+    bool ready = !mpv->isStopped() && (audio || player->isPlaybackStarted());
+    bool active = player->isFullscreen() && ready;
+    lineShown = ready && main->getConfig()->getOption(OPT_PROGRESS_LINE)->getInteger() != 0;
     if (!laidOut || audio != audioLayout) {
         layout(audio);
     }
 
-    if (mpv->isStopped()) {
+    if (!ready) {
         // (re)loading: keep the state and its timer
         clock.restart();
     } else if (!mpv->isPaused()) {
@@ -527,8 +531,11 @@ void PlayerOSD::onUpdate() {
             updateTexts();
             updateChips();
         }
-        updateProgress();
         scrollTitle();
+    }
+    // the line on the minimized player too
+    if (ready) {
+        updateProgress();
     }
     applyFade();
     Rectangle::onUpdate();
@@ -556,7 +563,11 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
         main->getMenuVideo()->setVisibility(Visibility::Visible, true);
     } else if (keys & (Input::Left | Input::Right)) {
         int dir = (keys & Input::Right) ? 1 : -1;
-        index = (index + dir + (int) buttons.size()) % (int) buttons.size();
+        int count = (int) buttons.size();
+        // held: up to the last button
+        if (!pplay::InputMap::isRepeat() || (index + dir >= 0 && index + dir < count)) {
+            index = (index + dir + count) % count;
+        }
         clock.restart();
     } else if (keys & Input::A) {
         auto cfg = main->getConfig();

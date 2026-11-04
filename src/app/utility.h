@@ -104,6 +104,11 @@ namespace pplay {
 
         static bool deleteWatchLater(const std::string &video_path);
 
+        // "mark watched": the full duration kept; such a file starts over
+        static bool setWatchLaterWatched(const std::string &video_path, double duration);
+
+        static bool isWatchLaterWatched(const std::string &video_path);
+
 #if defined(__PS4__) || defined(__PS5__) || defined(__LINUX__)
         static std::string getCertificatesPath();
 #endif
