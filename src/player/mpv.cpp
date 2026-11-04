@@ -234,7 +234,7 @@ void Mpv::setQualityPreset(int preset) {
     if (!isAvailable()) {
         return;
     }
-    // balanced: cheap scaling (the renderer may be software: PS5 OSMesa), loop filter skipped on
+    // balanced: cheap scaling (a weak GPU), loop filter skipped on
     // non reference frames; fast: loop filter skipped, fast decoding, late frames not decoded
     std::map<std::string, std::string> values = qualityDefaults;
     if (preset >= 1) {

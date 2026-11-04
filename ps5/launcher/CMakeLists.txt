@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 3.10)
 # <package root> must already contain:
 #   sce_sys/icon0.png, sce_module/*.prx
 #   ps5/pplay_loader.elf
-#   ps5/pplay/...  (pplay.elf, libOSMesa.so.8, data; files > 1MB as .zst, unpacked by the loader)
+#   ps5/pplay/...  (pplay.elf, Mesa libraries, data; files > 1MB as .zst, unpacked by the loader)
 #
 
 project(pplay_launcher C)

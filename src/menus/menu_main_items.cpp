@@ -118,7 +118,7 @@ namespace pplay::MenuMainItems {
         list.emplace_back("OpenAI — Codex");
 #ifdef __PS5__
         list.emplace_back("OpenSSL Project — OpenSSL");
-        list.emplace_back("Mesa developers — OSMesa");
+        list.emplace_back("Mesa developers — Mesa (RADV, zink)");
 #else
         list.emplace_back("Trusted Firmware — Mbed TLS");
 #endif

@@ -156,12 +156,10 @@ elseif (PLATFORM_PS4)
         )
     # clock ids, socket flags, timezone
     list(APPEND PPLAY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/ps4/ps4_compat.c)
-    # /data/pplay/crash.log
     list(APPEND PPLAY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/ps4/crashlog.c)
     # param.sfo ATTRIBUTE 0x20: system enter button in the common dialogs (IME)
     set(PS4_PKG_ATTRIBUTE "32" CACHE STRING "PS4 param.sfo ATTRIBUTE (decimal)")
     set(PS4_PKG_CATEGORY "gde" CACHE STRING "PS4 param.sfo CATEGORY")
-    # optional: root credentials (libjbc)
     set(OPTION_PS4_JAILBREAK OFF CACHE BOOL "PS4: jailbreak the process at startup (needs src/libjbc)")
     if (OPTION_PS4_JAILBREAK)
         if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/libjbc/jailbreak.c")
@@ -273,7 +271,6 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
 )
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE APP_VERSION_FULL="${APP_VERSION_FULL}")
 if (PLATFORM_LINUX)
-    # Export executable symbols so crash.log can resolve application frames.
     target_link_options(${CMAKE_PROJECT_NAME} PRIVATE -rdynamic)
     target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -g -fno-omit-frame-pointer)
 endif ()
@@ -293,7 +290,6 @@ if (PLATFORM_PS4)
             "LINKER:--wrap=recv"
             "LINKER:--wrap=sendto"
             "LINKER:--wrap=recvfrom")
-    # libcross2d calls add_pkg() without attribute/category: forward ours
     function(add_pkg project pkgdir title_id title version)
         _add_pkg(${project} ${pkgdir} ${title_id} "${title}" ${version} ${PS4_PKG_ATTRIBUTE} ${PS4_PKG_CATEGORY})
     endfunction()
@@ -311,11 +307,38 @@ if (TARGET smb2)
         target_compile_options(smb2 PRIVATE -DPS5_PLATFORM)
     endif ()
 endif ()
-include(libcross2d/cmake/targets.cmake)
+if (PLATFORM_PS5)
+    set(PLATFORM_PS5 OFF)
+    include(libcross2d/cmake/targets.cmake)
+    unset(PLATFORM_PS5)
+    set(PS5_LIB_DIR "${PS5_PAYLOAD_SDK}/target/user/homebrew/lib")
+    file(GLOB PS5_GALLIUM "${PS5_LIB_DIR}/libgallium-*.so")
+    set(PS5_MESA_LIBS ${PS5_LIB_DIR}/libEGL.so.1 ${PS5_LIB_DIR}/libGL.so.1 ${PS5_GALLIUM} ${PS5_LIB_DIR}/libvulkan.so.1)
+    foreach (lib ${PS5_MESA_LIBS})
+        if (NOT EXISTS ${lib})
+            message(FATAL_ERROR "PS5: ${lib} not found (the SDK needs Mesa: v0.41 or newer)")
+        endif ()
+    endforeach ()
+    if (NOT PS5_GALLIUM)
+        message(FATAL_ERROR "PS5: libgallium-*.so not found (the SDK needs Mesa: v0.41 or newer)")
+    endif ()
+    set(PS5_RELEASE ${CMAKE_BINARY_DIR}/release/${PROJECT_NAME})
+    add_custom_target(${PROJECT_NAME}_${TARGET_PLATFORM}_release
+            DEPENDS ${PROJECT_NAME}
+            COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_BINARY_DIR}/${PROJECT_NAME}-${VERSION_MAJOR}.${VERSION_MINOR}_${TARGET_PLATFORM}.zip
+            COMMAND ${CMAKE_COMMAND} -E remove_directory ${PS5_RELEASE}
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${PS5_RELEASE}
+            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}${CMAKE_EXECUTABLE_SUFFIX} ${PS5_RELEASE}/
+            COMMAND ${CMAKE_COMMAND} -E copy ${PS5_MESA_LIBS} ${PS5_RELEASE}/
+            COMMAND ${CMAKE_COMMAND} -D SRC=${CMAKE_CURRENT_BINARY_DIR}/data_datadir -D DST=${PS5_RELEASE} -P ${CMAKE_CURRENT_SOURCE_DIR}/libcross2d/cmake/copy_custom.cmake
+            COMMAND ${CMAKE_COMMAND} -D SRC=${CMAKE_CURRENT_BINARY_DIR}/data_romfs -D DST=${PS5_RELEASE} -P ${CMAKE_CURRENT_SOURCE_DIR}/libcross2d/cmake/copy_custom.cmake
+            COMMAND cd ${CMAKE_BINARY_DIR}/release && ${ZIP} -r ../${PROJECT_NAME}-${VERSION_MAJOR}.${VERSION_MINOR}_${TARGET_PLATFORM}.zip ${PROJECT_NAME}
+    )
+else ()
+    include(libcross2d/cmake/targets.cmake)
+endif ()
 
 if (PLATFORM_LINUX)
-    # libcross2d's release target adds LINK_FLAGS_RELEASE=-s after the app target
-    # is configured. Remove it for Linux diagnostics so objcopy can extract DWARF.
     set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES LINK_FLAGS_RELEASE "")
     if (TARGET cross2d)
         target_compile_options(cross2d PRIVATE -g -fno-omit-frame-pointer)
@@ -323,7 +346,6 @@ if (PLATFORM_LINUX)
 endif ()
 
 if (PLATFORM_PS5 OR PLATFORM_SWITCH)
-    # Keep symbols in the linked ELF; release packaging receives a separately stripped copy.
     set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES LINK_FLAGS_RELEASE "")
     target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -g -fno-omit-frame-pointer)
     if (TARGET cross2d)

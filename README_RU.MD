@@ -28,8 +28,8 @@ pPlay работает с FFmpeg через интерфейс [MPV](https://mpv
 ----
 - **PS4:** установите `.pkg` из последнего `pPlay-PS4.zip`.
 - **PS5:** один из способов:
-  - **PKG:** установите `.pkg` из последнего `pPlay-PS5-PKG.zip` (PS4 fpkg, нужен `elfldr` на порту 9021).
-    Он копирует pPlay в `/data/homebrew/pplay` и `libOSMesa.so.8` в `/user/homebrew/lib`, если их нет, и запускает приложение.
+  - **PKG:** установите `.pkg` из последнего `pPlay-PS5-PKG.zip` (PS4 fpkg, требуется `elfldr` на порту 9021).
+    Он копирует/обновляет pPlay (с библиотеками Mesa) в `/data/homebrew/pplay`, а также библиотеки в `/user/homebrew/lib`, если их нет, и запускает приложение.
   - **Вручную:** распакуйте `pPlay-PS5.zip` в `/data/homebrew/pplay` и запустите `pplay.elf` из Homebrew Launcher (websrv).
 - **Switch:** положите `.nro` из последнего `pPlay-Switch.zip` в корень лаунчера.
 - **Linux (x86_64):** запустите последний `pPlay-x86_64.AppImage` (нужна glibc 2.35+: Ubuntu 22.04, Debian 12, Fedora 36 и новее).
