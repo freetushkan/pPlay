@@ -206,6 +206,15 @@ namespace pplay::Platform {
 
     void frameDone(Main *main) {
         pplay::DesktopWindow::update(main);
+#ifdef __PS5__
+        static c2d::C2DClock frameClock;
+        const long frame = 1000000 / 60;
+        long spent = frameClock.getElapsedTime().asMicroseconds();
+        if (spent >= 0 && spent < frame) {
+            usleep((useconds_t) (frame - spent));
+        }
+        frameClock.restart();
+#endif
         static c2d::C2DClock statsClock;
         if (statsClock.getElapsedTime().asSeconds() >= 10) {
             statsClock.restart();
