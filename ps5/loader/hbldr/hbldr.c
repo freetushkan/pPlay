@@ -16,7 +16,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <libgen.h>
 
 #include <sys/mman.h>
 #include <sys/mount.h>
@@ -66,8 +65,18 @@ fs_readfile(const char* path, size_t* size) {
 }
 
 
+// A fake app we create under the launcher's own title id. Launching it forks a
+// native eboot (copied from a stock app) that we replace in memory with
+// pplay.elf; since the title matches the installed launcher package, the dock
+// keeps our own icon and minimize/sleep/close work. It is deleted right after
+// the hijack (fakeapp_remove), so nothing stays on disk to clash with the real
+// package at the next boot - launching from the shortcut then runs the launcher,
+// which recreates it.
+#ifndef PPLAY_TITLE_ID
+#error "PPLAY_TITLE_ID: set by CMakeLists.txt (ps5/title_id.cmake)"
+#endif
 #define PSNOW_EBOOT "/system_ex/app/NPXS40106/eboot.bin"
-#define FAKE_TITLE_ID "PPLY00005"
+#define FAKE_TITLE_ID PPLAY_TITLE_ID
 #define FAKE_PATH "/system_ex/app/" FAKE_TITLE_ID
 
 #define IOVEC_ENTRY(x) {x ? x : 0, \
@@ -201,6 +210,15 @@ fakeapp_create_if_missing(void) {
     close(fd);
   }
   return 0;
+}
+
+
+static void
+fakeapp_remove(void) {
+  unlink(FAKE_PATH "/eboot.bin");
+  unlink(FAKE_PATH "/sce_sys/param.json");
+  rmdir(FAKE_PATH "/sce_sys");
+  rmdir(FAKE_PATH);
 }
 
 
@@ -432,7 +450,7 @@ bigapp_replace(pid_t pid, uint8_t* elf, const char* progname, int stdio,
 
   bigapp_set_argv0(pid, progname);
   elfldr_raise_privileges(pid);
-  elfldr_set_procname(pid, basename(progname));
+  elfldr_set_procname(pid, "pplay");
   elfldr_set_environ(pid, envp);
   elfldr_set_cwd(pid, cwd);
   elfldr_set_stdio(pid, stdio);
@@ -531,6 +549,10 @@ hbldr_launch(const char*cwd, const char* path, int stdio, char** argv,
     pt_detach(pid, SIGKILL);
     pid = -1;
   }
+
+  // the fake app has done its job (the fork is now pplay in memory); drop it so
+  // nothing is left on disk to shadow the real package next boot
+  fakeapp_remove();
 
   free(elf);
 

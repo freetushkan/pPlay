@@ -30,7 +30,7 @@
 #error "PPLAY_TITLE_ID: set by CMakeLists.txt (ps5/title_id.cmake)"
 #endif
 
-#define LOADER_NAME     "pplay_loader.elf"
+#define LOADER_NAME     "pplay_loader"
 #define PKG_SUBDIR      "ps5/pplay"
 #define MARKER          PKG_SUBDIR "/pplay.elf"
 #define ZST_EXT         ".zst"

@@ -75,6 +75,8 @@ c2d::PS4Clock::PS4Clock() : Clock() {
 #include <netinet/in.h>
 #include <sys/socket.h>
 
+extern "C" int sceSystemServiceLoadExec(const char *path, const char *args[]);
+
 // single instance (the port is released on exit/crash)
 static bool ps5_single_instance() {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -220,6 +222,12 @@ namespace pplay::Platform {
         socketExit();
 #endif
         csrngExit();
+#elif __PS5__
+        // hand control back to the system; without this the BigApp stays up
+        // after the loop ends and the screen goes black
+        sceSystemServiceLoadExec("exit", nullptr);
+        while (true) {
+        }
 #elif __PS4__
 #ifdef PPLAY_PS4_JAILBREAK
         terminate_jbc();
