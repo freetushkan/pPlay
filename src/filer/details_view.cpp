@@ -16,7 +16,6 @@
 #include "details_info.h"
 #include "details_view.h"
 #include "text_wrap.h"
-#include "torrserve.h"
 #include "utility.h"
 #include "torrserve.h"
 
@@ -411,8 +410,11 @@ void DetailsView::onUpdate() {
         updateHints();
         layout();
         hintsClock.restart();
-    } else if (playing && hintsClock.getElapsedTime().asSeconds() >= 2 && player->isPlaying(file.path)) {
-        // its position saved meanwhile ("Continue from")
+    } else if (!player->isFullscreen()
+               && (pplay::TorrServe::viewedGeneration() != viewedGeneration
+                   || (playing && hintsClock.getElapsedTime().asSeconds() >= 2 && player->isPlaying(file.path)))) {
+        // its position saved meanwhile ("Continue from"), the TorrServer marks
+        viewedGeneration = pplay::TorrServe::viewedGeneration();
         hintsClock.restart();
         float height = hints->getHeight();
         updateHints();

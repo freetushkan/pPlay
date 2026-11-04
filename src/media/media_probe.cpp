@@ -175,7 +175,7 @@ int MediaProbe::run(void *data) {
     auto *self = (MediaProbe *) data;
     std::string url = pplay::TorrServe::toStreamUrl(self->job.path);
     bool torrent = pplay::Io::get()->getDeviceType(self->job.path) == pplay::Io::DeviceType::TorrServe;
-    bool viewed = torrent && pplay::TorrServe::isFileViewed(self->job.path);
+    bool viewed = torrent && pplay::TorrServe::isFileViewed(self->job.path, true);
     std::string error;
     MediaInfo info;
     bool failed = true;

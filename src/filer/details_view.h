@@ -118,8 +118,9 @@ private:
     // the minimized player covers the panel bottom
     bool playerShown = false;
     c2d::C2DClock frameClock;
-    // the kept position of the playing file changes
+    // the kept position of the playing file changes, the server marks come
     c2d::C2DClock hintsClock;
+    unsigned int viewedGeneration = 0;
 };
 
 #endif //PPLAY_DETAILS_VIEW_H

@@ -188,7 +188,8 @@ private:
 
     // watch later save (aid / sid left out while an external track is selected), the
     // TorrServer position too
-    void saveProgress();
+    // wait: false for the periodic one (mpv writes it in its thread)
+    void saveProgress(bool wait = true);
 
     bool syncsProgress() const;
 

@@ -8,7 +8,11 @@
 #include "mpv.h"
 #include "utility.h"
 
-int Mpv::save() {
+int Mpv::save(bool wait) {
+    if (!wait) {
+        const char *cmd[] = {"write-watch-later-config", nullptr};
+        return mpv_command_async(handle, 0, cmd);
+    }
     return mpv_command_string(handle, "write-watch-later-config");
 }
 

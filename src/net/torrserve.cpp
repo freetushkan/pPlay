@@ -10,6 +10,7 @@
 #include <mutex>
 #include <set>
 #include <cstring>
+#include <deque>
 #include <sstream>
 #include <unordered_map>
 #include <vector>
@@ -266,7 +267,8 @@ namespace {
         return true;
     }
 
-    // viewed files of a torrent, cached a bit (the filer asks for each item)
+    // viewed files of a torrent, cached (the filer asks for each item). The main thread
+    // never waits for the server: what is stale or missing comes from a worker
     std::mutex g_viewedMutex;
     // viewed file index -> position (seconds, 0 if the server keeps none)
     struct Viewed {
@@ -274,7 +276,18 @@ namespace {
         time_t updated = 0;
     };
     std::unordered_map<std::string, Viewed> g_viewed;
-    bool g_viewedDirty = false;
+    // bumped on each answer: the marks shown may change
+    unsigned int g_viewedGeneration = 0;
+
+    // the worker requests, in order: a body (set / rem) or a list (empty body)
+    struct ViewedJob {
+        std::string root, hash, body;
+    };
+    std::deque<ViewedJob> g_viewedJobs;
+    // root|hash with a list queued or running
+    std::set<std::string> g_viewedPending;
+    bool g_viewedBusy = false;
+    pplay::Worker *g_viewedWorker = nullptr;
 
     // positions sent to the server in a thread (the player saves them on the main one)
     struct ProgressJob {
@@ -332,36 +345,97 @@ namespace {
         }
     }
 
-    std::map<int, double> getViewed(const std::string &root, const std::string &hash) {
+    std::map<int, double> fetchViewed(const std::string &root, const std::string &hash) {
         const std::string key = root + "|" + hash;
-        {
-            std::lock_guard<std::mutex> lock(g_viewedMutex);
-            auto it = g_viewed.find(key);
-            if (it != g_viewed.end() && !g_viewedDirty && difftime(time(nullptr), it->second.updated) < 30) {
-                return it->second.files;
-            }
-        }
-
-        std::map<int, double> viewed;
         nlohmann::json request;
         request["action"] = "list";
         request["hash"] = hash;
         nlohmann::json response =
                 nlohmann::json::parse(httpRequest(root + "viewed", 5, request.dump()), nullptr, false);
+        std::lock_guard<std::mutex> lock(g_viewedMutex);
+        g_viewedPending.erase(key);
+        Viewed &cached = g_viewed[key];
+        // no answer: the marks kept, asked again later
         if (!response.is_discarded() && response.is_array()) {
+            cached.files.clear();
             for (const auto &item: response) {
                 if (item.contains("file_index") && item["file_index"].is_number_integer()) {
                     double timecode = item.contains("timecode") && item["timecode"].is_number()
                                               ? item["timecode"].get<double>()
                                               : 0;
-                    viewed[item["file_index"].get<int>()] = timecode;
+                    cached.files[item["file_index"].get<int>()] = timecode;
                 }
             }
         }
-        std::lock_guard<std::mutex> lock(g_viewedMutex);
-        g_viewedDirty = false;
-        g_viewed[key] = Viewed{viewed, time(nullptr)};
-        return viewed;
+        cached.updated = time(nullptr);
+        g_viewedGeneration++;
+        return cached.files;
+    }
+
+    int viewedThread(void *) {
+        while (true) {
+            ViewedJob job;
+            {
+                std::lock_guard<std::mutex> lock(g_viewedMutex);
+                if (g_viewedJobs.empty()) {
+                    g_viewedBusy = false;
+                    return 0;
+                }
+                job = g_viewedJobs.front();
+                g_viewedJobs.pop_front();
+            }
+            if (job.body.empty()) {
+                fetchViewed(job.root, job.hash);
+            } else {
+                httpRequest(job.root + "viewed", 5, job.body);
+            }
+        }
+    }
+
+    // to the worker: a body and a list after it (its result), or a list only (once at a time)
+    void queueViewed(const std::string &root, const std::string &hash, const std::string &body = {}) {
+        {
+            std::lock_guard<std::mutex> lock(g_viewedMutex);
+            bool queued = !g_viewedPending.insert(root + "|" + hash).second;
+            if (!body.empty()) {
+                g_viewedJobs.push_back({root, hash, body});
+            } else if (queued) {
+                return;
+            }
+            g_viewedJobs.push_back({root, hash, {}});
+            if (g_viewedBusy) {
+                return; // the running worker takes it
+            }
+            g_viewedBusy = true;
+        }
+        if (g_viewedWorker != nullptr) {
+            g_viewedWorker->join();
+            delete (g_viewedWorker);
+        }
+        g_viewedWorker = new pplay::Worker(viewedThread, nullptr);
+    }
+
+    // wait: from a worker (or a load), the server asked right away when needed
+    std::map<int, double> getViewed(const std::string &root, const std::string &hash, bool wait) {
+        const std::string key = root + "|" + hash;
+        std::map<int, double> files;
+        {
+            std::lock_guard<std::mutex> lock(g_viewedMutex);
+            auto it = g_viewed.find(key);
+            bool found = it != g_viewed.end();
+            if (found && difftime(time(nullptr), it->second.updated) < 30) {
+                return it->second.files;
+            }
+            if (found) {
+                files = it->second.files;
+            }
+        }
+        if (wait) {
+            return fetchViewed(root, hash);
+        }
+        // what is known now, the answer later (viewedGeneration)
+        queueViewed(root, hash);
+        return files;
     }
 
 }
@@ -436,19 +510,24 @@ namespace pplay::TorrServe {
         return replaceScheme(rootOf(path)) + "stream/?link=" + hash + "&index=" + std::to_string(index) + "&play";
     }
 
-    bool isFileViewed(const std::string &path) {
-        std::string hash;
-        int index;
-        return isTorrServe(path) && fileLink(path, hash, index) && getViewed(apiRoot(path), hash).count(index) > 0;
+    unsigned int viewedGeneration() {
+        std::lock_guard<std::mutex> lock(g_viewedMutex);
+        return g_viewedGeneration;
     }
 
-    double fileProgress(const std::string &path) {
+    bool isFileViewed(const std::string &path, bool wait) {
+        std::string hash;
+        int index;
+        return isTorrServe(path) && fileLink(path, hash, index) && getViewed(apiRoot(path), hash, wait).count(index) > 0;
+    }
+
+    double fileProgress(const std::string &path, bool wait) {
         std::string hash;
         int index;
         if (!isTorrServe(path) || !fileLink(path, hash, index)) {
             return 0;
         }
-        auto viewed = getViewed(apiRoot(path), hash);
+        auto viewed = getViewed(apiRoot(path), hash, wait);
         auto it = viewed.find(index);
         return it != viewed.end() ? it->second : 0;
     }
@@ -497,7 +576,7 @@ namespace pplay::TorrServe {
         if (mode == 0) {
             return local;
         }
-        double server = fileProgress(path);
+        double server = fileProgress(path, false);
         if (mode == 2) {
             return server > 0 ? server : local;
         }
@@ -518,12 +597,14 @@ namespace pplay::TorrServe {
         if (seconds >= 1) {
             request["timecode"] = seconds;
         }
-        httpRequest(apiRoot(path) + "viewed", 5, request.dump());
+        std::string root = apiRoot(path);
         {
+            // shown at once, the server answer confirms it
             std::lock_guard<std::mutex> lock(g_viewedMutex);
-            g_viewedDirty = true;
+            g_viewed[root + "|" + hash].files[index] = seconds;
+            g_viewedGeneration++;
         }
-        getViewed(apiRoot(path), hash);
+        queueViewed(root, hash, request.dump());
         return true;
     }
 
@@ -537,12 +618,13 @@ namespace pplay::TorrServe {
         request["action"] = "rem";
         request["hash"] = hash;
         request["file_index"] = index;
-        httpRequest(apiRoot(path) + "viewed", 5, request.dump());
+        std::string root = apiRoot(path);
         {
             std::lock_guard<std::mutex> lock(g_viewedMutex);
-            g_viewedDirty = true;
+            g_viewed[root + "|" + hash].files.erase(index);
+            g_viewedGeneration++;
         }
-        getViewed(apiRoot(path), hash);
+        queueViewed(root, hash, request.dump());
         return true;
     }
 

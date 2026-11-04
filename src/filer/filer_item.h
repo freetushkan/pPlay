@@ -55,6 +55,8 @@ private:
     float iconSize = 0;
 
     bool lastFullscreen = false;
+    // the TorrServer marks shown: from this answer
+    unsigned int viewedGeneration = 0;
 
 public:
 

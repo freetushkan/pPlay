@@ -230,7 +230,7 @@ bool Player::scheduleReload(const std::string &reason, bool counted) {
     return true;
 }
 
-void Player::saveProgress() {
+void Player::saveProgress(bool wait) {
     // external tracks ids depend on the order they are added: not in watch later
     // (a stale id leaves the file without audio / with other subtitles)
     std::vector<Mpv::TrackEntry> tracks = mpv->getTrackList();
@@ -247,7 +247,7 @@ void Player::saveProgress() {
             mpv_command(mpv->getHandle(), cmd);
         }
     }
-    mpv->save();
+    mpv->save(wait);
     if (syncsProgress() && lastKnownPosition > 0) {
         pplay::TorrServe::setFileProgress(file.path, (double) lastKnownPosition);
     }

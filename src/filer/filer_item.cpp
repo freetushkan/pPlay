@@ -121,6 +121,7 @@ void FilerItem::setColor(const c2d::Color &color) {
 void FilerItem::setFile(const MediaFile &f) {
 
     this->file = f;
+    viewedGeneration = pplay::TorrServe::viewedGeneration();
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "FilerItem::setFile name=" + file.name + " path=" + file.path
                                                                  + " type=" + std::to_string((int) file.type));
 
@@ -213,6 +214,10 @@ void FilerItem::onUpdate() {
     const bool isFullscreen = main->getPlayer() && main->getPlayer()->isFullscreen();
     const bool fullscreenExited = lastFullscreen && !isFullscreen;
     lastFullscreen = isFullscreen;
+    // the TorrServer marks came (asked in the background)
+    if (file.type == Io::Type::File && !isFullscreen && pplay::TorrServe::viewedGeneration() != viewedGeneration) {
+        setFile(file);
+    }
     // watched state changes (playback elsewhere), the accent color
     if (file.type == Io::Type::Directory
         || (file.type == Io::Type::File && !isFullscreen

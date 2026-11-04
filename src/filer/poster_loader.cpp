@@ -64,7 +64,7 @@ namespace {
         std::string url = pplay::TorrServe::toStreamUrl(path);
         bool torrent = pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::TorrServe;
         // streaming marks it viewed
-        bool viewed = torrent && pplay::TorrServe::isFileViewed(path);
+        bool viewed = torrent && pplay::TorrServe::isFileViewed(path, true);
         bool ok = c2d::Utility::startWith(url, "http") ? httpGet(url, body, error)
                                                        : pplay::AvOpen::read(url, MAX_SIZE, body, error);
         if (torrent && !viewed) {

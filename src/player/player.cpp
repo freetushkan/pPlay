@@ -219,7 +219,7 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     // the TorrServer position: first (its setting), or without a local one
     bool serverFirst = main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger() == 2;
     if ((!hadWatchLater || serverFirst) && opts.find("start=") == std::string::npos && syncsProgress()) {
-        double position = pplay::TorrServe::fileProgress(file.path);
+        double position = pplay::TorrServe::fileProgress(file.path, true);
         long duration = file.mediaInfo.duration;
         if (position > 10 && (duration <= 0 || position < (double) duration - 30)) {
             opts += std::string(opts.empty() ? "" : ",") + "start=" + std::to_string((int) position);
@@ -309,7 +309,7 @@ void Player::onUpdate() {
         }
         int interval = main->getConfig()->getOption(OPT_PROGRESS_INTERVAL)->getInteger();
         if (keepsProgress(position, duration) && std::labs(position - lastProgressSave) >= interval) {
-            saveProgress();
+            saveProgress(false);
             pplay::Utility::log(pplay::Utility::LogLevel::Debug,
                                 "Player::onUpdate::saveProgress position=" + std::to_string(position)
                                         + " duration=" + std::to_string(duration));

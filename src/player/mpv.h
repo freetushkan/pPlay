@@ -34,7 +34,8 @@ public:
 
     int load(const std::string &file, LoadType loadType, const std::string &options);
 
-    int save();
+    // wait: false queues it (the periodic save, playback goes on)
+    int save(bool wait = true);
 
     int pause();
 

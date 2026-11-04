@@ -30,9 +30,13 @@ namespace pplay::TorrServe {
     bool getInfo(const std::string &path, Info &info);
     // url to give to mpv for a filer path
     std::string toStreamUrl(const std::string &path);
-    bool isFileViewed(const std::string &path);
+    // wait: may ask the server now (worker threads, a load); else the cache, a stale or
+    // missing entry fetched in the background (then viewedGeneration changes)
+    bool isFileViewed(const std::string &path, bool wait = false);
+    // changes with each server answer about viewed files: the marks to show again
+    unsigned int viewedGeneration();
     // the position the server keeps for a file (its "track timecode" setting), 0 if none
-    double fileProgress(const std::string &path);
+    double fileProgress(const std::string &path, bool wait = false);
     // sent in a thread
     void setFileProgress(const std::string &path, double seconds);
     bool remFileViewed(const std::string &path);
