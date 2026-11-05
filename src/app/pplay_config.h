@@ -12,6 +12,8 @@
 
 // NETWORKx, NETWORKx_LAST, NETWORKx_NAME, NETWORKx_TYPE
 #define PPLAY_MAX_NETWORKS 9
+// 2: home moved to sdmc:/media/ (Switch), /data/media/ (PS4, PS5)
+#define PPLAY_CONFIG_VERSION 2
 #define OPT_NETWORK "NETWORK1"
 #define OPT_NETWORK1 "NETWORK1"
 #define OPT_HOME_PATH "HOME_PATH"
@@ -78,7 +80,7 @@ class PPLAYConfig : public c2d::config::Config {
 
 public:
 
-    explicit PPLAYConfig(pplay::Io *io, int version = 1);
+    explicit PPLAYConfig(pplay::Io *io, int version = PPLAY_CONFIG_VERSION);
 
     // re-read the file, false on a parse error
     bool reload();
@@ -92,6 +94,9 @@ private:
 
     // fix invalid values, apply the accent color
     void sanitize();
+
+    // one-time changes for a config saved by an older version
+    void migrate(int from);
 
     std::string defaultHomePath() const;
 

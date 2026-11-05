@@ -107,7 +107,9 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_REST_SESSION, ""});
 
     // load the configuration from file, overwriting default values
-    load();
+    if (load() && getConfigVersion() < getAppVersion()) {
+        migrate(getConfigVersion());
+    }
     sanitize();
 
     // save configuration, in case new options needs to be added
@@ -121,8 +123,30 @@ std::string PPLAYConfig::defaultHomePath() const {
     if (home && home[0] == '/') {
         return std::string(home) + "/";
     }
-#endif
     return io->getDataPath();
+#else
+#if defined(__SWITCH__)
+    std::string path = "/media/"; // sdmc
+#else
+    std::string path = "/data/media/";
+#endif
+    if (!io->exist(path)) {
+        io->create(path);
+    }
+    return io->exist(path) ? path : io->getDataPath();
+#endif
+}
+
+void PPLAYConfig::migrate(int from) {
+    printf("PPLAYConfig::migrate: %i -> %i\n", from, getAppVersion());
+#ifndef __LINUX__
+    if (from < 2) {
+        std::string home = defaultHomePath();
+        getOption(OPT_HOME_PATH)->setString(home);
+        getOption(OPT_LAST_LOCAL_PATH)->setString(home);
+    }
+#endif
+    getOption("VERSION")->setInteger(getAppVersion());
 }
 
 bool PPLAYConfig::reload() {
@@ -133,12 +157,13 @@ bool PPLAYConfig::reload() {
 
 void PPLAYConfig::sanitize() {
 
-    if (!io->exist(getOption(OPT_HOME_PATH)->getString())) {
+    // a missing home is kept (an unplugged drive), only an empty one is reset
+    if (getOption(OPT_HOME_PATH)->getString().empty()) {
         getOption(OPT_HOME_PATH)->setString(defaultHomePath());
     }
 
     if (!io->exist(getOption(OPT_LAST_LOCAL_PATH)->getString())) {
-        getOption(OPT_LAST_LOCAL_PATH)->setString(defaultHomePath());
+        getOption(OPT_LAST_LOCAL_PATH)->setString(getOption(OPT_HOME_PATH)->getString());
     }
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
         if (getOption(networkLastOption(i))->getString().empty()) {
