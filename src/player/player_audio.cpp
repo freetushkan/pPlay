@@ -128,9 +128,8 @@ void Player::changeVolume(double delta) {
     if (isFullscreen()) {
         osd->expand();
         osd->showVolume();
-    } else {
-        main->getStatus()->show("Info", message);
     }
+    main->getStatus()->show("Info", message);
     volumeDirty = true;
     volumeClock.restart();
 }
