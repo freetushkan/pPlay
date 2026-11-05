@@ -180,6 +180,11 @@ elseif (PLATFORM_PS5)
     # PS5 PLATORM
     #####################
     list(APPEND PPLAY_CFLAGS -D__PS5__)
+    # hangs the console on the system suspend for now
+    set(OPTION_PS5_KEEP_IN_REST OFF CACHE BOOL "PS5: optional keep-running in rest mode (unstable)")
+    if (OPTION_PS5_KEEP_IN_REST)
+        list(APPEND PPLAY_CFLAGS -DPPLAY_PS5_KEEP_IN_REST)
+    endif ()
     list(APPEND PPLAY_LDFLAGS
             archive zstd turbojpeg placebo expat
             avdevice avfilter avcodec avformat avutil swscale swresample

@@ -160,7 +160,11 @@ namespace {
     }
 
     void ps5RestMode(Main *main) {
+#ifdef PPLAY_PS5_KEEP_IN_REST
         bool keep = main->getConfig()->getOption(OPT_PS5_KEEP_IN_REST)->getInteger() != 0;
+#else
+        bool keep = false;
+#endif
         if (!g_notifications) {
             g_notifications = true;
             int res = sceSystemServiceEnableSuspendNotification();
