@@ -36,8 +36,6 @@ public:
     // -1: none
     void setFocus(int index);
 
-    int getFocus() const { return focus; }
-
     int count() const { return (int) hints.size(); }
 
     int idAt(int index) const;

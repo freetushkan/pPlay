@@ -66,12 +66,17 @@
 #define OPT_PS5_KEEP_IN_REST "PS5_KEEP_IN_REST"
 // closed for rest mode: "<fullscreen 0/1>|<the playing file>", reopened at the next start
 #define OPT_REST_SESSION "REST_SESSION"
-// saved copies (<home>/pplay_save): parallel downloads, kept days (0: forever, by the last
+// saved copies (<home>/.pplay_save): parallel downloads, kept days (0: forever, by the last
 // access), size limit (GB, 0: none, the oldest access removed first)
 #define OPT_SAVE_THREADS "SAVE_THREADS"
 #define OPT_SAVE_KEEP_DAYS "SAVE_KEEP_DAYS"
 #define OPT_SAVE_MAX_GB "SAVE_MAX_GB"
 #define OPT_LAST_SAVED_PATH "LAST_SAVED_PATH"
+// ".name" files and directories listed
+#define OPT_SHOW_HIDDEN "SHOW_HIDDEN"
+// the playlist added to last, the last location in the playlists
+#define OPT_LAST_PLAYLIST "LAST_PLAYLIST"
+#define OPT_LAST_PLAYLISTS_PATH "LAST_PLAYLISTS_PATH"
 // Switch: nvtegra decoder (copied back by VIC), 0 off
 #define OPT_HW_DECODING "HW_DECODING"
 #ifdef __SWITCH__

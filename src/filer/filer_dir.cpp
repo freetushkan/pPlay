@@ -8,6 +8,7 @@
 #include "filer.h"
 #include "utility.h"
 #include "saved.h"
+#include "playlists.h"
 
 #define EMPTY_NAME "<Empty>"
 
@@ -122,7 +123,20 @@ bool Filer::getDir(const std::string &p) {
     listed.insert(listed.end(), std::begin(COVER_EXTENSIONS), std::end(COVER_EXTENSIONS));
     pplay::Io::DeviceType type = ((pplay::Io *) main->getIo())->getDeviceType(p);
     int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
-    std::vector<Io::File> _files = ((pplay::Io *) main->getIo())->getDirList(type, listed, path, timeout, false);
+    bool hidden = main->getConfig()->getOption(OPT_SHOW_HIDDEN)->getInteger() != 0;
+    // a playlist: its entries, as listed in it
+    bool playlist = pplay::Playlists::isPlaylist(path);
+    std::vector<Io::File> _files =
+            playlist ? pplay::Playlists::entries(path)
+                     : ((pplay::Io *) main->getIo())->getDirList(type, listed, path, timeout, false, hidden);
+    if (pplay::Playlists::isRoot(path)) {
+        pplay::Playlists::filter(_files);
+    }
+    if (!hidden) {
+        _files.erase(std::remove_if(_files.begin(), _files.end(),
+                                    [](const Io::File &f) { return f.name.size() > 1 && f.name[0] == '.' && f.name != ".."; }),
+                     _files.end());
+    }
     // the saved copies: their names, nothing else
     if (type == pplay::Io::DeviceType::Local && pplay::Saved::isInside(path)) {
         pplay::Saved::filter(path, _files);
@@ -136,7 +150,7 @@ bool Filer::getDir(const std::string &p) {
             rank = r;
             cover = file.path;
         }
-        bool wanted = file.type != Io::Type::File;
+        bool wanted = file.type != Io::Type::File || playlist;
         for (auto &e: ext) {
             wanted = wanted || Utility::endsWith(file.name, e, false);
         }
@@ -149,7 +163,9 @@ bool Filer::getDir(const std::string &p) {
     folderCovers[path] = cover.empty() || smb ? "" : "dir:" + cover;
     details->setFolderCover(folderCovers[path]);
 
-    std::sort(files.begin(), files.end(), compare);
+    if (!playlist) {
+        std::sort(files.begin(), files.end(), compare);
+    }
 
     files.erase(std::remove_if(files.begin(), files.end(),
                                [](const MediaFile &f) { return f.name == ".." || f.name == "."; }),
@@ -191,7 +207,9 @@ bool Filer::isTopLevel(const std::string &p) {
 #endif
     pplay::Io::DeviceType type = ((pplay::Io *) main->getIo())->getDeviceType(p);
     if (type == pplay::Io::DeviceType::Local) {
-        return main->getcurrentModuleIndex() == MODULE_SAVED && pplay::Saved::isRoot(p);
+        int module = main->getcurrentModuleIndex();
+        return (module == MODULE_SAVED && pplay::Saved::isRoot(p))
+               || (module == MODULE_PLAYLISTS && pplay::Playlists::isRoot(p));
     }
     std::string s = pplay::Paths::normalizeSmbPathSeparators(p);
     if (!Utility::endsWith(s, "/")) {

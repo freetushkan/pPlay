@@ -10,6 +10,8 @@
 #include "encodings.h"
 #include "poster_cache.h"
 #include "saved.h"
+#include "playlists.h"
+#include "menu_main_items.h"
 #include "i18n.h"
 #include "input_map.h"
 #include "io.h"
@@ -55,6 +57,7 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
     pplayIo->create(pplayIo->getDataPath() + "cache");
     pplay::PosterCache::cleanup(30);
     pplay::Saved::start(config);
+    pplay::Playlists::start(config);
 
     filer = new Filer(this, "/", {0, 0, Main::getSize().x, Main::getSize().y});
     filer->setLayer(1);
@@ -111,10 +114,12 @@ void Main::createMenus() {
     items.emplace_back("Usb", "usb.png", MenuItem::Position::Top, -2);
 #endif
     items.emplace_back("Saved", "saved.png", MenuItem::Position::Top, MODULE_SAVED);
+    items.emplace_back("Playlists", "playlist.png", MenuItem::Position::Top, MODULE_PLAYLISTS);
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
         const bool active = !config->getOption(PPLAYConfig::networkOption(i))->getString().empty();
         // name: menu key, label: network name
-        MenuItem item("Network " + std::to_string(i), "network.png", MenuItem::Position::Top, i, active, "", active);
+        MenuItem item("Network " + std::to_string(i), pplay::MenuMainItems::networkIcon(config, i),
+                      MenuItem::Position::Top, i, active, "", active);
         item.label = config->getOption(PPLAYConfig::networkNameOption(i))->getString();
         items.push_back(item);
     }
@@ -188,6 +193,14 @@ void Main::applyConfig() {
     pplay::Utility::setAccentColor(config->getOption(OPT_ACCENT_COLOR)->getString());
     player->applyConfig();
     pplay::Saved::configChanged();
+    static int hidden = -1;
+    int showHidden = config->getOption(OPT_SHOW_HIDDEN)->getInteger();
+    if (hidden >= 0 && showHidden != hidden && filer != nullptr) {
+        MediaFile selected = filer->getSelection();
+        filer->getDir(filer->getPath());
+        filer->selectByPath(selected.path);
+    }
+    hidden = showHidden;
     if (pplay::I18n::current() != c2d::Utility::toLower(config->getOption(OPT_LANGUAGE)->getString())) {
         setLanguage(config->getOption(OPT_LANGUAGE)->getString());
     } else {
@@ -270,7 +283,8 @@ void Main::onUpdate() {
 
     pplay::Saved::update();
     std::string savedType, savedMessage;
-    if (pplay::Saved::takeMessage(&savedType, &savedMessage)) {
+    if (pplay::Saved::takeMessage(&savedType, &savedMessage)
+        || pplay::Playlists::takeMessage(&savedType, &savedMessage)) {
         statusBox->show(savedType, savedMessage);
     }
 
@@ -310,6 +324,7 @@ void Main::quit() {
     syncLastLocation();
     config->save();
     pplay::Saved::stop();
+    pplay::Playlists::stop();
     exit = true;
     if (player->getMpv()->isStopped()) {
         running = false;
@@ -334,12 +349,6 @@ Filer *Main::getFiler() {
     return filer;
 }
 
-void Main::reloadMainMenuModules() {
-    if (menu_main != nullptr) {
-        menu_main->reloadModules();
-    }
-}
-
 MenuMain *Main::getMenuMain() {
     return menu_main;
 }
@@ -354,10 +363,6 @@ PPLAYConfig *Main::getConfig() {
 
 c2d::Font *Main::getFont() {
     return font;
-}
-
-c2d::MessageBox *Main::getMessageBox() {
-    return messageBox;
 }
 
 int Main::showMessage(const std::string &title, const std::string &message, const std::string &buttonLeft,

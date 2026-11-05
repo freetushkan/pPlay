@@ -148,24 +148,6 @@ std::string Utility::formatTime(double seconds) {
     return oss.str();
 }
 
-std::string Utility::formatTimeShort(double seconds) {
-
-    int h((int) seconds / 3600);
-    int min((int) seconds / 60 - h * 60);
-    int sec((int) seconds - (h * 60 + min) * 60);
-
-    std::ostringstream oss;
-    if (h > 0) {
-        oss << std::setfill('0') << std::setw(2) << h << ":";
-    }
-    if (min > 0) {
-        oss << std::setfill('0') << std::setw(2) << min << ":";
-    }
-    oss << std::setfill('0') << std::setw(2) << sec;
-
-    return oss.str();
-}
-
 static std::string convertToString(double num) {
     std::ostringstream convert;
     convert << num;

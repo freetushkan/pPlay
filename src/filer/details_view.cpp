@@ -19,6 +19,7 @@
 #include "utility.h"
 #include "torrserve.h"
 #include "saved.h"
+#include "playlists.h"
 #include "media_info.h"
 
 using namespace c2d;
@@ -206,6 +207,18 @@ void DetailsView::updateHints() {
             }
             if (state.saved > 0 || state.pending > 0) {
                 add(0, state.saved > 0 ? "Delete saved" : "Cancel saving", Action::Unsave);
+            }
+        }
+        // playlists: the list ones, their entries, the rest
+        if (!empty && file.name != "..") {
+            if (pplay::Playlists::isPlaylist(file.path)) {
+                add(0, "Rename", Action::RenamePlaylist);
+                add(0, "Delete", Action::DeletePlaylist);
+            } else {
+                add(0, "Add to playlist...", Action::AddToPlaylist);
+                if (pplay::Playlists::isPlaylist(main->getFiler()->getPath())) {
+                    add(0, "Remove from playlist", Action::RemoveFromPlaylist);
+                }
             }
         }
     } else if (picking) {

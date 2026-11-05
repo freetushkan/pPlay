@@ -36,11 +36,12 @@ public:
 
     virtual MediaFile getSelection() const;
 
-    virtual bool getNextMediaFile(const MediaFile &current, MediaFile &next);
     virtual std::vector<MediaFile> getFilesSnapshot() const;
     virtual bool selectByPath(const std::string &targetPath);
 
     virtual void setSelection(int index);
+
+    int getSelectionIndex() const { return item_index; }
 
     virtual void clearHistory();
 
@@ -66,8 +67,6 @@ public:
     void startPick(const std::vector<std::string> &extensions, const std::string &dir, const std::string &hint,
                    std::function<void(const MediaFile &)> onPick);
 
-    bool isPicking() const { return picking; }
-
 private:
 
     void endPick();
@@ -85,6 +84,16 @@ private:
 
     // the saved copies of a file / directory deleted (asked first)
     void unsave(const MediaFile &file);
+
+    // the last playlist used, else a name asked
+    void addToPlaylist(const MediaFile &file);
+
+    void renamePlaylist(const MediaFile &file);
+
+    void deletePlaylist(const MediaFile &file);
+
+    // the selected entry of the opened playlist
+    void removeFromPlaylist();
 
     virtual void enter(int index);
 
@@ -120,6 +129,7 @@ private:
     c2d::C2DMutex *mutex;
 
     bool dirty = false;
+    unsigned int playlistGeneration = 0;
 
     bool picking = false;
     std::vector<std::string> pickExtensions;

@@ -7,6 +7,7 @@
 #include "main.h"
 #include "paths.h"
 #include "saved.h"
+#include "playlists.h"
 
 using namespace c2d;
 using namespace pplay;
@@ -33,6 +34,10 @@ void Main::showLast() {
 #endif
     if (config->getOption(OPT_LAST_MODULE)->getString() == "SAVED") {
         show(MenuType::Saved);
+        return;
+    }
+    if (config->getOption(OPT_LAST_MODULE)->getString() == "PLAYLISTS") {
+        show(MenuType::Playlists);
         return;
     }
     show(currentModuleIndex > 0 ? MenuType::Network : MenuType::Local);
@@ -78,6 +83,26 @@ void Main::show(MenuType type) {
         if (path == root || !pplayIo->exist(dir) || !filer->getDir(dir)) {
             filer->getDir(root);
         } else {
+            filer->selectByPath(path);
+        }
+        filer->clearHistory();
+    } else if (type == MenuType::Playlists) {
+#ifdef __SWITCH__
+        usbExit();
+#endif
+        currentModuleIndex = MODULE_PLAYLISTS;
+        std::string root = pplay::Playlists::root();
+        if (!pplayIo->exist(root)) {
+            pplayIo->create(root);
+        }
+        std::string path = config->getOption(OPT_LAST_PLAYLISTS_PATH)->getString();
+        std::string dir = Paths::extractDirPath(path);
+        dir = c2d::Utility::removeLastSlash(dir);
+        // the last playlist opened, else the list
+        if (pplay::Playlists::isPlaylist(dir) && pplayIo->exist(dir) && filer->getDir(dir)) {
+            filer->setSelection(std::atoi(Paths::getLeafName(path).c_str()));
+        } else {
+            filer->getDir(root);
             filer->selectByPath(path);
         }
         filer->clearHistory();
@@ -208,6 +233,12 @@ void Main::syncLastLocation() {
     } else if (currentModuleIndex == MODULE_SAVED) {
         config->getOption(OPT_LAST_MODULE)->setString("SAVED");
         config->getOption(OPT_LAST_SAVED_PATH)->setString(path);
+    } else if (currentModuleIndex == MODULE_PLAYLISTS) {
+        config->getOption(OPT_LAST_MODULE)->setString("PLAYLISTS");
+        // an entry: by its playlist (its own path may be anywhere)
+        std::string list = filer->getPath();
+        config->getOption(OPT_LAST_PLAYLISTS_PATH)->setString(
+                pplay::Playlists::isPlaylist(list) ? list + "/" + std::to_string(filer->getSelectionIndex()) : path);
 #ifdef __SWITCH__
     } else if (c2d::Utility::startWith(selectedPath, "ums")) {
         pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Main::syncLastLocation module=USB");

@@ -1,5 +1,5 @@
 //
-// Saved copies of network files: <home>/pplay_save/<network>/<its path>, the names made
+// Saved copies of network files: <home>/.pplay_save/<network>/<its path>, the names made
 // safe for any file system, the original names, paths and torrents kept in an index
 // (.index). Downloaded in threads, played and shown without the network.
 //
@@ -43,7 +43,7 @@ namespace pplay::Saved {
     // changes with the states (marks to show again)
     unsigned int generation();
 
-    // <home>/pplay_save/
+    // <home>/.pplay_save/
     std::string root();
 
     // a local path in the saved copies (the root too)
@@ -74,6 +74,15 @@ namespace pplay::Saved {
 
     // the last access (cleanup: the oldest first)
     void touch(const std::string &path);
+
+    // the network file of a saved copy, else the path
+    std::string originalOf(const std::string &path);
+
+    // the saved copy of a network (or saved) path, "" if none (or unfinished)
+    std::string localCopy(const std::string &path);
+
+    // what to open for a path: its saved copy, else its stream url
+    std::string openUrl(const std::string &path);
 }
 
 #endif //PPLAY_SAVED_H

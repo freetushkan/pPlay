@@ -20,6 +20,7 @@
 #include "io.h"
 #include "net_http.h"
 #include "torrserve.h"
+#include "saved.h"
 #include "utility.h"
 #include "worker.h"
 
@@ -492,7 +493,9 @@ namespace pplay::TorrServe {
         return files;
     }
 
-    std::string toStreamUrl(const std::string &path) {
+    std::string toStreamUrl(const std::string &p) {
+        // a saved copy: its network file
+        const std::string path = pplay::Saved::originalOf(p);
         if (!isTorrServe(path)) {
             auto *io = pplay::Io::get();
             auto type = io != nullptr ? io->getDeviceType(path) : pplay::Io::DeviceType::Local;
@@ -515,13 +518,17 @@ namespace pplay::TorrServe {
         return g_viewedGeneration;
     }
 
-    bool isFileViewed(const std::string &path, bool wait) {
+    bool isFileViewed(const std::string &p, bool wait) {
+        // a saved copy: its network file
+        const std::string path = pplay::Saved::originalOf(p);
         std::string hash;
         int index;
         return isTorrServe(path) && fileLink(path, hash, index) && getViewed(apiRoot(path), hash, wait).count(index) > 0;
     }
 
-    double fileProgress(const std::string &path, bool wait) {
+    double fileProgress(const std::string &p, bool wait) {
+        // a saved copy: its network file
+        const std::string path = pplay::Saved::originalOf(p);
         std::string hash;
         int index;
         if (!isTorrServe(path) || !fileLink(path, hash, index)) {
@@ -532,7 +539,9 @@ namespace pplay::TorrServe {
         return it != viewed.end() ? it->second : 0;
     }
 
-    void setFileProgress(const std::string &path, double seconds) {
+    void setFileProgress(const std::string &p, double seconds) {
+        // a saved copy: its network file
+        const std::string path = pplay::Saved::originalOf(p);
         std::string hash;
         int index;
         if (!isTorrServe(path) || !fileLink(path, hash, index)) {
@@ -579,7 +588,9 @@ namespace pplay::TorrServe {
         }
     }
 
-    double keptPosition(const std::string &path, int mode) {
+    double keptPosition(const std::string &p, int mode) {
+        // a saved copy: its network file
+        const std::string path = pplay::Saved::originalOf(p);
         double local = pplay::Utility::watchLaterPosition(toStreamUrl(path));
         if (mode == 0) {
             return local;
@@ -591,7 +602,9 @@ namespace pplay::TorrServe {
         return local > 0 ? local : server;
     }
 
-    bool setFileViewed(const std::string &path, double seconds) {
+    bool setFileViewed(const std::string &p, double seconds) {
+        // a saved copy: its network file
+        const std::string path = pplay::Saved::originalOf(p);
         std::string hash;
         int index;
         if (!isTorrServe(path) || !fileLink(path, hash, index)) {
@@ -616,7 +629,9 @@ namespace pplay::TorrServe {
         return true;
     }
 
-    bool remFileViewed(const std::string &path) {
+    bool remFileViewed(const std::string &p) {
+        // a saved copy: its network file
+        const std::string path = pplay::Saved::originalOf(p);
         std::string hash;
         int index;
         if (!isTorrServe(path) || !fileLink(path, hash, index)) {

@@ -39,7 +39,11 @@ public:
         StartOver,
         Watched,
         Save,
-        Unsave
+        Unsave,
+        AddToPlaylist,
+        RenamePlaylist,
+        DeletePlaylist,
+        RemoveFromPlaylist
     };
 
     DetailsView(Main *main, const c2d::FloatRect &rect);

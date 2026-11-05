@@ -10,7 +10,6 @@
 void usbInit();
 void usbExit();
 bool usbWaitForDevice(int timeoutSeconds = 5);
-std::string usbGetFirstMountName();
 std::vector<std::string> usbGetMountNames();
 
 #endif

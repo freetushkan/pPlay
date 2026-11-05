@@ -12,6 +12,7 @@
 #include "poster_cache.h"
 #include "poster_loader.h"
 #include "torrserve.h"
+#include "saved.h"
 
 #define SETTLE_MS 250
 #define MAX_SIZE (8 * 1024 * 1024)
@@ -61,8 +62,9 @@ namespace {
 
     // the directory picture (cover.jpg...): http(s) or what libavformat reads (ftp)
     bool dirGet(const std::string &path, std::string *body, std::string *error) {
-        std::string url = pplay::TorrServe::toStreamUrl(path);
-        bool torrent = pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::TorrServe;
+        std::string url = pplay::Saved::openUrl(path);
+        bool torrent = url.find("://") != std::string::npos
+                       && pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::TorrServe;
         // streaming marks it viewed
         bool viewed = torrent && pplay::TorrServe::isFileViewed(path, true);
         bool ok = c2d::Utility::startWith(url, "http") ? httpGet(url, body, error)

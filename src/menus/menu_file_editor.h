@@ -44,10 +44,12 @@ private:
 
     std::string currentFile; // "" when the files list is shown
     std::vector<std::string> lines;
+#ifdef __LINUX__
     std::string externalFile;
     long long externalTime = -1;
     int externalPid = -1;
     c2d::C2DClock checkClock;
+#endif
 };
 
 #endif //PPLAY_MENU_FILE_EDITOR_H

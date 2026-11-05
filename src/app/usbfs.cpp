@@ -204,11 +204,6 @@ bool usbWaitForDevice(int timeoutSeconds) {
     return false;
 }
 
-std::string usbGetFirstMountName() {
-    std::lock_guard<std::mutex> lock(g_usbMutex);
-    return g_usbDevices.empty() ? std::string() : std::string(g_usbDevices.front().name) + "/";
-}
-
 std::vector<std::string> usbGetMountNames() {
     std::vector<std::string> names;
 

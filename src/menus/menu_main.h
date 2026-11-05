@@ -19,8 +19,6 @@ public:
 
     MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<MenuItem> &items);
 
-    MenuMainOptions *getMenuMainOptions();
-
     MenuMainOptionsSubmenu *getMenuMainOptionsSubmenu(const std::string &name);
 
     // back from a settings menu: its category (or group), else the settings

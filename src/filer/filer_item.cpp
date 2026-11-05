@@ -174,8 +174,10 @@ void FilerItem::setFile(const MediaFile &f) {
     }
     check->setString(marks);
     check->setFillColor(COLOR_ACCENT);
-    float infoWidth = info->getString().empty() ? 0 : info->getLocalBounds().width + 16 * main->getScaling().x;
-    infoWidth += updateSavedMark(textX + textWidth - infoWidth);
+    // the saved mark: a fixed place at the end of the network rows (the times stay aligned)
+    float markWidth = updateSavedMark(textX + textWidth);
+    info->setPosition(textX + textWidth - markWidth, getSize().y / 2);
+    float infoWidth = markWidth + (info->getString().empty() ? 0 : info->getLocalBounds().width + 16 * main->getScaling().x);
     check->setPosition(textX + textWidth - infoWidth, getSize().y / 2);
     float shift = std::round(check->getLocalBounds().width * 0.45f);
     check2->setVisibility(both ? Visibility::Visible : Visibility::Hidden);
@@ -194,9 +196,12 @@ void FilerItem::setFile(const MediaFile &f) {
 
 float FilerItem::updateSavedMark(float right) {
     pplay::Saved::State state;
-    if (file.name != ".." && pplay::Saved::canSave(file)) {
+    bool network = file.name != ".." && pplay::Saved::canSave(file);
+    if (network) {
         state = pplay::Saved::stateOf(file.path);
     }
+    float size = std::round(getSize().y * 0.45f);
+    float slot = network ? size + 10 * main->getScaling().x : 0;
     std::string name;
     if (state.pending > 0) {
         char ring[32];
@@ -208,9 +213,8 @@ float FilerItem::updateSavedMark(float right) {
     Texture *texture = name.empty() ? nullptr : pplay::Skin::texture(name);
     if (texture == nullptr) {
         savedMark->setVisibility(Visibility::Hidden);
-        return 0;
+        return slot;
     }
-    float size = std::round(getSize().y * 0.45f);
     savedMark->setTexture(texture, true);
     float scale = size / (float) texture->getTextureSize().x;
     savedMark->setScale(scale, scale);
@@ -218,7 +222,7 @@ float FilerItem::updateSavedMark(float right) {
     // quiet, as the icons; the accent while saving
     savedMark->setFillColor(state.pending > 0 ? COLOR_ACCENT : Color(140, 148, 158, 255));
     savedMark->setVisibility(Visibility::Visible);
-    return size + 10 * main->getScaling().x;
+    return slot;
 }
 
 void FilerItem::updateWatched() {

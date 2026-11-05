@@ -194,10 +194,6 @@ void ps4_compat_init(void) {
     ps4_update_timezone();
 }
 
-int ps4_get_utc_offset(void) {
-    return g_utc_offset == INT_MIN ? 0 : g_utc_offset;
-}
-
 void ps4_clock_report(char *buf, size_t size) {
     struct timespec rt = {0}, mono = {0};
     clock_gettime(CLOCK_REALTIME, &rt);

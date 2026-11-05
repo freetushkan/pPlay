@@ -9,6 +9,8 @@
 #include <vector>
 #include "menu_button.h"
 
+class PPLAYConfig;
+
 namespace pplay::MenuMainItems {
 
     // value, -, +
@@ -18,6 +20,9 @@ namespace pplay::MenuMainItems {
 
     // "Network x" menu key
     std::string networkKey(int index);
+
+    // skin icon of a network (by its type, else its url)
+    std::string networkIcon(PPLAYConfig *config, int index);
 
     // mpv language lists (alang / slang), the first item keeps mpv.conf
     std::vector<MenuItem> makeTrackLanguageItems(const std::string &none);

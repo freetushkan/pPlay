@@ -16,11 +16,25 @@
 #include "i18n.h"
 #include "filer.h"
 #include "torrserve.h"
+#include "saved.h"
 
 using namespace c2d;
 
 void Player::onMpvEvent(mpv_event *event) {
     switch (event->event_id) {
+        case MPV_EVENT_HOOK: {
+            auto *hook = (mpv_event_hook *) event->data;
+            if (std::string(hook->name) == "on_load" && !copyPath.empty()) {
+                char *url = mpv_get_property_string(mpv->getHandle(), "path");
+                if (url != nullptr && copyUrl == url) {
+                    mpv_set_property_string(mpv->getHandle(), "stream-open-filename", copyPath.c_str());
+                    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: saved copy " + copyPath);
+                }
+                mpv_free(url);
+            }
+            mpv_hook_continue(mpv->getHandle(), hook->id);
+            break;
+        }
         case MPV_EVENT_START_FILE:
             pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Player::onUpdate::event MPV_EVENT_START_FILE");
             texture->clearFrame();

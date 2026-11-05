@@ -5,6 +5,7 @@
 
 #include <algorithm>
 
+#include "saved.h"
 #include "main.h"
 #include "player.h"
 #include "filer.h"
@@ -55,8 +56,10 @@ void Player::startExternalTracks() {
         return;
     }
     externalJobGeneration = externalGeneration;
-    externalJobPath = file.path;
-    externalJobName = file.name;
+    // a saved copy: its own directory, no network
+    std::string copy = pplay::Saved::localCopy(file.path);
+    externalJobPath = copy.empty() ? file.path : copy;
+    externalJobName = copy.empty() ? file.name : pplay::Paths::getLeafName(copy);
     externalFound.clear();
     externalDone = false;
     externalThread = new c2d::C2DThread(externalFindThread, this);

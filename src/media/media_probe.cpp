@@ -12,6 +12,7 @@
 #include "io.h"
 #include "media_probe.h"
 #include "torrserve.h"
+#include "saved.h"
 #include "utility.h"
 
 #define SETTLE_MS 400
@@ -124,7 +125,7 @@ MediaProbe::~MediaProbe() {
 }
 
 void MediaProbe::request(const MediaFile &file) {
-    std::string url = pplay::TorrServe::toStreamUrl(file.path);
+    std::string url = pplay::Saved::openUrl(file.path);
     // smb:// is opened by mpv only, playlists are text
     if (!pplay::Utility::isMedia(file) || file.mediaInfo.known || c2d::Utility::startWith(url, "smb")
         || c2d::Utility::endsWith(file.name, ".m3u", false) || c2d::Utility::endsWith(file.name, ".m3u8", false)
@@ -173,8 +174,9 @@ bool MediaProbe::poll(MediaFile *file) {
 
 int MediaProbe::run(void *data) {
     auto *self = (MediaProbe *) data;
-    std::string url = pplay::TorrServe::toStreamUrl(self->job.path);
-    bool torrent = pplay::Io::get()->getDeviceType(self->job.path) == pplay::Io::DeviceType::TorrServe;
+    std::string url = pplay::Saved::openUrl(self->job.path);
+    bool torrent = url.find("://") != std::string::npos
+                   && pplay::Io::get()->getDeviceType(self->job.path) == pplay::Io::DeviceType::TorrServe;
     bool viewed = torrent && pplay::TorrServe::isFileViewed(self->job.path, true);
     std::string error;
     MediaInfo info;

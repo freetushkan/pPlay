@@ -12,6 +12,7 @@
 #include "io.h"
 #include "paths.h"
 #include "torrserve.h"
+#include "saved.h"
 #include "utility.h"
 
 namespace {
@@ -316,7 +317,7 @@ namespace pplay::ExternalTracks {
     }
 
     std::string toMpvUrl(const std::string &path) {
-        std::string url = TorrServe::toStreamUrl(path);
+        std::string url = Saved::openUrl(path);
 #ifdef __SMB2__
         if (c2d::Utility::startWith(url, "smb://")) {
             std::replace(url.begin(), url.end(), '\\', '/');

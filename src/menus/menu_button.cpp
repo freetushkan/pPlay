@@ -6,6 +6,7 @@
 #include <cmath>
 
 #include "main.h"
+#include "io.h"
 #include "clip_rect.h"
 #include "menu_button.h"
 #include "round_rect.h"
@@ -165,6 +166,30 @@ void MenuButton::refreshValue() {
         sliderFill->setFillColor(COLOR_ACCENT);
         sliderKnob->setPosition(std::round(part * width), sliderTrack->getSize().y / 2);
     }
+}
+
+void MenuButton::setIcon(const std::string &iconName) {
+    if (icon == nullptr || iconName == item.icon) {
+        return;
+    }
+    std::string path = pplay::Io::get()->getDataPath() + "skin/" + iconName;
+    if (!pplay::Io::get()->exist(path)) {
+        return;
+    }
+    auto *texture = new C2DTexture(path);
+    if (texture->getTextureSize().x <= 0) {
+        delete (texture);
+        return;
+    }
+    item.icon = iconName;
+    texture->setOrigin(Origin::Left);
+    texture->setPosition(icon->getPosition());
+    float scale = iconSize / (float) texture->getTextureSize().x;
+    texture->setScale(scale, scale);
+    texture->setFillColor(icon->getFillColor());
+    delete (icon);
+    icon = texture;
+    MenuButton::add(icon);
 }
 
 void MenuButton::refreshText() {

@@ -174,13 +174,17 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
                                 + std::to_string((int) file.type) + " firstTry=" + std::to_string(firstTry ? 1 : 0)
                                 + " retryCount=" + std::to_string(retryCount));
     std::string path = pplay::TorrServe::toStreamUrl(file.path);
+    copyPath = pplay::Saved::localCopy(file.path);
 #ifdef __SMB2__
     if (Utility::startWith(path, "smb://")) {
         std::replace(path.begin(), path.end(), '\\', '/');
         path.replace(0, strlen("smb://"), "smb2://");
-        opts += ",hr-seek=no";
+        if (copyPath.empty()) {
+            opts += ",hr-seek=no";
+        }
     }
 #endif
+    copyUrl = copyPath.empty() ? "" : path;
     // http(s) with "user:password@": credentials sent with the first request (ffmpeg
     // waits for the 401 answer otherwise, a request more on each open / seek, or fails
     // when the server sends no challenge). Not set for all: an empty "Basic" header then.
@@ -222,7 +226,8 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     // the TorrServer position: first (its setting), or without a local one
     bool serverFirst = main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger() == 2;
     if ((!hadWatchLater || serverFirst) && opts.find("start=") == std::string::npos && syncsProgress()) {
-        double position = pplay::TorrServe::fileProgress(file.path, true);
+        // a saved copy: not waiting for the network
+        double position = pplay::TorrServe::fileProgress(file.path, copyPath.empty());
         long duration = file.mediaInfo.duration;
         if (position > 10 && (duration <= 0 || position < (double) duration - 30)) {
             opts += std::string(opts.empty() ? "" : ",") + "start=" + std::to_string((int) position);
@@ -459,7 +464,7 @@ const std::string &Player::getTitle() const {
 
 bool Player::syncsProgress() const {
     return main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger() != 0
-           && pplay::Io::get()->getDeviceType(file.path) == pplay::Io::DeviceType::TorrServe;
+           && pplay::Io::get()->getDeviceType(pplay::Saved::originalOf(file.path)) == pplay::Io::DeviceType::TorrServe;
 }
 
 bool Player::keepsProgress(long position, long duration) const {
@@ -482,10 +487,6 @@ bool Player::isPlaylistFile() const {
 
 const std::vector<MediaFile> &Player::getAutoplayFiles() const {
     return autoplayFiles;
-}
-
-PlayerOSD *Player::getOSD() {
-    return osd;
 }
 
 Mpv *Player::getMpv() {

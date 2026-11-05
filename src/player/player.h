@@ -98,8 +98,6 @@ public:
 
     // void showMessage(const std::string &message);
 
-    PlayerOSD *getOSD();
-
     // the player menu or one of its submenus
     bool isMenuVisible() const;
 
@@ -121,10 +119,6 @@ public:
     MenuVideoSubmenu *getMenuNormalize();
 
     MenuVideoSubmenu *getMenuVisualizer();
-
-    MenuVideoSubmenu *getMenuSpeed();
-
-    MenuVideoSubmenu *getMenuBrightness();
 
     // what an audio file shows (None: a video file, or stopped)
     enum class AudioScreen {
@@ -349,6 +343,9 @@ private:
     std::string appliedAudioLang = "\x01";
     std::string appliedSubLang = "\x01";
     bool hadWatchLater = false;
+    // the saved copy mpv opens for this url (the progress, the history: the network file)
+    std::string copyUrl;
+    std::string copyPath;
 
     // external tracks
     int externalGeneration = 0;

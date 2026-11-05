@@ -17,6 +17,25 @@ namespace pplay::MenuMainItems {
         return items;
     }
 
+    std::string networkIcon(PPLAYConfig *config, int index) {
+        std::string url = config->getOption(PPLAYConfig::networkOption(index))->getString();
+        Io::NetworkType type = Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString());
+        Io::DeviceType device = url.empty() || Io::get() == nullptr ? Io::DeviceType::Http : Io::get()->getDeviceType(url);
+        if (type == Io::NetworkType::TorrServe || (type == Io::NetworkType::Auto && device == Io::DeviceType::TorrServe)) {
+            return "net_torrserve.png";
+        }
+        if (type == Io::NetworkType::Smb || (type == Io::NetworkType::Auto && device == Io::DeviceType::Smb)) {
+            return "net_smb.png";
+        }
+        if (type == Io::NetworkType::Ftp || (type == Io::NetworkType::Auto && device == Io::DeviceType::Ftp)) {
+            return "net_ftp.png";
+        }
+        if (type == Io::NetworkType::WebDav) {
+            return "net_webdav.png";
+        }
+        return "net_http.png";
+    }
+
     std::string networkKey(int index) {
         return "Network " + std::to_string(index);
     }

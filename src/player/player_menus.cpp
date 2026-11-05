@@ -245,11 +245,3 @@ MenuVideoSubmenu *Player::getMenuNormalize() {
 MenuVideoSubmenu *Player::getMenuVisualizer() {
     return menuVisualizer;
 }
-
-MenuVideoSubmenu *Player::getMenuSpeed() {
-    return menuSpeed;
-}
-
-MenuVideoSubmenu *Player::getMenuBrightness() {
-    return menuBrightness;
-}

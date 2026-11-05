@@ -61,10 +61,14 @@ public:
     // after item.value / valueAccent / slider changes
     void refreshValue();
 
+    // another skin icon (a network type changed)
+    void setIcon(const std::string &name);
+
     void onUpdate() override;
 
     MenuItem item;
     c2d::Texture *icon = nullptr;
+
     c2d::Text *name = nullptr;
     bool selected = false;
 

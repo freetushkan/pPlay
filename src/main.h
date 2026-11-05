@@ -22,6 +22,7 @@
 #define INPUT_DELAY 500
 // the module index of the saved copies (local -1, usb -2, networks 1...)
 #define MODULE_SAVED -3
+#define MODULE_PLAYLISTS -4
 #define BUTTON_HEIGHT 64
 
 #define COLOR_BG Color(20, 22, 24, 255)
@@ -64,6 +65,7 @@ public:
         Network,
         Current,
         Saved,
+        Playlists,
 #ifdef __SWITCH__
         Usb
 #endif
@@ -99,8 +101,6 @@ public:
     void setRunningStop();
     void syncLastLocation();
 
-    void reloadMainMenuModules();
-
     MenuMain *getMenuMain();
 
     MenuVideo *getMenuVideo();
@@ -112,8 +112,6 @@ public:
     PPLAYConfig *getConfig();
 
     c2d::Font *getFont() override;
-
-    c2d::MessageBox *getMessageBox();
 
     int showMessage(const std::string &title, const std::string &message, const std::string &buttonLeft,
                     const std::string &buttonRight = "");

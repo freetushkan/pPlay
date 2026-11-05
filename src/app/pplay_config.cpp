@@ -114,6 +114,9 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_SAVE_KEEP_DAYS, (int) 0});
     addOption({OPT_SAVE_MAX_GB, (int) 0});
     addOption({OPT_LAST_SAVED_PATH, ""});
+    addOption({OPT_SHOW_HIDDEN, (int) 0});
+    addOption({OPT_LAST_PLAYLIST, ""});
+    addOption({OPT_LAST_PLAYLISTS_PATH, ""});
 
     // load the configuration from file, overwriting default values
     if (load() && getConfigVersion() < getAppVersion()) {

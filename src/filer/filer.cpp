@@ -11,6 +11,8 @@
 #include "utility.h"
 #include "torrserve.h"
 #include "saved.h"
+#include "playlists.h"
+#include "keyboard.h"
 #include "encodings.h"
 #include "details_view.h"
 #include "media_probe.h"
@@ -94,7 +96,8 @@ void Filer::setMediaInfo(const MediaFile &target, const MediaInfo &mediaInfo) {
 void Filer::setSelection(int index) {
     mutex->lock();
     int count = (int) files.size();
-    item_index = index;
+    item_index = count > 0 ? std::max(0, std::min(index, count - 1)) : 0;
+    index = item_index;
     // the selection kept in view, a row at a time scrolled smoothly
     int first = top;
     if (index < first) {
@@ -168,39 +171,6 @@ MediaFile Filer::getSelection() const {
     }
     mutex->unlock();
     return {};
-}
-
-bool Filer::getNextMediaFile(const MediaFile &current, MediaFile &next) {
-    mutex->lock();
-    if (files.empty()) {
-        mutex->unlock();
-        return false;
-    }
-
-    int currentIndex = -1;
-    for (size_t i = 0; i < files.size(); i++) {
-        if (files[i].path == current.path) {
-            currentIndex = (int) i;
-            break;
-        }
-    }
-
-    if (currentIndex < 0) {
-        mutex->unlock();
-        return false;
-    }
-
-    for (size_t off = 1; off < files.size(); off++) {
-        size_t idx = ((size_t) currentIndex + off) % files.size();
-        if (pplay::Utility::isMedia(files[idx])) {
-            next = files[idx];
-            mutex->unlock();
-            return true;
-        }
-    }
-
-    mutex->unlock();
-    return false;
 }
 
 std::vector<MediaFile> Filer::getFilesSnapshot() const {
@@ -342,6 +312,18 @@ void Filer::run(DetailsView::Action action) {
         case Action::Unsave:
             unsave(selection);
             break;
+        case Action::AddToPlaylist:
+            addToPlaylist(selection);
+            break;
+        case Action::RenamePlaylist:
+            renamePlaylist(selection);
+            break;
+        case Action::DeletePlaylist:
+            deletePlaylist(selection);
+            break;
+        case Action::RemoveFromPlaylist:
+            removeFromPlaylist();
+            break;
         default:
             break;
     }
@@ -408,6 +390,75 @@ void Filer::unsave(const MediaFile &file) {
     dirty = true;
 }
 
+void Filer::addToPlaylist(const MediaFile &file) {
+    if (isPlaceholder(file) || file.name == ".." || file.path.empty()) {
+        return;
+    }
+    // the last one confirmed at once, another name typed
+    PPLAYConfig *config = main->getConfig();
+    std::string name = config->getOption(OPT_LAST_PLAYLIST)->getString();
+    bool other = name.empty();
+    if (!other) {
+        int choice = main->showMessage(pplay::tr("Add to playlist..."), pplay::tr("Playlist") + ": " + name,
+                                       pplay::tr("Add"), pplay::tr("Other playlist"));
+        if (choice != MessageBox::LEFT && choice != MessageBox::RIGHT) {
+            return;
+        }
+        other = choice == MessageBox::RIGHT;
+    }
+    if (other && (!pplay::Keyboard::edit(pplay::tr("Playlist name"), name) || name.empty())) {
+        return;
+    }
+    config->getOption(OPT_LAST_PLAYLIST)->setString(name);
+    config->save();
+    pplay::Playlists::add(name, file);
+}
+
+void Filer::renamePlaylist(const MediaFile &file) {
+    std::string name = pplay::Playlists::nameOf(file.path);
+    std::string old = name;
+    if (!pplay::Keyboard::edit(pplay::tr("Playlist name"), name) || name.empty() || name == old) {
+        return;
+    }
+    if (!pplay::Playlists::rename(file.path, name)) {
+        main->getStatus()->show("Error", pplay::tr("Could not rename") + ": " + name);
+        return;
+    }
+    if (main->getConfig()->getOption(OPT_LAST_PLAYLIST)->getString() == old) {
+        main->getConfig()->getOption(OPT_LAST_PLAYLIST)->setString(name);
+    }
+    int index = item_index;
+    getDir(path);
+    setSelection(index);
+}
+
+void Filer::deletePlaylist(const MediaFile &file) {
+    if (main->showMessage(pplay::tr("Delete"), pplay::tr("Playlist") + ": " + encoding::fix(file.name),
+                          pplay::tr("Delete"), pplay::tr("Cancel"))
+        != MessageBox::LEFT) {
+        return;
+    }
+    if (!pplay::Playlists::remove(file.path)) {
+        main->getStatus()->show("Error", pplay::tr("Could not delete") + ": " + file.name);
+    }
+    int index = item_index;
+    getDir(path);
+    setSelection(index);
+}
+
+void Filer::removeFromPlaylist() {
+    // this copy: its place in the playlist ("..": the first row)
+    mutex->lock();
+    int index = item_index;
+    bool parent = !files.empty() && files[0].name == "..";
+    mutex->unlock();
+    if (!pplay::Playlists::removeEntry(path, parent ? index - 1 : index)) {
+        return;
+    }
+    getDir(path);
+    setSelection(index);
+}
+
 void Filer::markWatched(const MediaFile &file) {
     if (file.type != Io::Type::File || isPlaceholder(file)) {
         return;
@@ -431,6 +482,15 @@ void Filer::markWatched(const MediaFile &file) {
 
 void Filer::onUpdate() {
     crumbs->setPath(path);
+    // a playlist written (an addition done): listed again
+    if (pplay::Playlists::generation() != playlistGeneration) {
+        playlistGeneration = pplay::Playlists::generation();
+        if (pplay::Playlists::isPlaylist(path) || pplay::Playlists::isRoot(path)) {
+            int index = item_index;
+            getDir(path);
+            setSelection(index);
+        }
+    }
     float dt = std::min(0.1f, scrollClock.restart().asSeconds());
     if (scrollOffset != 0) {
         scrollOffset -= scrollOffset * std::min(1.0f, dt * 16);

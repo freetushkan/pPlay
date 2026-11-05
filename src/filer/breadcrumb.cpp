@@ -15,6 +15,7 @@
 #include "text_wrap.h"
 #include "pplay_config.h"
 #include "saved.h"
+#include "playlists.h"
 
 using namespace c2d;
 
@@ -39,6 +40,14 @@ namespace {
 std::vector<std::string> Breadcrumb::split(const std::string &path) const {
     // the root as named in the main menu: a network (its url starts the path), USB, local
     std::vector<std::string> parts;
+    std::string playlists = pplay::Playlists::root();
+    if (path == playlists || pplay::Playlists::isPlaylist(path)) {
+        parts.push_back(pplay::tr("Playlists"));
+        if (path != playlists) {
+            parts.push_back(encoding::fix(pplay::Playlists::nameOf(path)));
+        }
+        return parts;
+    }
     // the saved copies: the original names
     if (pplay::Saved::isInside(path)) {
         parts.push_back(pplay::tr("Saved"));

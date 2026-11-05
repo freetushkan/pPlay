@@ -45,6 +45,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Text encoding", "translate.png", Pos::Top),
                                   MenuItem("Accent color", "color.png", Pos::Top),
                                   MenuItem("Progress line", "time.png", Pos::Top),
+                                  MenuItem("Hidden files", "file_other.png", Pos::Top),
                                   MenuItem("Swap controls", "swap.png", Pos::Top),
                           }});
     std::vector<MenuItem> networks;
@@ -232,6 +233,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::MenuType::Adjust, 10.0f, 600.0f, 10.0f, "s");
     addSubmenu("Buffer memory", "Network buffer memory", OPT_CACHE_MB, makeAdjustItems(), Submenu::ValueType::Integer,
                Submenu::MenuType::Adjust, 50.0f, (float) CACHE_MB_MAX, 50.0f, "MB");
+    addSubmenu("Hidden files", "Files and folders starting with a dot", OPT_SHOW_HIDDEN,
+               makeIntItems({{"Hidden", 0}, {"Shown", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Saving threads", "Files saved at once", OPT_SAVE_THREADS,
                makeIntItems({{"1", 1}, {"2", 2}, {"3", 3}, {"4", 4}}), Submenu::ValueType::Integer);
     addSubmenu("Keep saved files", "Not opened for (the oldest removed)", OPT_SAVE_KEEP_DAYS,
@@ -317,6 +320,7 @@ void MenuMain::reloadModules() {
         }
 
         button->item.label = name;
+        button->setIcon(networkIcon(main->getConfig(), networkIndex));
         button->item.enabled = !url.empty();
         button->item.selectable = !url.empty();
         button->refreshText();
@@ -371,6 +375,10 @@ void MenuMain::onOptionSelection(MenuItem *item) {
     } else if (item->name == "Settings") {
         setVisibility(Visibility::Hidden, true);
         menuMainOptions->setVisibility(Visibility::Visible);
+    } else if (item->name == "Playlists") {
+        setVisibility(Visibility::Hidden, true);
+        main->setCurrentModuleIndex(item->id);
+        main->show(Main::MenuType::Playlists);
     } else if (item->name == "Saved") {
         setVisibility(Visibility::Hidden, true);
         main->setCurrentModuleIndex(item->id);
@@ -425,10 +433,6 @@ bool MenuMain::isMenuVisible() {
     }
 
     return false;
-}
-
-MenuMainOptions *MenuMain::getMenuMainOptions() {
-    return menuMainOptions;
 }
 
 void MenuMain::showParent(const std::string &key) {

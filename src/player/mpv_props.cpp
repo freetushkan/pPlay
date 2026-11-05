@@ -157,26 +157,11 @@ int Mpv::getPlaylistPos() {
     return (int) pos;
 }
 
-int Mpv::getPlaylistCount() {
-    int64_t count = 0;
-    mpv_get_property(handle, "playlist-count", MPV_FORMAT_INT64, &count);
-    return (int) count;
-}
-
 std::string Mpv::getPlaylistCurrentTitle() {
     char *title = mpv_get_property_string(handle, "media-title");
     std::string res = title ? title : "";
     if (title) {
         mpv_free(title);
-    }
-    return res;
-}
-
-std::string Mpv::getCurrentPath() {
-    char *path = mpv_get_property_string(handle, "path");
-    std::string res = path ? path : "";
-    if (path) {
-        mpv_free(path);
     }
     return res;
 }
@@ -208,18 +193,6 @@ std::vector<std::pair<int, std::string>> Mpv::getPlaylistItems() {
     }
     mpv_free_node_contents(&node);
     return items;
-}
-
-int Mpv::getVideoBitrate() {
-    double bitrate = 0;
-    mpv_get_property(handle, "video-bitrate", MPV_FORMAT_DOUBLE, &bitrate);
-    return (int) bitrate;
-}
-
-int Mpv::getAudioBitrate() {
-    int64_t bitrate = 0;
-    mpv_get_property(handle, "audio-bitrate", MPV_FORMAT_INT64, &bitrate);
-    return (int) bitrate;
 }
 
 long Mpv::getDuration() {

@@ -37,7 +37,7 @@
 #endif
 
 #define INDEX_VERSION "pplay-saved 1"
-#define SAVE_DIR "pplay_save"
+#define SAVE_DIR ".pplay_save"
 #define DAY (24 * 3600)
 // a name part longer is cut (some file systems: 255 bytes for the name, 260 for the path)
 #define NAME_MAX_BYTES 80
@@ -94,6 +94,8 @@ namespace {
     std::map<std::string, Torrent> g_torrents;
     // lower case local path -> remote (case insensitive file systems)
     std::map<std::string, std::string> g_names;
+    // remote -> local file
+    std::map<std::string, std::string> g_byRemote;
     std::deque<Job> g_jobs;
     std::vector<SaveThread *> g_threads;
     std::atomic<bool> g_stopping{false};
@@ -305,8 +307,10 @@ namespace {
             }
         }
         std::string name = !file.name.empty() ? file.name : escaped ? Http::unescape(parts.back()) : parts.back();
-        *local = uniqueName(dir, safeName(name, true), file.path);
+        auto known = g_byRemote.find(file.path);
+        *local = known != g_byRemote.end() ? known->second : uniqueName(dir, safeName(name, true), file.path);
         g_names[lower(*local)] = file.path;
+        g_byRemote[file.path] = *local;
         Entry &entry = g_files[*local];
         entry.name = name;
         entry.remote = file.path;
@@ -357,6 +361,7 @@ namespace {
         g_dirs.clear();
         g_torrents.clear();
         g_names.clear();
+        g_byRemote.clear();
         std::string text;
         if (Io::get() == nullptr || !Io::get()->readText(g_root + ".index", text)) {
             return;
@@ -397,6 +402,7 @@ namespace {
                 e.added = (time_t) std::atoll(f[6].c_str());
                 e.access = (time_t) std::atoll(f[7].c_str());
                 g_names[lower(f[1])] = f[3];
+                g_byRemote[f[3]] = f[1];
             }
         }
     }
@@ -441,6 +447,7 @@ namespace {
         Utility::deleteFile(g_root + rel);
         Utility::deleteFile(g_root + rel + ".part");
         g_names.erase(lower(rel));
+        g_byRemote.erase(it->second.remote);
         g_files.erase(it);
         g_jobs.erase(std::remove_if(g_jobs.begin(), g_jobs.end(),
                                     [&rel](const Job &job) { return !job.dir && job.local == rel; }),
@@ -863,12 +870,20 @@ namespace pplay::Saved {
         g_config = config;
         g_root = rootFromConfig();
         g_stopping = false;
+        // the first versions: a visible directory
+        std::string old = c2d::Utility::removeLastSlash(g_root);
+        old = old.substr(0, old.rfind('/') + 1) + "pplay_save";
+        struct stat st {};
+        if (stat(old.c_str(), &st) == 0 && stat(g_root.c_str(), &st) != 0) {
+            rename(old.c_str(), c2d::Utility::removeLastSlash(g_root).c_str());
+        }
         readIndex();
         int resumed = 0;
         for (auto it = g_files.begin(); it != g_files.end();) {
             if (it->second.saved && !isFile(g_root + it->first)) {
                 // removed by hand
                 g_names.erase(lower(it->first));
+                g_byRemote.erase(it->second.remote);
                 it = g_files.erase(it);
                 g_dirty = true;
                 continue;
@@ -1173,9 +1188,42 @@ namespace pplay::Saved {
         return true;
     }
 
-    void touch(const std::string &path) {
+    std::string originalOf(const std::string &path) {
         std::lock_guard<std::mutex> lock(g_mutex);
+        std::string root = c2d::Utility::removeLastSlash(g_root);
+        if (root.empty() || !c2d::Utility::startWith(path, root + "/")) {
+            return path;
+        }
         auto f = g_files.find(relOf(path));
+        return f != g_files.end() ? f->second.remote : path;
+    }
+
+    std::string localCopy(const std::string &path) {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        std::string root = c2d::Utility::removeLastSlash(g_root);
+        std::string rel;
+        if (c2d::Utility::startWith(path, root + "/")) {
+            rel = relOf(path);
+        } else {
+            auto r = g_byRemote.find(path);
+            if (r == g_byRemote.end()) {
+                return "";
+            }
+            rel = r->second;
+        }
+        auto f = g_files.find(rel);
+        return f != g_files.end() && f->second.saved ? g_root + rel : "";
+    }
+
+    std::string openUrl(const std::string &path) {
+        std::string local = localCopy(path);
+        return local.empty() ? TorrServe::toStreamUrl(path) : local;
+    }
+
+    void touch(const std::string &path) {
+        std::string local = localCopy(path);
+        std::lock_guard<std::mutex> lock(g_mutex);
+        auto f = g_files.find(relOf(local));
         if (f == g_files.end() || !f->second.saved) {
             return;
         }

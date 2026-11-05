@@ -15,6 +15,7 @@
 #include "text_wrap.h"
 #include "torrserve.h"
 #include "saved.h"
+#include "playlists.h"
 #include "utility.h"
 
 using pplay::TextWrap::noBreak;
@@ -130,7 +131,7 @@ namespace {
 
     // smb:// is opened by mpv only
     std::string coverOf(const MediaFile &file) {
-        std::string url = pplay::TorrServe::toStreamUrl(file.path);
+        std::string url = pplay::Saved::openUrl(file.path);
         if (!file.mediaInfo.hasCover() || c2d::Utility::startWith(url, "smb")) {
             return "";
         }
@@ -158,6 +159,12 @@ pplay::DetailsInfo pplay::DetailsInfo::of(const MediaFile &file) {
     if (file.name == "..") {
         info.title = tr("BACK");
         info.details = tr("Parent directory");
+        return info;
+    }
+
+    if (Playlists::isPlaylist(file.path)) {
+        info.title = encoding::fix(file.name);
+        info.details = tr("Playlist") + "\n" + tr("Files") + ": " + std::to_string(Playlists::entries(file.path).size());
         return info;
     }
 
