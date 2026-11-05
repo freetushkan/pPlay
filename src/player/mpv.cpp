@@ -105,6 +105,11 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     mpv_set_option_string(handle, "hwdec", "auto-safe");
 #endif
 
+#ifdef __SWITCH__
+    // h264, hevc, vp8/9, mpeg1/2/4, vc1, mjpeg; the rest falls back to software
+    mpv_set_option_string(handle, "hwdec-codecs", "all");
+#endif
+
     if (!initRender) {
         mpv_set_option_string(handle, "vid", "no");
         mpv_set_option_string(handle, "aid", "no");

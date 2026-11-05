@@ -66,6 +66,8 @@
 #define OPT_PS5_KEEP_IN_REST "PS5_KEEP_IN_REST"
 // closed for rest mode: "<fullscreen 0/1>|<the playing file>", reopened at the next start
 #define OPT_REST_SESSION "REST_SESSION"
+// Switch: nvtegra decoder (copied back by VIC), 0 off
+#define OPT_HW_DECODING "HW_DECODING"
 #ifdef __SWITCH__
 #define CACHE_MB_MAX 500
 #else
