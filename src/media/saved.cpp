@@ -80,7 +80,7 @@ namespace {
         std::string local;
     };
 
-    struct Thread {
+    struct SaveThread {
         Worker *worker = nullptr;
         std::atomic<bool> finished{false};
     };
@@ -95,7 +95,7 @@ namespace {
     // lower case local path -> remote (case insensitive file systems)
     std::map<std::string, std::string> g_names;
     std::deque<Job> g_jobs;
-    std::vector<Thread *> g_threads;
+    std::vector<SaveThread *> g_threads;
     std::atomic<bool> g_stopping{false};
     std::atomic<unsigned int> g_generation{1};
     bool g_dirty = false;
@@ -617,26 +617,26 @@ namespace {
         }
     };
 
-    enum class Result {
+    enum class Outcome {
         Done,
         Retry,
         Failed,
         Cancelled
     };
 
-    Result download(const std::string &local, const std::string &remote, std::atomic<bool> *cancel,
+    Outcome download(const std::string &local, const std::string &remote, std::atomic<bool> *cancel,
                     std::string *error) {
         std::string path = g_root + local;
         std::string part = path + ".part";
         if (!makeDirs(parentOf(path))) {
             *error = tr("Can't write to") + " " + parentOf(path);
-            return Result::Failed;
+            return Outcome::Failed;
         }
         int64_t from = 0;
         isFile(part, &from);
         Source source;
         if (!source.open(remote, from, cancel, error)) {
-            return *cancel ? Result::Cancelled : Result::Retry;
+            return *cancel ? Outcome::Cancelled : Outcome::Retry;
         }
         if (source.offset != from) {
             from = 0;
@@ -647,7 +647,7 @@ namespace {
             auto it = g_files.find(local);
             if (it == g_files.end()) {
                 source.close();
-                return Result::Cancelled;
+                return Outcome::Cancelled;
             }
             if (size > 0) {
                 it->second.size = size;
@@ -659,21 +659,21 @@ namespace {
         if (size > 0 && space >= 0 && space < size - from + FREE_MARGIN) {
             source.close();
             *error = tr("Not enough free space") + " (" + Utility::formatSize((size_t) (size - from)) + ")";
-            return Result::Failed;
+            return Outcome::Failed;
         }
         FILE *out = fopen(part.c_str(), from > 0 ? "ab" : "wb");
         if (out == nullptr) {
             source.close();
             *error = tr("Can't write to") + " " + part + ": " + strerror(errno);
-            return Result::Failed;
+            return Outcome::Failed;
         }
         std::vector<uint8_t> buffer(CHUNK);
         int64_t done = from;
         int64_t shown = done;
-        Result result = Result::Done;
+        Outcome result = Outcome::Done;
         while (true) {
             if (*cancel || g_stopping) {
-                result = Result::Cancelled;
+                result = Outcome::Cancelled;
                 break;
             }
             int n = source.read(buffer.data(), CHUNK, error);
@@ -681,7 +681,7 @@ namespace {
                 break;
             }
             if (n < 0) {
-                result = *cancel || g_stopping ? Result::Cancelled : Result::Retry;
+                result = *cancel || g_stopping ? Outcome::Cancelled : Outcome::Retry;
                 break;
             }
             if (fwrite(buffer.data(), 1, (size_t) n, out) != (size_t) n) {
@@ -689,7 +689,7 @@ namespace {
                 *error = code == EFBIG || (done + n > 0xFFFFFFFFLL && code != ENOSPC)
                                  ? tr("The file is too big for the file system (FAT32: 4 GB)")
                                  : code == ENOSPC ? tr("Not enough free space") : strerror(code);
-                result = Result::Failed;
+                result = Outcome::Failed;
                 break;
             }
             done += n;
@@ -705,15 +705,15 @@ namespace {
             }
         }
         source.close();
-        if (fclose(out) != 0 && result == Result::Done) {
+        if (fclose(out) != 0 && result == Outcome::Done) {
             *error = strerror(errno);
-            result = Result::Failed;
+            result = Outcome::Failed;
         }
-        if (result == Result::Done && size > 0 && done != size) {
+        if (result == Outcome::Done && size > 0 && done != size) {
             *error = "incomplete (" + std::to_string(done) + "/" + std::to_string(size) + ")";
-            result = Result::Retry;
+            result = Outcome::Retry;
         }
-        if (result != Result::Done) {
+        if (result != Outcome::Done) {
             // removed meanwhile, else stopped: kept for the next start
             std::lock_guard<std::mutex> lock(g_mutex);
             auto it = g_files.find(local);
@@ -725,9 +725,9 @@ namespace {
         Utility::deleteFile(path);
         if (rename(part.c_str(), path.c_str()) != 0) {
             *error = strerror(errno);
-            return Result::Failed;
+            return Outcome::Failed;
         }
-        return Result::Done;
+        return Outcome::Done;
     }
 
     void saveFile(const Job &job) {
@@ -750,8 +750,8 @@ namespace {
         bool viewed = torrent && TorrServe::isFileViewed(job.file.path, true);
         int retries = std::max(1, (int) g_config->getOption(OPT_NETWORK_RETRIES)->getInteger());
         std::string error;
-        Result result = Result::Retry;
-        for (int attempt = 0; attempt <= retries && result == Result::Retry; attempt++) {
+        Outcome result = Outcome::Retry;
+        for (int attempt = 0; attempt <= retries && result == Outcome::Retry; attempt++) {
             if (attempt > 0) {
                 Utility::log(Utility::LogLevel::Info, "Saved: retry " + job.local + ": " + error);
                 for (int i = 0; i < 30 && !*cancel && !g_stopping; i++) {
@@ -774,7 +774,7 @@ namespace {
         Entry &entry = it->second;
         entry.active = false;
         entry.cancel.reset();
-        if (result == Result::Done) {
+        if (result == Outcome::Done) {
             entry.saved = true;
             isFile(g_root + job.local, &entry.size);
             entry.done = entry.size;
@@ -787,7 +787,7 @@ namespace {
             }
             Utility::log(Utility::LogLevel::Info, "Saved: " + job.local);
             g_cleanup = true;
-        } else if (result != Result::Cancelled) {
+        } else if (result != Outcome::Cancelled) {
             entry.failed = true;
             Utility::log(Utility::LogLevel::Error, "Saved: failed " + job.local + ": " + error);
             message("Error", tr("Could not save") + " " + entry.name + ": " + error);
@@ -797,7 +797,7 @@ namespace {
     }
 
     int threadMain(void *data) {
-        auto *thread = (Thread *) data;
+        auto *thread = (SaveThread *) data;
         while (!g_stopping) {
             Job job;
             {
@@ -832,7 +832,7 @@ namespace {
             running += t->finished ? 0 : 1;
         }
         for (int i = running; i < wanted && i < (int) g_jobs.size() && !g_stopping; i++) {
-            auto *t = new Thread();
+            auto *t = new SaveThread();
             g_threads.push_back(t);
             t->worker = new Worker(threadMain, t);
         }
@@ -890,7 +890,7 @@ namespace pplay::Saved {
 
     void stop() {
         g_stopping = true;
-        std::vector<Thread *> threads;
+        std::vector<SaveThread *> threads;
         {
             // stopped, not removed: the parts kept, resumed at the next start
             std::lock_guard<std::mutex> lock(g_mutex);
