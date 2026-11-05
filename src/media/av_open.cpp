@@ -70,6 +70,72 @@ void pplay::AvOpen::close(AVFormatContext **ctx) {
     delete (deadline);
 }
 
+struct pplay::AvOpen::Stream {
+    AVIOContext *io = nullptr;
+    const std::atomic<bool> *cancel = nullptr;
+    int64_t offset = 0;
+};
+
+static int cancelled(void *stream) {
+    auto *s = (pplay::AvOpen::Stream *) stream;
+    return s->cancel != nullptr && s->cancel->load() ? 1 : 0;
+}
+
+pplay::AvOpen::Stream *pplay::AvOpen::openStream(const std::string &url, int64_t offset,
+                                                 const std::atomic<bool> *cancel, std::string *error) {
+    auto *s = new Stream();
+    s->cancel = cancel;
+    AVIOInterruptCB callback = {cancelled, s};
+    AVDictionary *options = networkOptions(url);
+    int res = avio_open2(&s->io, url.c_str(), AVIO_FLAG_READ, &callback, &options);
+    av_dict_free(&options);
+    if (res < 0) {
+        *error = errorText(res);
+        delete s;
+        return nullptr;
+    }
+    // http: a range request, ftp: REST
+    if (offset > 0 && avio_seek(s->io, offset, SEEK_SET) == offset) {
+        s->offset = offset;
+    } else if (offset > 0) {
+        avio_closep(&s->io);
+        delete s;
+        return openStream(url, 0, cancel, error);
+    }
+    return s;
+}
+
+int64_t pplay::AvOpen::size(Stream *stream) {
+    int64_t size = avio_size(stream->io);
+    return size > 0 ? size : -1;
+}
+
+int64_t pplay::AvOpen::offset(Stream *stream) {
+    return stream->offset;
+}
+
+int pplay::AvOpen::read(Stream *stream, uint8_t *buffer, int size, std::string *error) {
+    int res = avio_read(stream->io, buffer, size);
+    if (res == AVERROR_EOF) {
+        return 0;
+    }
+    if (res < 0) {
+        *error = errorText(res);
+        return -1;
+    }
+    stream->offset += res;
+    return res;
+}
+
+void pplay::AvOpen::close(Stream **stream) {
+    if (stream == nullptr || *stream == nullptr) {
+        return;
+    }
+    avio_closep(&(*stream)->io);
+    delete *stream;
+    *stream = nullptr;
+}
+
 bool pplay::AvOpen::read(const std::string &url, size_t maxSize, std::string *data, std::string *error) {
     Utility::NetworkLock lock;
     Deadline deadline{Clock::now() + std::chrono::seconds(30)};

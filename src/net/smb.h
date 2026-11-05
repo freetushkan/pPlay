@@ -37,6 +37,16 @@ namespace pplay::Smb {
     void configureStream(int bufferMB, int timeout);
 
     int registerStream(void *mpv);
+
+    // a file read outside mpv (saving a copy), nullptr on errors
+    void *openFile(const std::string &url, int64_t *size);
+
+    // < 0 on errors, 0 at the end
+    int64_t readFile(void *file, char *buf, uint64_t size);
+
+    bool seekFile(void *file, int64_t offset);
+
+    void closeFile(void *file);
 }
 
 #endif

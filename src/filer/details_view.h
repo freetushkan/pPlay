@@ -37,7 +37,9 @@ public:
         Player,
         Reset,
         StartOver,
-        Watched
+        Watched,
+        Save,
+        Unsave
     };
 
     DetailsView(Main *main, const c2d::FloatRect &rect);
@@ -121,6 +123,7 @@ private:
     // the kept position of the playing file changes, the server marks come
     c2d::C2DClock hintsClock;
     unsigned int viewedGeneration = 0;
+    unsigned int savedGeneration = 0;
 };
 
 #endif //PPLAY_DETAILS_VIEW_H

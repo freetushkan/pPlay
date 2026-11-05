@@ -14,6 +14,7 @@
 #include "details_info.h"
 #include "text_wrap.h"
 #include "torrserve.h"
+#include "saved.h"
 #include "utility.h"
 
 using pplay::TextWrap::noBreak;
@@ -162,9 +163,12 @@ pplay::DetailsInfo pplay::DetailsInfo::of(const MediaFile &file) {
 
     std::string text;
     TorrServe::Info ts;
-    if (TorrServe::getInfo(file.path, ts)) {
+    // a saved copy: the torrent as it was listed (no network)
+    std::string savedPoster;
+    bool saved = Saved::isInside(file.path) && Saved::getInfo(file.path, ts, &savedPoster);
+    if (saved || TorrServe::getInfo(file.path, ts)) {
         info.title = encoding::fix(ts.title);
-        info.poster = ts.poster;
+        info.poster = saved ? savedPoster : ts.poster;
         std::string files = tr("Files") + ": " + std::to_string(ts.fileCount);
         if (ts.filesSize > 0) {
             files += " (" + Utility::formatSize((size_t) ts.filesSize) + ")";

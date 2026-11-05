@@ -10,6 +10,8 @@
 #include "round_rect.h"
 #include "utility.h"
 #include "torrserve.h"
+#include "saved.h"
+#include "encodings.h"
 #include "details_view.h"
 #include "media_probe.h"
 #include "input_map.h"
@@ -334,6 +336,12 @@ void Filer::run(DetailsView::Action action) {
         case Action::Watched:
             markWatched(selection);
             break;
+        case Action::Save:
+            pplay::Saved::save(selection);
+            break;
+        case Action::Unsave:
+            unsave(selection);
+            break;
         default:
             break;
     }
@@ -355,6 +363,47 @@ void Filer::resetProgress(const MediaFile &file) {
     if (pplay::TorrServe::isFileViewed(file.path)) {
         main->getStatus()->show("Info", "Removing TorrServer watched state");
         pplay::TorrServe::remFileViewed(file.path);
+    }
+    dirty = true;
+}
+
+void Filer::unsave(const MediaFile &file) {
+    pplay::Saved::State state = pplay::Saved::stateOf(file.path);
+    if (state.saved == 0 && state.pending == 0) {
+        return;
+    }
+    Player *player = main->getPlayer();
+    bool local = pplay::Saved::isInside(file.path);
+    // the copy being played
+    if (local && !player->getMpv()->isStopped()
+        && pplay::Saved::isInside(player->getFile().path)
+        && (player->getFile().path == file.path || c2d::Utility::startWith(player->getFile().path, file.path + "/"))) {
+        main->getStatus()->show("Error", "Stop the playback first");
+        return;
+    }
+    if (state.saved > 0) {
+        std::string what = file.type == Io::Type::Directory ? pplay::tr("Saved files") + ": " + std::to_string(state.saved)
+                                                             : encoding::fix(file.name);
+        if (main->showMessage(pplay::tr("Delete saved"), what, pplay::tr("Delete"), pplay::tr("Cancel"))
+            != MessageBox::LEFT) {
+            return;
+        }
+    }
+    int count = pplay::Saved::remove(file.path);
+    main->getStatus()->show("Info", pplay::tr("Saved files deleted") + ": " + std::to_string(count));
+    // the saved list without them
+    if (local) {
+        int index = item_index;
+        // the emptied directories are gone
+        std::string dir = path;
+        while (!pplay::Saved::isRoot(dir) && pplay::Saved::isInside(dir) && !main->getIo()->exist(dir)) {
+            dir = dir.substr(0, dir.rfind('/'));
+        }
+        getDir(dir);
+        mutex->lock();
+        int listed = (int) files.size();
+        mutex->unlock();
+        setSelection(std::max(0, std::min(index, listed - 1)));
     }
     dirty = true;
 }

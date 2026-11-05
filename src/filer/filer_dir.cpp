@@ -7,6 +7,7 @@
 #include "paths.h"
 #include "filer.h"
 #include "utility.h"
+#include "saved.h"
 
 #define EMPTY_NAME "<Empty>"
 
@@ -122,6 +123,10 @@ bool Filer::getDir(const std::string &p) {
     pplay::Io::DeviceType type = ((pplay::Io *) main->getIo())->getDeviceType(p);
     int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
     std::vector<Io::File> _files = ((pplay::Io *) main->getIo())->getDirList(type, listed, path, timeout, false);
+    // the saved copies: their names, nothing else
+    if (type == pplay::Io::DeviceType::Local && pplay::Saved::isInside(path)) {
+        pplay::Saved::filter(path, _files);
+    }
 
     int rank = -1;
     std::string cover;
@@ -186,7 +191,7 @@ bool Filer::isTopLevel(const std::string &p) {
 #endif
     pplay::Io::DeviceType type = ((pplay::Io *) main->getIo())->getDeviceType(p);
     if (type == pplay::Io::DeviceType::Local) {
-        return false;
+        return main->getcurrentModuleIndex() == MODULE_SAVED && pplay::Saved::isRoot(p);
     }
     std::string s = pplay::Paths::normalizeSmbPathSeparators(p);
     if (!Utility::endsWith(s, "/")) {

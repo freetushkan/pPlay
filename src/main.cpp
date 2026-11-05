@@ -9,6 +9,7 @@
 #include "log_view.h"
 #include "encodings.h"
 #include "poster_cache.h"
+#include "saved.h"
 #include "i18n.h"
 #include "input_map.h"
 #include "io.h"
@@ -53,6 +54,7 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
     // media information, pictures cache: what is not used for a month removed
     pplayIo->create(pplayIo->getDataPath() + "cache");
     pplay::PosterCache::cleanup(30);
+    pplay::Saved::start(config);
 
     filer = new Filer(this, "/", {0, 0, Main::getSize().x, Main::getSize().y});
     filer->setLayer(1);
@@ -108,6 +110,7 @@ void Main::createMenus() {
 #ifdef __SWITCH__
     items.emplace_back("Usb", "usb.png", MenuItem::Position::Top, -2);
 #endif
+    items.emplace_back("Saved", "saved.png", MenuItem::Position::Top, MODULE_SAVED);
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
         const bool active = !config->getOption(PPLAYConfig::networkOption(i))->getString().empty();
         // name: menu key, label: network name
@@ -184,6 +187,7 @@ void Main::applyConfig() {
     }
     pplay::Utility::setAccentColor(config->getOption(OPT_ACCENT_COLOR)->getString());
     player->applyConfig();
+    pplay::Saved::configChanged();
     if (pplay::I18n::current() != c2d::Utility::toLower(config->getOption(OPT_LANGUAGE)->getString())) {
         setLanguage(config->getOption(OPT_LANGUAGE)->getString());
     } else {
@@ -264,6 +268,12 @@ void Main::onUpdate() {
         showMessage(pplay::tr("Clock"), clockWarning, pplay::tr("OK"));
     }
 
+    pplay::Saved::update();
+    std::string savedType, savedMessage;
+    if (pplay::Saved::takeMessage(&savedType, &savedMessage)) {
+        statusBox->show(savedType, savedMessage);
+    }
+
     // media keys and other devices
     unsigned int other = pplay::InputMap::update();
     unsigned int pending = pplay::InputMap::takePending() | other;
@@ -299,6 +309,7 @@ void Main::quit() {
 #endif
     syncLastLocation();
     config->save();
+    pplay::Saved::stop();
     exit = true;
     if (player->getMpv()->isStopped()) {
         running = false;

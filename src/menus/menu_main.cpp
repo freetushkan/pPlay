@@ -57,6 +57,12 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     networks.emplace_back("SMB buffer", "buffer.png", Pos::Top);
 #endif
     categories.push_back({"Networks", networks});
+    categories.push_back({"Saved files",
+                          {
+                                  MenuItem("Saving threads", "saved.png", Pos::Top),
+                                  MenuItem("Keep saved files", "time.png", Pos::Top),
+                                  MenuItem("Saved files limit", "buffer.png", Pos::Top),
+                          }});
     std::vector<MenuItem> system = {
             MenuItem("Local home path", "home.png", Pos::Top),
             MenuItem("Edit files", "edit.png", Pos::Top),
@@ -76,7 +82,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
 
     std::vector<MenuItem> it = {
             MenuItem("Playback", "pl_mode.png", Pos::Top), MenuItem("Interface", "interface.png", Pos::Top),
-            MenuItem("Networks", "network.png", Pos::Top), MenuItem("System", "system.png", Pos::Top),
+            MenuItem("Networks", "network.png", Pos::Top), MenuItem("Saved files", "saved.png", Pos::Top),
+            MenuItem("System", "system.png", Pos::Top),
             MenuItem("About", "info.png", Pos::Top),
     };
     for (auto &item: it) {
@@ -225,6 +232,16 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::MenuType::Adjust, 10.0f, 600.0f, 10.0f, "s");
     addSubmenu("Buffer memory", "Network buffer memory", OPT_CACHE_MB, makeAdjustItems(), Submenu::ValueType::Integer,
                Submenu::MenuType::Adjust, 50.0f, (float) CACHE_MB_MAX, 50.0f, "MB");
+    addSubmenu("Saving threads", "Files saved at once", OPT_SAVE_THREADS,
+               makeIntItems({{"1", 1}, {"2", 2}, {"3", 3}, {"4", 4}}), Submenu::ValueType::Integer);
+    addSubmenu("Keep saved files", "Not opened for (the oldest removed)", OPT_SAVE_KEEP_DAYS,
+               makeIntItems({{"Forever", 0}, {"7 days", 7}, {"14 days", 14}, {"30 days", 30}, {"60 days", 60},
+                             {"90 days", 90}, {"180 days", 180}, {"365 days", 365}}),
+               Submenu::ValueType::Integer);
+    addSubmenu("Saved files limit", "Saved files size (the oldest removed)", OPT_SAVE_MAX_GB,
+               makeIntItems({{"No limit", 0}, {"10 GB", 10}, {"25 GB", 25}, {"50 GB", 50}, {"100 GB", 100},
+                             {"200 GB", 200}, {"500 GB", 500}, {"1000 GB", 1000}, {"2000 GB", 2000}}),
+               Submenu::ValueType::Integer);
     addSubmenu("Logging", "Log to file", OPT_LOG_LEVEL,
                makeIntItems({{"Off", 0}, {"Error", 1}, {"Info", 2}, {"Debug", 3}, {"Trace", 4}}),
                Submenu::ValueType::Integer);
@@ -354,6 +371,10 @@ void MenuMain::onOptionSelection(MenuItem *item) {
     } else if (item->name == "Settings") {
         setVisibility(Visibility::Hidden, true);
         menuMainOptions->setVisibility(Visibility::Visible);
+    } else if (item->name == "Saved") {
+        setVisibility(Visibility::Hidden, true);
+        main->setCurrentModuleIndex(item->id);
+        main->show(Main::MenuType::Saved);
 #ifdef __SWITCH__
     } else if (item->name == "Usb") {
         setVisibility(Visibility::Hidden, true);

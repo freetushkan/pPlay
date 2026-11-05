@@ -2,8 +2,10 @@
 // Media information cache: one text file per media, a line per value / track.
 //
 
+#include <ctime>
 #include <fstream>
 #include <cstdio>
+#include <sys/stat.h>
 
 #include "media_info.h"
 #include "utility.h"
@@ -120,6 +122,23 @@ void MediaInfo::save(const c2d::Io::File &file) {
                 << t.width << "\t" << t.height << "\t" << t.fps << "\t" << t.bit_rate << "\t" << (t.isDefault ? 1 : 0)
                 << "\t" << (t.forced ? 1 : 0) << "\t" << (t.albumart ? 1 : 0) << "\t\n";
         }
+    }
+}
+
+void MediaInfo::touch(const c2d::Io::File &file) {
+    if (!pplay::Utility::isMedia(file)) {
+        return;
+    }
+    std::string path = pplay::Utility::getMediaInfoPath(file);
+    struct stat st {};
+    // an hour precision is enough
+    if (stat(path.c_str(), &st) != 0 || time(nullptr) - st.st_mtime < 3600) {
+        return;
+    }
+    // written again (utime: not everywhere, atime: rarely kept)
+    MediaInfo info(file);
+    if (info.known) {
+        info.save(file);
     }
 }
 

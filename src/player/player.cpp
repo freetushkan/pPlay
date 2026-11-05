@@ -10,6 +10,7 @@
 #include "main.h"
 #include "player.h"
 #include "torrserve.h"
+#include "saved.h"
 #include "player_osd.h"
 #include "paths.h"
 #include "input_map.h"
@@ -122,6 +123,8 @@ void Player::forgetProgress() {
 }
 
 bool Player::load(const MediaFile &f, bool firstTry, const std::string &options) {
+    pplay::Saved::touch(f.path);
+    MediaInfo::touch(f);
     if (reloadPending) {
         reloadPending = false;
         main->getStatus()->hide();

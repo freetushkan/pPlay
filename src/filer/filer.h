@@ -83,6 +83,9 @@ private:
     // the full duration kept, locally and on TorrServer
     void markWatched(const MediaFile &file);
 
+    // the saved copies of a file / directory deleted (asked first)
+    void unsave(const MediaFile &file);
+
     virtual void enter(int index);
 
     virtual void exit();

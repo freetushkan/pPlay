@@ -53,6 +53,9 @@ public:
     // cached (the file own tracks)
     void save(const c2d::Io::File &file);
 
+    // its cached information used now (the cleanup goes by it)
+    static void touch(const c2d::Io::File &file);
+
     // read from the cache (or probed): not probed again
     bool known = false;
     long duration = 0;

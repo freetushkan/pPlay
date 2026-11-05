@@ -106,6 +106,14 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_PROGRESS_TO_END, (int) 0});
     addOption({OPT_PS5_KEEP_IN_REST, (int) 0});
     addOption({OPT_REST_SESSION, ""});
+#ifdef __SWITCH__
+    addOption({OPT_SAVE_THREADS, (int) 1});
+#else
+    addOption({OPT_SAVE_THREADS, (int) 2});
+#endif
+    addOption({OPT_SAVE_KEEP_DAYS, (int) 0});
+    addOption({OPT_SAVE_MAX_GB, (int) 0});
+    addOption({OPT_LAST_SAVED_PATH, ""});
 
     // load the configuration from file, overwriting default values
     if (load() && getConfigVersion() < getAppVersion()) {
@@ -209,6 +217,9 @@ void PPLAYConfig::sanitize() {
     clamp(OPT_VIDEO_QUALITY, 0, 2);
     clamp(OPT_PROGRESS_MIN_LENGTH, 0, 60);
     clamp(OPT_PROGRESS_INTERVAL, 5, 120);
+    clamp(OPT_SAVE_THREADS, 1, 4);
+    clamp(OPT_SAVE_KEEP_DAYS, 0, 3650);
+    clamp(OPT_SAVE_MAX_GB, 0, 100000);
 
     if (!pplay::Utility::isValidHexColor(getOption(OPT_ACCENT_COLOR)->getString())) {
         getOption(OPT_ACCENT_COLOR)->setString("#1078C8");

@@ -16,6 +16,7 @@
 #include "clip_rect.h"
 #include "skin.h"
 #include "external_tracks.h"
+#include "saved.h"
 
 using namespace c2d;
 
@@ -52,6 +53,11 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
     icon->setPosition(16 * main->getScaling().x, FilerItem::getSize().y / 2);
     icon->setVisibility(Visibility::Hidden);
     FilerItem::add(icon);
+
+    savedMark = new Sprite();
+    savedMark->setOrigin(Origin::Right);
+    savedMark->setVisibility(Visibility::Hidden);
+    FilerItem::add(savedMark);
 
     // clipped on pixels (not characters), the end faded
     textX = 16 * main->getScaling().x + iconSize + 12 * main->getScaling().x;
@@ -122,10 +128,12 @@ void FilerItem::setFile(const MediaFile &f) {
 
     this->file = f;
     viewedGeneration = pplay::TorrServe::viewedGeneration();
+    savedGeneration = pplay::Saved::generation();
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "FilerItem::setFile name=" + file.name + " path=" + file.path
                                                                  + " type=" + std::to_string((int) file.type));
 
     if (Filer::isPlaceholder(file)) {
+        savedMark->setVisibility(Visibility::Hidden);
         textTitle->setString(pplay::tr("<Empty>"));
         info->setString("");
         check->setString("");
@@ -167,6 +175,7 @@ void FilerItem::setFile(const MediaFile &f) {
     check->setString(marks);
     check->setFillColor(COLOR_ACCENT);
     float infoWidth = info->getString().empty() ? 0 : info->getLocalBounds().width + 16 * main->getScaling().x;
+    infoWidth += updateSavedMark(textX + textWidth - infoWidth);
     check->setPosition(textX + textWidth - infoWidth, getSize().y / 2);
     float shift = std::round(check->getLocalBounds().width * 0.45f);
     check2->setVisibility(both ? Visibility::Visible : Visibility::Hidden);
@@ -181,6 +190,35 @@ void FilerItem::setFile(const MediaFile &f) {
     fade->setVisibility(textTitle->getLocalBounds().width > clip->getSize().x ? Visibility::Visible
                                                                               : Visibility::Hidden);
     updateWatched();
+}
+
+float FilerItem::updateSavedMark(float right) {
+    pplay::Saved::State state;
+    if (file.name != ".." && pplay::Saved::canSave(file)) {
+        state = pplay::Saved::stateOf(file.path);
+    }
+    std::string name;
+    if (state.pending > 0) {
+        char ring[32];
+        snprintf(ring, sizeof(ring), "save_ring%d.png", 1 + std::min(7, (int) (state.progress * 8)));
+        name = ring;
+    } else if (state.saved > 0) {
+        name = "saved.png";
+    }
+    Texture *texture = name.empty() ? nullptr : pplay::Skin::texture(name);
+    if (texture == nullptr) {
+        savedMark->setVisibility(Visibility::Hidden);
+        return 0;
+    }
+    float size = std::round(getSize().y * 0.45f);
+    savedMark->setTexture(texture, true);
+    float scale = size / (float) texture->getTextureSize().x;
+    savedMark->setScale(scale, scale);
+    savedMark->setPosition(right, getSize().y / 2);
+    // quiet, as the icons; the accent while saving
+    savedMark->setFillColor(state.pending > 0 ? COLOR_ACCENT : Color(140, 148, 158, 255));
+    savedMark->setVisibility(Visibility::Visible);
+    return size + 10 * main->getScaling().x;
 }
 
 void FilerItem::updateWatched() {
@@ -216,6 +254,8 @@ void FilerItem::onUpdate() {
     lastFullscreen = isFullscreen;
     // the TorrServer marks came (asked in the background)
     if (file.type == Io::Type::File && !isFullscreen && pplay::TorrServe::viewedGeneration() != viewedGeneration) {
+        setFile(file);
+    } else if (!isFullscreen && pplay::Saved::generation() != savedGeneration) {
         setFile(file);
     }
     // watched state changes (playback elsewhere), the accent color

@@ -6,6 +6,7 @@
 
 #include "main.h"
 #include "paths.h"
+#include "saved.h"
 
 using namespace c2d;
 using namespace pplay;
@@ -30,6 +31,10 @@ void Main::showLast() {
         return;
     }
 #endif
+    if (config->getOption(OPT_LAST_MODULE)->getString() == "SAVED") {
+        show(MenuType::Saved);
+        return;
+    }
     show(currentModuleIndex > 0 ? MenuType::Network : MenuType::Local);
 }
 
@@ -56,6 +61,26 @@ void Main::show(MenuType type) {
         } else {
             filer->selectByPath(path);
         }
+    } else if (type == MenuType::Saved) {
+#ifdef __SWITCH__
+        usbExit();
+#endif
+        currentModuleIndex = MODULE_SAVED;
+        std::string root = c2d::Utility::removeLastSlash(pplay::Saved::root());
+        if (!pplayIo->exist(root)) {
+            pplayIo->create(root);
+        }
+        std::string path = config->getOption(OPT_LAST_SAVED_PATH)->getString();
+        if (!pplay::Saved::isInside(path)) {
+            path = root;
+        }
+        std::string dir = Paths::extractDirPath(path);
+        if (path == root || !pplayIo->exist(dir) || !filer->getDir(dir)) {
+            filer->getDir(root);
+        } else {
+            filer->selectByPath(path);
+        }
+        filer->clearHistory();
 #ifdef __SWITCH__
     } else if (type == MenuType::Usb) {
         currentModuleIndex = -2;
@@ -97,7 +122,7 @@ void Main::show(MenuType type) {
 
 int Main::moduleOf(const std::string &path) {
     if (pplayIo->getDeviceType(path) == pplay::Io::DeviceType::Local) {
-        return -1;
+        return pplay::Saved::isInside(path) ? MODULE_SAVED : -1;
     }
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
         std::string network = config->getOption(PPLAYConfig::networkOption(i))->getString();
@@ -122,6 +147,9 @@ void Main::closeForRest() {
         if (module > 0) {
             config->getOption(OPT_LAST_MODULE)->setString(networkModuleName(module));
             config->getOption(PPLAYConfig::networkLastOption(module))->setString(path);
+        } else if (module == MODULE_SAVED) {
+            config->getOption(OPT_LAST_MODULE)->setString("SAVED");
+            config->getOption(OPT_LAST_SAVED_PATH)->setString(path);
         } else {
             config->getOption(OPT_LAST_MODULE)->setString("LOCAL");
             config->getOption(OPT_LAST_LOCAL_PATH)->setString(path);
@@ -177,6 +205,9 @@ void Main::syncLastLocation() {
         } else {
             config->getOption(lastOption)->setString(path);
         }
+    } else if (currentModuleIndex == MODULE_SAVED) {
+        config->getOption(OPT_LAST_MODULE)->setString("SAVED");
+        config->getOption(OPT_LAST_SAVED_PATH)->setString(path);
 #ifdef __SWITCH__
     } else if (c2d::Utility::startWith(selectedPath, "ums")) {
         pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Main::syncLastLocation module=USB");

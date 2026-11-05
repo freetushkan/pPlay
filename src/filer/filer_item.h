@@ -45,6 +45,10 @@ private:
     c2d::Text *check2;
     float textX = 0, textWidth = 0;
     c2d::Sprite *icon;
+    // saved copies inside / being saved (network rows): a floppy / a progress ring
+    c2d::Sprite *savedMark;
+    // its width at the row end, 0 if none
+    float updateSavedMark(float right);
     c2d::Rectangle *clip;
     pplay::FadeEdge *fade;
     void updateWatched();
@@ -57,6 +61,7 @@ private:
     bool lastFullscreen = false;
     // the TorrServer marks shown: from this answer
     unsigned int viewedGeneration = 0;
+    unsigned int savedGeneration = 0;
 
 public:
 

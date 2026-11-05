@@ -14,6 +14,7 @@
 #include "round_rect.h"
 #include "text_wrap.h"
 #include "pplay_config.h"
+#include "saved.h"
 
 using namespace c2d;
 
@@ -38,6 +39,14 @@ namespace {
 std::vector<std::string> Breadcrumb::split(const std::string &path) const {
     // the root as named in the main menu: a network (its url starts the path), USB, local
     std::vector<std::string> parts;
+    // the saved copies: the original names
+    if (pplay::Saved::isInside(path)) {
+        parts.push_back(pplay::tr("Saved"));
+        for (auto &part: pplay::Saved::displayParts(path)) {
+            parts.push_back(encoding::fix(part));
+        }
+        return parts;
+    }
     std::string rest = path;
     std::string root = pplay::tr("Local");
     size_t best = 0;

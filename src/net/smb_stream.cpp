@@ -282,4 +282,28 @@ int pplay::Smb::registerStream(void *mpv) {
     return res;
 }
 
+void *pplay::Smb::openFile(const std::string &url, int64_t *size) {
+    // direct reads, the caller asks big chunks
+    Settings settings = {0, g_settings.timeout};
+    mpv_stream_cb_info info {};
+    std::string uri = url;
+    if (onOpen(&settings, &uri[0], &info) != 0) {
+        return nullptr;
+    }
+    *size = onSize(info.cookie);
+    return info.cookie;
+}
+
+int64_t pplay::Smb::readFile(void *file, char *buf, uint64_t size) {
+    return onRead(file, buf, size);
+}
+
+bool pplay::Smb::seekFile(void *file, int64_t offset) {
+    return onSeek(file, offset) == offset;
+}
+
+void pplay::Smb::closeFile(void *file) {
+    onClose(file);
+}
+
 #endif

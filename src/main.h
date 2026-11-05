@@ -20,6 +20,8 @@
 #include "i18n.h"
 
 #define INPUT_DELAY 500
+// the module index of the saved copies (local -1, usb -2, networks 1...)
+#define MODULE_SAVED -3
 #define BUTTON_HEIGHT 64
 
 #define COLOR_BG Color(20, 22, 24, 255)
@@ -61,6 +63,7 @@ public:
         Local,
         Network,
         Current,
+        Saved,
 #ifdef __SWITCH__
         Usb
 #endif

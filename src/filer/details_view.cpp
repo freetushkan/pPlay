@@ -18,6 +18,8 @@
 #include "text_wrap.h"
 #include "utility.h"
 #include "torrserve.h"
+#include "saved.h"
+#include "media_info.h"
 
 using namespace c2d;
 
@@ -98,6 +100,11 @@ void DetailsView::setFile(const MediaFile &f) {
     if (f.path != file.path || f.name != file.name) {
         scroll = scrollShown = 0;
         posterError.clear();
+        // looked at: kept by the cleanups
+        if (f.type == Io::Type::File) {
+            MediaInfo::touch(f);
+            pplay::Saved::touch(f.path);
+        }
     }
     file = f;
     pplay::DetailsInfo info = pplay::DetailsInfo::of(file);
@@ -185,6 +192,21 @@ void DetailsView::updateHints() {
         }
         if (file.type == Io::Type::File && !empty && !watched && pplay::Utility::isMedia(file)) {
             add(0, "Mark watched", Action::Watched);
+        }
+        // a copy: saved (the rest of a directory), its progress, removed
+        bool network = pplay::Saved::canSave(file);
+        if (!empty && file.name != ".." && (network || pplay::Saved::isInside(file.path))) {
+            pplay::Saved::State state = pplay::Saved::stateOf(file.path);
+            if (state.pending > 0) {
+                char percent[16];
+                snprintf(percent, sizeof(percent), " %d%%", (int) (state.progress * 100));
+                add(0, pplay::tr("Saving") + percent, Action::None);
+            } else if (network && (file.type == Io::Type::Directory || state.saved == 0)) {
+                add(0, file.type == Io::Type::Directory ? "Save folder" : "Save", Action::Save);
+            }
+            if (state.saved > 0 || state.pending > 0) {
+                add(0, state.saved > 0 ? "Delete saved" : "Cancel saving", Action::Unsave);
+            }
         }
     } else if (picking) {
         add(Input::Up | Input::Down, "Select", Action::None);
@@ -412,9 +434,11 @@ void DetailsView::onUpdate() {
         hintsClock.restart();
     } else if (!player->isFullscreen()
                && (pplay::TorrServe::viewedGeneration() != viewedGeneration
+                   || (focused && pplay::Saved::generation() != savedGeneration)
                    || (playing && hintsClock.getElapsedTime().asSeconds() >= 2 && player->isPlaying(file.path)))) {
         // its position saved meanwhile ("Continue from"), the TorrServer marks
         viewedGeneration = pplay::TorrServe::viewedGeneration();
+        savedGeneration = pplay::Saved::generation();
         hintsClock.restart();
         float height = hints->getHeight();
         updateHints();
