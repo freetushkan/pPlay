@@ -129,7 +129,7 @@ void Player::changeVolume(double delta) {
         osd->expand();
         osd->showVolume();
     }
-    main->getStatus()->show("Info", message);
+    main->getStatus()->show("Info", pplay::tr("Volume") + ": " + message);
     volumeDirty = true;
     volumeClock.restart();
 }

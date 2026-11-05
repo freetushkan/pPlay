@@ -33,7 +33,7 @@ std::string Mpv::changeBrightness(double delta) {
     mpv_command_string(handle, cmd.c_str());
     double brightness = 0.0;
     mpv_get_property(handle, "brightness", MPV_FORMAT_DOUBLE, &brightness);
-    return "Brightness: " + std::to_string((int) brightness) + "%";
+    return std::to_string((int) brightness) + "%";
 }
 
 std::string Mpv::changeVolume(double delta) {
@@ -42,7 +42,7 @@ std::string Mpv::changeVolume(double delta) {
     double volume = 0.0;
     mpv_get_property(handle, "volume", MPV_FORMAT_DOUBLE, &volume);
     saveVolume();
-    return "Volume: " + std::to_string((int) volume) + "%";
+    return std::to_string((int) volume) + "%";
 }
 
 void Mpv::saveVolume() {
@@ -82,7 +82,7 @@ std::string Mpv::setSpeed(double speed) {
     mpv_command_string(handle, cmd.c_str());
     double currentSpeed = getSpeed();
     lastSpeed = currentSpeed;
-    return "Speed: " + std::to_string((int) (currentSpeed * 100.0)) + "%";
+    return std::to_string((int) (currentSpeed * 100.0)) + "%";
 }
 
 double Mpv::getSpeed() {

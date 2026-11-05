@@ -143,11 +143,11 @@ void Player::onMediaKeys(unsigned int keys) {
 }
 
 void Player::setSpeed(double speed) {
-    main->getStatus()->show("Info", mpv->setSpeed(speed));
+    main->getStatus()->show("Info", pplay::tr("Speed") + ": " + mpv->setSpeed(speed));
 }
 
 void Player::changeBrightness(double delta) {
-    main->getStatus()->show("Info", mpv->changeBrightness(delta));
+    main->getStatus()->show("Info", pplay::tr("Brightness") + ": " + mpv->changeBrightness(delta));
 }
 
 void Player::updateInfo() {
