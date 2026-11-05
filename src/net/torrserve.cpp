@@ -571,6 +571,14 @@ namespace pplay::TorrServe {
         g_progressWorker = new pplay::Worker(progressThread, nullptr);
     }
 
+    void flushProgress() {
+        if (g_progressWorker != nullptr) {
+            g_progressWorker->join();
+            delete (g_progressWorker);
+            g_progressWorker = nullptr;
+        }
+    }
+
     double keptPosition(const std::string &path, int mode) {
         double local = pplay::Utility::watchLaterPosition(toStreamUrl(path));
         if (mode == 0) {

@@ -104,6 +104,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_PROGRESS_INTERVAL, (int) 10});
     addOption({OPT_PROGRESS_TO_END, (int) 0});
     addOption({OPT_PS5_KEEP_IN_REST, (int) 0});
+    addOption({OPT_REST_SESSION, ""});
 
     // load the configuration from file, overwriting default values
     load();

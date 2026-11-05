@@ -193,7 +193,7 @@ namespace {
                 // gone before the suspend (not declared ready: the system waits for the exit)
                 pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS5: suspend announced, closing");
                 g_quitting = true;
-                main->quit();
+                main->closeForRest();
             }
         }
 
@@ -205,7 +205,7 @@ namespace {
                 // suspended without the notice: suspending it again would panic the kernel
                 g_quitting = true;
                 notify(pplay::tr("pPlay was closed after rest mode, start it again"));
-                main->quit();
+                main->closeForRest();
             }
         } else if (g_renderPaused && now - g_pausedAt > 15) {
             // no suspend came (cancelled)

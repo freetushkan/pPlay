@@ -140,7 +140,16 @@ public:
 
     void quit();
 
+    // quit for rest mode (PS5): the playing file reopened at the next start
+    void closeForRest();
+
 private:
+
+    // the session closed for rest mode, once
+    void restoreSession();
+
+    // the network of a path, -1 local
+    int moduleOf(const std::string &path);
 
     bool onInput(c2d::Input::Player *players) override;
 

@@ -39,6 +39,8 @@ namespace pplay::TorrServe {
     double fileProgress(const std::string &path, bool wait = false);
     // sent in a thread
     void setFileProgress(const std::string &path, double seconds);
+    // the position being sent: done (before an exit)
+    void flushProgress();
     bool remFileViewed(const std::string &path);
     // marked viewed, at this position (the full duration: watched)
     bool setFileViewed(const std::string &path, double seconds);

@@ -35,6 +35,15 @@ public:
     // progress reset by the user: don't write it back for the current playback
     void forgetProgress();
 
+    // before a close: the position saved now (the periodic save may be seconds old),
+    // TorrServer included (waited for)
+    void keepProgressNow();
+
+    // the next load stays paused (a restored session)
+    void loadPausedOnce() { loadPaused = true; }
+
+    const MediaFile &getFile() const { return file; }
+
     // comparable key of a path (as given to mpv): playing mark, history
     static std::string keyOf(const std::string &path);
 
@@ -302,6 +311,7 @@ private:
     int reloadDelayMs = 0;
     double reloadPosition = 0;
     bool reloadPaused = false;
+    bool loadPaused = false;
     bool skipStopEvent = false;
     // stopped by the watchdog, retries exhausted
     bool stalledStop = false;

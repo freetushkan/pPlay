@@ -87,6 +87,7 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Main: ui created");
 
     showLast();
+    restoreSession();
 }
 
 void Main::createFont() {

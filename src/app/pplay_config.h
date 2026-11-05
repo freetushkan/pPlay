@@ -62,6 +62,8 @@
 #define OPT_PROGRESS_TO_END "PROGRESS_TO_END"
 // PS5 rest mode: 0 pPlay closes once the system resumes it, 1 it stays (unstable)
 #define OPT_PS5_KEEP_IN_REST "PS5_KEEP_IN_REST"
+// closed for rest mode: "<fullscreen 0/1>|<the playing file>", reopened at the next start
+#define OPT_REST_SESSION "REST_SESSION"
 #ifdef __SWITCH__
 #define CACHE_MB_MAX 500
 #else

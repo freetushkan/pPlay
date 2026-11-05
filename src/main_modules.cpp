@@ -95,6 +95,69 @@ void Main::show(MenuType type) {
     }
 }
 
+int Main::moduleOf(const std::string &path) {
+    if (pplayIo->getDeviceType(path) == pplay::Io::DeviceType::Local) {
+        return -1;
+    }
+    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+        std::string network = config->getOption(PPLAYConfig::networkOption(i))->getString();
+        if (!network.empty() && c2d::Utility::startWith(path, Paths::ensureTrailingSlash(network))) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void Main::closeForRest() {
+    std::string session;
+    if (!player->getMpv()->isStopped()) {
+        player->keepProgressNow();
+        session = std::string(player->isFullscreen() ? "1" : "0") + "|" + player->getFile().path;
+    }
+    quit();
+    if (!session.empty()) {
+        // the last location: the playing file (the list may show another one)
+        std::string path = session.substr(2);
+        int module = moduleOf(path);
+        if (module > 0) {
+            config->getOption(OPT_LAST_MODULE)->setString(networkModuleName(module));
+            config->getOption(PPLAYConfig::networkLastOption(module))->setString(path);
+        } else {
+            config->getOption(OPT_LAST_MODULE)->setString("LOCAL");
+            config->getOption(OPT_LAST_LOCAL_PATH)->setString(path);
+        }
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: session kept for rest mode: " + path);
+    }
+    config->getOption(OPT_REST_SESSION)->setString(session);
+    config->save();
+}
+
+void Main::restoreSession() {
+    std::string session = config->getOption(OPT_REST_SESSION)->getString();
+    if (session.size() < 3) {
+        return;
+    }
+    // once: a file failing here is not retried at each start
+    config->getOption(OPT_REST_SESSION)->setString("");
+    config->save();
+    bool fullscreen = session[0] == '1';
+    std::string path = session.substr(2);
+    MediaFile file = filer->getSelection();
+    // gone meanwhile (a removed torrent, an unreachable share): the list only
+    if (file.path != path || !pplay::Utility::isMedia(file)) {
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: rest mode session not restored: " + path);
+        return;
+    }
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: rest mode session restored: " + path);
+    // its position: the usual choice (local / TorrServer, asked now)
+    player->setFullscreen(true);
+    player->loadPausedOnce();
+    player->load(file);
+    if (!fullscreen) {
+        player->setFullscreen(false);
+    }
+}
+
 void Main::syncLastLocation() {
     MediaFile selected = filer->getSelection();
     std::string selectedPath = selected.path.empty() ? filer->getPath() + "/.." : selected.path;

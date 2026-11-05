@@ -261,7 +261,11 @@ void Player::onLoadEvent() {
     mpv->restoreVolume();
     mpv->restoreSpeed();
     mpv->saveVolume();
-    resume();
+    if (loadPaused) {
+        loadPaused = false;
+    } else {
+        resume();
+    }
 
     // the tracks chosen for the previous file: mpv drops them when the tracks differ,
     // and they do (the external tracks of the previous file)
@@ -370,6 +374,24 @@ void Player::resume() {
     }
     appletSetMediaPlaybackState(true);
 #endif
+}
+
+void Player::keepProgressNow() {
+    if (mpv->isStopped()) {
+        return;
+    }
+    long position = mpv->getPosition();
+    long duration = mpv->getDuration();
+    if (position > 0) {
+        lastKnownPosition = position;
+    }
+    if (duration > 0) {
+        lastKnownDuration = duration;
+    }
+    if (keepsProgress(lastKnownPosition, lastKnownDuration)) {
+        saveProgress(true);
+    }
+    pplay::TorrServe::flushProgress();
 }
 
 void Player::stop() {
