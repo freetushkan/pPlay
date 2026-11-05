@@ -81,6 +81,7 @@ c2d::PS4Clock::PS4Clock() : Clock() {
 #include <thread>
 #include "player.h"
 #include "pplay_config.h"
+#include "i18n.h"
 
 extern "C" {
 int sceSystemServiceLoadExec(const char *path, const char *args[]);
@@ -88,19 +89,27 @@ int sceSystemServiceReceiveEvent(void *event);
 int sceSystemServiceEnableSuspendNotification();
 int sceSystemServiceDeclareReadyForSuspend();
 int32_t sceAgcSuspendPoint();
+int sceKernelSendNotificationRequest(int device, void *request, size_t size, int blocking);
 }
 
 // Rest mode: the system suspends pPlay fine once, but suspending it again after it
 // was resumed panics the kernel (A53MM: the app's mapper rings are not suspended).
-// So by default pPlay closes as soon as it is resumed. "Keep in rest mode" asks for
-// suspend notifications instead and gets ready for each suspend (unstable).
+// So by default pPlay closes when the system announces a suspend (a click on its
+// icon after the wake starts it again). "Keep in rest mode" gets ready for the
+// suspend instead (unstable).
 namespace {
-    // the PS4 event types (ON_RESUME and the known others); anything else may be
-    // the suspend notification, whose type is not documented
     const int32_t EVENT_ON_RESUME = 0x10000000;
+    // with suspend notifications on: the system waits for sceSystemServiceDeclareReadyForSuspend
+    const int32_t EVENT_SUSPEND = 0x20001000;
 
-    bool knownEvent(int32_t type) {
-        return (type >= 0x10000001 && type <= 0x10000014) || type == 0x30000000;
+    // a system toast (it stays after pPlay exits)
+    void notify(const std::string &text) {
+        struct {
+            char unused[45];
+            char message[3075];
+        } request{};
+        snprintf(request.message, sizeof(request.message), "%s", text.c_str());
+        sceKernelSendNotificationRequest(0, &request, sizeof(request), 0);
     }
 
     // a frozen process: all its threads stop, this one ticking each second sees the
@@ -152,7 +161,7 @@ namespace {
 
     void ps5RestMode(Main *main) {
         bool keep = main->getConfig()->getOption(OPT_PS5_KEEP_IN_REST)->getInteger() != 0;
-        if (keep && !g_notifications) {
+        if (!g_notifications) {
             g_notifications = true;
             int res = sceSystemServiceEnableSuspendNotification();
             pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS5: suspend notifications: " + std::to_string(res));
@@ -178,8 +187,13 @@ namespace {
                                 std::string("PS5: system event ") + name + ": " + hexEvent(event));
             if (type == EVENT_ON_RESUME) {
                 resumed = true;
-            } else if (!knownEvent(type) && g_notifications) {
-                readyForSuspend(main, keep);
+            } else if (type == EVENT_SUSPEND && keep) {
+                readyForSuspend(main, true);
+            } else if (type == EVENT_SUSPEND && !g_quitting) {
+                // gone before the suspend (not declared ready: the system waits for the exit)
+                pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS5: suspend announced, closing");
+                g_quitting = true;
+                main->quit();
             }
         }
 
@@ -188,8 +202,9 @@ namespace {
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
                                 std::string("PS5: resumed by the system") + (keep ? ", kept running" : ", closing"));
             if (!keep && !g_quitting) {
-                // suspending it again would panic the kernel
+                // suspended without the notice: suspending it again would panic the kernel
                 g_quitting = true;
+                notify(pplay::tr("pPlay was closed after rest mode, start it again"));
                 main->quit();
             }
         } else if (g_renderPaused && now - g_pausedAt > 15) {

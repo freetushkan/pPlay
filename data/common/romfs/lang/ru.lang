@@ -313,4 +313,5 @@ Unknown duration, play the file first = Длительность неизвес�
 # PS5 rest mode
 Keep in rest mode = Оставлять в режиме покоя
 Keep the player running in rest mode (unstable) = Оставлять плеер запущенным в режиме покоя (нестабильно)
+pPlay was closed after rest mode, start it again = pPlay закрыт после режима покоя, запустите его снова
 On (unstable) = Вкл (нестабильно)

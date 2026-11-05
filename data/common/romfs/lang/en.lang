@@ -314,4 +314,5 @@ Unknown duration, play the file first = Unknown duration, play the file first
 # PS5 rest mode
 Keep in rest mode = Keep in rest mode
 Keep the player running in rest mode (unstable) = Keep the player running in rest mode (unstable)
+pPlay was closed after rest mode, start it again = pPlay was closed after rest mode, start it again
 On (unstable) = On (unstable)

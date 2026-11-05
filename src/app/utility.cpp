@@ -27,6 +27,7 @@
 #include <vector>
 #ifdef __PS5__
 #include <openssl/evp.h>
+#include <ps5/klog.h>
 #else
 #include <mbedtls/md5.h>
 #endif
@@ -258,6 +259,8 @@ bool Utility::clearLog() {
 static void writeLog(const std::string &message) {
 #ifdef __PS4__
     sceKernelDebugOutText(0, ("[pPlay] " + message + "\n").c_str());
+#elif __PS5__
+    klog_printf("[pPlay] %s\n", message.c_str());
 #endif
     if (g_dataPath.empty()) {
         return;
