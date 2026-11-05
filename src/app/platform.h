@@ -30,6 +30,9 @@ namespace pplay::Platform {
     // after each frame
     void frameDone(Main *main);
 
+    // nothing to draw now (PS5: ready for a suspend)
+    bool renderPaused();
+
     // after the main loop (does not return on PS4)
     void exit();
 }

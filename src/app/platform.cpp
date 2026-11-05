@@ -75,7 +75,133 @@ c2d::PS4Clock::PS4Clock() : Clock() {
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-extern "C" int sceSystemServiceLoadExec(const char *path, const char *args[]);
+#include <atomic>
+#include <cstdint>
+#include <ctime>
+#include <thread>
+#include "player.h"
+#include "pplay_config.h"
+
+extern "C" {
+int sceSystemServiceLoadExec(const char *path, const char *args[]);
+int sceSystemServiceReceiveEvent(void *event);
+int sceSystemServiceEnableSuspendNotification();
+int sceSystemServiceDeclareReadyForSuspend();
+int32_t sceAgcSuspendPoint();
+}
+
+// Rest mode: the system suspends pPlay fine once, but suspending it again after it
+// was resumed panics the kernel (A53MM: the app's mapper rings are not suspended).
+// So by default pPlay closes as soon as it is resumed. "Keep in rest mode" asks for
+// suspend notifications instead and gets ready for each suspend (unstable).
+namespace {
+    // the PS4 event types (ON_RESUME and the known others); anything else may be
+    // the suspend notification, whose type is not documented
+    const int32_t EVENT_ON_RESUME = 0x10000000;
+
+    bool knownEvent(int32_t type) {
+        return (type >= 0x10000001 && type <= 0x10000014) || type == 0x30000000;
+    }
+
+    // a frozen process: all its threads stop, this one ticking each second sees the
+    // wall clock jump once resumed (a main thread blocked on the network does not)
+    std::atomic<bool> g_frozen{false};
+
+    void watchFreeze() {
+        std::thread([] {
+            time_t last = time(nullptr);
+            while (true) {
+                sleep(1);
+                time_t now = time(nullptr);
+                if (now - last > 10) {
+                    g_frozen = true;
+                }
+                last = now;
+            }
+        }).detach();
+    }
+
+    bool g_notifications = false;
+    bool g_quitting = false;
+    // ready for a suspend: nothing drawn (no GPU work) until resumed
+    bool g_renderPaused = false;
+    time_t g_pausedAt = 0;
+
+    std::string hexEvent(const uint8_t *data) {
+        char text[3 * 16 + 1] = {};
+        for (int i = 0; i < 16; i++) {
+            snprintf(text + i * 3, 4, "%02x ", data[i]);
+        }
+        return text;
+    }
+
+    void readyForSuspend(Main *main, bool keep) {
+        if (keep) {
+            if (!main->getPlayer()->getMpv()->isStopped() && !main->getPlayer()->getMpv()->isPaused()) {
+                main->getPlayer()->pause();
+            }
+            g_renderPaused = true;
+            g_pausedAt = time(nullptr);
+            int32_t point = sceAgcSuspendPoint();
+            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                                "PS5: ready for the suspend, drawing paused (suspend point: " + std::to_string(point) + ")");
+        }
+        int ready = sceSystemServiceDeclareReadyForSuspend();
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS5: declared ready for the suspend: " + std::to_string(ready));
+    }
+
+    void ps5RestMode(Main *main) {
+        bool keep = main->getConfig()->getOption(OPT_PS5_KEEP_IN_REST)->getInteger() != 0;
+        if (keep && !g_notifications) {
+            g_notifications = true;
+            int res = sceSystemServiceEnableSuspendNotification();
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS5: suspend notifications: " + std::to_string(res));
+        }
+
+        static bool watching = false;
+        if (!watching) {
+            watching = true;
+            watchFreeze();
+        }
+        time_t now = time(nullptr);
+        bool resumed = g_frozen.exchange(false);
+
+        alignas(16) static uint8_t event[0x4000];
+        for (int i = 0; i < 8; i++) {
+            if (sceSystemServiceReceiveEvent(event) != 0) {
+                break;
+            }
+            int32_t type = *(int32_t *) event;
+            char name[16];
+            snprintf(name, sizeof(name), "0x%08X", (unsigned) type);
+            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                                std::string("PS5: system event ") + name + ": " + hexEvent(event));
+            if (type == EVENT_ON_RESUME) {
+                resumed = true;
+            } else if (!knownEvent(type) && g_notifications) {
+                readyForSuspend(main, keep);
+            }
+        }
+
+        if (resumed) {
+            g_renderPaused = false;
+            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                                std::string("PS5: resumed by the system") + (keep ? ", kept running" : ", closing"));
+            if (!keep && !g_quitting) {
+                // suspending it again would panic the kernel
+                g_quitting = true;
+                main->quit();
+            }
+        } else if (g_renderPaused && now - g_pausedAt > 15) {
+            // no suspend came (cancelled)
+            g_renderPaused = false;
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS5: no suspend after 15 s, drawing again");
+        }
+        if (g_renderPaused) {
+            usleep(16000);
+        }
+    }
+}
 
 // single instance (the port is released on exit/crash)
 static bool ps5_single_instance() {
@@ -204,8 +330,19 @@ namespace pplay::Platform {
 #endif
     }
 
+    bool renderPaused() {
+#ifdef __PS5__
+        return g_renderPaused;
+#else
+        return false;
+#endif
+    }
+
     void frameDone(Main *main) {
         pplay::DesktopWindow::update(main);
+#ifdef __PS5__
+        ps5RestMode(main);
+#endif
         static c2d::C2DClock statsClock;
         if (statsClock.getElapsedTime().asSeconds() >= 10) {
             statsClock.restart();

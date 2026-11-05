@@ -309,3 +309,8 @@ Start over = Начать с начала
 Mark watched = Отметить просмотренным
 Marked as watched = Отмечено как просмотренное
 Unknown duration, play the file first = Длительность неизвестна, сначала запустите файл
+
+# PS5 rest mode
+Keep in rest mode = Оставлять в режиме покоя
+Keep the player running in rest mode (unstable) = Оставлять плеер запущенным в режиме покоя (нестабильно)
+On (unstable) = Вкл (нестабильно)

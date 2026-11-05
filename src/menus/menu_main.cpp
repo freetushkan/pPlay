@@ -66,6 +66,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
 #ifdef __SWITCH__
     system.emplace_back("CPU boost", "cpu.png", Pos::Top);
 #endif
+#ifdef __PS5__
+    system.emplace_back("Keep in rest mode", "system.png", Pos::Top);
+#endif
     system.emplace_back("Logging", "log.png", Pos::Top);
     system.emplace_back("View log", "log.png", Pos::Top);
     system.emplace_back("Clear log", "clear_cache.png", Pos::Top);
@@ -162,6 +165,10 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                              {"Baltic (1257)", 1257}}),
                Submenu::ValueType::Integer);
     addTextSubmenu("Local home path", "Local home path", OPT_HOME_PATH);
+#ifdef __PS5__
+    addSubmenu("Keep in rest mode", "Keep the player running in rest mode (unstable)", OPT_PS5_KEEP_IN_REST,
+               makeIntItems({{"Off", 0}, {"On (unstable)", 1}}), Submenu::ValueType::Integer);
+#endif
 
 #ifdef __SWITCH__
     addSubmenu("CPU boost", "CPU boost", OPT_CPU_BOOST,

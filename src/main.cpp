@@ -439,7 +439,9 @@ int main() {
     pplay::NetTime::start();
 
     while (main->isRunning()) {
-        main->flip();
+        if (!pplay::Platform::renderPaused()) {
+            main->flip();
+        }
         pplay::Platform::frameDone(main);
     }
 

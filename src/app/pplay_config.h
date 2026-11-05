@@ -60,6 +60,8 @@
 #define OPT_PROGRESS_MIN_LENGTH "PROGRESS_MIN_LENGTH"
 #define OPT_PROGRESS_INTERVAL "PROGRESS_INTERVAL"
 #define OPT_PROGRESS_TO_END "PROGRESS_TO_END"
+// PS5 rest mode: 0 pPlay closes once the system resumes it, 1 it stays (unstable)
+#define OPT_PS5_KEEP_IN_REST "PS5_KEEP_IN_REST"
 #ifdef __SWITCH__
 #define CACHE_MB_MAX 500
 #else
