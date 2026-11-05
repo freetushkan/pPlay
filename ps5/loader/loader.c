@@ -3,6 +3,8 @@
  * files to /data/homebrew/pplay, the shared libraries to /user/homebrew/lib, then
  * starts pplay.elf as the BigApp (closing the launcher). Errors are reported on
  * stdout ("PPLAY_ERROR ...") and with notifications.
+ * Changed files: by the package manifest (ps5/pplay/.manifest, "<sha256> <size> <path>"
+ * lines) against the one installed with them, else by their size and mtime.
  * argv[1]: optional source directory (default: the launcher package).
  */
 
@@ -36,6 +38,8 @@
 #define ZST_EXT         ".zst"
 #define DATA_DIR        "/data/homebrew/pplay"
 #define LIB_DIR         "/user/homebrew/lib"
+#define MANIFEST        ".manifest"
+#define MAX_UPDATED     64
 
 typedef struct notify_request {
     char useless1[45];
@@ -176,6 +180,58 @@ static int mkdirs(const char *path) {
     return is_dir(tmp) ? 0 : -1;
 }
 
+typedef struct manifest_entry {
+    char hash[65];
+    long long size;
+    char path[PATH_MAX];
+} manifest_entry_t;
+
+typedef struct manifest {
+    manifest_entry_t *entries;
+    int count;
+} manifest_t;
+
+// count -1: no manifest
+static manifest_t g_package = {NULL, -1};
+static manifest_t g_installed = {NULL, -1};
+// the libraries updated in the data directory, installed again
+static char g_updated[MAX_UPDATED][256];
+static int g_updated_count = 0;
+
+static void load_manifest(const char *path, manifest_t *m) {
+    char line[PATH_MAX + 128];
+    FILE *f = fopen(path, "r");
+    if (!f) {
+        return;
+    }
+    m->count = 0;
+    while (fgets(line, sizeof(line), f)) {
+        manifest_entry_t e;
+        int len = 0;
+        if (sscanf(line, "%64s %lld %n", e.hash, &e.size, &len) != 2 || len <= 0) {
+            continue;
+        }
+        snprintf(e.path, sizeof(e.path), "%s", line + len);
+        e.path[strcspn(e.path, "\r\n")] = 0;
+        manifest_entry_t *grown = realloc(m->entries, sizeof(*grown) * (size_t) (m->count + 1));
+        if (!grown) {
+            break;
+        }
+        m->entries = grown;
+        m->entries[m->count++] = e;
+    }
+    fclose(f);
+}
+
+static const manifest_entry_t *manifest_find(const manifest_t *m, const char *path) {
+    for (int i = 0; i < m->count; i++) {
+        if (!strcmp(m->entries[i].path, path)) {
+            return &m->entries[i];
+        }
+    }
+    return NULL;
+}
+
 // size: of the destination, -1 to only compare the mtime
 static int same_file(const struct stat *src, long long size, const char *dst) {
     struct stat st;
@@ -305,8 +361,9 @@ static int unpack_file(const char *src, const char *dst, const struct stat *st) 
     return replace_file(tmp, dst);
 }
 
-static int sync_tree(const char *src, const char *dst, int *copied) {
-    char s[PATH_MAX], d[PATH_MAX];
+// rel: the path in the package ("" at its root)
+static int sync_tree(const char *src, const char *dst, const char *rel, int *copied) {
+    char s[PATH_MAX], d[PATH_MAX], r[PATH_MAX];
     struct dirent *e;
     struct stat st;
     DIR *dir;
@@ -325,21 +382,31 @@ static int sync_tree(const char *src, const char *dst, int *copied) {
         }
         snprintf(s, sizeof(s), "%s/%s", src, e->d_name);
         snprintf(d, sizeof(d), "%s/%s", dst, e->d_name);
+        snprintf(r, sizeof(r), "%s%s%s", rel, rel[0] ? "/" : "", e->d_name);
         if (stat(s, &st) != 0) {
             continue;
         }
         if (S_ISDIR(st.st_mode)) {
-            ret = sync_tree(s, d, copied);
+            ret = sync_tree(s, d, r, copied);
             continue;
         }
-        if (!S_ISREG(st.st_mode)) {
+        // written last (see main)
+        if (!S_ISREG(st.st_mode) || !strcmp(r, MANIFEST)) {
             continue;
         }
         int packed = is_zst(e->d_name);
         if (packed) {
             d[strlen(d) - strlen(ZST_EXT)] = 0;
+            r[strlen(r) - strlen(ZST_EXT)] = 0;
         }
-        if (same_file(&st, packed ? zst_size(s) : st.st_size, d)) {
+        const manifest_entry_t *now = manifest_find(&g_package, r);
+        if (now) {
+            const manifest_entry_t *was = manifest_find(&g_installed, r);
+            struct stat dst_st;
+            if (was && !strcmp(was->hash, now->hash) && stat(d, &dst_st) == 0 && dst_st.st_size == now->size) {
+                continue;
+            }
+        } else if (same_file(&st, packed ? zst_size(s) : st.st_size, d)) {
             continue;
         }
         if (*copied == 0) {
@@ -349,6 +416,9 @@ static int sync_tree(const char *src, const char *dst, int *copied) {
             ret = fail("can't %s %s (%s)", packed ? "unpack" : "copy", d, strerror(errno));
         } else {
             (*copied)++;
+            if (!rel[0] && g_updated_count < MAX_UPDATED) {
+                snprintf(g_updated[g_updated_count++], sizeof(g_updated[0]), "%s", r);
+            }
         }
     }
 
@@ -377,7 +447,11 @@ static int install_libs(const char *src_dir, int *copied) {
         }
         snprintf(s, sizeof(s), "%s/%s", src_dir, e->d_name);
         snprintf(d, sizeof(d), "%s/%s", LIB_DIR, e->d_name);
-        if (stat(s, &st) != 0 || !S_ISREG(st.st_mode) || same_file(&st, st.st_size, d)) {
+        int updated = 0;
+        for (int i = 0; i < g_updated_count; i++) {
+            updated |= !strcmp(g_updated[i], e->d_name);
+        }
+        if (stat(s, &st) != 0 || !S_ISREG(st.st_mode) || (!updated && same_file(&st, st.st_size, d))) {
             continue;
         }
         if (mkdirs(LIB_DIR) != 0) {
@@ -435,11 +509,21 @@ int main(int argc, char *argv[]) {
         snprintf(src, sizeof(src), "%s/%s", app0, PKG_SUBDIR);
     }
 
-    if (sync_tree(src, DATA_DIR, &copied) != 0) {
+    char manifest[PATH_MAX];
+    snprintf(manifest, sizeof(manifest), "%s/" MANIFEST, src);
+    load_manifest(manifest, &g_package);
+    load_manifest(DATA_DIR "/" MANIFEST, &g_installed);
+
+    if (sync_tree(src, DATA_DIR, "", &copied) != 0) {
         return EXIT_FAILURE;
     }
     if (install_libs(DATA_DIR, &copied) != 0) {
         return EXIT_FAILURE;
+    }
+    // all in place: what is installed now
+    struct stat manifest_st;
+    if (g_package.count >= 0 && stat(manifest, &manifest_st) == 0) {
+        copy_file(manifest, DATA_DIR "/" MANIFEST, &manifest_st);
     }
     if (copied > 0) {
         printf("PPLAY_INFO updated %d file(s) from %s\n", copied, src);

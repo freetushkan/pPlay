@@ -70,7 +70,7 @@ namespace pplay {
         const std::string &getLastError() const { return lastError; }
 
         // romfs -> data directory (new or changed files)
-        void syncRomFs(const std::string &relativePath = "");
+        void syncRomFs();
 
         bool readText(const std::string &path, std::string &out);
 
@@ -98,6 +98,9 @@ namespace pplay {
 
         // network index of a path, -1 if none
         int findNetwork(const std::string &path, bool typedOnly);
+
+        // false if a file failed
+        bool syncRomFsDir(const std::string &relativePath, bool full);
 
         PPLAYConfig *config = nullptr;
         std::string lastError;

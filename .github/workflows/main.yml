@@ -110,10 +110,10 @@ jobs:
           /opt/devkitpro/devkitA64/bin/aarch64-none-elf-strip --strip-debug pplay
           make pplay_switch_release -j$(nproc) VERBOSE=1 --trace
 
-      - name: Upload Switch debug ELF
+      - name: Upload debug symbols
         uses: actions/upload-artifact@v4
         with:
-          name: debug-Switch-elf
+          name: pPlay-Symbols-Switch
           path: "cmake-build/pplay.debug"
           retention-days: 90
 
@@ -235,11 +235,12 @@ jobs:
           name: pPlay-PS4
           path: "cmake-build/release/*"
 
-      - name: Upload debug ELF
+      - name: Upload debug symbols
         uses: actions/upload-artifact@v4
         with:
-          name: debug-PS4-elf
+          name: pPlay-Symbols-PS4
           path: "cmake-build/pplay"
+          retention-days: 90
 
   ps5:
     runs-on: ubuntu-24.04
@@ -334,17 +335,18 @@ jobs:
           strip --strip-debug release/pplay/pplay.elf
           strip --strip-unneeded release/pplay/*.so*
 
-      - name: Upload PS5 debug ELF
+      - name: Upload debug symbols
         uses: actions/upload-artifact@v4
         with:
-          name: debug-PS5-elf
+          name: pPlay-Symbols-PS5
           path: "cmake-build/pplay.debug"
           retention-days: 90
 
+      # the websrv / elfldr variant, the PKG one is pPlay-PS5
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pPlay-PS5
+          name: pPlay-PS5_websrv
           path: "cmake-build/release/*"
 
       - name: Upload PKG input
@@ -400,6 +402,9 @@ jobs:
           cp -r data/ps4/romfs/sce_sys data/ps4/romfs/sce_module "${PKG_ROOT}/"
           cp -r ps5-input/release/pplay "${PKG_ROOT}/ps5/pplay"
           cp ps5-input/pplay_loader.elf "${PKG_ROOT}/ps5/"
+          # the loader updates the files whose hash changed (see ps5/loader/loader.c)
+          (cd "${PKG_ROOT}/ps5/pplay" && find . -type f | sed 's|^\./||' | LC_ALL=C sort | while read -r f; do
+            echo "$(sha256sum "$f" | cut -c1-64) $(stat -c %s "$f") $f"; done > ../manifest && mv ../manifest .manifest)
           find "${PKG_ROOT}/ps5/pplay" -type f -size +1M ! -name '*.zst' -exec zstd -19 -T0 -q --rm {} \;
           find "${PKG_ROOT}" -type f | sort
           du -sh "${PKG_ROOT}"
@@ -416,7 +421,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pPlay-PS5-PKG
+          name: pPlay-PS5
           path: "release/*.pkg"
 
   linux:
@@ -487,47 +492,53 @@ jobs:
           name: pPlay-Linux
           path: "cmake-build/pPlay-x86_64.AppImage"
 
-      - name: Upload Linux debug symbols
+      - name: Upload debug symbols
         uses: actions/upload-artifact@v4
         with:
-          name: pPlay-Linux-debug
+          name: pPlay-Symbols-Linux
           path: "cmake-build/pplay.debug"
-          retention-days: 30
+          retention-days: 90
 
   publish:
     needs: [ps4, ps5, ps5-pkg, switch, linux]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: pPlay-*
           path: ./artifacts
-  
+
+      # pPlay-<version>-<platform>.zip (Linux: the AppImage), the debug symbols of all in
+      # pPlay-<version>-Symbols.zip, last
       - name: Pack release assets
         run: |
           set -eux
-          rm -rf ./release-assets
-          mkdir -p ./release-assets
-          shopt -s nullglob
-          for artifact_dir in ./artifacts/*; do
-            [ -d "$artifact_dir" ] || continue
-            artifact_name="$(basename "$artifact_dir")"
-            if [ "$artifact_name" = "pPlay-Linux" ]; then
-              cp ./artifacts/pPlay-Linux/*.AppImage ./release-assets/
-              continue
-            fi
-            cd "./artifacts/${artifact_name}"
-            zip -r "../../release-assets/${artifact_name}.zip" "."
-            cd -
+          VERSION="$(sed -n 's/^set(VERSION_MAJOR "\(.*\)")/\1/p' CMakeLists.txt).$(sed -n 's/^set(VERSION_MINOR "\(.*\)")/\1/p' CMakeLists.txt)"
+          OUT="${GITHUB_WORKSPACE}/release-assets"
+          rm -rf "$OUT" && mkdir -p "$OUT" symbols
+          cp artifacts/pPlay-Linux/*.AppImage "$OUT/pPlay-${VERSION}-Linux-x86_64.AppImage"
+          for platform in PS4 PS5 PS5_websrv Switch; do
+            (cd "artifacts/pPlay-${platform}" && zip -r "$OUT/pPlay-${VERSION}-${platform}.zip" .)
           done
-          ls -lh ./release-assets
-  
+          for platform in Linux PS4 PS5 Switch; do
+            cp -r "artifacts/pPlay-Symbols-${platform}" "symbols/${platform}"
+          done
+          (cd symbols && zip -r "$OUT/pPlay-${VERSION}-Symbols.zip" .)
+          ls -lh "$OUT"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+
       - name: Upload assets to Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            ./release-assets/*.zip
-            ./release-assets/*.AppImage
-  
+            ./release-assets/pPlay-${{ env.VERSION }}-Linux-x86_64.AppImage
+            ./release-assets/pPlay-${{ env.VERSION }}-PS4.zip
+            ./release-assets/pPlay-${{ env.VERSION }}-PS5.zip
+            ./release-assets/pPlay-${{ env.VERSION }}-PS5_websrv.zip
+            ./release-assets/pPlay-${{ env.VERSION }}-Switch.zip
+            ./release-assets/pPlay-${{ env.VERSION }}-Symbols.zip

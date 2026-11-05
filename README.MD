@@ -26,13 +26,13 @@ pPlay uses the [MPV](https://mpv.io/) interface to handle FFmpeg interoperabilit
 
 Installation
 ----
-- **PS4:** just install the `.pkg` file from latest `pPlay-PS4.zip`.
+- **PS4:** just install the `.pkg` file from latest `pPlay-<version>-PS4.zip`.
 - **PS5:** choose one of the following methods:
-  - **PKG:** install the `.pkg` from latest `pPlay-PS5-PKG.zip` (a PS4 fpkg, needs `elfldr` on port 9021).
+  - **PKG:** install the `.pkg` from latest `pPlay-<version>-PS5.zip` (a PS4 fpkg, needs `elfldr` on port 9021).
     It copies pPlay to `/data/homebrew/pplay` and libraries to `/user/homebrew/lib`, then starts application.
-  - **Manual:** extract `pPlay-PS5.zip` to `/data/homebrew/pplay` and start `pplay.elf` from the Homebrew Launcher (websrv).
-- **Switch:** put the `.nro` file from latest `pPlay-Switch.zip` to your launcher root.
-- **Linux (x86_64):** run the latest `pPlay-x86_64.AppImage` (glibc 2.35+: Ubuntu 22.04, Debian 12, Fedora 36 and newer).
+  - **Manual:** extract `pPlay-<version>-PS5_websrv.zip` to `/data/homebrew/pplay` and start `pplay.elf` from the Homebrew Launcher (websrv).
+- **Switch:** put the `.nro` file from latest `pPlay-<version>-Switch.zip` to your launcher root.
+- **Linux (x86_64):** run the latest `pPlay-<version>-Linux-x86_64.AppImage` (glibc 2.35+: Ubuntu 22.04, Debian 12, Fedora 36 and newer).
   Settings, `mpv.conf` and caches are in `~/.config/pplay/`.
 
 Usage and controls

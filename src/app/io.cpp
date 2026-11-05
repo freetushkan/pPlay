@@ -261,11 +261,23 @@ Io::DeviceType Io::getDeviceType(const std::string &path) {
     return deviceTypeFromScheme(path);
 }
 
-void Io::syncRomFs(const std::string &relativePath) {
+// a new build: all compared by content (sizes and dates can stay the same), else only
+// the missing files copied
+void Io::syncRomFs() {
     const std::string romfs = getRomFsPath();
-    if (romfs == getDataPath() || !exist(romfs + relativePath)) {
+    if (romfs == getDataPath() || !exist(romfs)) {
         return;
     }
+    std::string stamp;
+    bool full = !readText(getDataPath() + ".romfs", stamp) || stamp != APP_VERSION_FULL;
+    if (syncRomFsDir("", full) && full) {
+        writeText(getDataPath() + ".romfs", APP_VERSION_FULL);
+    }
+}
+
+bool Io::syncRomFsDir(const std::string &relativePath, bool full) {
+    const std::string romfs = getRomFsPath();
+    bool ok = true;
     auto files = c2d::C2DIo::getDirList(romfs + relativePath, false, false);
     for (const auto &file: files) {
         if (file.name == "." || file.name == ".." || file.name == "sce_sys" || file.name == "sce_module") {
@@ -277,21 +289,26 @@ void Io::syncRomFs(const std::string &relativePath) {
             if (!exist(target)) {
                 create(target);
             }
-            syncRomFs(relPath);
-        } else if (file.type == c2d::Io::Type::File) {
-            // new or updated (size changed) file
-            std::string sourcePath = romfs + relPath;
-            size_t size = getSize(sourcePath);
-            if (size > 0 && (!exist(target) || getSize(target) != size)) {
-                char *buf = (char *) malloc(size);
-                if (buf) {
-                    read(sourcePath, buf, size);
-                    write(target, buf, size);
-                    free(buf);
-                }
-            }
+            ok = syncRomFsDir(relPath, full) && ok;
+            continue;
+        }
+        if (file.type != c2d::Io::Type::File || (!full && exist(target))) {
+            continue;
+        }
+        std::string source, current;
+        if (!readText(romfs + relPath, source)) {
+            ok = false;
+            continue;
+        }
+        if (readText(target, current) && current == source) {
+            continue;
+        }
+        if (!writeText(target, source)) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Error, "Io::syncRomFs: can't write " + target);
+            ok = false;
         }
     }
+    return ok;
 }
 
 bool Io::readText(const std::string &path, std::string &out) {
