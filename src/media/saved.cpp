@@ -101,6 +101,8 @@ namespace {
     std::atomic<bool> g_stopping{false};
     std::atomic<unsigned int> g_generation{1};
     bool g_dirty = false;
+    // the index read (or none yet): else not written over (an unplugged drive back)
+    bool g_indexFound = false;
     bool g_accessDirty = false;
     time_t g_writtenAt = 0;
     bool g_cleanup = false;
@@ -330,7 +332,29 @@ namespace {
         return b == std::string::npos ? "" : local.substr(0, b);
     }
 
+    void readIndex();
+
     void writeIndex() {
+        // an index there now, not read (the drive was missing): kept, the new entries added
+        if (!g_indexFound && isFile(g_root + ".index")) {
+            auto files = g_files;
+            auto dirs = g_dirs;
+            auto torrents = g_torrents;
+            readIndex();
+            for (auto &f: files) {
+                if (g_files.emplace(f.first, f.second).second) {
+                    g_names[lower(f.first)] = f.second.remote;
+                    g_byRemote[f.second.remote] = f.first;
+                }
+            }
+            for (auto &d: dirs) {
+                if (g_dirs.emplace(d.first, d.second).second) {
+                    g_names[lower(d.first)] = d.second.remote;
+                }
+            }
+            g_torrents.insert(torrents.begin(), torrents.end());
+        }
+        g_indexFound = true;
         std::string text = INDEX_VERSION "\n";
         for (auto &d: g_dirs) {
             text += "D\t" + escape(d.first) + "\t" + escape(d.second.name) + "\t" + escape(d.second.remote) + "\n";
@@ -356,6 +380,26 @@ namespace {
         g_writtenAt = time(nullptr);
     }
 
+    // an index path: under the root only (a damaged index removes nothing else)
+    bool safeRel(const std::string &rel) {
+        if (rel.empty() || rel[0] == '/' || rel.find_first_of("\\:") != std::string::npos) {
+            return false;
+        }
+        size_t start = 0;
+        while (start <= rel.size()) {
+            size_t end = rel.find('/', start);
+            std::string part = rel.substr(start, end == std::string::npos ? std::string::npos : end - start);
+            if (part.empty() || part == "." || part == "..") {
+                return false;
+            }
+            if (end == std::string::npos) {
+                break;
+            }
+            start = end + 1;
+        }
+        return true;
+    }
+
     void readIndex() {
         g_files.clear();
         g_dirs.clear();
@@ -363,9 +407,13 @@ namespace {
         g_names.clear();
         g_byRemote.clear();
         std::string text;
+        // no index in an existing directory: none yet; no directory: maybe not mounted
+        struct stat st {};
+        g_indexFound = stat(c2d::Utility::removeLastSlash(g_root).c_str(), &st) == 0 && !isFile(g_root + ".index");
         if (Io::get() == nullptr || !Io::get()->readText(g_root + ".index", text)) {
             return;
         }
+        g_indexFound = true;
         size_t start = 0;
         bool first = true;
         while (start < text.size()) {
@@ -380,6 +428,9 @@ namespace {
                 continue;
             }
             std::vector<std::string> f = fields(line);
+            if (f.size() < 2 || !safeRel(f[1])) {
+                continue;
+            }
             if (f[0] == "D" && f.size() >= 4) {
                 g_dirs[f[1]] = {f[2], f[3]};
                 g_names[lower(f[1])] = f[3];
@@ -416,6 +467,9 @@ namespace {
         // the deepest first
         std::sort(dirs.begin(), dirs.end(), [](const std::string &a, const std::string &b) { return a > b; });
         for (auto &dir: dirs) {
+            if (!safeRel(dir)) {
+                continue;
+            }
             bool used = false;
             for (auto &f: g_files) {
                 if (under(f.first, dir)) {
@@ -437,7 +491,7 @@ namespace {
     // locked
     void removeEntry(const std::string &rel) {
         auto it = g_files.find(rel);
-        if (it == g_files.end()) {
+        if (it == g_files.end() || !safeRel(rel)) {
             return;
         }
         if (it->second.active) {
@@ -874,7 +928,7 @@ namespace pplay::Saved {
         std::string old = c2d::Utility::removeLastSlash(g_root);
         old = old.substr(0, old.rfind('/') + 1) + "pplay_save";
         struct stat st {};
-        if (stat(old.c_str(), &st) == 0 && stat(g_root.c_str(), &st) != 0) {
+        if (stat((old + "/.index").c_str(), &st) == 0 && stat(g_root.c_str(), &st) != 0) {
             rename(old.c_str(), c2d::Utility::removeLastSlash(g_root).c_str());
         }
         readIndex();
@@ -1085,6 +1139,10 @@ namespace pplay::Saved {
         std::string root = c2d::Utility::removeLastSlash(g_root);
         bool local = c2d::Utility::startWith(path, root) && (path.size() == root.size() || path[root.size()] == '/');
         std::string key = local ? relOf(path) : c2d::Utility::removeLastSlash(path);
+        // never the whole root, never outside it
+        if (key.empty() || (local && !safeRel(key)) || (!local && key.find("://") == std::string::npos)) {
+            return 0;
+        }
         std::vector<std::string> rels;
         for (auto &f: g_files) {
             const std::string &target = local ? f.first : f.second.remote;

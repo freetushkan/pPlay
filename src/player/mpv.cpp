@@ -64,7 +64,6 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     mpv_set_option_string(handle, "stream-lavf-o", "reconnect_on_network_error=1");
 
 #if defined(__PS4__) || defined(__PS5__)
-    mpv_set_option_string(handle, "dither", "no");
     mpv_set_option_string(handle, "ignore-path-in-watch-later-config", "yes");
     mpv_set_option_string(handle, "tls-ca-file", pplay::Utility::getCertificatesPath().c_str());
     mpv_set_option_string(handle, "sub-ass-override", "force");
@@ -76,6 +75,7 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
 #endif
 
 #ifdef __PS4__
+    mpv_set_option_string(handle, "dither", "no");
     mpv_set_option_string(handle, "cscale", "bilinear");
     mpv_set_option_string(handle, "scale", "bilinear");
     mpv_set_option_string(handle, "dscale", "bilinear");
@@ -85,10 +85,7 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
 #endif
 
 #ifdef __PS5__
-    mpv_set_option_string(handle, "cscale", "bilinear");
-    mpv_set_option_string(handle, "scale", "bicubic");
-    mpv_set_option_string(handle, "dscale", "bicubic");
-    mpv_set_option_string(handle, "sws-scaler", "bicubic");
+    // the GPU (Mesa): mpv defaults, the "Video quality" presets lower them
     mpv_set_option_string(handle, "sub-fonts-dir", "/data/homebrew/pplay/mpv");
     mpv_set_option_string(handle, "osd-fonts-dir", "/data/homebrew/pplay/mpv");
 #endif
@@ -99,10 +96,6 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
 
 #ifdef __SMB2__
     pplay::Smb::registerStream(handle);
-#endif
-
-#if defined(__LINUX__) && defined(NDEBUG)
-    mpv_set_option_string(handle, "hwdec", "auto-safe");
 #endif
 
 #ifdef __SWITCH__

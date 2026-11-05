@@ -20,7 +20,7 @@
 #include "utility.h"
 #include "worker.h"
 
-#define PLAYLISTS_DIR "playlists"
+#define PLAYLISTS_DIR "pPlay playlists"
 #define PLAYLIST_EXT ".m3u8"
 
 using namespace pplay;

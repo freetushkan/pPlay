@@ -515,10 +515,15 @@ void Player::applyConfig() {
             mpv_set_property_string(mpv->getHandle(), "vid", std::to_string(vid).c_str());
         }
     }
-#ifdef __SWITCH__
+#ifdef PPLAY_HW_DECODING
     // a change applies from the next decoder start
-    const char *hwdec = main->getConfig()->getOption(OPT_HW_DECODING)->getInteger() ? "nvtegra-copy" : "no";
-    mpv_set_property_string(mpv->getHandle(), "hwdec", hwdec);
+#ifdef __SWITCH__
+    const char *hwdec = "nvtegra-copy";
+#else
+    const char *hwdec = "auto-safe";
+#endif
+    bool hardware = main->getConfig()->getOption(OPT_HW_DECODING)->getInteger() != 0;
+    mpv_set_property_string(mpv->getHandle(), "hwdec", hardware ? hwdec : "no");
 #endif
     texture->setOutlineColor(COLOR_ACCENT);
     // the accent color, the setting

@@ -1,5 +1,5 @@
 //
-// Playlists: <home>/playlists/<name>.m3u8, the filer paths of the files (network ones
+// Playlists: <home>/pPlay playlists/<name>.m3u8, the filer paths of the files (network ones
 // too), opened in the filer as one level directories.
 //
 
@@ -25,7 +25,7 @@ namespace pplay::Playlists {
     // changes when a playlist is written
     unsigned int generation();
 
-    // <home>/playlists (no trailing slash)
+    // <home>/pPlay playlists (no trailing slash)
     std::string root();
 
     bool isRoot(const std::string &path);

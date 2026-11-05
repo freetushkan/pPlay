@@ -84,6 +84,8 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_SEEK_LONG_SEC, (float) 300.0});
 #ifdef __SWITCH__
     addOption({OPT_CPU_BOOST, "Disabled"}); // Disabled, Enabled
+#endif
+#ifdef PPLAY_HW_DECODING
     addOption({OPT_HW_DECODING, (int) 1});
 #endif
     addOption({OPT_ACCENT_COLOR, "#1078C8"});

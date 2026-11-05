@@ -101,12 +101,28 @@ meson_setup build -Denable_tools=false -Denable_tests=false -Denable_examples=fa
 ninja -C build install
 done_step
 
+# hardware decoding: NVDEC (libcuda loaded at run time), VA-API (libva built in, the
+# system drivers loaded from the usual places, LIBVA_DRIVERS_PATH too; libdrm stays shared)
+step "nv-codec-headers"
+fetch nv-codec-headers https://github.com/FFmpeg/nv-codec-headers.git n12.2.72.0
+make PREFIX="$PREFIX" install
+done_step
+
+step "libva"
+fetch libva https://github.com/intel/libva.git 2.22.0
+sed -i 's/shared_library(/library(/' va/meson.build
+meson_setup build -Dwith_x11=no -Dwith_glx=no -Dwith_wayland=no -Denable_docs=false \
+    -Ddriverdir="/usr/lib/x86_64-linux-gnu/dri:/usr/lib64/dri:/usr/lib/dri:/run/opengl-driver/lib/dri"
+ninja -C build install
+done_step
+
 step "FFmpeg"
 fetch ffmpeg https://github.com/FFmpeg/FFmpeg.git n7.1.1
 ./configure --prefix="$PREFIX" --libdir="$PREFIX/lib" --pkg-config-flags=--static \
     --enable-static --disable-shared --enable-pic --disable-programs --disable-doc --disable-debug \
     --enable-gpl --enable-version3 --disable-autodetect \
     --enable-openssl --enable-libdav1d --enable-zlib --enable-bzlib --enable-lzma --enable-iconv \
+    --enable-vaapi --enable-ffnvcodec --enable-nvdec \
     --extra-cflags="-I$PREFIX/include" --extra-ldflags="-L$PREFIX/lib"
 make -j"$JOBS" && make install
 done_step

@@ -77,7 +77,10 @@
 // the playlist added to last, the last location in the playlists
 #define OPT_LAST_PLAYLIST "LAST_PLAYLIST"
 #define OPT_LAST_PLAYLISTS_PATH "LAST_PLAYLISTS_PATH"
-// Switch: nvtegra decoder (copied back by VIC), 0 off
+// hardware video decoding (Switch: nvtegra, Linux: vaapi / nvdec), 0 off
+#if defined(__SWITCH__) || defined(__LINUX__)
+#define PPLAY_HW_DECODING
+#endif
 #define OPT_HW_DECODING "HW_DECODING"
 #ifdef __SWITCH__
 #define CACHE_MB_MAX 500
