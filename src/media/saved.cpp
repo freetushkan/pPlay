@@ -1044,6 +1044,16 @@ namespace pplay::Saved {
         return g_root;
     }
 
+    bool any() {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        for (auto &f: g_files) {
+            if (f.second.saved) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     bool isInside(const std::string &path) {
         std::lock_guard<std::mutex> lock(g_mutex);
         std::string root = c2d::Utility::removeLastSlash(g_root);

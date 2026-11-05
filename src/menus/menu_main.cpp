@@ -10,6 +10,8 @@
 #include "menu_main_items.h"
 #include "io.h"
 #include "i18n.h"
+#include "saved.h"
+#include "playlists.h"
 
 using namespace c2d;
 
@@ -26,46 +28,55 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Playback mode", "pl_mode.png", Pos::Top),
                                   MenuItem("Short seek step", "short_seek.png", Pos::Top),
                                   MenuItem("Long seek step", "long_seek.png", Pos::Top),
-                                  MenuItem("Keep progress from", "time.png", Pos::Top),
-                                  MenuItem("Progress save interval", "time.png", Pos::Top),
-                                  MenuItem("Progress at the end", "time.png", Pos::Top),
                                   MenuItem("Playback retry", "pl_retry.png", Pos::Top),
+                          }});
+    categories.push_back({"Progress",
+                          {
+                                  MenuItem("Keep progress from", "progress_from.png", Pos::Top),
+                                  MenuItem("Progress save interval", "time.png", Pos::Top),
+                                  MenuItem("Progress at the end", "progress_end.png", Pos::Top),
+                                  MenuItem("Progress line", "progress_line.png", Pos::Top),
+                                  MenuItem("TorrServer progress", "net_torrserve.png", Pos::Top),
+                          }});
+    categories.push_back({"Audio and subtitles",
+                          {
                                   MenuItem("Audio language", "audio.png", Pos::Top),
                                   MenuItem("Subtitles language", "subtitles.png", Pos::Top),
                                   MenuItem("External tracks", "external.png", Pos::Top),
                                   MenuItem("Volume normalization", "normalize.png", Pos::Top),
                                   MenuItem("Visualization", "visualizer.png", Pos::Top),
+                          }});
+    categories.push_back({"Video",
+                          {
                                   MenuItem("Video quality", "quality.png", Pos::Top),
 #ifdef PPLAY_HW_DECODING
-                                  MenuItem("Hardware decoding", "quality.png", Pos::Top),
+                                  MenuItem("Hardware decoding", "gpu.png", Pos::Top),
 #endif
-                                  MenuItem("Buffer length", "buffer.png", Pos::Top),
-                                  MenuItem("Buffer memory", "buffer.png", Pos::Top),
                           }});
     categories.push_back({"Interface",
                           {
                                   MenuItem("Language", "translate.png", Pos::Top),
-                                  MenuItem("Text encoding", "translate.png", Pos::Top),
+                                  MenuItem("Text encoding", "encoding.png", Pos::Top),
                                   MenuItem("Accent color", "color.png", Pos::Top),
-                                  MenuItem("Progress line", "time.png", Pos::Top),
-                                  MenuItem("Hidden files", "file_other.png", Pos::Top),
+                                  MenuItem("Hidden files", "hidden.png", Pos::Top),
                                   MenuItem("Swap controls", "swap.png", Pos::Top),
                           }});
     std::vector<MenuItem> networks;
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
-        networks.emplace_back(networkKey(i), "network.png", Pos::Top);
+        networks.emplace_back(networkKey(i), networkIcon(main->getConfig(), i), Pos::Top);
     }
     networks.emplace_back("Connection timeout", "timeout.png", Pos::Top);
-    networks.emplace_back("TorrServer progress", "time.png", Pos::Top);
+    networks.emplace_back("Buffer length", "buffer.png", Pos::Top);
+    networks.emplace_back("Buffer memory", "memory.png", Pos::Top);
 #ifdef __SMB2__
-    networks.emplace_back("SMB buffer", "buffer.png", Pos::Top);
+    networks.emplace_back("SMB buffer", "net_smb.png", Pos::Top);
 #endif
     categories.push_back({"Networks", networks});
     categories.push_back({"Saved files",
                           {
-                                  MenuItem("Saving threads", "saved.png", Pos::Top),
-                                  MenuItem("Keep saved files", "time.png", Pos::Top),
-                                  MenuItem("Saved files limit", "buffer.png", Pos::Top),
+                                  MenuItem("Saving threads", "save_threads.png", Pos::Top),
+                                  MenuItem("Keep saved files", "calendar.png", Pos::Top),
+                                  MenuItem("Saved files limit", "storage.png", Pos::Top),
                           }});
     std::vector<MenuItem> system = {
             MenuItem("Local home path", "home.png", Pos::Top),
@@ -85,9 +96,10 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     categories.push_back({"System", system});
 
     std::vector<MenuItem> it = {
-            MenuItem("Playback", "pl_mode.png", Pos::Top), MenuItem("Interface", "interface.png", Pos::Top),
-            MenuItem("Networks", "network.png", Pos::Top), MenuItem("Saved files", "saved.png", Pos::Top),
-            MenuItem("System", "system.png", Pos::Top),
+            MenuItem("Playback", "pl_mode.png", Pos::Top), MenuItem("Progress", "time.png", Pos::Top),
+            MenuItem("Audio and subtitles", "audio.png", Pos::Top), MenuItem("Video", "video.png", Pos::Top),
+            MenuItem("Interface", "interface.png", Pos::Top), MenuItem("Networks", "network.png", Pos::Top),
+            MenuItem("Saved files", "saved.png", Pos::Top), MenuItem("System", "system.png", Pos::Top),
             MenuItem("About", "info.png", Pos::Top),
     };
     for (auto &item: it) {
@@ -275,6 +287,7 @@ void MenuMain::updateNetworkLabels() {
         for (auto *button: getMenuMainOptionsSubmenu("Networks")->getButtons()) {
             if (button->item.name == key) {
                 button->item.label = label;
+                button->setIcon(networkIcon(main->getConfig(), i));
                 button->refreshText();
             }
         }
@@ -310,6 +323,16 @@ MenuFileEditor *MenuMain::getFileEditor() {
 
 void MenuMain::reloadModules() {
     updateNetworkLabels();
+    // shown with something in them (or opened)
+    for (auto &button: buttons) {
+        int id = button->item.id;
+        if (id == MODULE_SAVED || id == MODULE_PLAYLISTS) {
+            bool shown = main->getcurrentModuleIndex() == id
+                         || (id == MODULE_SAVED ? pplay::Saved::any() : pplay::Playlists::any());
+            button->item.enabled = shown;
+            button->item.selectable = shown;
+        }
+    }
     for (auto &button: buttons) {
         if (button->item.id < 1 || button->item.id > PPLAY_MAX_NETWORKS) {
             continue;
@@ -402,6 +425,9 @@ void MenuMain::onOptionSelection(MenuItem *item) {
 }
 
 void MenuMain::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
+    if (visibility == Visibility::Visible) {
+        reloadModules();
+    }
     int index = main->getcurrentModuleIndex();
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "MenuMain::setVisibility highlight=" + std::to_string(index));
     Menu::setVisibility(visibility, tweenPlay);

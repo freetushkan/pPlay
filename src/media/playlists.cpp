@@ -236,6 +236,15 @@ namespace pplay::Playlists {
         return c2d::Utility::removeLastSlash(path) == root();
     }
 
+    bool any() {
+        for (auto &file: Io::get()->getDirList(root(), false, false)) {
+            if (file.type == c2d::Io::Type::File && isPlaylist(file.path)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     bool isPlaylist(const std::string &path) {
         std::string dir = root() + "/";
         return c2d::Utility::startWith(path, dir) && path.find('/', dir.size()) == std::string::npos

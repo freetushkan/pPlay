@@ -46,6 +46,9 @@ namespace pplay::Saved {
     // <home>/.pplay_save/
     std::string root();
 
+    // any file saved (the menu shows the section)
+    bool any();
+
     // a local path in the saved copies (the root too)
     bool isInside(const std::string &path);
 

@@ -30,6 +30,9 @@ namespace pplay::Playlists {
 
     bool isRoot(const std::string &path);
 
+    // any playlist (the menu shows the section)
+    bool any();
+
     // a playlist file of the root
     bool isPlaylist(const std::string &path);
 
