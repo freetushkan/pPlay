@@ -383,3 +383,7 @@ Always = Always
 2 h = 2 h
 3 h = 3 h
 4 h = 4 h
+Video resolution = Video resolution
+Video rendering (after a restart) = Video rendering (after a restart)
+Screen = Screen
+1080p at most = 1080p at most

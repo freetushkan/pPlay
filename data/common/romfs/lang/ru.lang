@@ -382,3 +382,7 @@ Always = Всегда
 2 h = 2 ч
 3 h = 3 ч
 4 h = 4 ч
+Video resolution = Разрешение видео
+Video rendering (after a restart) = Отрисовка видео (после перезапуска)
+Screen = Как у экрана
+1080p at most = Не выше 1080p

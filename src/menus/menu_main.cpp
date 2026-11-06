@@ -53,6 +53,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
 #ifdef PPLAY_HW_DECODING
                                   MenuItem("Hardware decoding", "gpu.png", Pos::Top),
 #endif
+#ifdef __PS5__
+                                  MenuItem("Video resolution", "video.png", Pos::Top),
+#endif
                           }});
     categories.push_back({"Interface",
                           {
@@ -249,6 +252,10 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::MenuType::Adjust, 10.0f, 600.0f, 10.0f, "s");
     addSubmenu("Buffer memory", "Network buffer memory", OPT_CACHE_MB, makeAdjustItems(), Submenu::ValueType::Integer,
                Submenu::MenuType::Adjust, 50.0f, (float) CACHE_MB_MAX, 50.0f, "MB");
+#ifdef __PS5__
+    addSubmenu("Video resolution", "Video rendering (after a restart)", OPT_PS5_VIDEO_1080,
+               makeIntItems({{"Screen", 0}, {"1080p at most", 1}}), Submenu::ValueType::Integer);
+#endif
     addSubmenu("Stay awake", "No sleep while playing or saving, after the last key", OPT_STAY_AWAKE,
                makeIntItems({{"Off", -1}, {"Always", 0}, {"30 min", 30}, {"1 h", 60}, {"1.5 h", 90},
                              {"2 h", 120}, {"3 h", 180}, {"4 h", 240}}),
