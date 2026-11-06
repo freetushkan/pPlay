@@ -370,7 +370,6 @@ void Player::pause() {
     if (main->getConfig()->getOption(OPT_CPU_BOOST)->getString() == "Enabled") {
         pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Min);
     }
-    appletSetMediaPlaybackState(false);
 #endif
 }
 
@@ -380,7 +379,6 @@ void Player::resume() {
     if (main->getConfig()->getOption(OPT_CPU_BOOST)->getString() == "Enabled") {
         pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Max);
     }
-    appletSetMediaPlaybackState(true);
 #endif
 }
 

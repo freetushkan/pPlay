@@ -212,8 +212,7 @@ void Player::onStopEvent(int reason) {
         if (main->getConfig()->getOption(OPT_CPU_BOOST)->getString() == "Enabled") {
             pplay::Utility::setCpuClock(pplay::Utility::CpuClock::Min);
         }
-        appletSetMediaPlaybackState(false);
-#endif
+    #endif
     }
 }
 

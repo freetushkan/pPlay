@@ -44,6 +44,30 @@ namespace {
         config->save();
     }
 
+    // OPT_STAY_AWAKE values
+    const int awakeValues[] = {-1, 0, 30, 60, 90, 120, 180, 240};
+    const char *awakeNames[] = {"Off", "Always", "30 min", "1 h", "1.5 h", "2 h", "3 h", "4 h"};
+    const int awakeCount = 8;
+
+    int awakeIndex(PPLAYConfig *config) {
+        int value = config->getOption(OPT_STAY_AWAKE)->getInteger();
+        for (int i = 0; i < awakeCount; i++) {
+            if (awakeValues[i] == value) {
+                return i;
+            }
+        }
+        return 1;
+    }
+
+    int cycle(int value, int direction, int count);
+
+    void changeStayAwake(PPLAYConfig *config, int direction) {
+        auto *option = config->getOption(OPT_STAY_AWAKE);
+        option->setType(c2d::config::Option::Type::Integer);
+        option->setInteger(awakeValues[cycle(awakeIndex(config), direction, awakeCount)]);
+        config->save();
+    }
+
     int cycle(int value, int direction, int count) {
         // a held key stops at the last value
         if (pplay::InputMap::isRepeat() && (value + direction < 0 || value + direction >= count)) {
@@ -113,6 +137,9 @@ void MenuVideo::refreshValues() {
             item.valueAccent = player->isInfoVisible();
         } else if (n == "Progress line") {
             item.value = pplay::tr(config->getOption(OPT_PROGRESS_LINE)->getInteger() ? "On" : "Off");
+        } else if (n == "Stay awake") {
+            item.value = pplay::tr(awakeNames[awakeIndex(config)]);
+            item.valueAccent = awakeIndex(config) != 1;
         }
         button->refreshValue();
     }
@@ -155,6 +182,8 @@ bool MenuVideo::onOptionChange(MenuItem *item, int direction) {
         player->setInfoVisible(!player->isInfoVisible());
     } else if (n == "Progress line") {
         toggleProgressLine(config);
+    } else if (n == "Stay awake") {
+        changeStayAwake(config, direction);
     } else {
         return false;
     }
@@ -219,6 +248,9 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
         refreshValues();
     } else if (item->name == "Progress line") {
         toggleProgressLine(main->getConfig());
+        refreshValues();
+    } else if (item->name == "Stay awake") {
+        changeStayAwake(main->getConfig(), 1);
         refreshValues();
     } else if (item->name == "Stop") {
         main->getPlayer()->stop();

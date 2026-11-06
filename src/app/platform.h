@@ -33,8 +33,8 @@ namespace pplay::Platform {
     // nothing to draw now (PS5: ready for a suspend)
     bool renderPaused();
 
-    // no automatic sleep (downloads running), each frame
-    void keepAwake(bool on);
+    // each frame: no automatic sleep (playing, saving files)
+    void keepAwake(bool on, bool playing);
 
     // after the main loop (does not return on PS4)
     void exit();

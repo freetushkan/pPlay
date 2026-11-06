@@ -72,6 +72,9 @@
 #define OPT_SAVE_KEEP_DAYS "SAVE_KEEP_DAYS"
 #define OPT_SAVE_MAX_GB "SAVE_MAX_GB"
 #define OPT_LAST_SAVED_PATH "LAST_SAVED_PATH"
+// no automatic sleep while playing / saving: -1 off (the system rules), else until that many
+// minutes without a key pressed, 0 always
+#define OPT_STAY_AWAKE "STAY_AWAKE"
 // ".name" files and directories listed
 #define OPT_SHOW_HIDDEN "SHOW_HIDDEN"
 // the playlist added to last, the last location in the playlists

@@ -142,7 +142,8 @@ void Main::createMenus() {
     items.emplace_back("Visualization", "visualizer.png", MenuItem::Position::Top);
     items.emplace_back("Speed", "speed.png", MenuItem::Position::Top);
     items.emplace_back("Brightness", "brightness.png", MenuItem::Position::Top);
-    items.emplace_back("Progress line", "time.png", MenuItem::Position::Top);
+    items.emplace_back("Progress line", "progress_line.png", MenuItem::Position::Top);
+    items.emplace_back("Stay awake", "awake.png", MenuItem::Position::Top);
     items.emplace_back("Information", "info.png", MenuItem::Position::Top);
     items.emplace_back("Stop", "stop.png", MenuItem::Position::Bottom);
     menu_video = new MenuVideo(this, {Main::getSize().x, inset, 420 * scaling.x, Main::getSize().y - 2 * inset},
@@ -225,6 +226,7 @@ bool Main::onInput(c2d::Input::Player *players) {
     if (keys == 0 || keys == Input::Button::Delay) {
         return true;
     }
+    idleClock.restart();
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
                         "Main::onInput keys=" + pplay::Utility::getKeysString(keys) + pplay::InputMap::toString(keys));
 
@@ -282,7 +284,12 @@ void Main::onUpdate() {
     }
 
     pplay::Saved::update();
-    pplay::Platform::keepAwake(pplay::Saved::busy());
+    // awake while playing / saving, up to the minutes without a key (0: always, -1: never)
+    bool playing = player != nullptr && !player->getMpv()->isStopped() && !player->getMpv()->isPaused();
+    int awakeMinutes = config->getOption(OPT_STAY_AWAKE)->getInteger();
+    bool awake = awakeMinutes >= 0 && (playing || pplay::Saved::busy())
+                 && (awakeMinutes == 0 || idleClock.getElapsedTime().asSeconds() < (float) awakeMinutes * 60);
+    pplay::Platform::keepAwake(awake, playing);
     std::string savedType, savedMessage;
     if (pplay::Saved::takeMessage(&savedType, &savedMessage)
         || pplay::Playlists::takeMessage(&savedType, &savedMessage)) {

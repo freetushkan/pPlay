@@ -29,6 +29,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Short seek step", "short_seek.png", Pos::Top),
                                   MenuItem("Long seek step", "long_seek.png", Pos::Top),
                                   MenuItem("Playback retry", "pl_retry.png", Pos::Top),
+                                  MenuItem("Stay awake", "awake.png", Pos::Top),
                           }});
     categories.push_back({"Progress",
                           {
@@ -248,6 +249,10 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::MenuType::Adjust, 10.0f, 600.0f, 10.0f, "s");
     addSubmenu("Buffer memory", "Network buffer memory", OPT_CACHE_MB, makeAdjustItems(), Submenu::ValueType::Integer,
                Submenu::MenuType::Adjust, 50.0f, (float) CACHE_MB_MAX, 50.0f, "MB");
+    addSubmenu("Stay awake", "No sleep while playing or saving, after the last key", OPT_STAY_AWAKE,
+               makeIntItems({{"Off", -1}, {"Always", 0}, {"30 min", 30}, {"1 h", 60}, {"1.5 h", 90},
+                             {"2 h", 120}, {"3 h", 180}, {"4 h", 240}}),
+               Submenu::ValueType::Integer);
     addSubmenu("Hidden files", "Files and folders starting with a dot", OPT_SHOW_HIDDEN,
                makeIntItems({{"Hidden", 0}, {"Shown", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Saving threads", "Files saved at once", OPT_SAVE_THREADS,

@@ -117,6 +117,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_SAVE_MAX_GB, (int) 0});
     addOption({OPT_LAST_SAVED_PATH, ""});
     addOption({OPT_SHOW_HIDDEN, (int) 0});
+    addOption({OPT_STAY_AWAKE, (int) 0});
     addOption({OPT_LAST_PLAYLIST, ""});
     addOption({OPT_LAST_PLAYLISTS_PATH, ""});
 
@@ -223,6 +224,7 @@ void PPLAYConfig::sanitize() {
     clamp(OPT_PROGRESS_MIN_LENGTH, 0, 60);
     clamp(OPT_PROGRESS_INTERVAL, 5, 120);
     clamp(OPT_SAVE_THREADS, 1, 4);
+    clamp(OPT_STAY_AWAKE, -1, 1440);
     clamp(OPT_SAVE_KEEP_DAYS, 0, 3650);
     clamp(OPT_SAVE_MAX_GB, 0, 100000);
 

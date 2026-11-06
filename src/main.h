@@ -146,6 +146,10 @@ public:
 
 private:
 
+    // since the last key (stay awake)
+    c2d::C2DClock idleClock;
+
+
     // the session closed for rest mode, once
     void restoreSession();
 

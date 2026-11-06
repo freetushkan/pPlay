@@ -350,12 +350,15 @@ namespace pplay::Platform {
 #endif
     }
 
-    void keepAwake(bool on) {
+    void keepAwake(bool on, bool playing) {
 #ifdef __SWITCH__
-        static bool last = false;
-        if (on != last) {
+        // playing: no dimming either
+        static int last = -1;
+        int state = on ? (playing ? 2 : 1) : 0;
+        if (state != last) {
             appletSetAutoSleepDisabled(on);
-            last = on;
+            appletSetMediaPlaybackState(on && playing);
+            last = state;
         }
 #elif defined(__PS4__) || defined(__PS5__)
         // the idle timer (screen off, rest mode) restarted
@@ -367,6 +370,7 @@ namespace pplay::Platform {
 #else
         (void) on;
 #endif
+        (void) playing;
     }
 
     bool renderPaused() {
