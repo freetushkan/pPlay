@@ -168,6 +168,7 @@ void Player::updateInfo() {
     };
 
     out << encoding::fix(file.name) << "\n";
+    out << pplay::tr("State") << ": " << stateText() << "\n";
     std::string vcodec = mpv->getString("current-tracks/video/codec");
     if (!vcodec.empty() && hasVideo()) {
         out.precision(3);
@@ -213,6 +214,31 @@ void Player::updateInfo() {
     out.precision(2);
     out << mpv->getSpeed();
     info_text->setString(out.str());
+}
+
+std::string Player::stateText() {
+    auto yes = [this](const char *name) { return mpv->getString(name) == "yes"; };
+    if (mpv->isStopped() || yes("idle-active")) {
+        return pplay::tr("Idle");
+    }
+    if (yes("eof-reached")) {
+        return pplay::tr("Ended");
+    }
+    if (yes("seeking")) {
+        return pplay::tr("Seeking");
+    }
+    if (yes("paused-for-cache")) {
+        long percent = mpv->getInt("cache-buffering-state", -1);
+        return pplay::tr("Buffering") + (percent >= 0 ? " " + std::to_string(percent) + "%" : "");
+    }
+    if (yes("pause")) {
+        return pplay::tr("Paused");
+    }
+    // not paused, nothing played yet: opening, waiting for data
+    if (yes("core-idle")) {
+        return pplay::tr("Loading");
+    }
+    return pplay::tr("Playing");
 }
 
 std::string Player::trackInfo(const std::string &type) {

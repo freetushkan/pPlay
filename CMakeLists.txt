@@ -256,7 +256,7 @@ elseif (PLATFORM_PS4)
         SceNet SceImeDialog SceUserService SceSystemService SceSysmodule ScePad
     )
 elseif (PLATFORM_PS5)
-    list(APPEND PLATFORM_LIBS SceNet SceImeDialog SceUserService SceSystemService)
+    list(APPEND PLATFORM_LIBS SceNet SceImeDialog SceUserService SceSystemService SceVideoOut)
     set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES SUFFIX ".elf")
     set(CMAKE_EXECUTABLE_SUFFIX ".elf")
     # payload started by the launcher package (ps5/launcher)

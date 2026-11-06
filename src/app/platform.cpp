@@ -93,6 +93,9 @@ int sceSystemServiceDeclareReadyForSuspend();
 int sceSystemServicePowerTick();
 int32_t sceAgcSuspendPoint();
 int sceKernelSendNotificationRequest(int device, void *request, size_t size, int blocking);
+int sceVideoOutOpen(int userId, int busType, int index, const void *param);
+int sceVideoOutClose(int handle);
+int sceVideoOutGetResolutionStatus(int handle, void *status);
 }
 
 // Rest mode: the system suspends pPlay fine once, but suspending it again after it
@@ -222,6 +225,46 @@ namespace {
         if (g_renderPaused) {
             usleep(16000);
         }
+    }
+}
+
+namespace {
+    // the output mode of the system (fullWidth, fullHeight, then the pane: the display area)
+    struct VideoOutStatus {
+        int32_t fullWidth;
+        int32_t fullHeight;
+        int32_t paneWidth;
+        int32_t paneHeight;
+        uint64_t refreshRate;
+        float screenSizeInInch;
+        uint16_t flags;
+        uint8_t reserved[118];
+    };
+
+    // asked before SDL opens the video output; false: unknown
+    bool screenSize(int *width, int *height) {
+        int handle = sceVideoOutOpen(0xFF, 0, 0, nullptr);
+        if (handle < 0) {
+            char text[16];
+            snprintf(text, sizeof(text), "0x%08X", (unsigned) handle);
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, std::string("Resolution: video out not opened: ") + text);
+            return false;
+        }
+        VideoOutStatus status{};
+        int res = sceVideoOutGetResolutionStatus(handle, &status);
+        sceVideoOutClose(handle);
+        if (res != 0 || status.fullWidth <= 0 || status.fullHeight <= 0) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Resolution: video out status " + std::to_string(res));
+            return false;
+        }
+        char text[160];
+        snprintf(text, sizeof(text), "Resolution: video out %dx%d, pane %dx%d, refresh %llu, %.1f in, flags 0x%x",
+                 status.fullWidth, status.fullHeight, status.paneWidth, status.paneHeight,
+                 (unsigned long long) status.refreshRate, status.screenSizeInInch, status.flags);
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, text);
+        *width = status.fullWidth;
+        *height = status.fullHeight;
+        return true;
     }
 }
 
@@ -401,8 +444,16 @@ namespace pplay::Platform {
 
     c2d::Vector2f resolution(PPLAYConfig *config) {
 #ifdef __PS5__
-        c2d::Vector2f size = config->getOption(OPT_PS5_UI_4K)->getInteger() != 0 ? c2d::Vector2f{3840, 2160}
-                                                                                  : c2d::Vector2f{1920, 1080};
+        c2d::Vector2f size = {1920, 1080};
+        int w = 0, h = 0;
+        bool known = screenSize(&w, &h);
+        if (config->getOption(OPT_PS5_UI_4K)->getInteger() != 0) {
+            if (!known || (w >= 3840 && h >= 2160)) {
+                size = {3840, 2160};
+            } else {
+                pplay::Utility::log(pplay::Utility::LogLevel::Info, "Resolution: not a 4K output, 1080p used");
+            }
+        }
 #else
         (void) config;
         c2d::Vector2f size = {1920, 1080};

@@ -53,15 +53,12 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
 #ifdef PPLAY_HW_DECODING
                                   MenuItem("Hardware decoding", "gpu.png", Pos::Top),
 #endif
-#ifdef __PS5__
-                                  MenuItem("Video resolution", "video.png", Pos::Top),
-#endif
                           }});
     categories.push_back({"Interface",
                           {
                                   MenuItem("Language", "translate.png", Pos::Top),
 #ifdef __PS5__
-                                  MenuItem("Interface resolution", "interface.png", Pos::Top),
+                                  MenuItem("Resolution", "interface.png", Pos::Top),
 #endif
                                   MenuItem("Text encoding", "encoding.png", Pos::Top),
                                   MenuItem("Accent color", "color.png", Pos::Top),
@@ -185,8 +182,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     addSubmenu("Language", "Language", OPT_LANGUAGE, languageItems, Submenu::ValueType::String);
     addSubmenu("Text encoding", "Old tags and file names", OPT_TEXT_ENCODING,
                makeIntItems({{"Auto", 0},
-                             {"Cyrillic (1251)", 1251},
                              {"Central European (1250)", 1250},
+                             {"Cyrillic (1251)", 1251},
                              {"Western (1252)", 1252},
                              {"Greek (1253)", 1253},
                              {"Turkish (1254)", 1254},
@@ -256,10 +253,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     addSubmenu("Buffer memory", "Network buffer memory", OPT_CACHE_MB, makeAdjustItems(), Submenu::ValueType::Integer,
                Submenu::MenuType::Adjust, 50.0f, (float) CACHE_MB_MAX, 50.0f, "MB");
 #ifdef __PS5__
-    addSubmenu("Interface resolution", "Interface rendering (after a restart)", OPT_PS5_UI_4K,
+    addSubmenu("Resolution", "Preferred resolution", OPT_PS5_UI_4K,
                makeIntItems({{"1080p", 0}, {"4K", 1}}), Submenu::ValueType::Integer);
-    addSubmenu("Video resolution", "Video rendering (after a restart)", OPT_PS5_VIDEO_1080,
-               makeIntItems({{"Screen", 0}, {"1080p at most", 1}}), Submenu::ValueType::Integer);
 #endif
     addSubmenu("Stay awake", "No sleep while playing or saving, after the last key", OPT_STAY_AWAKE,
                makeIntItems({{"Off", -1}, {"Always", 0}, {"30 min", 30}, {"1 h", 60}, {"1.5 h", 90},

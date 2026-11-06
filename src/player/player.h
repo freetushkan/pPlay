@@ -251,6 +251,9 @@ private:
     void updateKeysInfo();
 
     // current track ("audio", "sub"): "#id lang «title» (external)", or "Off"
+    // playing, paused, buffering... (the information overlay)
+    std::string stateText();
+
     std::string trackInfo(const std::string &type);
 
     Main *main = nullptr;

@@ -61,21 +61,11 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
         }
     }
 
-    // the video rendered smaller, drawn scaled to the player
-    Vector2f render = pos;
-#ifdef __PS5__
-    if (main->getConfig()->getOption(OPT_PS5_VIDEO_1080)->getInteger() != 0 && pos.x > 1920) {
-        render = {1920, std::round(1920 * pos.y / pos.x)};
-    }
-#endif
-    texture = new VideoTexture(main, render);
-    texture->setScale(pos.x / render.x, pos.y / render.y);
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Resolution: video buffer " + std::to_string((int) render.x) + "x"
-                                                                + std::to_string((int) render.y) + " for the player "
-                                                                + std::to_string((int) pos.x) + "x"
+    texture = new VideoTexture(main, pos);
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Resolution: video buffer " + std::to_string((int) pos.x) + "x"
                                                                 + std::to_string((int) pos.y));
     texture->setOutlineColor(COLOR_ACCENT);
-    texture->setOutlineThickness(4 * render.x / pos.x);
+    texture->setOutlineThickness(4);
     Player::add(texture);
 
     audioView = new AudioView(main);

@@ -72,10 +72,9 @@
 #define OPT_SAVE_KEEP_DAYS "SAVE_KEEP_DAYS"
 #define OPT_SAVE_MAX_GB "SAVE_MAX_GB"
 #define OPT_LAST_SAVED_PATH "LAST_SAVED_PATH"
-// PS5: the interface asked at 3840x2160 (1) or 1920x1080 (0, scaled to the screen); read at the start
+// PS5: the interface and the video at 3840x2160 if the screen is 4K (1), else 1920x1080 (0,
+// scaled to the screen); read at the start
 #define OPT_PS5_UI_4K "PS5_UI_4K"
-// PS5: mpv renders at 1080p at most (scaled up on a 4K screen), 0 off; read at the start
-#define OPT_PS5_VIDEO_1080 "PS5_VIDEO_1080"
 // no automatic sleep while playing / saving: -1 off (the system rules), else until that many
 // minutes without a key pressed, 0 always
 #define OPT_STAY_AWAKE "STAY_AWAKE"
