@@ -34,7 +34,7 @@ namespace {
         return items;
     }
 
-    const char *modeNames[] = {"Stop", "Play next", "Loop file", "Loop directory"};
+    const char *modeNames[] = {"Stop playback", "Play next", "Loop file", "Loop directory"};
     const char *normalizeNames[] = {"Off", "Normalize", "Night mode"};
     const char *screenNames[] = {"Cover > visualizer", "Visualizer", "Icon only"};
 

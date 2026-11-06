@@ -314,7 +314,7 @@ void PlayerOSD::updateTexts() {
     }
     meta->setString(line);
     std::string following = player->nextTitle();
-    next->setString(following.empty() ? "" : pplay::tr("Next") + ": " + encoding::fix(following));
+    next->setString(following.empty() ? "" : pplay::tr("Up next") + ": " + encoding::fix(following));
     placeTitle();
 }
 

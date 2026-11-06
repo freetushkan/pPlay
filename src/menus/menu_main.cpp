@@ -37,7 +37,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Progress save interval", "time.png", Pos::Top),
                                   MenuItem("Progress at the end", "progress_end.png", Pos::Top),
                                   MenuItem("Progress line", "progress_line.png", Pos::Top),
-                                  MenuItem("TorrServer progress", "net_torrserve.png", Pos::Top),
+                                  MenuItem("Progress source", "network.png", Pos::Top),
                           }});
     categories.push_back({"Audio and subtitles",
                           {
@@ -204,7 +204,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
 
     addSubmenu("Connection timeout", "Connection timeout", OPT_NETWORK_TIMEOUT, makeAdjustItems(),
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 300.0f, 5.0f, "s");
-    addSubmenu("TorrServer progress", "Playback position on the server", OPT_TS_PROGRESS,
+    addSubmenu("Progress source", "Preferred progress source", OPT_TS_PROGRESS,
                makeIntItems({{"Off", 0}, {"Local first", 1}, {"TorrServer first", 2}}), Submenu::ValueType::Integer);
     addSubmenu("Playback retry", "Playback retry", OPT_NETWORK_RETRIES, makeAdjustItems(), Submenu::ValueType::Integer,
                Submenu::MenuType::Adjust, 0.0f, 10.0f, 1.0f);
@@ -212,8 +212,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     addSubmenu("SMB buffer", "SMB preload buffer", OPT_SMB_READ_BUFFER_MB, makeAdjustItems(),
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 100.0f, 1.0f, "MB");
 #endif
-    addSubmenu("Playback mode", "At playback end..", OPT_AUTOPLAY_MODE,
-               makeIntItems({{"Stop", 0}, {"Play next", 1}, {"Loop file", 2}, {"Loop directory", 3}}),
+    addSubmenu("Playback mode", "At file end..", OPT_AUTOPLAY_MODE,
+               makeIntItems({{"Stop playback", 0}, {"Play next", 1}, {"Loop file", 2}, {"Loop directory", 3}}),
                Submenu::ValueType::Integer);
     addSubmenu("Swap controls", "Triggers and buttons", OPT_SWAP_CONTROLS,
                makeIntItems({{"Normal", 0}, {"Swapped", 1}}), Submenu::ValueType::Integer);
@@ -227,7 +227,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 5.0f, 120.0f, 5.0f, "s");
     addSubmenu("Progress at the end", "Progress in the last minute", OPT_PROGRESS_TO_END,
                makeIntItems({{"Not kept", 0}, {"Kept", 1}}), Submenu::ValueType::Integer);
-    addSubmenu("Progress line", "Progress line of the hidden panel", OPT_PROGRESS_LINE,
+    addSubmenu("Progress line", "Progress line always on screen", OPT_PROGRESS_LINE,
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Audio language", "Audio language", OPT_AUDIO_LANGUAGE, makeTrackLanguageItems("Auto"),
                Submenu::ValueType::String);
