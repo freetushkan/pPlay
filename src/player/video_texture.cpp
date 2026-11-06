@@ -14,27 +14,6 @@ using namespace c2d;
 VideoTexture::VideoTexture(Main *m, const c2d::Vector2f &size)
     : GLTextureBuffer({(int) size.x, (int) size.y}, Format::RGBA8) {
     main = m;
-
-    fade = new C2DTexture(main->getIo()->getDataPath() + "skin/fade.png");
-    fade->setScale(size.x / fade->getSize().x, size.y / fade->getSize().y);
-    fade->setFillColor(Color::Black);
-    fade->setAlpha(0);
-    fadeTween = new TweenAlpha(0, 255, 0.5f);
-    fade->add(fadeTween);
-    GLTextureBuffer::add(fade);
-}
-
-int VideoTexture::resize(const Vector2i &size, bool keepPixels) {
-    fade->setScale((float) size.x / fade->getSize().x, (float) size.y / fade->getSize().y);
-    return GLTextureBuffer::resize(size, keepPixels);
-}
-
-void VideoTexture::hideFade() {
-    fadeTween->play(TweenDirection::Backward);
-}
-
-void VideoTexture::showFade() {
-    fadeTween->play(TweenDirection::Forward);
 }
 
 void VideoTexture::clearFrame() {

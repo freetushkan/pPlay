@@ -13,12 +13,6 @@ public:
 
     explicit VideoTexture(Main *main, const c2d::Vector2f &size);
 
-    int resize(const c2d::Vector2i &size, bool keepPixels = false) override;
-
-    void showFade();
-
-    void hideFade();
-
     void clearFrame();
 
     void drawFrame();
@@ -32,8 +26,6 @@ private:
     void onDraw(c2d::Transform &transform, bool draw = true) override;
 
     Main *main;
-    c2d::Texture *fade;
-    c2d::TweenAlpha *fadeTween;
     bool forceDraw = false;
     bool waiting = false;
     bool blank = false;

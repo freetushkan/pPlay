@@ -296,6 +296,7 @@ void Filer::run(DetailsView::Action action) {
             break;
         case Action::Reset:
             resetProgress(selection);
+            pplay::FolderMarks::forget();
             break;
         case Action::StartOver:
             if (pplay::Utility::isMedia(selection)) {
@@ -306,6 +307,7 @@ void Filer::run(DetailsView::Action action) {
             break;
         case Action::Watched:
             markWatched(selection);
+            pplay::FolderMarks::forget();
             break;
         case Action::ResetFolder:
             markFolder(selection, false);
@@ -525,6 +527,7 @@ void Filer::markFolder(const MediaFile &dir, bool watched) {
     main->getStatus()->show("Info", pplay::tr(watched ? "Marked as watched" : "Progress reset") + ": "
                                             + std::to_string(count));
     pplay::FolderMarks::request(dir, true);
+    pplay::FolderMarks::forget();
     dirty = true;
 }
 

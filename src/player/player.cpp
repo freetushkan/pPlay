@@ -9,6 +9,7 @@
 #include <sstream>
 #include "main.h"
 #include "player.h"
+#include "folder_marks.h"
 #include "torrserve.h"
 #include "saved.h"
 #include "player_osd.h"
@@ -409,6 +410,8 @@ void Player::stop() {
     }
     setInfoVisible(false);
     mpv->stop();
+    // the directory marks after the progress saved
+    pplay::FolderMarks::forget();
 }
 
 bool Player::isFullscreen() {
@@ -433,7 +436,6 @@ void Player::setFullscreen(bool fs, bool hide) {
             tweenScale->play(TweenDirection::Backward);
             tweenPosition->play(TweenDirection::Backward);
         }
-        texture->showFade();
         osd->hide();
         hideMenus();
         main->getFiler()->setVisibility(Visibility::Visible, true);
@@ -444,7 +446,6 @@ void Player::setFullscreen(bool fs, bool hide) {
         setVisibility(Visibility::Visible, true);
         tweenScale->play(TweenDirection::Forward);
         tweenPosition->play(TweenDirection::Forward);
-        texture->hideFade();
         osd->peek();
     }
 }

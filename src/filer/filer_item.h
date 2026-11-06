@@ -62,6 +62,9 @@ private:
     // the TorrServer marks shown: from this answer
     unsigned int viewedGeneration = 0;
     unsigned int savedGeneration = 0;
+    // a directory: its watched mark
+    unsigned int folderGeneration = 0;
+    c2d::C2DClock folderClock;
 
 public:
 

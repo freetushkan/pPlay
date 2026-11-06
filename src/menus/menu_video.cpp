@@ -185,10 +185,7 @@ bool MenuVideo::onOptionChange(MenuItem *item, int direction) {
     } else if (n == "Brightness") {
         player->changeBrightness(direction);
     } else if (n == "Screen brightness") {
-        float light = pplay::Platform::backlight();
-        if (light >= 0) {
-            pplay::Platform::setBacklight(std::round(light * 20 + (float) direction) / 20);
-        }
+        player->changeBacklight(direction);
     } else if (n == "Information") {
         player->setInfoVisible(!player->isInfoVisible());
     } else if (n == "Progress line") {

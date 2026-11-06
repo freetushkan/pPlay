@@ -67,6 +67,9 @@ public:
 
     void changeBrightness(double delta);
 
+    // false: no backlight here
+    bool changeBacklight(int direction);
+
     void resetBrightness();
 
     // playback information overlay (Start)

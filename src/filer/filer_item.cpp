@@ -8,6 +8,7 @@
 #include "cross2d/c2d.h"
 #include "main.h"
 #include "filer_item.h"
+#include "folder_marks.h"
 #include "utility.h"
 #include "torrserve.h"
 #include "encodings.h"
@@ -171,8 +172,17 @@ void FilerItem::setFile(const MediaFile &f) {
         marks = local || server ? "✓" : "";
         both = local && server;
     }
+    // a directory: all watched (the accent), or some started (gray)
+    bool partial = false;
+    if (file.type == Io::Type::Directory && file.name != ".." && !Filer::isPlaceholder(file)) {
+        pplay::FolderMarks::State state = pplay::FolderMarks::cached(file);
+        if (state.ready && state.files > 0 && (state.unwatched == 0 || state.marked > 0)) {
+            marks = "✓";
+            partial = state.unwatched > 0;
+        }
+    }
     check->setString(marks);
-    check->setFillColor(COLOR_ACCENT);
+    check->setFillColor(partial ? Color(140, 148, 158, 255) : COLOR_ACCENT);
     // the saved mark: a fixed place at the end of the network rows (the times stay aligned)
     float markWidth = updateSavedMark(textX + textWidth);
     info->setPosition(textX + textWidth - markWidth, getSize().y / 2);
@@ -259,6 +269,12 @@ void FilerItem::onUpdate() {
     if (file.type == Io::Type::File && !isFullscreen && pplay::TorrServe::viewedGeneration() != viewedGeneration) {
         setFile(file);
     } else if (!isFullscreen && pplay::Saved::generation() != savedGeneration) {
+        setFile(file);
+    } else if (file.type == Io::Type::Directory && !isFullscreen
+               && (pplay::FolderMarks::rowsGeneration() != folderGeneration
+                   || folderClock.getElapsedTime().asSeconds() > 30.0f)) {
+        folderGeneration = pplay::FolderMarks::rowsGeneration();
+        folderClock.restart();
         setFile(file);
     }
     // watched state changes (playback elsewhere), the accent color

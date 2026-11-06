@@ -16,6 +16,7 @@ namespace pplay::FolderMarks {
 
     struct State {
         bool ready = false;
+        int files = 0;
         // files with a position or a mark (local or the server one)
         int marked = 0;
         // files not marked watched
@@ -26,6 +27,9 @@ namespace pplay::FolderMarks {
 
     void stop();
 
+    // the thread started if needed, woken
+    void wake();
+
     // listed again (force) or if another directory
     void request(const c2d::Io::File &dir, bool force = false);
 
@@ -34,6 +38,15 @@ namespace pplay::FolderMarks {
 
     // changes when a listing is done
     unsigned int generation();
+
+    // a row directory: as counted last (counted again in the background if not lately)
+    State cached(const c2d::Io::File &dir);
+
+    // all counted again when shown (marks changed)
+    void forget();
+
+    // changes when a row count changes
+    unsigned int rowsGeneration();
 
     // the media files of the listed directory
     std::vector<c2d::Io::File> files(const std::string &path);

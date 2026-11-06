@@ -144,10 +144,10 @@ void Main::createMenus() {
     items.emplace_back("Volume normalization", "normalize.png", MenuItem::Position::Top);
     items.emplace_back("Visualization", "visualizer.png", MenuItem::Position::Top);
     items.emplace_back("Speed", "speed.png", MenuItem::Position::Top);
-    items.emplace_back("Brightness", "brightness.png", MenuItem::Position::Top);
 #ifdef __SWITCH__
     items.emplace_back("Screen brightness", "brightness.png", MenuItem::Position::Top);
 #endif
+    items.emplace_back("Brightness", "brightness.png", MenuItem::Position::Top);
     items.emplace_back("Progress line", "progress_line.png", MenuItem::Position::Top);
     items.emplace_back("Stay awake", "awake.png", MenuItem::Position::Top);
     items.emplace_back("Information", "info.png", MenuItem::Position::Top);

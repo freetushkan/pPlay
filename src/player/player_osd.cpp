@@ -138,7 +138,7 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     next->setOutlineThickness(1);
     panel->add(next);
 
-    edge = new RectangleShape({0, size.y - std::max(2.0f, std::round(3 * sc)), 0, std::max(2.0f, std::round(3 * sc))});
+    edge = new RectangleShape({0, size.y - std::max(4.0f, std::round(6 * sc)), 0, std::max(4.0f, std::round(6 * sc))});
     PlayerOSD::add(edge);
 
     layout(false);

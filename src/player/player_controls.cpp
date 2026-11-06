@@ -3,9 +3,11 @@
 //
 
 #include <algorithm>
+#include <cmath>
 #include <sstream>
 
 #include "main.h"
+#include "platform.h"
 #include "player.h"
 #include "player_osd.h"
 #include "video_texture.h"
@@ -76,7 +78,10 @@ bool Player::onInput(c2d::Input::Player *players) {
     } else if (keys & (Input::Up | Input::Down)) {
         int delta = (keys & Input::Up) ? 1 : -1;
         if (keys & Input::Y) {
-            changeBrightness(delta);
+            // the screen backlight if any (Switch handheld), else the picture
+            if (!changeBacklight(delta)) {
+                changeBrightness(delta);
+            }
         } else if (!osd->isExpanded()) {
             // the first press shows the panel only
             osd->expand();
@@ -144,6 +149,17 @@ void Player::onMediaKeys(unsigned int keys) {
 
 void Player::setSpeed(double speed) {
     main->getStatus()->show("Info", pplay::tr("Speed") + ": " + mpv->setSpeed(speed));
+}
+
+bool Player::changeBacklight(int direction) {
+    float light = pplay::Platform::backlight();
+    if (light < 0) {
+        return false;
+    }
+    light = std::max(0.0f, std::min(1.0f, std::round(light * 20 + (float) direction) / 20));
+    pplay::Platform::setBacklight(light);
+    main->getStatus()->show("Info", pplay::tr("Screen brightness") + ": " + std::to_string((int) std::lround(light * 100)) + "%");
+    return true;
 }
 
 void Player::changeBrightness(double delta) {
@@ -281,7 +297,7 @@ void Player::updateKeysInfo() {
     out += line(buttonName(speedUp), pplay::tr("Speed") + " +0.05");
     out += line(buttonName(Input::Up) + buttonName(Input::Down), pplay::tr("Volume"));
     out += line(buttonName(Input::Y) + " + " + buttonName(Input::Up) + buttonName(Input::Down),
-                pplay::tr("Brightness"));
+                pplay::tr(pplay::Platform::backlight() >= 0 ? "Screen brightness" : "Brightness"));
     out += line(buttonName(Input::Start), pplay::tr("Information"));
     out.pop_back();
     info_keys->setString(out);

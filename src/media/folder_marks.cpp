@@ -4,7 +4,10 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <deque>
+#include <map>
 #include <mutex>
+#include <set>
 
 #include "folder_marks.h"
 #include "io.h"
@@ -34,6 +37,30 @@ namespace {
     c2d::Io::File g_dir;
     FolderMarks::State g_state;
     std::vector<c2d::Io::File> g_files;
+
+    // the rows: their directories counted one by one, kept a while
+    const float ROW_KEEP_SECS = 60;
+    struct Cached {
+        FolderMarks::State state;
+        c2d::C2DClock age;
+        bool stale = false;
+    };
+    std::map<std::string, Cached> g_cache;
+    std::deque<c2d::Io::File> g_queue;
+    std::set<std::string> g_queued;
+    std::atomic<unsigned int> g_rowsGeneration{1};
+
+    void remember(const std::string &path, const FolderMarks::State &state) {
+        auto it = g_cache.find(path);
+        bool changed = it == g_cache.end() || it->second.state.files != state.files
+                       || it->second.state.marked != state.marked || it->second.state.unwatched != state.unwatched;
+        g_cache[path].state = state;
+        g_cache[path].age.restart();
+        g_cache[path].stale = false;
+        if (changed) {
+            g_rowsGeneration++;
+        }
+    }
 
     void collect(const c2d::Io::File &dir, int depth, std::vector<c2d::Io::File> &out) {
         if (g_cancel || out.size() >= MAX_FILES) {
@@ -65,13 +92,15 @@ namespace {
         }
     }
 
-    void scan(const c2d::Io::File &dir) {
+    // false: stopped by a newer panel request
+    bool scan(const c2d::Io::File &dir, bool panel) {
         std::vector<c2d::Io::File> files;
         collect(dir, 0, files);
         FolderMarks::State state;
+        state.files = (int) files.size();
         for (auto &file: files) {
             if (g_cancel) {
-                return;
+                return false;
             }
             std::string path = Saved::originalOf(file.path);
             std::string url = TorrServe::toStreamUrl(path);
@@ -85,9 +114,13 @@ namespace {
                 state.unwatched++;
             }
         }
+        if (g_cancel) {
+            return false;
+        }
         state.ready = true;
         std::lock_guard<std::mutex> lock(g_mutex);
-        if (!g_cancel && g_dir.path == dir.path) {
+        remember(dir.path, state);
+        if (panel && g_dir.path == dir.path) {
             Utility::log(Utility::LogLevel::Debug, "FolderMarks: " + dir.path + ": " + std::to_string(files.size())
                                                            + " files, marked " + std::to_string(state.marked)
                                                            + ", unwatched " + std::to_string(state.unwatched));
@@ -95,22 +128,40 @@ namespace {
             g_files.swap(files);
             g_generation++;
         }
+        return true;
     }
 
     int threadMain(void *) {
         while (true) {
             c2d::Io::File dir;
+            bool panel;
             {
                 std::unique_lock<std::mutex> lock(g_mutex);
-                g_wake.wait(lock, [] { return g_quit || g_pending; });
+                g_wake.wait(lock, [] { return g_quit || g_pending || !g_queue.empty(); });
                 if (g_quit) {
                     return 0;
                 }
-                g_pending = false;
+                // the panel first
+                panel = g_pending;
                 g_cancel = false;
-                dir = g_dir;
+                if (panel) {
+                    g_pending = false;
+                    dir = g_dir;
+                } else {
+                    dir = g_queue.front();
+                    g_queue.pop_front();
+                }
             }
-            scan(dir);
+            bool done = scan(dir, panel);
+            std::lock_guard<std::mutex> lock(g_mutex);
+            if (!panel) {
+                // stopped: again after the panel
+                if (done || g_quit) {
+                    g_queued.erase(dir.path);
+                } else {
+                    g_queue.push_front(dir);
+                }
+            }
         }
     }
 }
@@ -132,6 +183,48 @@ namespace pplay::FolderMarks {
         g_worker = nullptr;
     }
 
+    void wake() {
+        if (g_worker == nullptr) {
+            g_worker = new Worker(threadMain, nullptr);
+        }
+        g_wake.notify_all();
+    }
+
+    State cached(const c2d::Io::File &dir) {
+        State state;
+        bool queued = false;
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            auto it = g_cache.find(dir.path);
+            bool fresh = it != g_cache.end() && !it->second.stale
+                         && it->second.age.getElapsedTime().asSeconds() < ROW_KEEP_SECS;
+            if (!fresh && g_queued.insert(dir.path).second) {
+                g_queue.push_back(dir);
+                queued = true;
+            }
+            if (it != g_cache.end()) {
+                state = it->second.state;
+            }
+        }
+        if (queued) {
+            wake();
+        }
+        return state;
+    }
+
+    void forget() {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        // shown until counted again
+        for (auto &entry: g_cache) {
+            entry.second.stale = true;
+        }
+        g_rowsGeneration++;
+    }
+
+    unsigned int rowsGeneration() {
+        return g_rowsGeneration;
+    }
+
     void request(const c2d::Io::File &dir, bool force) {
         {
             std::lock_guard<std::mutex> lock(g_mutex);
@@ -145,10 +238,7 @@ namespace pplay::FolderMarks {
             g_pending = true;
             g_cancel = true;
         }
-        if (g_worker == nullptr) {
-            g_worker = new Worker(threadMain, nullptr);
-        }
-        g_wake.notify_all();
+        wake();
     }
 
     State stateOf(const std::string &path) {
