@@ -7,6 +7,7 @@
 #define PPLAY_MEDIA_PROBE_H
 
 #include <atomic>
+#include <deque>
 #include <map>
 #include <set>
 #include <string>
@@ -32,11 +33,17 @@ public:
     // the cache was cleared
     void reset();
 
+    // probed when nothing else is (the rows' progress needs their durations)
+    void requestBackground(const MediaFile &file);
+
+    void clearBackground();
+
 private:
 
     static int run(void *data);
 
     MediaFile wanted;
+    std::deque<MediaFile> background;
     bool pending = false;
     c2d::C2DClock requestClock;
     std::set<std::string> tried;

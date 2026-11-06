@@ -323,6 +323,10 @@ MenuFileEditor *MenuMain::getFileEditor() {
 
 void MenuMain::reloadModules() {
     updateNetworkLabels();
+    std::vector<bool> shownBefore;
+    for (auto &button: buttons) {
+        shownBefore.push_back(button->item.enabled);
+    }
     // shown with something in them (or opened)
     for (auto &button: buttons) {
         int id = button->item.id;
@@ -351,6 +355,14 @@ void MenuMain::reloadModules() {
         button->item.selectable = !url.empty();
         button->refreshText();
         button->setVisibility(!url.empty() && button->isVisible() ? Visibility::Visible : Visibility::Hidden);
+    }
+
+    // other rows: the height (and the slide) made to them again
+    for (size_t i = 0; i < buttons.size(); i++) {
+        if (buttons[i]->item.enabled != shownBefore[i]) {
+            fit();
+            break;
+        }
     }
 
     if (!isButtonSelectable(index)) {

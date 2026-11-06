@@ -49,6 +49,12 @@ namespace pplay::Saved {
     // any file saved (the menu shows the section)
     bool any();
 
+    // downloads running or queued (the console kept awake)
+    bool busy();
+
+    // a network directory with saved / pending files in it, at any depth (its rows marked)
+    bool anyUnder(const std::string &dir);
+
     // a local path in the saved copies (the root too)
     bool isInside(const std::string &path);
 

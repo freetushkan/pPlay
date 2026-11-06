@@ -89,12 +89,11 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
     // right under the name, as long as the row up to the time; inside the row (its highlight)
     float lineY = std::round(FilerItem::getSize().y / 2 + (float) textTitle->getCharacterSize() * 0.55f);
     lineY = std::min(lineY, std::floor(FilerItem::getSize().y - line));
+    // the watched part only (no track under it)
+    watchedWidth = textWidth;
     watchedTrack = new RectangleShape({textX, lineY, textWidth, line});
-    watchedTrack->setFillColor(Color(255, 255, 255, 30));
     watchedTrack->setVisibility(Visibility::Hidden);
     FilerItem::add(watchedTrack);
-    watched = new RectangleShape({0, 0, 1, line});
-    watchedTrack->add(watched);
 }
 
 void FilerItem::setIcon(const std::string &name) {
@@ -201,7 +200,7 @@ float FilerItem::updateSavedMark(float right) {
         state = pplay::Saved::stateOf(file.path);
     }
     float size = std::round(getSize().y * 0.45f);
-    float slot = network ? size + 10 * main->getScaling().x : 0;
+    float slot = network && main->getFiler() != nullptr && main->getFiler()->hasSavedMarks() ? size + 10 * main->getScaling().x : 0;
     std::string name;
     if (state.pending > 0) {
         char ring[32];
@@ -235,8 +234,8 @@ void FilerItem::updateWatched() {
         watchedTrack->setVisibility(Visibility::Hidden);
         return;
     }
-    watched->setSize(std::round(watchedTrack->getSize().x * part), watchedTrack->getSize().y);
-    watched->setFillColor(COLOR_ACCENT);
+    watchedTrack->setSize(std::max(1.0f, std::round(watchedWidth * part)), watchedTrack->getSize().y);
+    watchedTrack->setFillColor(COLOR_ACCENT);
     watchedTrack->setVisibility(Visibility::Visible);
 }
 
@@ -275,9 +274,8 @@ void FilerItem::onUpdate() {
     // what is behind the fade: the list, the selection highlight over it
     float x = (fade->getPosition().x + fade->getSize().x / 2) / std::max(1.0f, getSize().x);
     fade->setBackground(highlight ? highlight->seenThrough(COLOR_SURFACE, x) : COLOR_SURFACE);
-    // the filer fade in sets all the alphas: the track keeps its own
+    // the filer fade in sets all the alphas: the line follows the text
     uint8_t alpha = textTitle->getAlpha();
-    watchedTrack->setFillColor(Color(255, 255, 255, (uint8_t) (30 * alpha / 255)));
-    watched->setFillColor(Color(COLOR_ACCENT.r, COLOR_ACCENT.g, COLOR_ACCENT.b, alpha));
+    watchedTrack->setFillColor(Color(COLOR_ACCENT.r, COLOR_ACCENT.g, COLOR_ACCENT.b, alpha));
     Rectangle::onUpdate();
 }

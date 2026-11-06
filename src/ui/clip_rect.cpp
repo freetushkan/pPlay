@@ -10,7 +10,8 @@
 using namespace c2d;
 
 void pplay::ClipRect::onDraw(Transform &transform, bool draw) {
-    if (!draw || !isVisible()) {
+    // drawn while a fade out runs too (already hidden then): clipped all the same
+    if (!draw) {
         Rectangle::onDraw(transform, draw);
         return;
     }

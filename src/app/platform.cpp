@@ -88,6 +88,7 @@ int sceSystemServiceLoadExec(const char *path, const char *args[]);
 int sceSystemServiceReceiveEvent(void *event);
 int sceSystemServiceEnableSuspendNotification();
 int sceSystemServiceDeclareReadyForSuspend();
+int sceSystemServicePowerTick();
 int32_t sceAgcSuspendPoint();
 int sceKernelSendNotificationRequest(int device, void *request, size_t size, int blocking);
 }
@@ -346,6 +347,25 @@ namespace pplay::Platform {
         pplay::Utility::log(pplay::Utility::LogLevel::Info, std::string("PS4 clocks: ") + report);
 #else
         (void) main;
+#endif
+    }
+
+    void keepAwake(bool on) {
+#ifdef __SWITCH__
+        static bool last = false;
+        if (on != last) {
+            appletSetAutoSleepDisabled(on);
+            last = on;
+        }
+#elif defined(__PS4__) || defined(__PS5__)
+        // the idle timer (screen off, rest mode) restarted
+        static c2d::C2DClock tick;
+        if (on && tick.getElapsedTime().asSeconds() > 20) {
+            sceSystemServicePowerTick();
+            tick.restart();
+        }
+#else
+        (void) on;
 #endif
     }
 

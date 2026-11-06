@@ -480,8 +480,34 @@ void Filer::markWatched(const MediaFile &file) {
     dirty = true;
 }
 
+void Filer::updateSavedMarks() {
+    marksGeneration = pplay::Saved::generation();
+    savedMarks = path.find("://") != std::string::npos && pplay::Saved::anyUnder(path);
+}
+
+void Filer::queueDurations() {
+    durationsGeneration = pplay::TorrServe::viewedGeneration();
+    int mode = main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger();
+    probe->clearBackground();
+    mutex->lock();
+    std::vector<MediaFile> list = files;
+    mutex->unlock();
+    for (auto &file: list) {
+        if (file.type == Io::Type::File && file.mediaInfo.duration <= 0 && pplay::Utility::isMedia(file)
+            && pplay::TorrServe::keptPosition(file.path, mode) > 0) {
+            probe->requestBackground(file);
+        }
+    }
+}
+
 void Filer::onUpdate() {
     crumbs->setPath(path);
+    if (pplay::Saved::generation() != marksGeneration) {
+        updateSavedMarks();
+    }
+    if (pplay::TorrServe::viewedGeneration() != durationsGeneration) {
+        queueDurations();
+    }
     // a playlist written (an addition done): listed again
     if (pplay::Playlists::generation() != playlistGeneration) {
         playlistGeneration = pplay::Playlists::generation();

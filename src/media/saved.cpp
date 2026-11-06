@@ -722,6 +722,8 @@ namespace {
             *error = tr("Not enough free space") + " (" + Utility::formatSize((size_t) (size - from)) + ")";
             return Outcome::Failed;
         }
+        Utility::log(Utility::LogLevel::Info, "Saved: start " + part + " from " + std::to_string(from) + " of "
+                                              + std::to_string(size) + ", free " + std::to_string(space));
         FILE *out = fopen(part.c_str(), from > 0 ? "ab" : "wb");
         if (out == nullptr) {
             source.close();
@@ -785,9 +787,16 @@ namespace {
         }
         Utility::deleteFile(path);
         if (rename(part.c_str(), path.c_str()) != 0) {
-            *error = strerror(errno);
+            *error = "rename " + part + ": " + strerror(errno);
             return Outcome::Failed;
         }
+        // there for real (a size as received)
+        int64_t written = -1;
+        if (!isFile(path, &written) || (size > 0 && written != size)) {
+            *error = "not on disk after writing: " + path + " (" + std::to_string(written) + " bytes)";
+            return Outcome::Failed;
+        }
+        Utility::log(Utility::LogLevel::Info, "Saved: written " + path + " (" + std::to_string(written) + " bytes)");
         return Outcome::Done;
     }
 
@@ -1042,6 +1051,35 @@ namespace pplay::Saved {
     std::string root() {
         std::lock_guard<std::mutex> lock(g_mutex);
         return g_root;
+    }
+
+    bool busy() {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        if (!g_jobs.empty()) {
+            return true;
+        }
+        for (auto &f: g_files) {
+            if (f.second.active) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool anyUnder(const std::string &dir) {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        std::string key = c2d::Utility::removeLastSlash(dir) + "/";
+        for (auto &f: g_files) {
+            if (c2d::Utility::startWith(f.second.remote, key) && (f.second.saved || f.second.active || !f.second.failed)) {
+                return true;
+            }
+        }
+        for (auto &job: g_jobs) {
+            if (job.dir && c2d::Utility::startWith(job.file.path, key)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     bool any() {

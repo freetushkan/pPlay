@@ -140,6 +140,20 @@ void MediaProbe::request(const MediaFile &file) {
     }
 }
 
+void MediaProbe::requestBackground(const MediaFile &file) {
+    std::string url = pplay::Saved::openUrl(file.path);
+    if (!pplay::Utility::isMedia(file) || file.mediaInfo.known || c2d::Utility::startWith(url, "smb")
+        || c2d::Utility::endsWith(file.name, ".m3u", false) || c2d::Utility::endsWith(file.name, ".m3u8", false)
+        || tried.count(file.path) > 0) {
+        return;
+    }
+    background.push_back(file);
+}
+
+void MediaProbe::clearBackground() {
+    background.clear();
+}
+
 void MediaProbe::reset() {
     tried.clear();
     failures.clear();
@@ -168,6 +182,18 @@ bool MediaProbe::poll(MediaFile *file) {
         job = wanted;
         probed = done = delivered = failed = false;
         thread = new pplay::Worker(run, this);
+    } else if (thread == nullptr && !pending) {
+        // the selection first: its delay not taken by these
+        while (!background.empty() && tried.count(background.front().path) > 0) {
+            background.pop_front();
+        }
+        if (!background.empty()) {
+            job = background.front();
+            background.pop_front();
+            tried.insert(job.path);
+            probed = done = delivered = failed = false;
+            thread = new pplay::Worker(run, this);
+        }
     }
     return finished;
 }

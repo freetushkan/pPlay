@@ -282,6 +282,7 @@ void Main::onUpdate() {
     }
 
     pplay::Saved::update();
+    pplay::Platform::keepAwake(pplay::Saved::busy());
     std::string savedType, savedMessage;
     if (pplay::Saved::takeMessage(&savedType, &savedMessage)
         || pplay::Playlists::takeMessage(&savedType, &savedMessage)) {

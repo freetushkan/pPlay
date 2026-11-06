@@ -53,9 +53,9 @@ private:
     pplay::FadeEdge *fade;
     void updateWatched();
 
-    // the watched part (watch later / TorrServer position)
+    // the watched part (watch later / TorrServer position), up to watchedWidth
     c2d::RectangleShape *watchedTrack;
-    c2d::RectangleShape *watched;
+    float watchedWidth = 0;
     float iconSize = 0;
 
     bool lastFullscreen = false;
