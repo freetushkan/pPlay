@@ -2,7 +2,8 @@
 // Saved copies (see saved.h). Index lines, tab separated (escaped as the media information):
 // "N <network id> <name> <root url>",
 // "T <torrent network path> <hash> <title> <poster url> <category> <sizes...> <poster saved>",
-// "F <file> <network id> <name> <network path> <size> <done 1/0> <added> <last access>".
+// "F <file> <network id> <name> <network path> <size> <done 1/0> <added> <last access>",
+// "S <network directory saved whole>".
 //
 
 #include <algorithm>
@@ -97,6 +98,8 @@ namespace {
     std::map<std::string, Torrent> g_torrents;
     // network path -> file name
     std::map<std::string, std::string> g_byRemote;
+    // the directories saved whole (all their files listed then)
+    std::set<std::string> g_wholeDirs;
     std::deque<Job> g_jobs;
     std::vector<SaveThread *> g_threads;
     std::atomic<bool> g_stopping{false};
@@ -352,6 +355,7 @@ namespace {
             auto files = g_files;
             auto networks = g_networks;
             auto torrents = g_torrents;
+            auto whole = g_wholeDirs;
             readIndex();
             for (auto &f: files) {
                 if (g_files.emplace(f.first, f.second).second) {
@@ -360,6 +364,7 @@ namespace {
             }
             g_networks.insert(networks.begin(), networks.end());
             g_torrents.insert(torrents.begin(), torrents.end());
+            g_wholeDirs.insert(whole.begin(), whole.end());
         }
         g_indexFound = true;
         std::string text = INDEX_VERSION "\n";
@@ -372,6 +377,9 @@ namespace {
                     + "\t" + escape(i.category) + "\t" + std::to_string((long long) i.torrentSize) + "\t"
                     + std::to_string((long long) i.filesSize) + "\t" + std::to_string(i.fileCount) + "\t"
                     + (t.second.poster ? "1" : "0") + "\n";
+        }
+        for (auto &d: g_wholeDirs) {
+            text += "S\t" + escape(d) + "\n";
         }
         for (auto &f: g_files) {
             auto &e = f.second;
@@ -483,6 +491,7 @@ namespace {
         g_networks.clear();
         g_torrents.clear();
         g_byRemote.clear();
+        g_wholeDirs.clear();
         std::string text;
         // no index in an existing directory: none yet; no directory: maybe not mounted
         struct stat st {};
@@ -515,7 +524,9 @@ namespace {
             return;
         }
         for (auto &f: lines) {
-            if (f[0] == "N" && f.size() >= 4) {
+            if (f[0] == "S") {
+                g_wholeDirs.insert(f[1]);
+            } else if (f[0] == "N" && f.size() >= 4) {
                 g_networks[f[1]] = {f[2], f[3]};
             } else if (f[0] == "T" && f.size() >= 10) {
                 readTorrent(f, g_torrents[f[1]]);
@@ -565,6 +576,10 @@ namespace {
         }
         Utility::deleteFile(g_root + key);
         Utility::deleteFile(g_root + key + ".part");
+        // its directories not whole any more
+        for (auto d = g_wholeDirs.begin(); d != g_wholeDirs.end();) {
+            d = under(it->second.remote, *d) ? g_wholeDirs.erase(d) : std::next(d);
+        }
         g_byRemote.erase(it->second.remote);
         g_files.erase(it);
         g_jobs.erase(std::remove_if(g_jobs.begin(), g_jobs.end(),
@@ -658,8 +673,8 @@ namespace {
         }
     }
 
-    // a directory listed: its files queued (a thread)
-    void expand(const c2d::Io::File &dir, int depth) {
+    // a directory listed: its files queued (a thread); false on a listing error
+    bool expand(const c2d::Io::File &dir, int depth) {
         Io *io = Io::get();
         int timeout = g_config->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
         std::string error;
@@ -667,15 +682,16 @@ namespace {
         if (files.empty() && !error.empty()) {
             std::lock_guard<std::mutex> lock(g_mutex);
             message("Error", tr("Could not save") + " " + dir.name + ": " + error);
-            return;
+            return false;
         }
+        bool listed = true;
         for (auto &file: files) {
             if (g_stopping || file.name == "." || file.name == "..") {
                 continue;
             }
             if (file.type == c2d::Io::Type::Directory) {
                 if (depth < 16) {
-                    expand(file, depth + 1);
+                    listed = expand(file, depth + 1) && listed;
                 }
             } else if (file.type == c2d::Io::Type::File) {
                 std::lock_guard<std::mutex> lock(g_mutex);
@@ -687,7 +703,13 @@ namespace {
                 }
             }
         }
+        if (depth == 0 && listed && !g_stopping) {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            g_wholeDirs.insert(noSlash(dir.path));
+            g_dirty = true;
+        }
         changed();
+        return listed;
     }
 
     struct Source {
@@ -1208,24 +1230,46 @@ namespace pplay::Saved {
         std::lock_guard<std::mutex> lock(g_mutex);
         std::string key = remoteKey(path);
         int64_t total = 0, done = 0;
+        int known = 0, unknown = 0;
         each(key, [&](const std::string &, const Entry &e) {
+            bool pending = !e.saved && (e.active || !e.failed);
             if (e.saved) {
                 state.saved++;
-            } else if (e.active || !e.failed) {
+            } else if (pending) {
                 state.pending++;
-                total += e.size;
-                done += e.done;
             } else {
                 state.failed = true;
+                return;
+            }
+            // the progress of the whole directory: the saved ones in it too
+            if (e.size > 0) {
+                known++;
+                total += e.size;
+                done += e.saved ? e.size : e.done;
+            } else {
+                unknown++;
             }
         });
+        // the sizes not known yet (listings without them): as the others
+        if (unknown > 0 && known > 0) {
+            total += total / known * unknown;
+        }
         // a directory being listed
         for (auto &job: g_jobs) {
             if (job.dir && !key.empty() && under(noSlash(job.file.path), key)) {
                 state.pending++;
             }
         }
-        state.progress = total > 0 ? (float) ((double) done / (double) total) : 0;
+        state.progress = state.pending > 0 && total > 0 ? (float) ((double) done / (double) total) : 0;
+        // saved whole: it or a directory above
+        if (state.pending == 0 && !state.failed && state.saved > 0) {
+            for (const std::string &dir: g_wholeDirs) {
+                if (under(key, dir)) {
+                    state.complete = true;
+                    break;
+                }
+            }
+        }
         return state;
     }
 
@@ -1238,6 +1282,10 @@ namespace pplay::Saved {
         }
         std::vector<std::string> keys;
         each(key, [&](const std::string &file, const Entry &) { keys.push_back(file); });
+        // not whole any more: the directories above, the ones in it
+        for (auto it = g_wholeDirs.begin(); it != g_wholeDirs.end();) {
+            it = under(key, *it) || under(*it, key) ? g_wholeDirs.erase(it) : std::next(it);
+        }
         for (auto &file: keys) {
             removeEntry(file);
         }

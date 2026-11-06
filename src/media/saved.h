@@ -22,9 +22,11 @@ namespace pplay::Saved {
         // files saved, being saved (a directory: all under it)
         int saved = 0;
         int pending = 0;
-        // of the pending bytes, 0..1
+        // of the bytes (the saved ones too) while some are pending, 0..1
         float progress = 0;
         bool failed = false;
+        // a directory saved whole, nothing pending (no "Save folder")
+        bool complete = false;
     };
 
     // the index read, the unfinished copies resumed

@@ -202,7 +202,7 @@ void DetailsView::updateHints() {
                 char percent[16];
                 snprintf(percent, sizeof(percent), " %d%%", (int) (state.progress * 100));
                 add(0, pplay::tr("Saving") + percent, Action::None);
-            } else if (network && (file.type == Io::Type::Directory || state.saved == 0)) {
+            } else if (network && !state.complete && (file.type == Io::Type::Directory || state.saved == 0)) {
                 add(0, file.type == Io::Type::Directory ? "Save folder" : "Save", Action::Save);
             }
             if (state.saved > 0 || state.pending > 0) {
@@ -447,7 +447,7 @@ void DetailsView::onUpdate() {
         hintsClock.restart();
     } else if (!player->isFullscreen()
                && (pplay::TorrServe::viewedGeneration() != viewedGeneration
-                   || (focused && pplay::Saved::generation() != savedGeneration)
+                   || (pplay::Saved::generation() != savedGeneration && hintsClock.getElapsedTime().asSeconds() >= 0.3f)
                    || (playing && hintsClock.getElapsedTime().asSeconds() >= 2 && player->isPlaying(file.path)))) {
         // its position saved meanwhile ("Continue from"), the TorrServer marks
         viewedGeneration = pplay::TorrServe::viewedGeneration();
