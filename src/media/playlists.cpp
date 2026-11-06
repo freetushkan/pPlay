@@ -27,6 +27,15 @@ using namespace pplay;
 
 namespace {
 
+    // without its trailing slash ("" kept: c2d's throws on it)
+    std::string noSlash(const std::string &path) {
+        std::string out = path;
+        while (out.size() > 1 && out.back() == '/') {
+            out.pop_back();
+        }
+        return out;
+    }
+
     struct Job {
         std::string name;
         c2d::Io::File file;
@@ -76,11 +85,10 @@ namespace {
         int timeout = g_config->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
         bool hidden = g_config->getOption(OPT_SHOW_HIDDEN)->getInteger() != 0;
         std::string error;
-        std::vector<c2d::Io::File> files = io->list(io->getDeviceType(dir.path), dir.path, timeout, &error, false, hidden);
-        // saved copies: their names
-        if (Saved::isInside(dir.path)) {
-            Saved::filter(dir.path, files);
-        }
+        // the Saved section: from its index
+        std::vector<c2d::Io::File> files =
+                Saved::isInside(dir.path) ? Saved::list(dir.path)
+                                          : io->list(io->getDeviceType(dir.path), dir.path, timeout, &error, false, hidden);
         std::sort(files.begin(), files.end(), before);
         for (auto &file: files) {
             if (g_stopping || file.name == "." || file.name == ".." || (!hidden && file.name[0] == '.')) {
@@ -233,7 +241,7 @@ namespace pplay::Playlists {
     }
 
     bool isRoot(const std::string &path) {
-        return c2d::Utility::removeLastSlash(path) == root();
+        return noSlash(path) == root();
     }
 
     bool any() {

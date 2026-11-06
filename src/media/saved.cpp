@@ -1,21 +1,23 @@
 //
 // Saved copies (see saved.h). Index lines, tab separated (escaped as the media information):
-// "D <dir> <name> <remote>", "T <dir> <hash> <title> <poster url> <category> <sizes...> <poster saved>",
-// "F <file> <name> <remote> <size> <done 1/0> <added> <last access>".
+// "N <network id> <name> <root url>",
+// "T <torrent network path> <hash> <title> <poster url> <category> <sizes...> <poster saved>",
+// "F <file> <network id> <name> <network path> <size> <done 1/0> <added> <last access>".
 //
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <iterator>
 #include <deque>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <set>
-#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <unistd.h>
@@ -36,11 +38,10 @@
 #include "smb.h"
 #endif
 
-#define INDEX_VERSION "pplay-saved 1"
+#define INDEX_VERSION "pplay-saved 2"
+#define INDEX_VERSION_1 "pplay-saved 1"
 #define SAVE_DIR ".pplay_save"
 #define DAY (24 * 3600)
-// a name part longer is cut (some file systems: 255 bytes for the name, 260 for the path)
-#define NAME_MAX_BYTES 80
 // kept free on the drive
 #define FREE_MARGIN (64LL * 1024 * 1024)
 #define CHUNK (512 * 1024)
@@ -50,6 +51,7 @@ using namespace pplay;
 namespace {
 
     struct Entry {
+        std::string net;
         std::string name;
         std::string remote;
         int64_t size = 0;
@@ -59,13 +61,13 @@ namespace {
         bool saved = false;
         bool active = false;
         bool failed = false;
-        // set: the download stops (the part removed)
+        // set: the download stops (the part removed if the entry is gone)
         std::shared_ptr<std::atomic<bool>> cancel;
     };
 
-    struct Dir {
+    struct Network {
         std::string name;
-        std::string remote;
+        std::string root;
     };
 
     struct Torrent {
@@ -77,7 +79,7 @@ namespace {
         // a directory listed, else a file (its entry)
         bool dir = false;
         c2d::Io::File file;
-        std::string local;
+        std::string key;
     };
 
     struct SaveThread {
@@ -88,13 +90,12 @@ namespace {
     std::mutex g_mutex;
     PPLAYConfig *g_config = nullptr;
     std::string g_root;
-    // by the relative local path
+    // by their file name in the root
     std::map<std::string, Entry> g_files;
-    std::map<std::string, Dir> g_dirs;
+    std::map<std::string, Network> g_networks;
+    // by the torrent network path
     std::map<std::string, Torrent> g_torrents;
-    // lower case local path -> remote (case insensitive file systems)
-    std::map<std::string, std::string> g_names;
-    // remote -> local file
+    // network path -> file name
     std::map<std::string, std::string> g_byRemote;
     std::deque<Job> g_jobs;
     std::vector<SaveThread *> g_threads;
@@ -141,18 +142,19 @@ namespace {
         return out;
     }
 
-    std::string lower(const std::string &s) {
-        return c2d::Utility::toLower(s);
+    // without its trailing slash ("" kept: c2d's throws on it)
+    std::string noSlash(const std::string &path) {
+        std::string out = path;
+        while (out.size() > 1 && out.back() == '/') {
+            out.pop_back();
+        }
+        return out;
     }
 
-    std::string parentOf(const std::string &rel) {
-        size_t slash = rel.rfind('/');
-        return slash == std::string::npos ? "" : rel.substr(0, slash);
-    }
-
-    bool under(const std::string &rel, const std::string &dir) {
-        return dir.empty() || rel == dir || (rel.size() > dir.size() && rel.compare(0, dir.size(), dir) == 0
-                                             && rel[dir.size()] == '/');
+    // path under dir ("" : anything)
+    bool under(const std::string &path, const std::string &dir) {
+        return dir.empty() || path == dir || (path.size() > dir.size() && path.compare(0, dir.size(), dir) == 0
+                                              && path[dir.size()] == '/');
     }
 
     bool isFile(const std::string &path, int64_t *size = nullptr) {
@@ -188,59 +190,102 @@ namespace {
         return (int64_t) st.f_bavail * (int64_t) st.f_frsize;
     }
 
-    // UTF-8 safe cut
-    std::string cut(const std::string &s, size_t max) {
-        if (s.size() <= max) {
-            return s;
-        }
-        size_t end = max;
-        while (end > 0 && ((unsigned char) s[end] & 0xC0) == 0x80) {
-            end--;
-        }
-        return s.substr(0, end);
+    std::string hashOf(const std::string &s) {
+        return Utility::md5hash(s).substr(0, 16);
     }
 
-    // a name any file system takes, the same for the same name (subtitles found by the
-    // video name); the collisions: see uniqueName()
-    std::string safeName(const std::string &name, bool file) {
-        std::string out;
-        for (char c: name) {
-            auto u = (unsigned char) c;
-            out += u < 0x20 || std::strchr("\\/:*?\"<>|", c) != nullptr ? '_' : c;
+    // a file name of ours: 16 hex, a short ascii extension (a damaged index removes nothing else)
+    bool ownName(const std::string &key) {
+        if (key.size() < 16) {
+            return false;
         }
-        while (!out.empty() && out.front() == ' ') {
-            out.erase(0, 1);
+        for (size_t i = 0; i < 16; i++) {
+            if (!std::isxdigit((unsigned char) key[i]) || std::isupper((unsigned char) key[i])) {
+                return false;
+            }
         }
-        while (!out.empty() && (out.back() == ' ' || out.back() == '.')) {
-            out.pop_back();
+        if (key.size() == 16) {
+            return true;
         }
-        if (!out.empty() && out.front() == '.') {
-            // hidden, as the index
-            out[0] = '_';
+        if (key[16] != '.' || key.size() > 22 || key.size() < 18) {
+            return false;
+        }
+        for (size_t i = 17; i < key.size(); i++) {
+            if (!std::isdigit((unsigned char) key[i]) && !std::islower((unsigned char) key[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // the extension mpv and the players know the file by, ascii only
+    std::string extensionOf(const std::string &name) {
+        size_t dot = name.rfind('.');
+        if (dot == std::string::npos || name.size() - dot < 2 || name.size() - dot > 6) {
+            return "";
         }
         std::string ext;
-        size_t dot = out.rfind('.');
-        if (file && dot != std::string::npos && dot > 0 && out.size() - dot <= 6) {
-            ext = out.substr(dot);
-            out.erase(dot);
+        for (size_t i = dot + 1; i < name.size(); i++) {
+            auto c = (unsigned char) name[i];
+            if (!std::isalnum(c) || c > 0x7F) {
+                return "";
+            }
+            ext += (char) std::tolower(c);
         }
-        std::string stem = cut(out, NAME_MAX_BYTES);
-        return (stem.empty() ? "_" : stem) + ext;
+        return "." + ext;
     }
 
-    // the unique local name in a directory (a case insensitive one too)
-    std::string uniqueName(const std::string &parent, const std::string &name, const std::string &remote) {
-        std::string rel = parent.empty() ? name : parent + "/" + name;
-        auto it = g_names.find(lower(rel));
-        if (it == g_names.end() || it->second == remote) {
-            return rel;
+    std::string posterPath(const std::string &torrent) {
+        return g_root + hashOf(torrent) + ".poster";
+    }
+
+    std::string vroot() {
+        return noSlash(g_root);
+    }
+
+    // a Saved section path: <root>/<network id>/<network path>
+    bool isVirtual(const std::string &path) {
+        std::string root = vroot();
+        return !root.empty() && under(path, root);
+    }
+
+    // a Saved section path -> its network one ("" at the root, the network root url for a network)
+    std::string remoteOfVirtual(const std::string &path) {
+        std::string root = vroot();
+        if (path.size() <= root.size() + 1) {
+            return "";
         }
-        std::string hashed = name + "~" + Utility::md5hash(remote).substr(0, 6);
-        size_t dot = name.rfind('.');
-        if (dot != std::string::npos && dot > 0) {
-            hashed = name.substr(0, dot) + "~" + Utility::md5hash(remote).substr(0, 6) + name.substr(dot);
+        std::string rel = path.substr(root.size() + 1);
+        size_t slash = rel.find('/');
+        auto n = g_networks.find(rel.substr(0, slash));
+        if (n == g_networks.end()) {
+            return "";
         }
-        return parent.empty() ? hashed : parent + "/" + hashed;
+        return slash == std::string::npos ? n->second.root : n->second.root + rel.substr(slash + 1);
+    }
+
+    std::string virtualOf(const Entry &e) {
+        auto n = g_networks.find(e.net);
+        if (n == g_networks.end() || e.remote.size() < n->second.root.size()) {
+            return "";
+        }
+        return vroot() + "/" + e.net + "/" + e.remote.substr(n->second.root.size());
+    }
+
+    // the network path a matched one: a Saved section path converted, the trailing slash out
+    std::string remoteKey(const std::string &path) {
+        std::string remote = isVirtual(path) ? remoteOfVirtual(path) : path;
+        return noSlash(remote);
+    }
+
+    bool escapedPaths(const std::string &path) {
+        Io::DeviceType type = Io::get()->getDeviceType(path);
+        return type == Io::DeviceType::TorrServe || type == Io::DeviceType::Http || type == Io::DeviceType::WebDav;
+    }
+
+    // a path part as shown
+    std::string partName(const std::string &remote, const std::string &part) {
+        return escapedPaths(remote) ? Http::unescape(part) : part;
     }
 
     // the network of a path: its root url, its name
@@ -262,58 +307,22 @@ namespace {
         return true;
     }
 
-    bool escapedPaths(const std::string &path) {
-        Io::DeviceType type = Io::get()->getDeviceType(path);
-        return type == Io::DeviceType::TorrServe || type == Io::DeviceType::Http || type == Io::DeviceType::WebDav;
-    }
-
-    // the local file of a network one, its directories added (locked)
-    bool place(const c2d::Io::File &file, std::string *local) {
+    // the entry of a network file (locked)
+    bool place(const c2d::Io::File &file, std::string *key) {
         std::string root, network;
         if (!networkOf(file.path, &root, &network) || file.path.size() <= root.size()) {
             return false;
         }
-        // the network directory
-        std::string dir = uniqueName("", safeName(network.empty() ? "Network" : network, false), root);
-        if (g_dirs.count(dir) == 0) {
-            g_dirs[dir] = {network, root};
-            g_names[lower(dir)] = root;
-        }
-        std::string rest = file.path.substr(root.size());
-        rest = rest.substr(0, rest.find('?'));
-        std::vector<std::string> parts;
-        size_t start = 0;
-        while (start <= rest.size()) {
-            size_t end = rest.find('/', start);
-            std::string part = rest.substr(start, end == std::string::npos ? std::string::npos : end - start);
-            if (!part.empty()) {
-                parts.push_back(part);
-            }
-            if (end == std::string::npos) {
-                break;
-            }
-            start = end + 1;
-        }
-        if (parts.empty()) {
-            return false;
-        }
-        bool escaped = escapedPaths(file.path);
-        std::string remote = root;
-        for (size_t i = 0; i + 1 < parts.size(); i++) {
-            remote += (i > 0 ? "/" : "") + parts[i];
-            std::string name = escaped ? Http::unescape(parts[i]) : parts[i];
-            dir = uniqueName(dir, safeName(name, false), remote);
-            if (g_dirs.count(dir) == 0) {
-                g_dirs[dir] = {name, remote};
-                g_names[lower(dir)] = remote;
-            }
-        }
-        std::string name = !file.name.empty() ? file.name : escaped ? Http::unescape(parts.back()) : parts.back();
+        std::string net = hashOf(root).substr(0, 8);
+        g_networks[net] = {network, root};
+        std::string leaf = file.path.substr(0, file.path.find('?'));
+        leaf = leaf.substr(leaf.rfind('/') + 1);
+        std::string name = !file.name.empty() ? file.name : partName(file.path, leaf);
         auto known = g_byRemote.find(file.path);
-        *local = known != g_byRemote.end() ? known->second : uniqueName(dir, safeName(name, true), file.path);
-        g_names[lower(*local)] = file.path;
-        g_byRemote[file.path] = *local;
-        Entry &entry = g_files[*local];
+        *key = known != g_byRemote.end() ? known->second : hashOf(file.path) + extensionOf(name);
+        g_byRemote[file.path] = *key;
+        Entry &entry = g_files[*key];
+        entry.net = net;
         entry.name = name;
         entry.remote = file.path;
         if (file.size > 0) {
@@ -325,11 +334,14 @@ namespace {
         return true;
     }
 
-    // the torrent directory of a saved TorrServer file: its first part under the network
-    std::string torrentDir(const std::string &local) {
-        size_t a = local.find('/');
-        size_t b = a == std::string::npos ? a : local.find('/', a + 1);
-        return b == std::string::npos ? "" : local.substr(0, b);
+    // the torrent of a TorrServer path: its first part under the network
+    std::string torrentOf(const std::string &remote) {
+        std::string root = Io::get() != nullptr ? Io::get()->getNetworkRoot(remote) : "";
+        if (root.empty() || remote.size() <= root.size()) {
+            return "";
+        }
+        size_t slash = remote.find('/', root.size());
+        return slash == std::string::npos ? "" : remote.substr(0, slash);
     }
 
     void readIndex();
@@ -338,26 +350,21 @@ namespace {
         // an index there now, not read (the drive was missing): kept, the new entries added
         if (!g_indexFound && isFile(g_root + ".index")) {
             auto files = g_files;
-            auto dirs = g_dirs;
+            auto networks = g_networks;
             auto torrents = g_torrents;
             readIndex();
             for (auto &f: files) {
                 if (g_files.emplace(f.first, f.second).second) {
-                    g_names[lower(f.first)] = f.second.remote;
                     g_byRemote[f.second.remote] = f.first;
                 }
             }
-            for (auto &d: dirs) {
-                if (g_dirs.emplace(d.first, d.second).second) {
-                    g_names[lower(d.first)] = d.second.remote;
-                }
-            }
+            g_networks.insert(networks.begin(), networks.end());
             g_torrents.insert(torrents.begin(), torrents.end());
         }
         g_indexFound = true;
         std::string text = INDEX_VERSION "\n";
-        for (auto &d: g_dirs) {
-            text += "D\t" + escape(d.first) + "\t" + escape(d.second.name) + "\t" + escape(d.second.remote) + "\n";
+        for (auto &n: g_networks) {
+            text += "N\t" + escape(n.first) + "\t" + escape(n.second.name) + "\t" + escape(n.second.root) + "\n";
         }
         for (auto &t: g_torrents) {
             auto &i = t.second.info;
@@ -368,143 +375,200 @@ namespace {
         }
         for (auto &f: g_files) {
             auto &e = f.second;
-            text += "F\t" + escape(f.first) + "\t" + escape(e.name) + "\t" + escape(e.remote) + "\t"
-                    + std::to_string((long long) e.size) + "\t" + (e.saved ? "1" : "0") + "\t"
+            text += "F\t" + escape(f.first) + "\t" + escape(e.net) + "\t" + escape(e.name) + "\t" + escape(e.remote)
+                    + "\t" + std::to_string((long long) e.size) + "\t" + (e.saved ? "1" : "0") + "\t"
                     + std::to_string((long long) e.added) + "\t" + std::to_string((long long) e.access) + "\n";
         }
-        if (Io::get() != nullptr && makeDirs(c2d::Utility::removeLastSlash(g_root))
-            && !Io::get()->writeText(g_root + ".index", text)) {
+        if (Io::get() != nullptr && makeDirs(vroot()) && !Io::get()->writeText(g_root + ".index", text)) {
             Utility::log(Utility::LogLevel::Error, "Saved: can't write " + g_root + ".index");
         }
         g_dirty = g_accessDirty = false;
         g_writtenAt = time(nullptr);
     }
 
-    // an index path: under the root only (a damaged index removes nothing else)
-    bool safeRel(const std::string &rel) {
+    void readTorrent(const std::vector<std::string> &f, Torrent &t) {
+        t.info.hash = f[2];
+        t.info.title = f[3];
+        t.info.poster = f[4];
+        t.info.category = f[5];
+        t.info.torrentSize = std::atoll(f[6].c_str());
+        t.info.filesSize = std::atoll(f[7].c_str());
+        t.info.fileCount = (size_t) std::atoll(f[8].c_str());
+        t.poster = f[9] == "1";
+    }
+
+    // an old index path: in the root only
+    bool oldPath(const std::string &rel) {
         if (rel.empty() || rel[0] == '/' || rel.find_first_of("\\:") != std::string::npos) {
             return false;
         }
-        size_t start = 0;
-        while (start <= rel.size()) {
+        for (size_t start = 0;;) {
             size_t end = rel.find('/', start);
             std::string part = rel.substr(start, end == std::string::npos ? std::string::npos : end - start);
             if (part.empty() || part == "." || part == "..") {
                 return false;
             }
             if (end == std::string::npos) {
-                break;
+                return true;
             }
             start = end + 1;
         }
-        return true;
+    }
+
+    // the first versions: a tree of names (unreadable on some cards) moved to the flat files
+    void migrate(const std::vector<std::vector<std::string>> &lines) {
+        std::map<std::string, std::string> dirRemotes;
+        std::vector<std::string> dirs;
+        for (auto &f: lines) {
+            if (f[0] == "D" && f.size() >= 4 && oldPath(f[1])) {
+                dirRemotes[f[1]] = f[3];
+                dirs.push_back(f[1]);
+                if (f[1].find('/') == std::string::npos) {
+                    g_networks[hashOf(f[3]).substr(0, 8)] = {f[2], f[3]};
+                }
+            }
+        }
+        int moved = 0, lost = 0;
+        for (auto &f: lines) {
+            if (f[0] == "T" && f.size() >= 10 && dirRemotes.count(f[1]) > 0) {
+                std::string torrent = dirRemotes[f[1]];
+                Torrent &t = g_torrents[torrent];
+                readTorrent(f, t);
+                if (t.poster && rename((g_root + f[1] + "/.poster").c_str(), posterPath(torrent).c_str()) != 0) {
+                    t.poster = false;
+                }
+            } else if (f[0] == "F" && f.size() >= 8 && oldPath(f[1])) {
+                std::string root = Io::get()->getNetworkRoot(f[3]);
+                std::string net = hashOf(root).substr(0, 8);
+                if (root.empty() || g_networks.count(net) == 0) {
+                    lost++;
+                    continue;
+                }
+                std::string key = hashOf(f[3]) + extensionOf(f[2]);
+                bool saved = f[5] == "1";
+                std::string from = g_root + f[1] + (saved ? "" : ".part");
+                std::string to = g_root + key + (saved ? "" : ".part");
+                if (isFile(from) && rename(from.c_str(), to.c_str()) != 0) {
+                    lost++;
+                    continue;
+                }
+                if (saved && !isFile(to)) {
+                    lost++;
+                    continue;
+                }
+                Entry &e = g_files[key];
+                e.net = net;
+                e.name = f[2];
+                e.remote = f[3];
+                e.size = std::atoll(f[4].c_str());
+                e.saved = saved;
+                e.added = (time_t) std::atoll(f[6].c_str());
+                e.access = (time_t) std::atoll(f[7].c_str());
+                g_byRemote[e.remote] = key;
+                moved++;
+            }
+        }
+        // the emptied directories, the deepest first (rmdir: only empty ones)
+        std::sort(dirs.begin(), dirs.end(), [](const std::string &a, const std::string &b) { return a > b; });
+        for (auto &dir: dirs) {
+            rmdir((g_root + dir).c_str());
+        }
+        g_dirty = true;
+        Utility::log(Utility::LogLevel::Info, "Saved: index 1 -> 2, " + std::to_string(moved) + " moved, "
+                                                      + std::to_string(lost) + " left (unreadable names)");
     }
 
     void readIndex() {
         g_files.clear();
-        g_dirs.clear();
+        g_networks.clear();
         g_torrents.clear();
-        g_names.clear();
         g_byRemote.clear();
         std::string text;
         // no index in an existing directory: none yet; no directory: maybe not mounted
         struct stat st {};
-        g_indexFound = stat(c2d::Utility::removeLastSlash(g_root).c_str(), &st) == 0 && !isFile(g_root + ".index");
+        g_indexFound = stat(vroot().c_str(), &st) == 0 && !isFile(g_root + ".index");
         if (Io::get() == nullptr || !Io::get()->readText(g_root + ".index", text)) {
             return;
         }
         g_indexFound = true;
+        std::vector<std::vector<std::string>> lines;
+        std::string version;
         size_t start = 0;
-        bool first = true;
         while (start < text.size()) {
             size_t end = text.find('\n', start);
             std::string line = text.substr(start, end == std::string::npos ? std::string::npos : end - start);
             start = end == std::string::npos ? text.size() : end + 1;
-            if (first) {
-                first = false;
-                if (line != INDEX_VERSION) {
-                    return;
-                }
+            if (version.empty()) {
+                version = line;
                 continue;
             }
             std::vector<std::string> f = fields(line);
-            if (f.size() < 2 || !safeRel(f[1])) {
-                continue;
+            if (f.size() >= 2) {
+                lines.push_back(f);
             }
-            if (f[0] == "D" && f.size() >= 4) {
-                g_dirs[f[1]] = {f[2], f[3]};
-                g_names[lower(f[1])] = f[3];
+        }
+        if (version == INDEX_VERSION_1) {
+            migrate(lines);
+            return;
+        }
+        if (version != INDEX_VERSION) {
+            return;
+        }
+        for (auto &f: lines) {
+            if (f[0] == "N" && f.size() >= 4) {
+                g_networks[f[1]] = {f[2], f[3]};
             } else if (f[0] == "T" && f.size() >= 10) {
-                Torrent &t = g_torrents[f[1]];
-                t.info.hash = f[2];
-                t.info.title = f[3];
-                t.info.poster = f[4];
-                t.info.category = f[5];
-                t.info.torrentSize = std::atoll(f[6].c_str());
-                t.info.filesSize = std::atoll(f[7].c_str());
-                t.info.fileCount = (size_t) std::atoll(f[8].c_str());
-                t.poster = f[9] == "1";
-            } else if (f[0] == "F" && f.size() >= 8) {
+                readTorrent(f, g_torrents[f[1]]);
+            } else if (f[0] == "F" && f.size() >= 9 && ownName(f[1])) {
                 Entry &e = g_files[f[1]];
-                e.name = f[2];
-                e.remote = f[3];
-                e.size = std::atoll(f[4].c_str());
-                e.saved = f[5] == "1";
-                e.added = (time_t) std::atoll(f[6].c_str());
-                e.access = (time_t) std::atoll(f[7].c_str());
-                g_names[lower(f[1])] = f[3];
-                g_byRemote[f[3]] = f[1];
+                e.net = f[2];
+                e.name = f[3];
+                e.remote = f[4];
+                e.size = std::atoll(f[5].c_str());
+                e.saved = f[6] == "1";
+                e.added = (time_t) std::atoll(f[7].c_str());
+                e.access = (time_t) std::atoll(f[8].c_str());
+                g_byRemote[e.remote] = f[1];
             }
         }
     }
 
-    // the directories nothing is saved in removed (their files, the poster)
+    // the networks, the torrents (their posters) nothing is saved from removed
     void prune() {
-        std::vector<std::string> dirs;
-        for (auto &d: g_dirs) {
-            dirs.push_back(d.first);
+        std::set<std::string> nets, torrents;
+        for (auto &f: g_files) {
+            nets.insert(f.second.net);
+            torrents.insert(torrentOf(f.second.remote));
         }
-        // the deepest first
-        std::sort(dirs.begin(), dirs.end(), [](const std::string &a, const std::string &b) { return a > b; });
-        for (auto &dir: dirs) {
-            if (!safeRel(dir)) {
-                continue;
+        for (auto it = g_torrents.begin(); it != g_torrents.end();) {
+            if (torrents.count(it->first) == 0) {
+                Utility::deleteFile(posterPath(it->first));
+                it = g_torrents.erase(it);
+            } else {
+                ++it;
             }
-            bool used = false;
-            for (auto &f: g_files) {
-                if (under(f.first, dir)) {
-                    used = true;
-                    break;
-                }
-            }
-            if (used) {
-                continue;
-            }
-            Utility::deleteFile(g_root + dir + "/.poster");
-            rmdir((g_root + dir).c_str());
-            g_names.erase(lower(dir));
-            g_torrents.erase(dir);
-            g_dirs.erase(dir);
+        }
+        for (auto it = g_networks.begin(); it != g_networks.end();) {
+            it = nets.count(it->first) == 0 ? g_networks.erase(it) : std::next(it);
         }
     }
 
     // locked
-    void removeEntry(const std::string &rel) {
-        auto it = g_files.find(rel);
-        if (it == g_files.end() || !safeRel(rel)) {
+    void removeEntry(const std::string &key) {
+        auto it = g_files.find(key);
+        if (it == g_files.end() || !ownName(key)) {
             return;
         }
         if (it->second.active) {
             // the thread removes the part
             it->second.cancel->store(true);
         }
-        Utility::deleteFile(g_root + rel);
-        Utility::deleteFile(g_root + rel + ".part");
-        g_names.erase(lower(rel));
+        Utility::deleteFile(g_root + key);
+        Utility::deleteFile(g_root + key + ".part");
         g_byRemote.erase(it->second.remote);
         g_files.erase(it);
         g_jobs.erase(std::remove_if(g_jobs.begin(), g_jobs.end(),
-                                    [&rel](const Job &job) { return !job.dir && job.local == rel; }),
+                                    [&key](const Job &job) { return !job.dir && job.key == key; }),
                      g_jobs.end());
     }
 
@@ -547,20 +611,20 @@ namespace {
         return removed;
     }
 
-    // the torrent of a TorrServer file kept, its poster saved in its directory (a thread)
-    void keepTorrent(const std::string &local, const std::string &remote) {
+    // the torrent of a TorrServer file kept, its poster saved (a thread)
+    void keepTorrent(const std::string &remote) {
         if (Io::get()->getDeviceType(remote) != Io::DeviceType::TorrServe) {
             return;
         }
         TorrServe::Info info;
-        std::string dir = torrentDir(local);
-        if (dir.empty() || !TorrServe::getInfo(remote, info)) {
+        std::string torrent = torrentOf(remote);
+        if (torrent.empty() || !TorrServe::getInfo(remote, info)) {
             return;
         }
         std::string poster;
         {
             std::lock_guard<std::mutex> lock(g_mutex);
-            Torrent &t = g_torrents[dir];
+            Torrent &t = g_torrents[torrent];
             bool posterKept = t.poster && t.info.poster == info.poster;
             info.fileIndex = -1;
             info.fileName.clear();
@@ -587,8 +651,8 @@ namespace {
             data = std::move(response.body);
         }
         std::lock_guard<std::mutex> lock(g_mutex);
-        auto it = g_torrents.find(dir);
-        if (it != g_torrents.end() && makeDirs(g_root + dir) && Io::get()->writeText(g_root + dir + "/.poster", data)) {
+        auto it = g_torrents.find(torrent);
+        if (it != g_torrents.end() && Io::get()->writeText(posterPath(torrent), data)) {
             it->second.poster = true;
             g_dirty = true;
         }
@@ -615,10 +679,10 @@ namespace {
                 }
             } else if (file.type == c2d::Io::Type::File) {
                 std::lock_guard<std::mutex> lock(g_mutex);
-                std::string local;
-                if (place(file, &local) && !g_files[local].saved && !g_files[local].active) {
-                    g_files[local].failed = false;
-                    g_jobs.push_back({false, file, local});
+                std::string key;
+                if (place(file, &key) && !g_files[key].saved && !g_files[key].active) {
+                    g_files[key].failed = false;
+                    g_jobs.push_back({false, file, key});
                     g_dirty = true;
                 }
             }
@@ -685,12 +749,12 @@ namespace {
         Cancelled
     };
 
-    Outcome download(const std::string &local, const std::string &remote, std::atomic<bool> *cancel,
-                    std::string *error) {
-        std::string path = g_root + local;
+    Outcome download(const std::string &key, const std::string &remote, std::atomic<bool> *cancel,
+                     std::string *error) {
+        std::string path = g_root + key;
         std::string part = path + ".part";
-        if (!makeDirs(parentOf(path))) {
-            *error = tr("Can't write to") + " " + parentOf(path);
+        if (!makeDirs(vroot())) {
+            *error = tr("Can't write to") + " " + g_root;
             return Outcome::Failed;
         }
         int64_t from = 0;
@@ -705,7 +769,7 @@ namespace {
         int64_t size = source.size;
         {
             std::lock_guard<std::mutex> lock(g_mutex);
-            auto it = g_files.find(local);
+            auto it = g_files.find(key);
             if (it == g_files.end()) {
                 source.close();
                 return Outcome::Cancelled;
@@ -716,14 +780,14 @@ namespace {
             size = it->second.size;
             it->second.done = from;
         }
-        int64_t space = freeSpace(parentOf(path));
+        int64_t space = freeSpace(vroot());
         if (size > 0 && space >= 0 && space < size - from + FREE_MARGIN) {
             source.close();
             *error = tr("Not enough free space") + " (" + Utility::formatSize((size_t) (size - from)) + ")";
             return Outcome::Failed;
         }
-        Utility::log(Utility::LogLevel::Info, "Saved: start " + part + " from " + std::to_string(from) + " of "
-                                              + std::to_string(size) + ", free " + std::to_string(space));
+        Utility::log(Utility::LogLevel::Info, "Saved: start " + part + " (" + remote + ") from "
+                                              + std::to_string(from) + " of " + std::to_string(size));
         FILE *out = fopen(part.c_str(), from > 0 ? "ab" : "wb");
         if (out == nullptr) {
             source.close();
@@ -760,7 +824,7 @@ namespace {
             if (size <= 0 || done - shown >= size / 100) {
                 shown = done;
                 std::lock_guard<std::mutex> lock(g_mutex);
-                auto it = g_files.find(local);
+                auto it = g_files.find(key);
                 if (it != g_files.end()) {
                     it->second.done = done;
                 }
@@ -779,7 +843,7 @@ namespace {
         if (result != Outcome::Done) {
             // removed meanwhile, else stopped: kept for the next start
             std::lock_guard<std::mutex> lock(g_mutex);
-            auto it = g_files.find(local);
+            auto it = g_files.find(key);
             if (*cancel && (it == g_files.end() || it->second.cancel.get() != cancel)) {
                 Utility::deleteFile(part);
             }
@@ -804,7 +868,7 @@ namespace {
         std::shared_ptr<std::atomic<bool>> cancel;
         {
             std::lock_guard<std::mutex> lock(g_mutex);
-            auto it = g_files.find(job.local);
+            auto it = g_files.find(job.key);
             if (it == g_files.end() || it->second.saved || it->second.active) {
                 return;
             }
@@ -813,7 +877,7 @@ namespace {
             it->second.cancel = cancel = std::make_shared<std::atomic<bool>>(false);
         }
         changed();
-        keepTorrent(job.local, job.file.path);
+        keepTorrent(job.file.path);
 
         // the stream marks the file viewed on the server
         bool torrent = Io::get()->getDeviceType(job.file.path) == Io::DeviceType::TorrServe;
@@ -823,20 +887,20 @@ namespace {
         Outcome result = Outcome::Retry;
         for (int attempt = 0; attempt <= retries && result == Outcome::Retry; attempt++) {
             if (attempt > 0) {
-                Utility::log(Utility::LogLevel::Info, "Saved: retry " + job.local + ": " + error);
+                Utility::log(Utility::LogLevel::Info, "Saved: retry " + job.key + ": " + error);
                 for (int i = 0; i < 30 && !*cancel && !g_stopping; i++) {
                     usleep(100000);
                 }
             }
             error.clear();
-            result = download(job.local, job.file.path, cancel.get(), &error);
+            result = download(job.key, job.file.path, cancel.get(), &error);
         }
         if (torrent && !viewed) {
             TorrServe::remFileViewed(job.file.path);
         }
 
         std::lock_guard<std::mutex> lock(g_mutex);
-        auto it = g_files.find(job.local);
+        auto it = g_files.find(job.key);
         if (it == g_files.end() || it->second.cancel != cancel) {
             changed();
             return;
@@ -846,20 +910,18 @@ namespace {
         entry.cancel.reset();
         if (result == Outcome::Done) {
             entry.saved = true;
-            isFile(g_root + job.local, &entry.size);
+            isFile(g_root + job.key, &entry.size);
             entry.done = entry.size;
             entry.access = time(nullptr);
-            // the network file information, for the copy
+            // the network file information, for its Saved section path
             MediaInfo info(job.file);
             if (info.known) {
-                c2d::Io::File copy(entry.name, g_root + job.local, c2d::Io::Type::File, (size_t) entry.size);
-                info.save(copy);
+                info.save(c2d::Io::File(entry.name, virtualOf(entry), c2d::Io::Type::File, (size_t) entry.size));
             }
-            Utility::log(Utility::LogLevel::Info, "Saved: " + job.local);
             g_cleanup = true;
         } else if (result != Outcome::Cancelled) {
             entry.failed = true;
-            Utility::log(Utility::LogLevel::Error, "Saved: failed " + job.local + ": " + error);
+            Utility::log(Utility::LogLevel::Error, "Saved: failed " + job.key + ": " + error);
             message("Error", tr("Could not save") + " " + entry.name + ": " + error);
         }
         g_dirty = true;
@@ -908,21 +970,21 @@ namespace {
         }
     }
 
-    std::string relOf(const std::string &path) {
-        std::string root = c2d::Utility::removeLastSlash(g_root);
-        if (path.size() <= root.size()) {
-            return "";
-        }
-        std::string rel = path.substr(root.size() + 1);
-        while (!rel.empty() && rel.back() == '/') {
-            rel.pop_back();
-        }
-        return rel;
-    }
-
     std::string rootFromConfig() {
         std::string home = g_config != nullptr ? g_config->getOption(OPT_HOME_PATH)->getString() : "";
         return Paths::ensureTrailingSlash(home.empty() ? Utility::getDataPath() : home) + SAVE_DIR "/";
+    }
+
+    // entries matching a network path (a file, or all under a directory; "" : all)
+    template<typename F>
+    void each(const std::string &key, F fn) {
+        for (auto &f: g_files) {
+            const std::string &r = f.second.remote;
+            if (key.empty() || r == key || (r.size() > key.size() && r.compare(0, key.size(), key) == 0
+                                            && r[key.size()] == '/')) {
+                fn(f.first, f.second);
+            }
+        }
     }
 }
 
@@ -934,18 +996,17 @@ namespace pplay::Saved {
         g_root = rootFromConfig();
         g_stopping = false;
         // the first versions: a visible directory
-        std::string old = c2d::Utility::removeLastSlash(g_root);
+        std::string old = vroot();
         old = old.substr(0, old.rfind('/') + 1) + "pplay_save";
         struct stat st {};
         if (stat((old + "/.index").c_str(), &st) == 0 && stat(g_root.c_str(), &st) != 0) {
-            rename(old.c_str(), c2d::Utility::removeLastSlash(g_root).c_str());
+            rename(old.c_str(), vroot().c_str());
         }
         readIndex();
         int resumed = 0;
         for (auto it = g_files.begin(); it != g_files.end();) {
             if (it->second.saved && !isFile(g_root + it->first)) {
                 // removed by hand
-                g_names.erase(lower(it->first));
                 g_byRemote.erase(it->second.remote);
                 it = g_files.erase(it);
                 g_dirty = true;
@@ -1068,7 +1129,7 @@ namespace pplay::Saved {
 
     bool anyUnder(const std::string &dir) {
         std::lock_guard<std::mutex> lock(g_mutex);
-        std::string key = c2d::Utility::removeLastSlash(dir) + "/";
+        std::string key = remoteKey(dir) + "/";
         for (auto &f: g_files) {
             if (c2d::Utility::startWith(f.second.remote, key) && (f.second.saved || f.second.active || !f.second.failed)) {
                 return true;
@@ -1094,14 +1155,12 @@ namespace pplay::Saved {
 
     bool isInside(const std::string &path) {
         std::lock_guard<std::mutex> lock(g_mutex);
-        std::string root = c2d::Utility::removeLastSlash(g_root);
-        return !root.empty() && c2d::Utility::startWith(path, root)
-               && (path.size() == root.size() || path[root.size()] == '/');
+        return isVirtual(path);
     }
 
     bool isRoot(const std::string &path) {
         std::lock_guard<std::mutex> lock(g_mutex);
-        return c2d::Utility::removeLastSlash(path) == c2d::Utility::removeLastSlash(g_root);
+        return noSlash(path) == vroot();
     }
 
     bool canSave(const c2d::Io::File &file) {
@@ -1109,7 +1168,6 @@ namespace pplay::Saved {
             || (file.type != c2d::Io::Type::File && file.type != c2d::Io::Type::Directory)) {
             return false;
         }
-        std::lock_guard<std::mutex> lock(g_mutex);
         return Io::get() != nullptr && !Io::get()->getNetworkRoot(file.path).empty();
     }
 
@@ -1120,7 +1178,7 @@ namespace pplay::Saved {
         std::lock_guard<std::mutex> lock(g_mutex);
         // a writable drive (an unplugged one, a read only card)
         std::string probe = g_root + ".write";
-        if (!makeDirs(c2d::Utility::removeLastSlash(g_root)) || !Io::get()->writeText(probe, "")) {
+        if (!makeDirs(vroot()) || !Io::get()->writeText(probe, "")) {
             message("Error", tr("Can't write to") + " " + g_root);
             return;
         }
@@ -1128,16 +1186,16 @@ namespace pplay::Saved {
         if (file.type == c2d::Io::Type::Directory) {
             g_jobs.push_back({true, file, ""});
         } else {
-            std::string local;
-            if (!place(file, &local)) {
+            std::string key;
+            if (!place(file, &key)) {
                 return;
             }
-            Entry &entry = g_files[local];
+            Entry &entry = g_files[key];
             if (entry.saved || entry.active) {
                 return;
             }
             entry.failed = false;
-            g_jobs.push_back({false, file, local});
+            g_jobs.push_back({false, file, key});
             g_dirty = true;
         }
         message("Info", tr("Saving") + ": " + file.name);
@@ -1148,34 +1206,23 @@ namespace pplay::Saved {
     State stateOf(const std::string &path) {
         State state;
         std::lock_guard<std::mutex> lock(g_mutex);
-        std::string root = c2d::Utility::removeLastSlash(g_root);
-        bool local = c2d::Utility::startWith(path, root) && (path.size() == root.size() || path[root.size()] == '/');
-        std::string key = local ? relOf(path) : c2d::Utility::removeLastSlash(path);
+        std::string key = remoteKey(path);
         int64_t total = 0, done = 0;
-        for (auto &f: g_files) {
-            const std::string &target = local ? f.first : f.second.remote;
-            bool match = local ? under(target, key)
-                               : target == key || (target.size() > key.size() && target.compare(0, key.size(), key) == 0
-                                                   && target[key.size()] == '/');
-            if (!match) {
-                continue;
-            }
-            if (f.second.saved) {
+        each(key, [&](const std::string &, const Entry &e) {
+            if (e.saved) {
                 state.saved++;
-            } else if (f.second.active || !f.second.failed) {
+            } else if (e.active || !e.failed) {
                 state.pending++;
-                total += f.second.size;
-                done += f.second.done;
+                total += e.size;
+                done += e.done;
             } else {
                 state.failed = true;
             }
-        }
+        });
         // a directory being listed
-        if (!local) {
-            for (auto &job: g_jobs) {
-                if (job.dir && under(job.file.path, key)) {
-                    state.pending++;
-                }
+        for (auto &job: g_jobs) {
+            if (job.dir && !key.empty() && under(noSlash(job.file.path), key)) {
+                state.pending++;
             }
         }
         state.progress = total > 0 ? (float) ((double) done / (double) total) : 0;
@@ -1184,141 +1231,177 @@ namespace pplay::Saved {
 
     int remove(const std::string &path) {
         std::lock_guard<std::mutex> lock(g_mutex);
-        std::string root = c2d::Utility::removeLastSlash(g_root);
-        bool local = c2d::Utility::startWith(path, root) && (path.size() == root.size() || path[root.size()] == '/');
-        std::string key = local ? relOf(path) : c2d::Utility::removeLastSlash(path);
-        // never the whole root, never outside it
-        if (key.empty() || (local && !safeRel(key)) || (!local && key.find("://") == std::string::npos)) {
+        std::string key = remoteKey(path);
+        // never all of them (the root, a path of nothing)
+        if (key.empty() || key.find("://") == std::string::npos) {
             return 0;
         }
-        std::vector<std::string> rels;
-        for (auto &f: g_files) {
-            const std::string &target = local ? f.first : f.second.remote;
-            bool match = local ? under(target, key)
-                               : target == key || (target.size() > key.size() && target.compare(0, key.size(), key) == 0
-                                                   && target[key.size()] == '/');
-            if (match) {
-                rels.push_back(f.first);
-            }
+        std::vector<std::string> keys;
+        each(key, [&](const std::string &file, const Entry &) { keys.push_back(file); });
+        for (auto &file: keys) {
+            removeEntry(file);
         }
-        for (auto &rel: rels) {
-            removeEntry(rel);
-        }
-        if (!local) {
-            g_jobs.erase(std::remove_if(g_jobs.begin(), g_jobs.end(),
-                                        [&key](const Job &job) { return job.dir && under(job.file.path, key); }),
-                         g_jobs.end());
-        }
+        g_jobs.erase(std::remove_if(g_jobs.begin(), g_jobs.end(),
+                                    [&key](const Job &job) {
+                                        return job.dir && under(noSlash(job.file.path), key);
+                                    }),
+                     g_jobs.end());
         prune();
         g_dirty = true;
         changed();
-        return (int) rels.size();
+        return (int) keys.size();
     }
 
-    void filter(const std::string &dir, std::vector<c2d::Io::File> &files) {
+    std::vector<c2d::Io::File> list(const std::string &dir) {
         std::lock_guard<std::mutex> lock(g_mutex);
-        std::string rel = relOf(dir);
-        std::vector<c2d::Io::File> out;
-        for (auto &file: files) {
-            if (file.name.empty() || file.name[0] == '.' || c2d::Utility::endsWith(file.name, ".part")) {
+        std::vector<c2d::Io::File> files;
+        std::string v = noSlash(dir);
+        std::set<std::string> dirs;
+        if (v == vroot()) {
+            for (auto &n: g_networks) {
+                bool used = false;
+                for (auto &f: g_files) {
+                    used |= f.second.saved && f.second.net == n.first;
+                }
+                if (used) {
+                    files.emplace_back(n.second.name, v + "/" + n.first, c2d::Io::Type::Directory, 0);
+                }
+            }
+            return files;
+        }
+        for (auto &f: g_files) {
+            if (!f.second.saved) {
                 continue;
             }
-            std::string child = rel.empty() ? file.name : rel + "/" + file.name;
-            c2d::Io::File shown = file;
-            if (file.type == c2d::Io::Type::Directory) {
-                bool any = false;
-                for (auto &f: g_files) {
-                    if (f.second.saved && under(f.first, child)) {
-                        any = true;
-                        break;
-                    }
-                }
-                if (!any) {
-                    continue;
-                }
-                auto d = g_dirs.find(child);
-                if (d != g_dirs.end() && !d->second.name.empty()) {
-                    shown.name = d->second.name;
-                }
-            } else {
-                auto f = g_files.find(child);
-                if (f == g_files.end() || !f->second.saved) {
-                    continue;
-                }
-                shown.name = f->second.name;
+            std::string path = virtualOf(f.second);
+            if (path.size() <= v.size() + 1 || path.compare(0, v.size() + 1, v + "/") != 0) {
+                continue;
             }
-            out.push_back(shown);
+            std::string rest = path.substr(v.size() + 1);
+            size_t slash = rest.substr(0, rest.find('?')).find('/');
+            if (slash == std::string::npos) {
+                files.emplace_back(f.second.name, path, c2d::Io::Type::File, (size_t) f.second.size);
+                continue;
+            }
+            std::string part = rest.substr(0, slash);
+            if (!dirs.insert(part).second) {
+                continue;
+            }
+            std::string remote = remoteOfVirtual(v + "/" + part);
+            auto t = g_torrents.find(remote);
+            std::string name = t != g_torrents.end() && !t->second.info.title.empty() ? t->second.info.title
+                                                                                     : partName(f.second.remote, part);
+            files.emplace_back(name, v + "/" + part, c2d::Io::Type::Directory, 0);
         }
-        files.swap(out);
+        return files;
+    }
+
+    bool hasDir(const std::string &dir) {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        std::string v = noSlash(dir);
+        if (v == vroot()) {
+            return true;
+        }
+        for (auto &f: g_files) {
+            if (f.second.saved && c2d::Utility::startWith(virtualOf(f.second), v + "/")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool listNetwork(const std::string &dir, std::vector<c2d::Io::File> *files) {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        std::string key = noSlash(dir);
+        std::set<std::string> dirs;
+        bool any = false;
+        for (auto &f: g_files) {
+            const std::string &r = f.second.remote;
+            if (!f.second.saved || r.size() <= key.size() + 1 || r.compare(0, key.size() + 1, key + "/") != 0) {
+                continue;
+            }
+            any = true;
+            std::string rest = r.substr(key.size() + 1);
+            size_t slash = rest.substr(0, rest.find('?')).find('/');
+            if (slash == std::string::npos) {
+                files->emplace_back(f.second.name, r, c2d::Io::Type::File, (size_t) f.second.size);
+            } else if (dirs.insert(rest.substr(0, slash)).second) {
+                files->emplace_back(partName(r, rest.substr(0, slash)), key + "/" + rest.substr(0, slash),
+                                    c2d::Io::Type::Directory, 0);
+            }
+        }
+        return any;
     }
 
     std::vector<std::string> displayParts(const std::string &path) {
         std::lock_guard<std::mutex> lock(g_mutex);
         std::vector<std::string> parts;
-        std::string rel = relOf(path);
-        size_t start = 0;
-        while (!rel.empty() && start <= rel.size()) {
-            size_t end = rel.find('/', start);
-            std::string prefix = rel.substr(0, end);
-            std::string name = prefix.substr(prefix.rfind('/') == std::string::npos ? 0 : prefix.rfind('/') + 1);
-            auto d = g_dirs.find(prefix);
-            auto f = g_files.find(prefix);
-            parts.push_back(d != g_dirs.end()   ? d->second.name
-                            : f != g_files.end() ? f->second.name
-                                                 : name);
-            if (end == std::string::npos) {
-                break;
+        std::string root = vroot();
+        if (!isVirtual(path) || path.size() <= root.size() + 1) {
+            return parts;
+        }
+        std::string rel = path.substr(root.size() + 1);
+        size_t slash = rel.find('/');
+        auto n = g_networks.find(rel.substr(0, slash));
+        if (n == g_networks.end()) {
+            return parts;
+        }
+        parts.push_back(n->second.name);
+        std::string remote = n->second.root;
+        auto known = g_byRemote.find(remoteOfVirtual(path));
+        for (size_t start = slash; start != std::string::npos;) {
+            size_t end = rel.find('/', start + 1);
+            std::string part = rel.substr(start + 1, end == std::string::npos ? std::string::npos : end - start - 1);
+            remote = remote.back() == '/' ? remote + part : remote + "/" + part;
+            auto t = g_torrents.find(remote);
+            if (end == std::string::npos && known != g_byRemote.end()) {
+                parts.push_back(g_files[known->second].name);
+            } else {
+                parts.push_back(t != g_torrents.end() && !t->second.info.title.empty() ? t->second.info.title
+                                                                                      : partName(remote, part));
             }
-            start = end + 1;
+            start = end;
         }
         return parts;
     }
 
     bool getInfo(const std::string &path, TorrServe::Info &info, std::string *poster) {
         std::lock_guard<std::mutex> lock(g_mutex);
-        std::string rel = relOf(path);
-        std::string dir = torrentDir(rel + "/");
-        auto t = g_torrents.find(dir);
-        if (dir.empty() || t == g_torrents.end()) {
+        std::string remote = remoteOfVirtual(path);
+        auto t = g_torrents.find(torrentOf(remote + "/"));
+        if (remote.empty() || t == g_torrents.end()) {
             return false;
         }
         info = t->second.info;
-        *poster = t->second.poster ? "dir:" + g_root + dir + "/.poster" : "";
-        auto f = g_files.find(rel);
-        if (f != g_files.end()) {
-            info.fileName = f->second.name;
-            info.fileSize = f->second.size;
-            size_t index = f->second.remote.find("index=");
-            info.fileIndex = index == std::string::npos ? 0 : std::atoi(f->second.remote.c_str() + index + 6);
+        *poster = t->second.poster ? "dir:" + posterPath(t->first) : "";
+        auto known = g_byRemote.find(remote);
+        if (known != g_byRemote.end()) {
+            const Entry &e = g_files[known->second];
+            info.fileName = e.name;
+            info.fileSize = e.size;
+            size_t index = e.remote.find("index=");
+            info.fileIndex = index == std::string::npos ? 0 : std::atoi(e.remote.c_str() + index + 6);
         }
         return true;
     }
 
     std::string originalOf(const std::string &path) {
         std::lock_guard<std::mutex> lock(g_mutex);
-        std::string root = c2d::Utility::removeLastSlash(g_root);
-        if (root.empty() || !c2d::Utility::startWith(path, root + "/")) {
+        if (!isVirtual(path)) {
             return path;
         }
-        auto f = g_files.find(relOf(path));
-        return f != g_files.end() ? f->second.remote : path;
+        std::string remote = remoteOfVirtual(path);
+        return remote.empty() ? path : remote;
     }
 
     std::string localCopy(const std::string &path) {
         std::lock_guard<std::mutex> lock(g_mutex);
-        std::string root = c2d::Utility::removeLastSlash(g_root);
-        std::string rel;
-        if (c2d::Utility::startWith(path, root + "/")) {
-            rel = relOf(path);
-        } else {
-            auto r = g_byRemote.find(path);
-            if (r == g_byRemote.end()) {
-                return "";
-            }
-            rel = r->second;
+        auto known = g_byRemote.find(isVirtual(path) ? remoteOfVirtual(path) : path);
+        if (known == g_byRemote.end()) {
+            return "";
         }
-        auto f = g_files.find(rel);
-        return f != g_files.end() && f->second.saved ? g_root + rel : "";
+        auto f = g_files.find(known->second);
+        return f != g_files.end() && f->second.saved ? g_root + known->second : "";
     }
 
     std::string openUrl(const std::string &path) {
@@ -1327,9 +1410,12 @@ namespace pplay::Saved {
     }
 
     void touch(const std::string &path) {
-        std::string local = localCopy(path);
         std::lock_guard<std::mutex> lock(g_mutex);
-        auto f = g_files.find(relOf(local));
+        auto known = g_byRemote.find(isVirtual(path) ? remoteOfVirtual(path) : path);
+        if (known == g_byRemote.end()) {
+            return;
+        }
+        auto f = g_files.find(known->second);
         if (f == g_files.end() || !f->second.saved) {
             return;
         }

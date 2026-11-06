@@ -80,7 +80,7 @@ void Main::show(MenuType type) {
             path = root;
         }
         std::string dir = Paths::extractDirPath(path);
-        if (path == root || !pplayIo->exist(dir) || !filer->getDir(dir)) {
+        if (path == root || !pplay::Saved::hasDir(dir) || !filer->getDir(dir)) {
             filer->getDir(root);
         } else {
             filer->selectByPath(path);

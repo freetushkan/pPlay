@@ -202,7 +202,11 @@ namespace pplay::ExternalTracks {
             dirs.pop_front();
             std::string error;
             Io::DeviceType type = io->getDeviceType(dir.path);
-            std::vector<c2d::Io::File> files = io->list(type, dir.path, timeout, &error, false, false);
+            // the saved files of a directory: no network
+            std::vector<c2d::Io::File> files;
+            if (!Saved::listNetwork(dir.path, &files)) {
+                files = io->list(type, dir.path, timeout, &error, false, false);
+            }
             listings++;
 
             for (const auto &f: files) {

@@ -1,7 +1,9 @@
 //
-// Saved copies of network files: <home>/.pplay_save/<network>/<its path>, the names made
-// safe for any file system, the original names, paths and torrents kept in an index
-// (.index). Downloaded in threads, played and shown without the network.
+// Saved copies of network files: flat in <home>/.pplay_save/, named by a hash of their
+// network path (<16 hex>.<ext>: any file system takes it), the names, the paths and the
+// torrents in its index (.index). Downloaded in threads, played and shown without the
+// network. The Saved section lists them as <root>/<network id>/<the network path>: paths
+// in the index only, nothing listed on the disk.
 //
 
 #ifndef PPLAY_SAVED_H
@@ -55,7 +57,7 @@ namespace pplay::Saved {
     // a network directory with saved / pending files in it, at any depth (its rows marked)
     bool anyUnder(const std::string &dir);
 
-    // a local path in the saved copies (the root too)
+    // a path of the Saved section (the root too)
     bool isInside(const std::string &path);
 
     bool isRoot(const std::string &path);
@@ -66,14 +68,21 @@ namespace pplay::Saved {
     // queued (a directory: its files, listed in a thread)
     void save(const c2d::Io::File &file);
 
-    // of a network or a saved (local) path
+    // of a network or a Saved section path
     State stateOf(const std::string &path);
 
-    // the copies under a network or a local path, their downloads stopped; the count
+    // the copies under a network or a Saved section path, their downloads stopped; the count
     int remove(const std::string &path);
 
-    // a saved directory listing: the original names, the saved files only
-    void filter(const std::string &dir, std::vector<c2d::Io::File> &files);
+    // a Saved section directory: its saved files and directories
+    std::vector<c2d::Io::File> list(const std::string &dir);
+
+    // a Saved section directory with saved files in it
+    bool hasDir(const std::string &dir);
+
+    // the saved files and directories of a network directory, as its listing (the
+    // external tracks of a saved copy found without the network); false if none
+    bool listNetwork(const std::string &dir, std::vector<c2d::Io::File> *files);
 
     // the shown names of a saved path, the root excluded
     std::vector<std::string> displayParts(const std::string &path);
@@ -84,10 +93,10 @@ namespace pplay::Saved {
     // the last access (cleanup: the oldest first)
     void touch(const std::string &path);
 
-    // the network file of a saved copy, else the path
+    // the network path of a Saved section one, else the path
     std::string originalOf(const std::string &path);
 
-    // the saved copy of a network (or saved) path, "" if none (or unfinished)
+    // the saved copy of a network (or Saved section) path, "" if none (or unfinished)
     std::string localCopy(const std::string &path);
 
     // what to open for a path: its saved copy, else its stream url

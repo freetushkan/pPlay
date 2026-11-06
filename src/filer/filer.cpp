@@ -378,7 +378,7 @@ void Filer::unsave(const MediaFile &file) {
         int index = item_index;
         // the emptied directories are gone
         std::string dir = path;
-        while (!pplay::Saved::isRoot(dir) && pplay::Saved::isInside(dir) && !main->getIo()->exist(dir)) {
+        while (!pplay::Saved::isRoot(dir) && pplay::Saved::isInside(dir) && !pplay::Saved::hasDir(dir)) {
             dir = dir.substr(0, dir.rfind('/'));
         }
         getDir(dir);

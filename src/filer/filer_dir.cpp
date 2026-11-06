@@ -124,10 +124,12 @@ bool Filer::getDir(const std::string &p) {
     pplay::Io::DeviceType type = ((pplay::Io *) main->getIo())->getDeviceType(p);
     int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
     bool hidden = main->getConfig()->getOption(OPT_SHOW_HIDDEN)->getInteger() != 0;
-    // a playlist: its entries, as listed in it
+    // a playlist: its entries, as listed in it; the saved copies: from their index
     bool playlist = pplay::Playlists::isPlaylist(path);
+    bool saved = !playlist && type == pplay::Io::DeviceType::Local && pplay::Saved::isInside(path);
     std::vector<Io::File> _files =
             playlist ? pplay::Playlists::entries(path)
+            : saved  ? pplay::Saved::list(path)
                      : ((pplay::Io *) main->getIo())->getDirList(type, listed, path, timeout, false, hidden);
     if (pplay::Playlists::isRoot(path)) {
         pplay::Playlists::filter(_files);
@@ -137,11 +139,6 @@ bool Filer::getDir(const std::string &p) {
                                     [](const Io::File &f) { return f.name.size() > 1 && f.name[0] == '.' && f.name != ".."; }),
                      _files.end());
     }
-    // the saved copies: their names, nothing else
-    if (type == pplay::Io::DeviceType::Local && pplay::Saved::isInside(path)) {
-        pplay::Saved::filter(path, _files);
-    }
-
     int rank = -1;
     std::string cover;
     for (auto &file: _files) {
