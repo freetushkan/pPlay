@@ -22,6 +22,19 @@ using namespace c2d;
 
 void Player::onMpvEvent(mpv_event *event) {
     switch (event->event_id) {
+        case MPV_EVENT_VIDEO_RECONFIG: {
+            // the video, its display size, what mpv renders to
+            Mpv *m = mpv;
+            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                                "Resolution: video " + std::to_string(m->getInt("video-params/w", 0)) + "x"
+                                        + std::to_string(m->getInt("video-params/h", 0)) + ", display "
+                                        + std::to_string(m->getInt("video-params/dw", 0)) + "x"
+                                        + std::to_string(m->getInt("video-params/dh", 0)) + ", osd "
+                                        + std::to_string(m->getInt("osd-dimensions/w", 0)) + "x"
+                                        + std::to_string(m->getInt("osd-dimensions/h", 0)) + ", hwdec "
+                                        + m->getString("hwdec-current"));
+            break;
+        }
         case MPV_EVENT_HOOK: {
             auto *hook = (mpv_event_hook *) event->data;
             if (std::string(hook->name) == "on_load" && !copyPath.empty()) {

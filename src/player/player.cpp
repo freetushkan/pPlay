@@ -70,6 +70,10 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
 #endif
     texture = new VideoTexture(main, render);
     texture->setScale(pos.x / render.x, pos.y / render.y);
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Resolution: video buffer " + std::to_string((int) render.x) + "x"
+                                                                + std::to_string((int) render.y) + " for the player "
+                                                                + std::to_string((int) pos.x) + "x"
+                                                                + std::to_string((int) pos.y));
     texture->setOutlineColor(COLOR_ACCENT);
     texture->setOutlineThickness(4 * render.x / pos.x);
     Player::add(texture);

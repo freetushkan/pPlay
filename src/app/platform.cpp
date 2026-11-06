@@ -2,6 +2,8 @@
 // Platform specific startup and shutdown.
 //
 
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <string>
 
@@ -244,6 +246,74 @@ static bool ps5_single_instance() {
 #endif
 
 // renderer information
+static std::string sizeText(int w, int h) {
+    return std::to_string(w) + "x" + std::to_string(h);
+}
+
+// each size on the way to the screen (Info): the renderer, the window, its GL drawable, the modes
+static void logResolution(Main *main) {
+    using pplay::Utility;
+    SDL_Window *window = ((c2d::SDL2Renderer *) c2d_renderer)->getWindow();
+    int ww = 0, wh = 0, dw = 0, dh = 0;
+    SDL_GetWindowSize(window, &ww, &wh);
+    SDL_GL_GetDrawableSize(window, &dw, &dh);
+    GLint viewport[4] = {0, 0, 0, 0};
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    GLint maxTexture = 0;
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTexture);
+    Utility::log(Utility::LogLevel::Info, "Resolution: renderer " + sizeText((int) main->getSize().x, (int) main->getSize().y)
+                                                  + ", window " + sizeText(ww, wh) + ", drawable " + sizeText(dw, dh)
+                                                  + ", viewport " + sizeText(viewport[2], viewport[3])
+                                                  + ", max texture " + std::to_string(maxTexture));
+    int display = SDL_GetWindowDisplayIndex(window);
+    SDL_DisplayMode mode;
+    if (SDL_GetCurrentDisplayMode(display < 0 ? 0 : display, &mode) == 0) {
+        Utility::log(Utility::LogLevel::Info, "Resolution: display current " + sizeText(mode.w, mode.h) + " @"
+                                                      + std::to_string(mode.refresh_rate));
+    }
+    if (SDL_GetDesktopDisplayMode(display < 0 ? 0 : display, &mode) == 0) {
+        Utility::log(Utility::LogLevel::Info, "Resolution: display desktop " + sizeText(mode.w, mode.h));
+    }
+    int modes = SDL_GetNumDisplayModes(display < 0 ? 0 : display);
+    for (int i = 0; i < modes; i++) {
+        if (SDL_GetDisplayMode(display < 0 ? 0 : display, i, &mode) == 0) {
+            Utility::log(Utility::LogLevel::Info, "Resolution: display mode " + std::to_string(i) + " "
+                                                          + sizeText(mode.w, mode.h));
+        }
+    }
+    char scale[96];
+    snprintf(scale, sizeof(scale), "scaling %.4f x %.4f, object scale %.4f x %.4f, position %.1f, %.1f",
+             main->getScaling().x, main->getScaling().y, main->getScale().x, main->getScale().y,
+             main->getPosition().x, main->getPosition().y);
+    Utility::log(Utility::LogLevel::Info, std::string("Resolution: ") + scale + ", fonts "
+                                                  + std::to_string(main->getFontSize(Main::FontSize::Small)) + "/"
+                                                  + std::to_string(main->getFontSize(Main::FontSize::Medium)) + "/"
+                                                  + std::to_string(main->getFontSize(Main::FontSize::Big)));
+}
+
+#ifdef __PS5__
+// the interface drawn on the whole GL drawable (a window other than asked): scaled by a whole
+// factor when it can be, centered
+static void fitDrawable(Main *main) {
+    SDL_Window *window = ((c2d::SDL2Renderer *) c2d_renderer)->getWindow();
+    int dw = 0, dh = 0;
+    SDL_GL_GetDrawableSize(window, &dw, &dh);
+    c2d::Vector2f ui = main->getSize();
+    if (dw <= 0 || dh <= 0 || ((float) dw == ui.x && (float) dh == ui.y)) {
+        return;
+    }
+    float scale = std::min((float) dw / ui.x, (float) dh / ui.y);
+    float whole = std::floor(scale + 0.001f);
+    if (whole >= 1 && std::fabs(scale - whole) < 0.001f) {
+        scale = whole;
+    }
+    main->setScale(scale, scale);
+    main->setPosition(std::round(((float) dw - ui.x * scale) / 2), std::round(((float) dh - ui.y * scale) / 2));
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Resolution: the interface scaled by "
+                                                                + std::to_string(scale) + " to the drawable");
+}
+#endif
+
 static void logRenderer(Main *main) {
     auto str = [](GLenum name) {
         const char *s = (const char *) glGetString(name);
@@ -329,12 +399,25 @@ namespace pplay::Platform {
 #endif
     }
 
-    c2d::Vector2f resolution() {
-        return {1920, 1080};
+    c2d::Vector2f resolution(PPLAYConfig *config) {
+#ifdef __PS5__
+        c2d::Vector2f size = config->getOption(OPT_PS5_UI_4K)->getInteger() != 0 ? c2d::Vector2f{3840, 2160}
+                                                                                  : c2d::Vector2f{1920, 1080};
+#else
+        (void) config;
+        c2d::Vector2f size = {1920, 1080};
+#endif
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Resolution: asked " + std::to_string((int) size.x)
+                                                                    + "x" + std::to_string((int) size.y));
+        return size;
     }
 
     void started(Main *main) {
         logRenderer(main);
+#ifdef __PS5__
+        fitDrawable(main);
+#endif
+        logResolution(main);
         pplay::DesktopWindow::setup(main);
 #ifdef __SWITCH__
         appletLockExit();

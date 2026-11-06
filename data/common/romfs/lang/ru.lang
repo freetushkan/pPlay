@@ -386,3 +386,5 @@ Video resolution = Разрешение видео
 Video rendering (after a restart) = Отрисовка видео (после перезапуска)
 Screen = Как у экрана
 1080p at most = Не выше 1080p
+Interface resolution = Разрешение интерфейса
+Interface rendering (after a restart) = Отрисовка интерфейса (после перезапуска)

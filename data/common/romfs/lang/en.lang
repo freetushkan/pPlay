@@ -387,3 +387,5 @@ Video resolution = Video resolution
 Video rendering (after a restart) = Video rendering (after a restart)
 Screen = Screen
 1080p at most = 1080p at most
+Interface resolution = Interface resolution
+Interface rendering (after a restart) = Interface rendering (after a restart)

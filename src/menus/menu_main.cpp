@@ -60,6 +60,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     categories.push_back({"Interface",
                           {
                                   MenuItem("Language", "translate.png", Pos::Top),
+#ifdef __PS5__
+                                  MenuItem("Interface resolution", "interface.png", Pos::Top),
+#endif
                                   MenuItem("Text encoding", "encoding.png", Pos::Top),
                                   MenuItem("Accent color", "color.png", Pos::Top),
                                   MenuItem("Hidden files", "hidden.png", Pos::Top),
@@ -253,6 +256,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     addSubmenu("Buffer memory", "Network buffer memory", OPT_CACHE_MB, makeAdjustItems(), Submenu::ValueType::Integer,
                Submenu::MenuType::Adjust, 50.0f, (float) CACHE_MB_MAX, 50.0f, "MB");
 #ifdef __PS5__
+    addSubmenu("Interface resolution", "Interface rendering (after a restart)", OPT_PS5_UI_4K,
+               makeIntItems({{"1080p", 0}, {"4K", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Video resolution", "Video rendering (after a restart)", OPT_PS5_VIDEO_1080,
                makeIntItems({{"Screen", 0}, {"1080p at most", 1}}), Submenu::ValueType::Integer);
 #endif

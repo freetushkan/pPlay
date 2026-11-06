@@ -38,6 +38,7 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
     pplayIo->setConfig(config);
     setClearColor(COLOR_BG);
 
+    // whole factors on 1280x720 multiples (1.5 at 1080p, 3 at 2160p)
     scaling = {Main::getSize().x / 1280.0f, Main::getSize().y / 720.0f};
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: resolution " + std::to_string((int) Main::getSize().x)
                                                                 + "x" + std::to_string((int) Main::getSize().y));
@@ -457,7 +458,7 @@ int main() {
     pplay::I18n::setSearchPaths({io->getRomFsPath() + "lang", io->getDataPath() + "lang"});
     pplay::I18n::load(config->getOption(OPT_LANGUAGE)->getString());
 
-    c2d::Vector2f size = pplay::Platform::resolution();
+    c2d::Vector2f size = pplay::Platform::resolution(config);
 
     auto *main = new Main(size, io, config);
     pplay::Platform::started(main);

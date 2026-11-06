@@ -11,6 +11,8 @@
 
 class Main;
 
+class PPLAYConfig;
+
 namespace pplay::Platform {
 
     // stack size for SDL workers and explicit pthread workers (FFmpeg, covers)
@@ -19,7 +21,8 @@ namespace pplay::Platform {
     // first call; false: exit now (already running...)
     bool init();
 
-    c2d::Vector2f resolution();
+    // the interface size asked to the renderer
+    c2d::Vector2f resolution(PPLAYConfig *config);
 
     // "Switch", "PS4"... with the system version when known
     std::string name();
