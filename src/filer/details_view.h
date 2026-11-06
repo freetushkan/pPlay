@@ -43,7 +43,9 @@ public:
         AddToPlaylist,
         RenamePlaylist,
         DeletePlaylist,
-        RemoveFromPlaylist
+        RemoveFromPlaylist,
+        ResetFolder,
+        WatchedFolder
     };
 
     DetailsView(Main *main, const c2d::FloatRect &rect);
@@ -100,6 +102,7 @@ private:
     std::string heading;
     std::string details;
     PosterLoader *loader;
+    unsigned int folderGeneration = 0;
     c2d::Texture *posterTexture = nullptr;
     c2d::Texture *placeholder;
 

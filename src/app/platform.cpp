@@ -93,6 +93,7 @@ int sceSystemServiceDeclareReadyForSuspend();
 int sceSystemServicePowerTick();
 int32_t sceAgcSuspendPoint();
 int sceKernelSendNotificationRequest(int device, void *request, size_t size, int blocking);
+int sceSystemStateMgrEnterStandby();
 int sceVideoOutOpen(int userId, int busType, int index, const void *param);
 int sceVideoOutClose(int handle);
 int sceVideoOutGetResolutionStatus(int handle, void *status);
@@ -505,6 +506,40 @@ namespace pplay::Platform {
         (void) on;
 #endif
         (void) playing;
+    }
+
+    bool sleepNow() {
+#ifdef __PS5__
+        int res = sceSystemStateMgrEnterStandby();
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS5: rest mode asked: " + std::to_string(res));
+        return res == 0;
+#else
+        return false;
+#endif
+    }
+
+    float backlight() {
+#ifdef __SWITCH__
+        static bool ready = R_SUCCEEDED(lblInitialize());
+        float value = 0;
+        if (!ready || appletGetOperationMode() != AppletOperationMode_Handheld
+            || R_FAILED(lblGetCurrentBrightnessSetting(&value))) {
+            return -1;
+        }
+        return value;
+#else
+        return -1;
+#endif
+    }
+
+    void setBacklight(float value) {
+#ifdef __SWITCH__
+        if (backlight() >= 0) {
+            lblSetCurrentBrightnessSetting(std::max(0.0f, std::min(1.0f, value)));
+        }
+#else
+        (void) value;
+#endif
     }
 
     bool renderPaused() {

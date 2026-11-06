@@ -84,6 +84,9 @@ private:
     // the full duration kept, locally and on TorrServer
     void markWatched(const MediaFile &file);
 
+    // the files of a directory (as listed for its panel): marked watched, or reset
+    void markFolder(const MediaFile &dir, bool watched);
+
     // the saved copies of a file / directory deleted (asked first)
     void unsave(const MediaFile &file);
 

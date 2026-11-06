@@ -15,6 +15,7 @@
 #include "poster_loader.h"
 #include "details_info.h"
 #include "details_view.h"
+#include "folder_marks.h"
 #include "text_wrap.h"
 #include "utility.h"
 #include "torrserve.h"
@@ -142,6 +143,10 @@ void DetailsView::setFocused(bool value) {
         return;
     }
     focused = value;
+    // marks changed meanwhile: listed again
+    if (focused && file.type == Io::Type::Directory && !Filer::isPlaceholder(file) && file.name != "..") {
+        pplay::FolderMarks::request(file, true);
+    }
     button = -1;
     scroll = 0;
     hints->setButtons(focused);
@@ -193,6 +198,17 @@ void DetailsView::updateHints() {
         }
         if (file.type == Io::Type::File && !empty && !watched && pplay::Utility::isMedia(file)) {
             add(0, "Mark watched", Action::Watched);
+        }
+        // a directory: its files listed in a thread, the buttons once known
+        if (file.type == Io::Type::Directory && !empty && file.name != "..") {
+            pplay::FolderMarks::request(file);
+            pplay::FolderMarks::State folder = pplay::FolderMarks::stateOf(file.path);
+            if (folder.marked > 0) {
+                add(0, "Reset folder progress", Action::ResetFolder);
+            }
+            if (folder.unwatched > 0) {
+                add(0, "Mark folder watched", Action::WatchedFolder);
+            }
         }
         // a copy: saved (the rest of a directory), its progress, removed
         bool network = pplay::Saved::canSave(file);
@@ -433,6 +449,14 @@ void DetailsView::onUpdate() {
                 posterError = error;
                 layout();
             }
+        }
+    }
+
+    if (pplay::FolderMarks::generation() != folderGeneration) {
+        folderGeneration = pplay::FolderMarks::generation();
+        if (focused && file.type == Io::Type::Directory) {
+            updateHints();
+            layout();
         }
     }
 

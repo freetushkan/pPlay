@@ -10,6 +10,7 @@
 #include "encodings.h"
 #include "poster_cache.h"
 #include "saved.h"
+#include "folder_marks.h"
 #include "playlists.h"
 #include "menu_main_items.h"
 #include "i18n.h"
@@ -59,6 +60,7 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
     pplay::PosterCache::cleanup(30);
     pplay::Saved::start(config);
     pplay::Playlists::start(config);
+    pplay::FolderMarks::start(config);
 
     filer = new Filer(this, "/", {0, 0, Main::getSize().x, Main::getSize().y});
     filer->setLayer(1);
@@ -143,6 +145,9 @@ void Main::createMenus() {
     items.emplace_back("Visualization", "visualizer.png", MenuItem::Position::Top);
     items.emplace_back("Speed", "speed.png", MenuItem::Position::Top);
     items.emplace_back("Brightness", "brightness.png", MenuItem::Position::Top);
+#ifdef __SWITCH__
+    items.emplace_back("Screen brightness", "brightness.png", MenuItem::Position::Top);
+#endif
     items.emplace_back("Progress line", "progress_line.png", MenuItem::Position::Top);
     items.emplace_back("Stay awake", "awake.png", MenuItem::Position::Top);
     items.emplace_back("Information", "info.png", MenuItem::Position::Top);
@@ -291,6 +296,18 @@ void Main::onUpdate() {
     bool awake = awakeMinutes >= 0 && (playing || pplay::Saved::busy())
                  && (awakeMinutes == 0 || idleClock.getElapsedTime().asSeconds() < (float) awakeMinutes * 60);
     pplay::Platform::keepAwake(awake, playing);
+#ifdef __PS5__
+    // the set time over while playing (fallen asleep): paused, the console to sleep, once
+    // (the system timer never runs out there)
+    bool over = awakeMinutes > 0 && playing && idleClock.getElapsedTime().asSeconds() >= (float) awakeMinutes * 60;
+    if (over && !sleepAsked) {
+        sleepAsked = true;
+        player->pause();
+        pplay::Platform::sleepNow();
+    } else if (!over && idleClock.getElapsedTime().asSeconds() < 1) {
+        sleepAsked = false;
+    }
+#endif
     std::string savedType, savedMessage;
     if (pplay::Saved::takeMessage(&savedType, &savedMessage)
         || pplay::Playlists::takeMessage(&savedType, &savedMessage)) {
@@ -334,6 +351,7 @@ void Main::quit() {
     config->save();
     pplay::Saved::stop();
     pplay::Playlists::stop();
+    pplay::FolderMarks::stop();
     exit = true;
     if (player->getMpv()->isStopped()) {
         running = false;

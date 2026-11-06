@@ -7,6 +7,7 @@
 #include "main.h"
 #include "paths.h"
 #include "filer.h"
+#include "folder_marks.h"
 #include "round_rect.h"
 #include "utility.h"
 #include "torrserve.h"
@@ -306,6 +307,12 @@ void Filer::run(DetailsView::Action action) {
         case Action::Watched:
             markWatched(selection);
             break;
+        case Action::ResetFolder:
+            markFolder(selection, false);
+            break;
+        case Action::WatchedFolder:
+            markFolder(selection, true);
+            break;
         case Action::Save:
             pplay::Saved::save(selection);
             break;
@@ -477,6 +484,47 @@ void Filer::markWatched(const MediaFile &file) {
     pplay::Utility::setWatchLaterWatched(pplay::TorrServe::toStreamUrl(file.path), (double) duration);
     pplay::TorrServe::setFileViewed(file.path, (double) duration);
     main->getStatus()->show("Info", "Marked as watched");
+    dirty = true;
+}
+
+void Filer::markFolder(const MediaFile &dir, bool watched) {
+    std::vector<c2d::Io::File> list = pplay::FolderMarks::files(dir.path);
+    if (list.empty()) {
+        return;
+    }
+    Player *player = main->getPlayer();
+    int count = 0;
+    for (auto &file: list) {
+        std::string path = pplay::Saved::originalOf(file.path);
+        std::string url = pplay::TorrServe::toStreamUrl(path);
+        bool local = pplay::Utility::isWatchLaterExist(url);
+        bool server = pplay::TorrServe::isFileViewed(path);
+        // the opened file: no more saves over the change
+        if (player->isPlaying(file.path) || player->isPlaying(path)) {
+            player->forgetProgress();
+        }
+        if (watched) {
+            if (local ? pplay::Utility::isWatchLaterWatched(url) : server) {
+                continue;
+            }
+            // the duration if known (the progress line full), else the mark only
+            long duration = MediaInfo(file).duration;
+            pplay::Utility::setWatchLaterWatched(url, duration > 0 ? (double) duration : 0);
+            pplay::TorrServe::setFileViewed(path, duration > 0 ? (double) duration : 0);
+        } else {
+            if (!local && !server) {
+                continue;
+            }
+            pplay::Utility::deleteWatchLater(url);
+            if (server) {
+                pplay::TorrServe::remFileViewed(path);
+            }
+        }
+        count++;
+    }
+    main->getStatus()->show("Info", pplay::tr(watched ? "Marked as watched" : "Progress reset") + ": "
+                                            + std::to_string(count));
+    pplay::FolderMarks::request(dir, true);
     dirty = true;
 }
 

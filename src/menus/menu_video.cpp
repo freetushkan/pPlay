@@ -6,6 +6,7 @@
 #include "main.h"
 #include "menu_video.h"
 #include "player_osd.h"
+#include "platform.h"
 #include "pplay_config.h"
 #include "utility.h"
 #include "input_map.h"
@@ -23,7 +24,7 @@ namespace {
             if (n == "Playlist" || n == "Audio" || n == "Video" || n == "Subtitles") {
                 item.opens = true;
             }
-            if (n == "Speed" || n == "Brightness") {
+            if (n == "Speed" || n == "Brightness" || n == "Screen brightness") {
                 item.slider = 0;
             }
             if (n != "Stop" && n != "Playlist") {
@@ -132,6 +133,11 @@ void MenuVideo::refreshValues() {
             item.value = std::to_string(brightness);
             item.valueAccent = brightness != 0;
             item.slider = (float) (brightness + 100) / 200.0f;
+        } else if (n == "Screen brightness") {
+            // docked: no backlight
+            float light = pplay::Platform::backlight();
+            item.value = light >= 0 ? std::to_string((int) std::lround(light * 100)) + "%" : "-";
+            item.slider = std::max(0.0f, light);
         } else if (n == "Information") {
             item.value = pplay::tr(player->isInfoVisible() ? "On" : "Off");
             item.valueAccent = player->isInfoVisible();
@@ -178,6 +184,11 @@ bool MenuVideo::onOptionChange(MenuItem *item, int direction) {
         player->setSpeed(std::max(0.25, std::min(3.0, speed)));
     } else if (n == "Brightness") {
         player->changeBrightness(direction);
+    } else if (n == "Screen brightness") {
+        float light = pplay::Platform::backlight();
+        if (light >= 0) {
+            pplay::Platform::setBacklight(std::round(light * 20 + (float) direction) / 20);
+        }
     } else if (n == "Information") {
         player->setInfoVisible(!player->isInfoVisible());
     } else if (n == "Progress line") {

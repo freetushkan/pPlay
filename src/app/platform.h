@@ -39,6 +39,14 @@ namespace pplay::Platform {
     // each frame: no automatic sleep (playing, saving files)
     void keepAwake(bool on, bool playing);
 
+    // the console put to sleep now (PS5: rest mode); false if it can't
+    bool sleepNow();
+
+    // the screen backlight 0..1 (Switch handheld), -1 if none
+    float backlight();
+
+    void setBacklight(float value);
+
     // after the main loop (does not return on PS4)
     void exit();
 }

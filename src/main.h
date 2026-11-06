@@ -146,6 +146,9 @@ public:
 
 private:
 
+    // the console put to sleep once the stay awake time was over
+    bool sleepAsked = false;
+
     // since the last key (stay awake)
     c2d::C2DClock idleClock;
 
