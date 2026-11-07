@@ -17,6 +17,12 @@ namespace pplay::CrashLog {
 
     // Linux: registers an alternate signal stack for the calling thread.
     void registerCurrentThread();
+
+    // Android: the main loop alive (a stuck one: its place written), not watched while idle
+    // (in the background)
+    void heartbeat();
+
+    void setIdle(bool idle);
 }
 
 #endif //PPLAY_CRASHLOG_H

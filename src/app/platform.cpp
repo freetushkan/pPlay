@@ -14,6 +14,7 @@
 
 #ifdef __ANDROID__
 #include <atomic>
+#include "crashlog.h"
 #include <jni.h>
 #include <unistd.h>
 extern "C" {
@@ -36,6 +37,8 @@ namespace {
     int onAppEvent(void *, SDL_Event *event) {
         if (event->type == SDL_APP_WILLENTERBACKGROUND) {
             g_background = true;
+            // the main loop blocked there
+            pplay::CrashLog::setIdle(true);
             if (g_closeInBackground) {
                 g_closeAsked = true;
             } else if (g_mpv.load() != nullptr) {
@@ -44,6 +47,7 @@ namespace {
             }
         } else if (event->type == SDL_APP_DIDENTERFOREGROUND) {
             g_background = false;
+            pplay::CrashLog::setIdle(false);
         }
         return 1;
     }
@@ -613,6 +617,7 @@ namespace pplay::Platform {
 #ifdef __PS5__
         ps5RestMode(main);
 #elif defined(__ANDROID__)
+        pplay::CrashLog::heartbeat();
         // closed in the background: the playing file reopened at the next start
         if (g_closeAsked.exchange(false)) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info, "Android: closing in the background");
