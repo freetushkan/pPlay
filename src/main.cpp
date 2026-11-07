@@ -18,7 +18,7 @@
 #include "io.h"
 #include "net_time.h"
 #include "platform.h"
-#if defined(__LINUX__) || defined(__PS5__) || defined(__SWITCH__)
+#if defined(__LINUX__) || defined(__PS5__) || defined(__SWITCH__) || defined(__ANDROID__)
 #include "crashlog.h"
 #endif
 #include "pplay_config.h"
