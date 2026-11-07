@@ -36,6 +36,18 @@ if ! grep -q MBEDTLS_THREADING_C scripts/mbedtls.sh; then
 fi
 grep -n "THREADING\|no_test" scripts/mbedtls.sh
 
+# ffmpeg's MediaCodec decoder: a codec taking no input and giving no output (a Realtek one on
+# some streams) looped on forever, mpv stuck with it; an error after 3 s instead (mpv: the
+# software decoder after 3 errors)
+mediacodecStuck() {
+	if ! grep -q "Decoder stuck" "$1"; then
+		perl -0pi -e 's|#include "libavutil/mem.h"\n|#include "libavutil/mem.h"\n#include "libavutil/time.h"\n|;
+			s|(static int mediacodec_receive_frame\(AVCodecContext \*avctx, AVFrame \*frame\)\n\{\n(?:    .*\n)*?    ssize_t index;\n)|$1    int64_t stuck_since = 0;\n|;
+			s|(                    ret == AVERROR\(EAGAIN\)\)\n)                    continue;\n|$1                \{\n                    if (!stuck_since)\n                        stuck_since = av_gettime_relative();\n                    if (av_gettime_relative() - stuck_since < 3000000)\n                        continue;\n                    av_log(avctx, AV_LOG_ERROR, "Decoder stuck (no input space, no output)\\n");\n                    return AVERROR_EXTERNAL;\n                \}\n|' "$1"
+	fi
+	[ "$(grep -c "Decoder stuck\|stuck_since = 0" "$1")" -eq 2 ]
+}
+
 # the SDK of the runner, mpv-android's NDK
 mkdir -p sdk
 if [[ -n "$ANDROID_HOME" && ! -e sdk/android-sdk-linux ]]; then
@@ -61,6 +73,7 @@ for entry in $ARCHS; do
 			IN_CI=1 WGET="wget -q" ./include/download-deps.sh
 			git -C deps/mpv checkout -q "$(git -C deps/mpv rev-list -1 --before="$MPV_BEFORE" HEAD)"
 			git -C deps/mpv log -1 --oneline
+			mediacodecStuck deps/ffmpeg/libavcodec/mediacodecdec.c
 			fetched=1
 		fi
 		./buildall.sh --arch "$arch" mpv

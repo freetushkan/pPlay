@@ -538,7 +538,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/mpv-android/buildscripts/prefix
-          key: android-prefix-${{ env.MPV_ANDROID_REV }}-${{ env.SDL_TAG }}-${{ env.PNG_TAG }}-v2
+          key: android-prefix-${{ env.MPV_ANDROID_REV }}-${{ env.SDL_TAG }}-${{ env.PNG_TAG }}-v3
 
       - name: Build pPlay
         env:
