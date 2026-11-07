@@ -65,9 +65,15 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
     texture = new VideoTexture(main, pos);
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "Resolution: video buffer " + std::to_string((int) pos.x) + "x"
                                                                 + std::to_string((int) pos.y));
-    texture->setOutlineColor(COLOR_ACCENT);
-    texture->setOutlineThickness(4);
     Player::add(texture);
+
+    // the minimized frame: out of the scaled player (even sides), shown as it shrinks
+    frame = new RectangleShape(Vector2f{0, 0});
+    frame->setFillColor(Color::Transparent);
+    frame->setOutlineThickness(std::max(1.0f, std::round(main->getScaling().x * 4 / 3)));
+    frame->setVisibility(Visibility::Hidden);
+    frame->setLayer(2);
+    main->add(frame);
 
     audioView = new AudioView(main);
     Player::add(audioView);
@@ -287,6 +293,23 @@ void Player::onLoadEvent() {
     }
 }
 
+void Player::updateFrame() {
+    float scale = getScale().x;
+    float alpha = isVisible() ? std::max(0.0f, std::min(1.0f, (1 - scale) / 0.75f)) : 0;
+    if (alpha <= 0) {
+        frame->setVisibility(Visibility::Hidden);
+        return;
+    }
+    FloatRect bounds = getGlobalBounds();
+    frame->setPosition(std::round(bounds.left), std::round(bounds.top));
+    frame->setSize(std::round(bounds.left + bounds.width) - std::round(bounds.left),
+                   std::round(bounds.top + bounds.height) - std::round(bounds.top));
+    Color color = COLOR_ACCENT;
+    color.a = (uint8_t) (255 * alpha);
+    frame->setOutlineColor(color);
+    frame->setVisibility(Visibility::Visible);
+}
+
 void Player::onUpdate() {
     updateExternalTracks();
     if (volumeDirty && volumeClock.getElapsedTime().asSeconds() >= 2) {
@@ -356,7 +379,6 @@ void Player::onUpdate() {
     }
 
     if (isVisible()) {
-        texture->setOutlineColor(COLOR_ACCENT);
         Rectangle::onUpdate();
     }
 }
@@ -471,9 +493,7 @@ bool Player::syncsProgress() const {
 bool Player::keepsProgress(long position, long duration) const {
     PPLAYConfig *config = main->getConfig();
     long minLength = (long) config->getOption(OPT_PROGRESS_MIN_LENGTH)->getInteger() * 60;
-    bool toEnd = config->getOption(OPT_PROGRESS_TO_END)->getInteger() != 0;
-    return position > 0 && duration > 0 && duration >= minLength && !progressForgotten
-           && (toEnd || duration - position >= 60);
+    return position > 0 && duration > 0 && duration >= minLength && !progressForgotten;
 }
 
 bool Player::hasVideo() const {
@@ -526,7 +546,6 @@ void Player::applyConfig() {
     bool hardware = main->getConfig()->getOption(OPT_HW_DECODING)->getInteger() != 0;
     mpv_set_property_string(mpv->getHandle(), "hwdec", hardware ? hwdec : "no");
 #endif
-    texture->setOutlineColor(COLOR_ACCENT);
     // the accent color, the setting
     updateAudioScreen();
 }

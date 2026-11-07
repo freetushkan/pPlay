@@ -103,9 +103,9 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_TEXT_ENCODING, (int) 0});
     addOption({OPT_TS_PROGRESS, (int) 2});
     addOption({OPT_PROGRESS_LINE, (int) 1});
+    addOption({OPT_FOLDER_MARKS, (int) 1});
     addOption({OPT_PROGRESS_MIN_LENGTH, (int) 5});
     addOption({OPT_PROGRESS_INTERVAL, (int) 10});
-    addOption({OPT_PROGRESS_TO_END, (int) 0});
     addOption({OPT_PS5_KEEP_IN_REST, (int) 0});
     addOption({OPT_REST_SESSION, ""});
 #ifdef __SWITCH__

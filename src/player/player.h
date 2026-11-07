@@ -67,6 +67,9 @@ public:
 
     void changeBrightness(double delta);
 
+    // the minimized player frame (each frame, by Main)
+    void updateFrame();
+
     // false: no backlight here
     bool changeBacklight(int direction);
 
@@ -261,6 +264,7 @@ private:
 
     Main *main = nullptr;
     Mpv *mpv = nullptr;
+    c2d::RectangleShape *frame = nullptr;
     VideoTexture *texture = nullptr;
     PlayerOSD *osd = nullptr;
     bool fullscreen = false;

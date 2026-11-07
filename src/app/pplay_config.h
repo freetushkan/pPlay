@@ -47,7 +47,8 @@
 #define OPT_CACHE_MB "CACHE_MB"
 // 0 best (mpv.conf), 1 balanced, 2 fast (see Mpv::setQualityPreset)
 #define OPT_VIDEO_QUALITY "VIDEO_QUALITY"
-// media information read on selection (not only played files)
+// media information read by itself: 0 the panel opened only, 2 the selected file,
+// 1 the selected one and the files with progress (their durations)
 #define OPT_MEDIA_PROBE "MEDIA_PROBE"
 // audio files screen: 0 cover > visualizer > icon, 1 visualizer > icon, 2 icon
 #define OPT_AUDIO_VISUALIZER "AUDIO_VISUALIZER"
@@ -57,11 +58,9 @@
 #define OPT_TS_PROGRESS "TS_PROGRESS_SYNC"
 // thin progress line under the hidden panel (and on the minimized player)
 #define OPT_PROGRESS_LINE "PROGRESS_LINE"
-// progress kept for files from this length (minutes), saved every n seconds,
-// in the last minute too (1) or not (0)
+// progress kept for files from this length (minutes), saved every n seconds
 #define OPT_PROGRESS_MIN_LENGTH "PROGRESS_MIN_LENGTH"
 #define OPT_PROGRESS_INTERVAL "PROGRESS_INTERVAL"
-#define OPT_PROGRESS_TO_END "PROGRESS_TO_END"
 // PS5 rest mode: 0 pPlay closes once the system resumes it, 1 it stays (unstable)
 #define OPT_PS5_KEEP_IN_REST "PS5_KEEP_IN_REST"
 // closed for rest mode: "<fullscreen 0/1>|<the playing file>", reopened at the next start
@@ -88,6 +87,8 @@
 #define PPLAY_HW_DECODING
 #endif
 #define OPT_HW_DECODING "HW_DECODING"
+// directories marked watched in the list: 0 off, 1 by the marks of their files, 2 by progress too
+#define OPT_FOLDER_MARKS "FOLDER_MARKS"
 #ifdef __SWITCH__
 #define CACHE_MB_MAX 500
 #else

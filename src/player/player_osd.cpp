@@ -130,7 +130,7 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     btn_play = addButton("btn_play.png");
     btn_play->setVisibility(Visibility::Hidden);
     buttons = {addButton("btn_prev.png"), addButton("btn_seek_backward_long.png"),
-               addButton("btn_seek_backward_short.png"), btn_pause,
+               addButton("btn_seek_backward_short.png"), btn_pause, addButton("btn_frame_step.png"),
                addButton("btn_seek_forward_short.png"), addButton("btn_seek_forward_long.png"),
                addButton("btn_next.png"), addButton("btn_settings.png"), addButton("btn_stop.png")};
 
@@ -185,7 +185,7 @@ void PlayerOSD::layout(bool audio) {
     float step = 52 * sc;
     std::vector<float> xs(buttons.size());
     if (audio) {
-        float width = step * 8 + 24 * sc;
+        float width = step * (float) (buttons.size() - 1) + 24 * sc;
         float x = (size.x - width) / 2;
         for (size_t i = 0; i < buttons.size(); i++) {
             xs[i] = x + step * (float) i + (i >= (size_t) ButtonID::Settings ? 24 * sc : 0);
@@ -583,6 +583,11 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
                 pause ? player->pause() : player->resume();
                 break;
             }
+            case ButtonID::FrameStep:
+                // one frame on, paused there
+                mpv_command_string(mpv->getHandle(), "frame-step");
+                setPaused(true);
+                break;
             case ButtonID::SeekForwardShort:
                 mpv->seek(s_short);
                 break;

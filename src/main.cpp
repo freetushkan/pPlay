@@ -270,6 +270,7 @@ void Main::onUpdate() {
     bool held = oldKeys != 0 && heldMs >= REPEAT_DELAY / 2;
 
     messageBox->setOutlineColor(COLOR_ACCENT);
+    player->updateFrame();
 
     bool menu = false;
     for (auto *m: Menu::all()) {

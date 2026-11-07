@@ -2,6 +2,7 @@
 // Watched marks of a whole directory (see folder_marks.h).
 //
 
+#include <algorithm>
 #include <atomic>
 #include <condition_variable>
 #include <deque>
@@ -11,6 +12,8 @@
 
 #include "folder_marks.h"
 #include "io.h"
+#include "media_info.h"
+#include "paths.h"
 #include "playlists.h"
 #include "pplay_config.h"
 #include "saved.h"
@@ -62,9 +65,18 @@ namespace {
         }
     }
 
-    void collect(const c2d::Io::File &dir, int depth, std::vector<c2d::Io::File> &out) {
-        if (g_cancel || out.size() >= MAX_FILES) {
-            return;
+    // the listings kept (the thread only): counted again without the network
+    const float LIST_KEEP_SECS = 30 * 60;
+    struct Listing {
+        std::vector<c2d::Io::File> files;
+        c2d::C2DClock age;
+    };
+    std::map<std::string, Listing> g_lists;
+
+    std::vector<c2d::Io::File> listOf(const c2d::Io::File &dir) {
+        auto it = g_lists.find(dir.path);
+        if (it != g_lists.end() && it->second.age.getElapsedTime().asSeconds() < LIST_KEEP_SECS) {
+            return it->second.files;
         }
         std::vector<c2d::Io::File> list;
         if (Playlists::isPlaylist(dir.path)) {
@@ -77,7 +89,37 @@ namespace {
             bool hidden = g_config->getOption(OPT_SHOW_HIDDEN)->getInteger() != 0;
             std::string error;
             list = io->list(io->getDeviceType(dir.path), dir.path, timeout, &error, false, hidden);
+            // failed: not kept
+            if (!error.empty()) {
+                return list;
+            }
         }
+        // the local ones change (playlists, the Saved section): listed each time
+        if (Io::get()->getDeviceType(dir.path) != Io::DeviceType::Local) {
+            g_lists[dir.path].files = list;
+            g_lists[dir.path].age.restart();
+        }
+        return list;
+    }
+
+    // a file watched: its mark, or (by progress) its position close to the end (the credits)
+    bool watched(const std::string &path, const std::string &url, bool local, bool server, int mode) {
+        if (local ? Utility::isWatchLaterWatched(url) : server) {
+            return true;
+        }
+        if (mode != 2 || !local) {
+            return false;
+        }
+        long duration = MediaInfo(c2d::Io::File(Paths::getLeafName(path), path, c2d::Io::Type::File)).duration;
+        double position = TorrServe::keptPosition(path, g_config->getOption(OPT_TS_PROGRESS)->getInteger());
+        return duration > 0 && position > 0 && (double) duration - position <= std::max(90.0, duration * 0.1);
+    }
+
+    void collect(const c2d::Io::File &dir, int depth, std::vector<c2d::Io::File> &out) {
+        if (g_cancel || out.size() >= MAX_FILES) {
+            return;
+        }
+        std::vector<c2d::Io::File> list = listOf(dir);
         for (auto &file: list) {
             if (g_cancel || file.name == "." || file.name == "..") {
                 continue;
@@ -98,6 +140,7 @@ namespace {
         collect(dir, 0, files);
         FolderMarks::State state;
         state.files = (int) files.size();
+        int mode = g_config->getOption(OPT_FOLDER_MARKS)->getInteger();
         for (auto &file: files) {
             if (g_cancel) {
                 return false;
@@ -109,8 +152,7 @@ namespace {
             if (local || server) {
                 state.marked++;
             }
-            // the server mark alone: watched too
-            if (local ? !Utility::isWatchLaterWatched(url) : !server) {
+            if (!watched(path, url, local, server, mode)) {
                 state.unwatched++;
             }
         }
@@ -192,6 +234,18 @@ namespace pplay::FolderMarks {
 
     State cached(const c2d::Io::File &dir) {
         State state;
+        static int lastMode = -1;
+        int mode = g_config != nullptr ? g_config->getOption(OPT_FOLDER_MARKS)->getInteger() : 0;
+        if (mode == 0) {
+            return state;
+        }
+        // the setting changed: all counted again
+        if (mode != lastMode) {
+            if (lastMode >= 0) {
+                forget();
+            }
+            lastMode = mode;
+        }
         bool queued = false;
         {
             std::lock_guard<std::mutex> lock(g_mutex);

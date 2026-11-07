@@ -19,7 +19,7 @@ namespace pplay::FolderMarks {
         int files = 0;
         // files with a position or a mark (local or the server one)
         int marked = 0;
-        // files not marked watched
+        // files not watched (marked, or by progress if set)
         int unwatched = 0;
     };
 

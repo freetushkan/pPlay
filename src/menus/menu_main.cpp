@@ -35,8 +35,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                           {
                                   MenuItem("Keep progress from", "progress_from.png", Pos::Top),
                                   MenuItem("Progress save interval", "time.png", Pos::Top),
-                                  MenuItem("Progress at the end", "progress_end.png", Pos::Top),
                                   MenuItem("Progress line", "progress_line.png", Pos::Top),
+                                  MenuItem("Folder marks", "progress_end.png", Pos::Top),
                                   MenuItem("Progress source", "network.png", Pos::Top),
                           }});
     categories.push_back({"Audio and subtitles",
@@ -225,10 +225,10 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 60.0f, 1.0f, "min");
     addSubmenu("Progress save interval", "Progress save interval", OPT_PROGRESS_INTERVAL, makeAdjustItems(),
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 5.0f, 120.0f, 5.0f, "s");
-    addSubmenu("Progress at the end", "Progress in the last minute", OPT_PROGRESS_TO_END,
-               makeIntItems({{"Not kept", 0}, {"Kept", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Progress line", "Progress line always on screen", OPT_PROGRESS_LINE,
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
+    addSubmenu("Folder marks", "Folders watched in the list", OPT_FOLDER_MARKS,
+               makeIntItems({{"Off", 0}, {"By marks", 1}, {"By progress", 2}}), Submenu::ValueType::Integer);
     addSubmenu("Audio language", "Audio language", OPT_AUDIO_LANGUAGE, makeTrackLanguageItems("Auto"),
                Submenu::ValueType::String);
     addSubmenu("Subtitles language", "Subtitles language", OPT_SUB_LANGUAGE, makeTrackLanguageItems("Off"),
@@ -240,8 +240,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     addSubmenu("Visualization", "Audio files screen", OPT_AUDIO_VISUALIZER,
                makeIntItems({{"Cover > visualizer", 0}, {"Visualizer", 1}, {"Icon only", 2}}),
                Submenu::ValueType::Integer);
-    addSubmenu("Media information", "Media information on selection", OPT_MEDIA_PROBE,
-               makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
+    addSubmenu("Media information", "Media information read by itself", OPT_MEDIA_PROBE,
+               makeIntItems({{"Panel opened only", 0}, {"Selected file", 2}, {"Selected, with progress", 1}}),
+               Submenu::ValueType::Integer);
     addSubmenu("Video quality", "Video quality", OPT_VIDEO_QUALITY,
                makeIntItems({{"Best", 0}, {"Balanced", 1}, {"Fast", 2}}), Submenu::ValueType::Integer);
 #ifdef PPLAY_HW_DECODING

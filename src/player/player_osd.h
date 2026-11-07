@@ -27,6 +27,7 @@ public:
         SeekBackwardLong,
         SeekBackwardShort,
         Pause,
+        FrameStep,
         SeekForwardShort,
         SeekForwardLong,
         Next,

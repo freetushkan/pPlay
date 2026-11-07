@@ -125,7 +125,7 @@ void Filer::setSelection(int index) {
         items[i]->setVisibility(Visibility::Visible);
         if (fileIndex == item_index) {
             details->setFile(file);
-            if (main->getConfig()->getOption(OPT_MEDIA_PROBE)->getInteger() != 0) {
+            if (main->getConfig()->getOption(OPT_MEDIA_PROBE)->getInteger() != 0 || details->isFocused()) {
                 probe->request(file);
             }
         }
@@ -284,6 +284,8 @@ void Filer::run(DetailsView::Action action) {
             break;
         case Action::Panel:
             details->setFocused(true);
+            // opened on purpose: read even if not by itself
+            probe->request(getSelection());
             break;
         case Action::Files:
             details->setFocused(false);
@@ -540,6 +542,9 @@ void Filer::queueDurations() {
     durationsGeneration = pplay::TorrServe::viewedGeneration();
     int mode = main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger();
     probe->clearBackground();
+    if (main->getConfig()->getOption(OPT_MEDIA_PROBE)->getInteger() != 1) {
+        return;
+    }
     mutex->lock();
     std::vector<MediaFile> list = files;
     mutex->unlock();
