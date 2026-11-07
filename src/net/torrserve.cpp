@@ -143,8 +143,12 @@ namespace {
         return response.body;
     }
 
-    std::vector<Torrent> getTorrents(const std::string &root, int timeout) {
+    // ok: answered (an empty list too)
+    std::vector<Torrent> getTorrents(const std::string &root, int timeout, bool *ok = nullptr) {
         std::vector<Torrent> torrents;
+        if (ok != nullptr) {
+            *ok = false;
+        }
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
                             "TorrServe::getTorrents url=" + root + "torrents, timeout=" + std::to_string(timeout));
         std::string response = httpRequest(root + "torrents", timeout, "{\"action\":\"list\"}");
@@ -156,6 +160,9 @@ namespace {
         nlohmann::json json = nlohmann::json::parse(response, nullptr, false);
         if (json.is_discarded() || !json.is_array()) {
             return torrents;
+        }
+        if (ok != nullptr) {
+            *ok = true;
         }
 
         for (const auto &item: json) {
@@ -448,9 +455,10 @@ namespace pplay::TorrServe {
         std::string root = rootOf(path);
         std::string httpRoot = apiRoot(path);
         std::vector<std::string> parts = splitPath(relativeOf(path));
-        std::vector<Torrent> torrents = getTorrents(httpRoot, timeout);
-        if (torrents.empty() && error) {
-            *error = "TorrServer: no torrent (or server not reachable)";
+        bool ok = false;
+        std::vector<Torrent> torrents = getTorrents(httpRoot, timeout, &ok);
+        if (!ok && error) {
+            *error = "TorrServer: not reachable";
         }
         cacheTorrents(httpRoot, torrents);
 
@@ -497,8 +505,9 @@ namespace pplay::TorrServe {
         std::string root = rootOf(path);
         std::string httpRoot = apiRoot(path);
         std::vector<std::string> parts = splitPath(relativeOf(path));
-        std::vector<Torrent> torrents = getTorrents(httpRoot, timeout);
-        if (torrents.empty()) {
+        bool ok = false;
+        std::vector<Torrent> torrents = getTorrents(httpRoot, timeout, &ok);
+        if (!ok) {
             return false;
         }
         cacheTorrents(httpRoot, torrents);
