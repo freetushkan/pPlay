@@ -284,7 +284,7 @@ namespace pplay::Playlists {
         std::vector<c2d::Io::File> out;
         for (auto &file: files) {
             if (file.type == c2d::Io::Type::File && isPlaylist(file.path)) {
-                out.emplace_back(nameOf(file.path), file.path, c2d::Io::Type::Directory, file.size);
+                out.emplace_back(Paths::getLeafName(file.path), file.path, c2d::Io::Type::Directory, file.size);
             }
         }
         files.swap(out);

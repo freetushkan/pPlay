@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "io.h"
+#include "offline.h"
 #include "utility.h"
 #include "pplay_config.h"
 #include "net_http.h"
@@ -139,21 +140,30 @@ std::vector<c2d::Io::File> Io::list(const DeviceType &type, const std::string &p
         files = c2d::C2DIo::getDirList(path, sort, showHidden);
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
                             "Io::Local path=" + path + " entries=" + std::to_string(files.size()));
-    } else if (type == DeviceType::Http || type == DeviceType::WebDav) {
-        files = type == DeviceType::Http ? Http::listIndex(path, timeout, error)
-                                         : Http::listWebDav(path, timeout, error);
+        return files;
+    }
+    std::string failed;
+    if (type == DeviceType::Http || type == DeviceType::WebDav) {
+        files = type == DeviceType::Http ? Http::listIndex(path, timeout, &failed)
+                                         : Http::listWebDav(path, timeout, &failed);
     } else if (type == DeviceType::TorrServe) {
-        files = pplay::TorrServe::getDirList(path, timeout, error);
+        files = pplay::TorrServe::getDirList(path, timeout, &failed);
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
                             "Io::TorrServe path=" + path + " entries=" + std::to_string(files.size()));
     } else if (type == DeviceType::Ftp) {
-        files = Ftp::list(path, timeout, error);
+        files = Ftp::list(path, timeout, &failed);
     }
 #ifdef __SMB2__
     else if (type == DeviceType::Smb) {
-        files = Smb::list(path, timeout, error);
+        files = Smb::list(path, timeout, &failed);
     }
 #endif
+    // the network listing kept; failed: the kept one shown (offline)
+    if (failed.empty()) {
+        Offline::store(path, files);
+    } else if (!Offline::load(path, &files) && error != nullptr) {
+        *error = failed;
+    }
     return files;
 }
 

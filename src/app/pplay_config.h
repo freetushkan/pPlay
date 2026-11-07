@@ -87,6 +87,9 @@
 #define PPLAY_HW_DECODING
 #endif
 #define OPT_HW_DECODING "HW_DECODING"
+// the Saved / Playlists sections in the main menu: 1 if not empty, 0 hidden
+#define OPT_SHOW_SAVED "SHOW_SAVED"
+#define OPT_SHOW_PLAYLISTS "SHOW_PLAYLISTS"
 // directories marked watched in the list: 0 off, 1 by the marks of their files, 2 by progress too
 #define OPT_FOLDER_MARKS "FOLDER_MARKS"
 #ifdef __SWITCH__

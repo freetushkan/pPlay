@@ -8,6 +8,7 @@
 #include "cross2d/c2d.h"
 #include "main.h"
 #include "filer_item.h"
+#include "playlists.h"
 #include "folder_marks.h"
 #include "utility.h"
 #include "torrserve.h"
@@ -23,6 +24,10 @@ using namespace c2d;
 
 namespace {
     std::string iconName(const MediaFile &file) {
+        // opened as directories
+        if (pplay::Playlists::isPlaylist(file.path)) {
+            return "playlist.png";
+        }
         if (file.type == Io::Type::Directory) {
             return "file_folder.png";
         }

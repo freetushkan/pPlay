@@ -29,6 +29,10 @@ namespace pplay::TorrServe {
     // torrent information of a path, from the last listing (no network access)
     bool getInfo(const std::string &path, Info &info);
     // url to give to mpv for a filer path
+    // the files of a TorrServer directory and of its subdirectories, from one torrents list;
+    // false if not listed
+    bool getTree(const std::string &path, int timeout, std::vector<c2d::Io::File> *files);
+
     std::string toStreamUrl(const std::string &path);
     // wait: may ask the server now (worker threads, a load); else the cache, a stale or
     // missing entry fetched in the background (then viewedGeneration changes)

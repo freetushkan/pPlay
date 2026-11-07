@@ -15,6 +15,7 @@
 #include "text_wrap.h"
 #include "pplay_config.h"
 #include "saved.h"
+#include "paths.h"
 #include "playlists.h"
 
 using namespace c2d;
@@ -44,7 +45,7 @@ std::vector<std::string> Breadcrumb::split(const std::string &path) const {
     if (path == playlists || pplay::Playlists::isPlaylist(path)) {
         parts.push_back(pplay::tr("Playlists"));
         if (path != playlists) {
-            parts.push_back(encoding::fix(pplay::Playlists::nameOf(path)));
+            parts.push_back(encoding::fix(pplay::Paths::getLeafName(path)));
         }
         return parts;
     }

@@ -493,6 +493,40 @@ namespace pplay::TorrServe {
         return files;
     }
 
+    bool getTree(const std::string &path, int timeout, std::vector<c2d::Io::File> *files) {
+        std::string root = rootOf(path);
+        std::string httpRoot = apiRoot(path);
+        std::vector<std::string> parts = splitPath(relativeOf(path));
+        std::vector<Torrent> torrents = getTorrents(httpRoot, timeout);
+        if (torrents.empty()) {
+            return false;
+        }
+        cacheTorrents(httpRoot, torrents);
+        files->clear();
+        for (const auto &torrent: torrents) {
+            if (!parts.empty() && torrent.title != parts[0]) {
+                continue;
+            }
+            std::vector<std::string> prefix;
+            if (!parts.empty()) {
+                prefix.assign(parts.begin() + 1, parts.end());
+            }
+            for (const auto &torrentFile: torrent.files) {
+                std::vector<std::string> fileParts = splitPath(torrentFile.path);
+                if (!hasPrefix(fileParts, prefix) || fileParts.size() <= prefix.size()) {
+                    continue;
+                }
+                std::vector<std::string> virtualParts = {torrent.title};
+                virtualParts.insert(virtualParts.end(), fileParts.begin(), fileParts.end());
+                std::string virtualPath = joinVirtual(root, virtualParts) + "?link=" + escapeSegment(torrent.hash)
+                                          + "&index=" + std::to_string(torrentFile.id)
+                                          + "&dummy=" + escapeSegment(basename(torrentFile.path));
+                files->emplace_back(fileParts.back(), virtualPath, c2d::Io::Type::File, (size_t) torrentFile.length);
+            }
+        }
+        return true;
+    }
+
     std::string toStreamUrl(const std::string &p) {
         // a saved copy: its network file
         const std::string path = pplay::Saved::originalOf(p);

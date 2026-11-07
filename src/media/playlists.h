@@ -42,7 +42,7 @@ namespace pplay::Playlists {
     // a file, or the media files of a directory (in a thread, sorted as the filer lists them)
     void add(const std::string &name, const c2d::Io::File &file);
 
-    // the root listing: the playlists as directories
+    // the root listing: the playlists as directories (their file names)
     void filter(std::vector<c2d::Io::File> &files);
 
     std::vector<c2d::Io::File> entries(const std::string &path);

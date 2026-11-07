@@ -11,6 +11,7 @@
 #include "cross2d/c2d.h"
 #include "main.h"
 #include "status_bar.h"
+#include "offline.h"
 #include "utility.h"
 #include "pplay_config.h"
 #include "round_rect.h"
@@ -127,6 +128,14 @@ StatusBar::StatusBar(Main *m) : Rectangle({0, 0, 64, 64}) {
     timeText->setPosition(StatusBar::getGlobalBounds().width - (m->getScaling().x * 38), StatusBar::getSize().y / 2);
 #endif
     StatusBar::add(timeText);
+
+    // offline: the kept listings shown
+    offline = new C2DTexture(m->getIo()->getDataPath() + "skin/offline.png");
+    float iconScale = std::round(22 * sc) / (float) std::max(1, offline->getTextureSize().y);
+    offline->setScale(iconScale, iconScale);
+    offline->setOrigin(Origin::Right);
+    offline->setVisibility(Visibility::Hidden);
+    StatusBar::add(offline);
     applyAlpha();
 }
 
@@ -144,6 +153,7 @@ void StatusBar::setVisibility(Visibility visibility, bool tweenPlay) {
 void StatusBar::applyAlpha() {
     uint8_t a = (uint8_t) std::lround(255 * alpha);
     timeText->setFillColor({COLOR_FONT.r, COLOR_FONT.g, COLOR_FONT.b, a});
+    offline->setFillColor({COLOR_FONT.r, COLOR_FONT.g, COLOR_FONT.b, a});
     chip->setFillColor({10, 12, 16, (uint8_t) std::lround(170 * alpha)});
 #ifdef __SWITCH__
     battery->fade(a);
@@ -201,6 +211,13 @@ void StatusBar::onUpdate() {
     float centerY = timeText->getPosition().y - originY + text.top + text.height / 2;
     float right = getSize().x - 22 * sc.x;
     float left = timeText->getPosition().x - text.width - 16 * sc.x;
+    bool off = pplay::Offline::active();
+    offline->setVisibility(off ? Visibility::Visible : Visibility::Hidden);
+    if (off) {
+        float x = std::round(timeText->getPosition().x - text.width - 10 * sc.x);
+        offline->setPosition(x, std::round(centerY));
+        left = x - offline->getGlobalBounds().width - 12 * sc.x;
+    }
     Vector2f chipSize = {std::round(right - left), std::round(text.height + 20 * sc.y)};
     if (chip->getSize().x != chipSize.x || chip->getSize().y != chipSize.y) {
         chip->setSize(chipSize);

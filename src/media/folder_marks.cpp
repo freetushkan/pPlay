@@ -65,41 +65,18 @@ namespace {
         }
     }
 
-    // the listings kept (the thread only): counted again without the network
-    const float LIST_KEEP_SECS = 30 * 60;
-    struct Listing {
-        std::vector<c2d::Io::File> files;
-        c2d::C2DClock age;
-    };
-    std::map<std::string, Listing> g_lists;
-
     std::vector<c2d::Io::File> listOf(const c2d::Io::File &dir) {
-        auto it = g_lists.find(dir.path);
-        if (it != g_lists.end() && it->second.age.getElapsedTime().asSeconds() < LIST_KEEP_SECS) {
-            return it->second.files;
-        }
-        std::vector<c2d::Io::File> list;
         if (Playlists::isPlaylist(dir.path)) {
-            list = Playlists::entries(dir.path);
-        } else if (Saved::isInside(dir.path)) {
-            list = Saved::list(dir.path);
-        } else {
-            Io *io = Io::get();
-            int timeout = g_config->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
-            bool hidden = g_config->getOption(OPT_SHOW_HIDDEN)->getInteger() != 0;
-            std::string error;
-            list = io->list(io->getDeviceType(dir.path), dir.path, timeout, &error, false, hidden);
-            // failed: not kept
-            if (!error.empty()) {
-                return list;
-            }
+            return Playlists::entries(dir.path);
         }
-        // the local ones change (playlists, the Saved section): listed each time
-        if (Io::get()->getDeviceType(dir.path) != Io::DeviceType::Local) {
-            g_lists[dir.path].files = list;
-            g_lists[dir.path].age.restart();
+        if (Saved::isInside(dir.path)) {
+            return Saved::list(dir.path);
         }
-        return list;
+        Io *io = Io::get();
+        int timeout = g_config->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
+        bool hidden = g_config->getOption(OPT_SHOW_HIDDEN)->getInteger() != 0;
+        std::string error;
+        return io->list(io->getDeviceType(dir.path), dir.path, timeout, &error, false, hidden);
     }
 
     // a file watched: its mark, or (by progress) its position close to the end (the credits)
@@ -118,6 +95,22 @@ namespace {
     void collect(const c2d::Io::File &dir, int depth, std::vector<c2d::Io::File> &out) {
         if (g_cancel || out.size() >= MAX_FILES) {
             return;
+        }
+        // TorrServer: all the files of its torrents at once (one request)
+        if (depth == 0 && Io::get()->getDeviceType(dir.path) == Io::DeviceType::TorrServe) {
+            int timeout = g_config->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
+            std::vector<c2d::Io::File> tree;
+            if (TorrServe::getTree(dir.path, timeout, &tree)) {
+                for (auto &file: tree) {
+                    if (out.size() >= MAX_FILES) {
+                        break;
+                    }
+                    if (Utility::isMedia(file)) {
+                        out.push_back(file);
+                    }
+                }
+                return;
+            }
         }
         std::vector<c2d::Io::File> list = listOf(dir);
         for (auto &file: list) {
@@ -141,6 +134,8 @@ namespace {
         FolderMarks::State state;
         state.files = (int) files.size();
         int mode = g_config->getOption(OPT_FOLDER_MARKS)->getInteger();
+        // the viewed files of a torrent asked once
+        std::set<std::string> torrents;
         for (auto &file: files) {
             if (g_cancel) {
                 return false;
@@ -148,7 +143,9 @@ namespace {
             std::string path = Saved::originalOf(file.path);
             std::string url = TorrServe::toStreamUrl(path);
             bool local = Utility::isWatchLaterExist(url);
-            bool server = TorrServe::isFileViewed(path, true);
+            size_t link = path.find("?link=");
+            std::string torrent = link != std::string::npos ? path.substr(link, path.find('&', link) - link) : "";
+            bool server = TorrServe::isFileViewed(path, !torrent.empty() && torrents.insert(torrent).second);
             if (local || server) {
                 state.marked++;
             }

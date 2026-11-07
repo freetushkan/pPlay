@@ -63,6 +63,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Text encoding", "encoding.png", Pos::Top),
                                   MenuItem("Accent color", "color.png", Pos::Top),
                                   MenuItem("Hidden files", "hidden.png", Pos::Top),
+                                  MenuItem("Saved section", "saved.png", Pos::Top),
+                                  MenuItem("Playlists section", "playlist.png", Pos::Top),
                                   MenuItem("Swap controls", "swap.png", Pos::Top),
                           }});
     std::vector<MenuItem> networks;
@@ -261,6 +263,10 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Off", -1}, {"Always", 0}, {"30 min", 30}, {"1 h", 60}, {"1.5 h", 90},
                              {"2 h", 120}, {"3 h", 180}, {"4 h", 240}}),
                Submenu::ValueType::Integer);
+    addSubmenu("Saved section", "The Saved section in the menu", OPT_SHOW_SAVED,
+               makeIntItems({{"If not empty", 1}, {"Not shown", 0}}), Submenu::ValueType::Integer);
+    addSubmenu("Playlists section", "The Playlists section in the menu", OPT_SHOW_PLAYLISTS,
+               makeIntItems({{"If not empty", 1}, {"Not shown", 0}}), Submenu::ValueType::Integer);
     addSubmenu("Hidden files", "Files and folders starting with a dot", OPT_SHOW_HIDDEN,
                makeIntItems({{"Hidden", 0}, {"Shown", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Saving threads", "Files saved at once", OPT_SAVE_THREADS,
@@ -344,8 +350,11 @@ void MenuMain::reloadModules() {
     for (auto &button: buttons) {
         int id = button->item.id;
         if (id == MODULE_SAVED || id == MODULE_PLAYLISTS) {
+            // hidden by the settings: still there while open
+            bool allowed = main->getConfig()->getOption(id == MODULE_SAVED ? OPT_SHOW_SAVED : OPT_SHOW_PLAYLISTS)
+                                   ->getInteger() != 0;
             bool shown = main->getcurrentModuleIndex() == id
-                         || (id == MODULE_SAVED ? pplay::Saved::any() : pplay::Playlists::any());
+                         || (allowed && (id == MODULE_SAVED ? pplay::Saved::any() : pplay::Playlists::any()));
             button->item.enabled = shown;
             button->item.selectable = shown;
         }
