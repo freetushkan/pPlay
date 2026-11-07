@@ -63,7 +63,7 @@
 #define OPT_PROGRESS_INTERVAL "PROGRESS_INTERVAL"
 // PS5 rest mode: 0 pPlay closes once the system resumes it, 1 it stays (unstable)
 #define OPT_PS5_KEEP_IN_REST "PS5_KEEP_IN_REST"
-// closed for rest mode: "<fullscreen 0/1>|<the playing file>", reopened at the next start
+// closed while playing (any exit): "<fullscreen 0/1>|<the playing file>", reopened at the next start
 #define OPT_REST_SESSION "REST_SESSION"
 // saved copies (<home>/.pplay_save): parallel downloads, kept days (0: forever, by the last
 // access), size limit (GB, 0: none, the oldest access removed first)

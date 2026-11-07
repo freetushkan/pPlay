@@ -141,7 +141,7 @@ public:
 
     void quit();
 
-    // quit for rest mode (PS5): the playing file reopened at the next start
+    // quit for rest mode (PS5), as any exit: the playing file reopened at the next start
     void closeForRest();
 
 private:
@@ -153,7 +153,10 @@ private:
     c2d::C2DClock idleClock;
 
 
-    // the session closed for rest mode, once
+    // the playing file (fullscreen or not) for the next start
+    void keepSession();
+
+    // the session kept at the exit, once
     void restoreSession();
 
     // the network of a path, -1 local

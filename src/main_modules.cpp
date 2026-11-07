@@ -159,13 +159,14 @@ int Main::moduleOf(const std::string &path) {
 }
 
 void Main::closeForRest() {
+    quit();
+}
+
+void Main::keepSession() {
     std::string session;
     if (!player->getMpv()->isStopped()) {
         player->keepProgressNow();
         session = std::string(player->isFullscreen() ? "1" : "0") + "|" + player->getFile().path;
-    }
-    quit();
-    if (!session.empty()) {
         // the last location: the playing file (the list may show another one)
         std::string path = session.substr(2);
         int module = moduleOf(path);
@@ -179,10 +180,9 @@ void Main::closeForRest() {
             config->getOption(OPT_LAST_MODULE)->setString("LOCAL");
             config->getOption(OPT_LAST_LOCAL_PATH)->setString(path);
         }
-        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: session kept for rest mode: " + path);
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: session kept: " + path);
     }
     config->getOption(OPT_REST_SESSION)->setString(session);
-    config->save();
 }
 
 void Main::restoreSession() {
@@ -198,10 +198,10 @@ void Main::restoreSession() {
     MediaFile file = filer->getSelection();
     // gone meanwhile (a removed torrent, an unreachable share): the list only
     if (file.path != path || !pplay::Utility::isMedia(file)) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: rest mode session not restored: " + path);
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: session not restored: " + path);
         return;
     }
-    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: rest mode session restored: " + path);
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: session restored: " + path);
     // its position: the usual choice (local / TorrServer, asked now)
     player->setFullscreen(true);
     player->loadPausedOnce();

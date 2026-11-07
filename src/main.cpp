@@ -345,10 +345,16 @@ void Main::setRunningStop() {
 }
 
 void Main::quit() {
+    // once (an exit request after the menu one)
+    if (exit) {
+        return;
+    }
 #ifdef __SWITCH__
     usbExit();
 #endif
     syncLastLocation();
+    // the playing file reopened at the next start (paused)
+    keepSession();
     config->save();
     pplay::Saved::stop();
     pplay::Playlists::stop();

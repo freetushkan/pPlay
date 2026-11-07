@@ -545,6 +545,11 @@ void PlayerOSD::onUpdate() {
     // the line on the minimized player too
     if (ready) {
         updateProgress();
+        // paused elsewhere (a restored session, a frame step, a menu)
+        bool paused = mpv->isPaused();
+        if (paused != btn_play->isVisible()) {
+            setPaused(paused);
+        }
     }
     applyFade();
     Rectangle::onUpdate();
