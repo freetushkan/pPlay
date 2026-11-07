@@ -181,8 +181,8 @@ void FilerItem::setFile(const MediaFile &f) {
     bool partial = false;
     if (file.type == Io::Type::Directory && file.name != ".." && !Filer::isPlaceholder(file)) {
         pplay::FolderMarks::State state = pplay::FolderMarks::cached(file);
-        // some watched: gray
-        if (state.ready && state.files > 0 && state.unwatched < state.files) {
+        // some watched or started: gray
+        if (state.ready && state.files > 0 && (state.unwatched < state.files || state.marked > 0)) {
             marks = "✓";
             partial = state.unwatched > 0;
         }
