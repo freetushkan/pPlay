@@ -5,7 +5,7 @@
 # to their prefixes, libpplay.so per ABI, then the APK by Gradle (android/).
 #
 # usage: ci/android-build.sh <mpv-android> <SDL2> <libpng> <glm> (checkouts)
-# out: pPlay-Android.apk, symbols/<abi>/libpplay.so (unstripped)
+# out: pPlay-Android.apk, symbols/<abi>/*.so (unstripped)
 #
 
 ROOT="$(pwd)"
@@ -134,13 +134,13 @@ TOOLCHAIN
 	PKG_CONFIG_LIBDIR="$prefix/lib/pkgconfig" PKG_CONFIG_SYSROOT_DIR="$prefix" \
 		make -C "$build" pplay -j"$(nproc)"
 
-	# the libraries of the APK: pPlay stripped (kept whole for the crash logs), the prefix ones
+	# the libraries of the APK stripped (kept whole in symbols/ for the crash logs)
 	jni="$ROOT/android/app/src/main/jniLibs/$abi"
 	rm -rf "$jni" && mkdir -p "$jni" "$ROOT/symbols/$abi"
-	cp "$build/libpplay.so" "$ROOT/symbols/$abi/"
-	"$NDK_BIN/llvm-strip" --strip-unneeded -o "$jni/libpplay.so" "$build/libpplay.so"
-	for lib in "$prefix"/lib/*.so; do
-		cp -L "$lib" "$jni/"
+	for lib in "$build/libpplay.so" "$prefix"/lib/*.so; do
+		name="$(basename "$lib")"
+		cp -L "$lib" "$ROOT/symbols/$abi/$name"
+		"$NDK_BIN/llvm-strip" --strip-unneeded -o "$jni/$name" "$ROOT/symbols/$abi/$name"
 	done
 	cp "$NDK_SYSROOT/usr/lib/$triple/libc++_shared.so" "$jni/"
 
