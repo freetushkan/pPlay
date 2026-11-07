@@ -162,14 +162,14 @@ static double roundOff(double n) {
     return d;
 }
 
-std::string Utility::formatSize(size_t size) {
+std::string Utility::formatSize(uint64_t size) {
 
-    static const char *sizes[] = {"B", "KB", "MB", "GB"};
+    static const char *sizes[] = {"B", "KB", "MB", "GB", "TB"};
     int div = 0;
-    size_t rem = 0;
+    uint64_t rem = 0;
 
-    while (size >= 1024 && (size_t) div < (sizeof sizes / sizeof *sizes)) {
-        rem = (size_t) (size % 1024);
+    while (size >= 1024 && (size_t) div + 1 < (sizeof sizes / sizeof *sizes)) {
+        rem = size % 1024;
         div++;
         size /= 1024;
     }

@@ -127,7 +127,7 @@ namespace pplay::Offline {
                 return false;
             }
             out.emplace_back(f[2], f[3], f[0] == "D" ? c2d::Io::Type::Directory : c2d::Io::Type::File,
-                             (size_t) std::strtoull(f[1].c_str(), nullptr, 10));
+                             (uint64_t) std::strtoull(f[1].c_str(), nullptr, 10));
         }
         if (line < 2) {
             return false;

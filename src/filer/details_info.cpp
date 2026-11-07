@@ -54,7 +54,7 @@ namespace {
     }
 
     // the sections separated by an empty line
-    std::string mediaLines(const MediaInfo &mi, size_t size) {
+    std::string mediaLines(const MediaInfo &mi, uint64_t size) {
         std::string general;
         if (mi.duration > 0) {
             general += line("Duration", pplay::Utility::formatTime((double) mi.duration));
@@ -178,7 +178,7 @@ pplay::DetailsInfo pplay::DetailsInfo::of(const MediaFile &file) {
         info.poster = saved ? savedPoster : ts.poster;
         std::string files = tr("Files") + ": " + std::to_string(ts.fileCount);
         if (ts.filesSize > 0) {
-            files += " (" + Utility::formatSize((size_t) ts.filesSize) + ")";
+            files += " (" + Utility::formatSize((uint64_t) ts.filesSize) + ")";
         }
         if (!ts.category.empty()) {
             text += line("Category", encoding::fix(ts.category));
@@ -188,7 +188,7 @@ pplay::DetailsInfo pplay::DetailsInfo::of(const MediaFile &file) {
             text += "\n" + pplay::TextWrap::flat(encoding::fix(ts.fileName)) + "\n\n";
             std::string tags = tagLines(file.mediaInfo);
             text += tags.empty() ? "" : tags + "\n";
-            text += mediaLines(file.mediaInfo, ts.fileSize > 0 ? (size_t) ts.fileSize : 0);
+            text += mediaLines(file.mediaInfo, ts.fileSize > 0 ? (uint64_t) ts.fileSize : 0);
         }
     } else {
         info.title = encoding::fix(file.name);

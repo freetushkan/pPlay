@@ -307,7 +307,7 @@ std::vector<c2d::Io::File> Http::listWebDav(const std::string &url, int timeout,
             continue;
         }
 
-        size_t size = isDir ? 0 : (size_t) std::strtoull(length.c_str(), nullptr, 10);
+        uint64_t size = isDir ? 0 : (uint64_t) std::strtoull(length.c_str(), nullptr, 10);
         files.emplace_back(relative, dirUrl + pathSafe(relative),
                            isDir ? c2d::Io::Type::Directory : c2d::Io::Type::File, size);
     }

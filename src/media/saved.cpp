@@ -805,7 +805,7 @@ namespace {
         int64_t space = freeSpace(vroot());
         if (size > 0 && space >= 0 && space < size - from + FREE_MARGIN) {
             source.close();
-            *error = tr("Not enough free space") + " (" + Utility::formatSize((size_t) (size - from)) + ")";
+            *error = tr("Not enough free space") + " (" + Utility::formatSize((uint64_t) (size - from)) + ")";
             return Outcome::Failed;
         }
         Utility::log(Utility::LogLevel::Info, "Saved: start " + part + " (" + remote + ") from "
@@ -938,7 +938,7 @@ namespace {
             // the network file information, for its Saved section path
             MediaInfo info(job.file);
             if (info.known) {
-                info.save(c2d::Io::File(entry.name, virtualOf(entry), c2d::Io::Type::File, (size_t) entry.size));
+                info.save(c2d::Io::File(entry.name, virtualOf(entry), c2d::Io::Type::File, (uint64_t) entry.size));
             }
             g_cleanup = true;
         } else if (result != Outcome::Cancelled) {
@@ -1049,7 +1049,7 @@ namespace pplay::Saved {
             }
             if (!it->second.saved) {
                 c2d::Io::File file(it->second.name, it->second.remote, c2d::Io::Type::File,
-                                   (size_t) std::max<int64_t>(0, it->second.size));
+                                   (uint64_t) std::max<int64_t>(0, it->second.size));
                 g_jobs.push_back({false, file, it->first});
                 resumed++;
             }
@@ -1325,7 +1325,7 @@ namespace pplay::Saved {
             std::string rest = path.substr(v.size() + 1);
             size_t slash = rest.substr(0, rest.find('?')).find('/');
             if (slash == std::string::npos) {
-                files.emplace_back(f.second.name, path, c2d::Io::Type::File, (size_t) f.second.size);
+                files.emplace_back(f.second.name, path, c2d::Io::Type::File, (uint64_t) f.second.size);
                 continue;
             }
             std::string part = rest.substr(0, slash);
@@ -1369,7 +1369,7 @@ namespace pplay::Saved {
             std::string rest = r.substr(key.size() + 1);
             size_t slash = rest.substr(0, rest.find('?')).find('/');
             if (slash == std::string::npos) {
-                files->emplace_back(f.second.name, r, c2d::Io::Type::File, (size_t) f.second.size);
+                files->emplace_back(f.second.name, r, c2d::Io::Type::File, (uint64_t) f.second.size);
             } else if (dirs.insert(rest.substr(0, slash)).second) {
                 files->emplace_back(partName(r, rest.substr(0, slash)), key + "/" + rest.substr(0, slash),
                                     c2d::Io::Type::Directory, 0);

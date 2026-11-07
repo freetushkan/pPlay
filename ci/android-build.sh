@@ -17,6 +17,11 @@ GLM="$(realpath "$4")"
 # libcross2d's Android device: a Device (sdl2_renderer.cpp asks its display size)
 sed -i 's/class ANDROIDDevice {/class ANDROIDDevice : public Device {/' \
 	"$ROOT/libcross2d/include/cross2d/platforms/android/android_device.h"
+# its file sizes: 64 bits (size_t is 32 bits on armv7, files over 4 GB)
+sed -i 's/#include <string>/#include <cstdint>\n#include <string>/; s/const size_t &size = 0/uint64_t size = 0/; s/^\( *\)size_t size = 0;/\1uint64_t size = 0;/' \
+	"$ROOT/libcross2d/include/cross2d/skeleton/io.h"
+sed -i 's/file.size = (size_t) st.st_size/file.size = (uint64_t) st.st_size/' \
+	"$ROOT/libcross2d/source/platforms/posix/posix_io.cpp"
 # mpv's revision: the one of mpv-android's date (it builds master)
 MPV_BEFORE="${MPV_BEFORE:-$(git -C "$MA" log -1 --format=%cI)}"
 

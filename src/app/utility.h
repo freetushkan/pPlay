@@ -42,7 +42,7 @@ namespace pplay {
 
         static std::string formatTime(double seconds);
 
-        static std::string formatSize(size_t size);
+        static std::string formatSize(uint64_t size);
 
         static LogLevel getLogLevel();
 

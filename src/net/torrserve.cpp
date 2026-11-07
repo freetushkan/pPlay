@@ -495,7 +495,7 @@ namespace pplay::TorrServe {
                 std::string virtualPath = joinVirtual(root, virtualParts) + "?link=" + escapeSegment(torrentIt->hash)
                                           + "&index=" + std::to_string(torrentFile.id)
                                           + "&dummy=" + escapeSegment(basename(torrentFile.path));
-                files.emplace_back(name, virtualPath, c2d::Io::Type::File, (size_t) torrentFile.length);
+                files.emplace_back(name, virtualPath, c2d::Io::Type::File, (uint64_t) torrentFile.length);
             }
         }
         return files;
@@ -530,7 +530,7 @@ namespace pplay::TorrServe {
                 std::string virtualPath = joinVirtual(root, virtualParts) + "?link=" + escapeSegment(torrent.hash)
                                           + "&index=" + std::to_string(torrentFile.id)
                                           + "&dummy=" + escapeSegment(basename(torrentFile.path));
-                files->emplace_back(fileParts.back(), virtualPath, c2d::Io::Type::File, (size_t) torrentFile.length);
+                files->emplace_back(fileParts.back(), virtualPath, c2d::Io::Type::File, (uint64_t) torrentFile.length);
             }
         }
         return true;
