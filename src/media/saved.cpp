@@ -993,8 +993,13 @@ namespace {
     }
 
     std::string rootFromConfig() {
+#ifdef __ANDROID__
+        // in the data directory (<storage>/.pplay, hidden already)
+        return Utility::getDataPath() + "saved/";
+#else
         std::string home = g_config != nullptr ? g_config->getOption(OPT_HOME_PATH)->getString() : "";
         return Paths::ensureTrailingSlash(home.empty() ? Utility::getDataPath() : home) + SAVE_DIR "/";
+#endif
     }
 
     // entries matching a network path (a file, or all under a directory; "" : all)
@@ -1024,6 +1029,14 @@ namespace pplay::Saved {
         if (stat((old + "/.index").c_str(), &st) == 0 && stat(g_root.c_str(), &st) != 0) {
             rename(old.c_str(), vroot().c_str());
         }
+#ifdef __ANDROID__
+        // the first Android builds: <home>/.pplay_save
+        std::string home = g_config->getOption(OPT_HOME_PATH)->getString();
+        std::string first = Paths::ensureTrailingSlash(home) + SAVE_DIR;
+        if (!home.empty() && stat((first + "/.index").c_str(), &st) == 0 && stat(g_root.c_str(), &st) != 0) {
+            rename(first.c_str(), vroot().c_str());
+        }
+#endif
         readIndex();
         int resumed = 0;
         for (auto it = g_files.begin(); it != g_files.end();) {

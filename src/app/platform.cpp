@@ -15,6 +15,7 @@
 #ifdef __ANDROID__
 #include <atomic>
 #include <jni.h>
+#include <unistd.h>
 extern "C" {
 #include <libavcodec/jni.h>
 }
@@ -641,9 +642,11 @@ namespace pplay::Platform {
         while (true) {
         }
 #elif defined(__ANDROID__)
-        // a next start in this process would find the statics of this one
+        // the process ended (a next start in it would find the statics of this one); no
+        // destructors: the threads of mpv and Android still run (the settings saved already)
         g_mpv = nullptr;
-        std::exit(0);
+        fflush(nullptr);
+        _exit(0);
 #elif __PS4__
 #ifdef PPLAY_PS4_JAILBREAK
         terminate_jbc();

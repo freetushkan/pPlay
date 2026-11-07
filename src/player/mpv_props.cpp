@@ -196,15 +196,16 @@ std::vector<std::pair<int, std::string>> Mpv::getPlaylistItems() {
 }
 
 long Mpv::getDuration() {
-    long duration = 0;
+    // int64_t: a long is 32 bits on armv7 (the stack overwritten)
+    int64_t duration = 0;
     mpv_get_property(handle, "duration", MPV_FORMAT_INT64, &duration);
-    return duration;
+    return (long) duration;
 }
 
 long Mpv::getPosition() {
-    long position = 0;
+    int64_t position = 0;
     mpv_get_property(handle, "playback-time", MPV_FORMAT_INT64, &position);
-    return position;
+    return (long) position;
 }
 
 double Mpv::getTime() {

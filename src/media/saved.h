@@ -47,7 +47,7 @@ namespace pplay::Saved {
     // changes with the states (marks to show again)
     unsigned int generation();
 
-    // <home>/.pplay_save/
+    // <home>/.pplay_save/ (Android: <data>/saved/)
     std::string root();
 
     // any file saved (the menu shows the section)
