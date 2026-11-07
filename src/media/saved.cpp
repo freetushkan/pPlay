@@ -1149,22 +1149,6 @@ namespace pplay::Saved {
         return false;
     }
 
-    bool anyUnder(const std::string &dir) {
-        std::lock_guard<std::mutex> lock(g_mutex);
-        std::string key = remoteKey(dir) + "/";
-        for (auto &f: g_files) {
-            if (c2d::Utility::startWith(f.second.remote, key) && (f.second.saved || f.second.active || !f.second.failed)) {
-                return true;
-            }
-        }
-        for (auto &job: g_jobs) {
-            if (job.dir && c2d::Utility::startWith(job.file.path, key)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     bool any() {
         std::lock_guard<std::mutex> lock(g_mutex);
         for (auto &f: g_files) {

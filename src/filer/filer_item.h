@@ -47,7 +47,7 @@ private:
     c2d::Sprite *icon;
     // saved copies inside / being saved (network rows): a floppy / a progress ring
     c2d::Sprite *savedMark;
-    // its width at the row end, 0 if none
+    // shown left of x: its width with the gap, 0 if none
     float updateSavedMark(float right);
     c2d::Rectangle *clip;
     pplay::FadeEdge *fade;

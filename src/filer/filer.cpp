@@ -533,11 +533,6 @@ void Filer::markFolder(const MediaFile &dir, bool watched) {
     dirty = true;
 }
 
-void Filer::updateSavedMarks() {
-    marksGeneration = pplay::Saved::generation();
-    savedMarks = path.find("://") != std::string::npos && pplay::Saved::anyUnder(path);
-}
-
 void Filer::queueDurations() {
     durationsGeneration = pplay::TorrServe::viewedGeneration();
     int mode = main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger();
@@ -558,9 +553,6 @@ void Filer::queueDurations() {
 
 void Filer::onUpdate() {
     crumbs->setPath(path);
-    if (pplay::Saved::generation() != marksGeneration) {
-        updateSavedMarks();
-    }
     if (pplay::TorrServe::viewedGeneration() != durationsGeneration) {
         queueDurations();
     }

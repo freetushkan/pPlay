@@ -189,17 +189,18 @@ void FilerItem::setFile(const MediaFile &f) {
     }
     check->setString(marks);
     check->setFillColor(partial ? Color(140, 148, 158, 255) : COLOR_ACCENT);
-    // the saved mark: a fixed place at the end of the network rows (the times stay aligned)
-    float markWidth = updateSavedMark(textX + textWidth);
-    info->setPosition(textX + textWidth - markWidth, getSize().y / 2);
-    float infoWidth = markWidth + (info->getString().empty() ? 0 : info->getLocalBounds().width + 16 * main->getScaling().x);
-    check->setPosition(textX + textWidth - infoWidth, getSize().y / 2);
+    // from the right: the time or the arrow, the watched marks, the saved mark (the ones shown)
+    float x = textX + textWidth;
+    info->setPosition(x, getSize().y / 2);
+    x -= info->getString().empty() ? 0 : info->getLocalBounds().width + 16 * main->getScaling().x;
+    check->setPosition(x, getSize().y / 2);
     float shift = std::round(check->getLocalBounds().width * 0.45f);
     check2->setVisibility(both ? Visibility::Visible : Visibility::Hidden);
     check2->setFillColor(COLOR_ACCENT);
-    check2->setPosition(check->getPosition().x - shift, getSize().y / 2);
-    float width = textWidth - infoWidth
-                  - (marks.empty() ? 0 : check->getLocalBounds().width + (both ? shift : 0) + 10 * main->getScaling().x);
+    check2->setPosition(x - shift, getSize().y / 2);
+    x -= marks.empty() ? 0 : check->getLocalBounds().width + (both ? shift : 0) + 10 * main->getScaling().x;
+    x -= updateSavedMark(x);
+    float width = x - textX;
     if (width != clip->getSize().x) {
         clip->setSize(width, clip->getSize().y);
         fade->setPosition(textX + width - fade->getSize().x, fade->getPosition().y);
@@ -216,7 +217,6 @@ float FilerItem::updateSavedMark(float right) {
         state = pplay::Saved::stateOf(file.path);
     }
     float size = std::round(getSize().y * 0.45f);
-    float slot = network && main->getFiler() != nullptr && main->getFiler()->hasSavedMarks() ? size + 10 * main->getScaling().x : 0;
     std::string name;
     if (state.pending > 0) {
         char ring[32];
@@ -228,7 +228,7 @@ float FilerItem::updateSavedMark(float right) {
     Texture *texture = name.empty() ? nullptr : pplay::Skin::texture(name);
     if (texture == nullptr) {
         savedMark->setVisibility(Visibility::Hidden);
-        return slot;
+        return 0;
     }
     savedMark->setTexture(texture, true);
     float scale = size / (float) texture->getTextureSize().x;
@@ -237,7 +237,7 @@ float FilerItem::updateSavedMark(float right) {
     // quiet, as the icons; the accent while saving
     savedMark->setFillColor(state.pending > 0 ? COLOR_ACCENT : Color(140, 148, 158, 255));
     savedMark->setVisibility(Visibility::Visible);
-    return slot;
+    return size + 10 * main->getScaling().x;
 }
 
 void FilerItem::updateWatched() {

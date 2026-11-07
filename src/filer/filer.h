@@ -43,8 +43,6 @@ public:
 
     int getSelectionIndex() const { return item_index; }
 
-    bool hasSavedMarks() const { return savedMarks; }
-
     virtual void clearHistory();
 
     std::string getError();
@@ -135,12 +133,7 @@ private:
 
     bool dirty = false;
     unsigned int playlistGeneration = 0;
-    // a row of this directory has a saved mark: their place kept in all rows
-    bool savedMarks = false;
-    unsigned int marksGeneration = 0;
     unsigned int durationsGeneration = 0;
-
-    void updateSavedMarks();
 
     // the files with a kept position but no duration (no progress line): probed in turn
     void queueDurations();

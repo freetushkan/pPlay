@@ -177,7 +177,6 @@ bool Filer::getDir(const std::string &p) {
     }
 
     mutex->unlock();
-    updateSavedMarks();
     queueDurations();
     for (size_t i = 0; i < files.size(); i++) {
         pplay::Utility::log(pplay::Utility::LogLevel::Debug,
