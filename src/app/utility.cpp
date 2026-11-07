@@ -30,6 +30,7 @@
 #include <ps5/klog.h>
 #else
 #include <mbedtls/md5.h>
+#include <mbedtls/version.h>
 #endif
 #include <cstdio>
 
@@ -285,9 +286,16 @@ std::string Utility::md5hash(const std::string &input) {
 #else
     mbedtls_md5_context ctx;
     mbedtls_md5_init(&ctx);
+#if MBEDTLS_VERSION_MAJOR >= 3
+    // 3.x (Android): the "_ret" ones renamed
+    mbedtls_md5_starts(&ctx);
+    mbedtls_md5_update(&ctx, (const unsigned char *) input.c_str(), input.length());
+    mbedtls_md5_finish(&ctx, output);
+#else
     mbedtls_md5_starts_ret(&ctx);
     mbedtls_md5_update_ret(&ctx, (const unsigned char *) input.c_str(), input.length());
     mbedtls_md5_finish_ret(&ctx, output);
+#endif
     mbedtls_md5_free(&ctx);
 #endif
 
