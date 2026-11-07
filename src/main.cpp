@@ -149,7 +149,9 @@ void Main::createMenus() {
 #endif
     items.emplace_back("Brightness", "brightness.png", MenuItem::Position::Top);
     items.emplace_back("Progress line", "progress_line.png", MenuItem::Position::Top);
-#ifndef __PS5__
+#ifdef __PS5__
+    items.emplace_back("Sleep timer", "awake.png", MenuItem::Position::Top);
+#else
     items.emplace_back("Prevent sleep", "awake.png", MenuItem::Position::Top);
 #endif
     items.emplace_back("Information", "info.png", MenuItem::Position::Top);
@@ -299,6 +301,20 @@ void Main::onUpdate() {
     bool awake = (playing || pplay::Saved::busy())
                  && (awakeMinutes <= 0 || idleClock.getElapsedTime().asSeconds() < (float) awakeMinutes * 60);
     pplay::Platform::keepAwake(awake, playing);
+#ifdef __PS5__
+    // the sleep timer: that long without a key (playing, paused or not), paused, rest mode, once
+    int sleepMinutes = config->getOption(OPT_PS5_SLEEP_TIMER)->getInteger();
+    float idle = idleClock.getElapsedTime().asSeconds();
+    if (sleepMinutes > 0 && idle >= (float) sleepMinutes * 60 && !sleepAsked) {
+        sleepAsked = true;
+        if (playing) {
+            player->pause();
+        }
+        pplay::Platform::sleepNow();
+    } else if (idle < 1) {
+        sleepAsked = false;
+    }
+#endif
     std::string savedType, savedMessage;
     if (pplay::Saved::takeMessage(&savedType, &savedMessage)
         || pplay::Playlists::takeMessage(&savedType, &savedMessage)) {

@@ -122,6 +122,9 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_SHOW_HIDDEN, (int) 0});
     addOption({OPT_STAY_AWAKE, (int) 0});
 #ifdef __PS5__
+    addOption({OPT_PS5_SLEEP_TIMER, (int) 0});
+#endif
+#ifdef __PS5__
     addOption({OPT_PS5_UI_4K, (int) 0});
 #endif
     addOption({OPT_LAST_PLAYLIST, ""});

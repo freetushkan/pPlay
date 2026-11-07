@@ -2,6 +2,7 @@
 // Created by cpasjuste on 07/12/18.
 //
 
+#include <vector>
 #include "cross2d/c2d.h"
 #include "main.h"
 #include "menu_video.h"
@@ -45,17 +46,28 @@ namespace {
         config->save();
     }
 
-    // OPT_STAY_AWAKE values
-    const int awakeValues[] = {0, 5, 10, 15, 30, 60, 90, 120, 180, 240};
-    const char *awakeNames[] = {"Always while playing", "5 min", "10 min", "15 min", "30 min", "1 h", "1.5 h", "2 h",
-                                "3 h", "4 h"};
-    const int awakeCount = 10;
+    // the values cycled in the menu (minutes), the first one: the default
+    struct Choices {
+        const char *option;
+        std::vector<int> values;
+        std::vector<const char *> names;
+    };
 
-    int awakeIndex(PPLAYConfig *config) {
-        int value = config->getOption(OPT_STAY_AWAKE)->getInteger();
-        for (int i = 0; i < awakeCount; i++) {
-            if (awakeValues[i] == value) {
-                return i;
+#ifdef __PS5__
+    // rest mode after that long without a key, 0 off
+    const Choices g_sleep = {OPT_PS5_SLEEP_TIMER, {0, 15, 30, 45, 60, 90, 120, 180},
+                             {"Off", "15 min", "30 min", "45 min", "1 h", "1.5 h", "2 h", "3 h"}};
+#else
+    const Choices g_sleep = {OPT_STAY_AWAKE, {0, 5, 10, 15, 30, 60, 90, 120, 180, 240},
+                             {"Always while playing", "5 min", "10 min", "15 min", "30 min", "1 h", "1.5 h", "2 h",
+                              "3 h", "4 h"}};
+#endif
+
+    int choiceIndex(PPLAYConfig *config, const Choices &choices) {
+        int value = config->getOption(choices.option)->getInteger();
+        for (size_t i = 0; i < choices.values.size(); i++) {
+            if (choices.values[i] == value) {
+                return (int) i;
             }
         }
         return 0;
@@ -63,10 +75,10 @@ namespace {
 
     int cycle(int value, int direction, int count);
 
-    void changeStayAwake(PPLAYConfig *config, int direction) {
-        auto *option = config->getOption(OPT_STAY_AWAKE);
+    void changeChoice(PPLAYConfig *config, const Choices &choices, int direction) {
+        auto *option = config->getOption(choices.option);
         option->setType(c2d::config::Option::Type::Integer);
-        option->setInteger(awakeValues[cycle(awakeIndex(config), direction, awakeCount)]);
+        option->setInteger(choices.values[cycle(choiceIndex(config, choices), direction, (int) choices.values.size())]);
         config->save();
     }
 
@@ -144,9 +156,10 @@ void MenuVideo::refreshValues() {
             item.valueAccent = player->isInfoVisible();
         } else if (n == "Progress line") {
             item.value = pplay::tr(config->getOption(OPT_PROGRESS_LINE)->getInteger() ? "On" : "Off");
-        } else if (n == "Prevent sleep") {
-            item.value = pplay::tr(awakeNames[awakeIndex(config)]);
-            item.valueAccent = awakeIndex(config) != 0;
+        } else if (n == "Prevent sleep" || n == "Sleep timer") {
+            int index = choiceIndex(config, g_sleep);
+            item.value = pplay::tr(g_sleep.names[index]);
+            item.valueAccent = index != 0;
         }
         button->refreshValue();
     }
@@ -191,8 +204,8 @@ bool MenuVideo::onOptionChange(MenuItem *item, int direction) {
         player->setInfoVisible(!player->isInfoVisible());
     } else if (n == "Progress line") {
         toggleProgressLine(config);
-    } else if (n == "Prevent sleep") {
-        changeStayAwake(config, direction);
+    } else if (n == "Prevent sleep" || n == "Sleep timer") {
+        changeChoice(config, g_sleep, direction);
     } else {
         return false;
     }
@@ -258,8 +271,8 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
     } else if (item->name == "Progress line") {
         toggleProgressLine(main->getConfig());
         refreshValues();
-    } else if (item->name == "Prevent sleep") {
-        changeStayAwake(main->getConfig(), 1);
+    } else if (item->name == "Prevent sleep" || item->name == "Sleep timer") {
+        changeChoice(main->getConfig(), g_sleep, 1);
         refreshValues();
     } else if (item->name == "Stop") {
         main->getPlayer()->stop();

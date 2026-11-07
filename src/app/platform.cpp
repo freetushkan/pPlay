@@ -130,6 +130,7 @@ int sceSystemServiceDeclareReadyForSuspend();
 int sceSystemServicePowerTick();
 int32_t sceAgcSuspendPoint();
 int sceKernelSendNotificationRequest(int device, void *request, size_t size, int blocking);
+int sceSystemStateMgrEnterStandby();
 int sceVideoOutOpen(int userId, int busType, int index, const void *param);
 int sceVideoOutClose(int handle);
 int sceVideoOutGetResolutionStatus(int handle, void *status);
@@ -562,6 +563,16 @@ namespace pplay::Platform {
         (void) on;
 #endif
         (void) playing;
+    }
+
+    bool sleepNow() {
+#ifdef __PS5__
+        int res = sceSystemStateMgrEnterStandby();
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS5: rest mode asked: " + std::to_string(res));
+        return res == 0;
+#else
+        return false;
+#endif
     }
 
     float backlight() {

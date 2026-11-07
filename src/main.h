@@ -146,6 +146,9 @@ public:
 
 private:
 
+    // the sleep timer (PS5) ran out, until a key
+    bool sleepAsked = false;
+
     // since the last key (stay awake)
     c2d::C2DClock idleClock;
 
