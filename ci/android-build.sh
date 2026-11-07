@@ -4,7 +4,7 @@
 # mpv-android's build scripts (ffmpeg with MediaCodec, mpv, libass...), SDL2 and libpng added
 # to their prefixes, libpplay.so per ABI, then the APK by Gradle (android/).
 #
-# usage: ci/android-build.sh <mpv-android> <SDL2> <libpng> (checkouts)
+# usage: ci/android-build.sh <mpv-android> <SDL2> <libpng> <glm> (checkouts)
 # out: pPlay-Android.apk, symbols/<abi>/libpplay.so (unstripped)
 #
 
@@ -12,6 +12,11 @@ ROOT="$(pwd)"
 MA="$(realpath "$1")"
 SDL="$(realpath "$2")"
 PNG="$(realpath "$3")"
+GLM="$(realpath "$4")"
+
+# libcross2d's Android device: a Device (sdl2_renderer.cpp asks its display size)
+sed -i 's/class ANDROIDDevice {/class ANDROIDDevice : public Device {/' \
+	"$ROOT/libcross2d/include/cross2d/platforms/android/android_device.h"
 # mpv's revision: the one of mpv-android's date (it builds master)
 MPV_BEFORE="${MPV_BEFORE:-$(git -C "$MA" log -1 --format=%cI)}"
 
@@ -74,6 +79,11 @@ for entry in $ARCHS; do
 		DESTDIR="$prefix" cmake --install "/tmp/png-$arch"
 	fi
 
+	# glm (libcross2d's renderer), headers only
+	if [ ! -d "$prefix/include/glm" ]; then
+		cp -r "$GLM/glm" "$prefix/include/"
+	fi
+
 	# libcross2d asks for /opt/pacbrew/android/cmake/android-<tc>.cmake: the NDK one there
 	sudo mkdir -p /opt/pacbrew/android/cmake
 	sudo tee "/opt/pacbrew/android/cmake/android-$tc.cmake" >/dev/null <<TOOLCHAIN
@@ -93,6 +103,7 @@ TOOLCHAIN
 		-DPLATFORM_ANDROID=ON -DANDROID_ABI="$abi" \
 		-DOPTION_BUILTIN_LIBCONFIG=ON -DOPTION_SMB2=OFF \
 		-DANDROID_ASSETS_PATH="$ROOT/android/app/src/main/assets" \
+		-DCMAKE_C_FLAGS="-isystem $prefix/include" -DCMAKE_CXX_FLAGS="-isystem $prefix/include" \
 		-DCMAKE_BUILD_TYPE=Release
 	PKG_CONFIG_LIBDIR="$prefix/lib/pkgconfig" PKG_CONFIG_SYSROOT_DIR="$prefix" \
 		make -C "$build" pplay -j"$(nproc)"

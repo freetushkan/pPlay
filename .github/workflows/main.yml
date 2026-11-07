@@ -509,6 +509,7 @@ jobs:
       MPV_ANDROID_REV: 255901dd586fa750000fa0075f69d6ffdd26cd9c
       SDL_TAG: release-2.32.10
       PNG_TAG: v1.6.59
+      GLM_TAG: 1.0.3
 
     steps:
       - name: Checkout
@@ -531,6 +532,7 @@ jobs:
           git -C "$RUNNER_TEMP/mpv-android" checkout "$MPV_ANDROID_REV"
           git clone --depth 1 -b "$SDL_TAG" https://github.com/libsdl-org/SDL.git "$RUNNER_TEMP/SDL"
           git clone --depth 1 -b "$PNG_TAG" https://github.com/pnggroup/libpng.git "$RUNNER_TEMP/libpng"
+          git clone --depth 1 -b "$GLM_TAG" https://github.com/g-truc/glm.git "$RUNNER_TEMP/glm"
 
       - name: Cache for build dependencies
         uses: actions/cache@v4
@@ -549,7 +551,7 @@ jobs:
             echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/pplay.keystore"
             export ANDROID_KEYSTORE="$RUNNER_TEMP/pplay.keystore"
           fi
-          ci/android-build.sh "$RUNNER_TEMP/mpv-android" "$RUNNER_TEMP/SDL" "$RUNNER_TEMP/libpng"
+          ci/android-build.sh "$RUNNER_TEMP/mpv-android" "$RUNNER_TEMP/SDL" "$RUNNER_TEMP/libpng" "$RUNNER_TEMP/glm"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
