@@ -119,8 +119,8 @@ TOOLCHAIN
 	cp "$NDK_SYSROOT/usr/lib/$triple/libc++_shared.so" "$jni/"
 
 	# all the needed libraries there, or the system ones
-	system=" libc.so libm.so libdl.so liblog.so libandroid.so libGLESv1_CM.so libGLESv2.so libGLESv3.so libEGL.so
-		libOpenSLES.so libmediandk.so libz.so libjnigraphics.so libaaudio.so libvulkan.so libcamera2ndk.so "
+	system=" libc.so libm.so libdl.so liblog.so libandroid.so libGLESv1_CM.so libGLESv2.so libGLESv3.so libEGL.so "
+	system+="libOpenSLES.so libmediandk.so libz.so libjnigraphics.so libaaudio.so libvulkan.so libcamera2ndk.so "
 	missing=0
 	for lib in "$jni"/*.so; do
 		for needed in $("$NDK_BIN/llvm-readelf" -d "$lib" | sed -n 's/.*(NEEDED).*\[\(.*\)\]/\1/p'); do
