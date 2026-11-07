@@ -12,7 +12,7 @@ namespace pplay::CrashLog {
     // Linux: installs process-wide fatal signal handlers and writes to crash.log.
     void install();
 
-    // PS5 / Switch: installs the native console crash handler and writes to this path.
+    // PS5 / Switch / Android: installs the native crash handler and writes to this path.
     void install(const std::string &logPath);
 
     // Linux: registers an alternate signal stack for the calling thread.

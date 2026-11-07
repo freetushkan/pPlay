@@ -474,7 +474,7 @@ int main(int argc, char *argv[]) {
     pplay::Utility::setDataPath(io->getDataPath());
 #ifdef __LINUX__
     pplay::CrashLog::install();
-#elif defined(__PS5__) || defined(__SWITCH__)
+#elif defined(__PS5__) || defined(__SWITCH__) || defined(__ANDROID__)
     pplay::CrashLog::install(io->getDataPath() + "crash.log");
 #endif
 #if defined(__PS4__) || defined(__SWITCH__) || defined(__LINUX__) || defined(__ANDROID__)

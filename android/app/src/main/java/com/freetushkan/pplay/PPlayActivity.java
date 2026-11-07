@@ -1,7 +1,9 @@
 //
 // pPlay on Android: SDL runs the native part (libpplay.so, SDL_main). Here: the paths it
 // asks for (libcross2d AndroidIo), the bundled files (assets/romfs) extracted once per
-// install, the access to all files asked.
+// install, the access to all files asked. The data (settings, logs, progress) in
+// <storage>/.pplay: kept when the app is removed, reachable without root; the app's own
+// directory if no access.
 //
 
 package com.freetushkan.pplay;
@@ -37,9 +39,15 @@ import java.util.concurrent.atomic.AtomicReference;
 public class PPlayActivity extends SDLActivity {
 
     private static final String TAG = "pPlay";
+    private static final String DATA_DIR = ".pplay";
     private static String dataPath = "";
+    private static String fallbackPath = "";
     private static String romFsPath = "";
     private static PPlayActivity instance;
+    // the access asked, the answer awaited (getDataPath waits for it)
+    private static final Object accessLock = new Object();
+    private static boolean asking = false;
+    private static boolean leftForAccess = false;
 
     @Override
     protected String[] getLibraries() {
@@ -52,7 +60,7 @@ public class PPlayActivity extends SDLActivity {
         if (data == null) {
             data = getFilesDir();
         }
-        dataPath = data.getAbsolutePath();
+        fallbackPath = data.getAbsolutePath();
         File romfs = new File(getFilesDir(), "romfs");
         romFsPath = romfs.getAbsolutePath();
         extractRomFs(romfs);
@@ -120,11 +128,19 @@ public class PPlayActivity extends SDLActivity {
 
     // all files (the local files, the saved copies, the playlists): Android 11+ asks in its
     // settings, older ones by the permissions
-    private void askStorage() {
+    private boolean hasStorage() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (Environment.isExternalStorageManager()) {
-                return;
-            }
+            return Environment.isExternalStorageManager();
+        }
+        return checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void askStorage() {
+        if (hasStorage()) {
+            return;
+        }
+        setAsking(true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
                 startActivity(new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
                         Uri.parse("package:" + getPackageName())));
@@ -133,13 +149,50 @@ public class PPlayActivity extends SDLActivity {
                     startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
                 } catch (Exception e2) {
                     Log.w(TAG, "no all files access settings", e2);
+                    setAsking(false);
                 }
             }
-        } else if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
+        } else {
             requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,
                     Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
         }
+    }
+
+    private static void setAsking(boolean value) {
+        synchronized (accessLock) {
+            asking = value;
+            if (!value) {
+                leftForAccess = false;
+            }
+            accessLock.notifyAll();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        synchronized (accessLock) {
+            if (asking) {
+                leftForAccess = true;
+            }
+        }
+        super.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // back from the access settings
+        synchronized (accessLock) {
+            if (asking && leftForAccess) {
+                setAsking(false);
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        setAsking(false);
     }
 
     // the text input (src/app/keyboard.cpp, the native thread waits): the edited text, null
@@ -199,7 +252,29 @@ public class PPlayActivity extends SDLActivity {
     }
 
     // libcross2d (AndroidIo, ANDROIDDevice)
+    // the native thread, once: after the access answered (5 minutes at most)
     public static String getDataPath() {
+        synchronized (accessLock) {
+            long until = System.currentTimeMillis() + 5 * 60 * 1000;
+            while (asking && System.currentTimeMillis() < until) {
+                try {
+                    accessLock.wait(1000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+        if (dataPath.isEmpty()) {
+            File data = new File(Environment.getExternalStorageDirectory(), DATA_DIR);
+            boolean granted = instance != null && instance.hasStorage();
+            if (granted && (data.isDirectory() || data.mkdirs())) {
+                dataPath = data.getAbsolutePath();
+            } else {
+                Log.w(TAG, "no access to " + data + ", data in " + fallbackPath);
+                dataPath = fallbackPath;
+            }
+        }
         return dataPath;
     }
 

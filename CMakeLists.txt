@@ -214,6 +214,7 @@ elseif (PLATFORM_ANDROID)
     #####################
     # ANDROID PLATORM: libpplay.so (SDL_main) in android/app, mpv and ffmpeg shared
     #####################
+    list(APPEND PPLAY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/android/crashlog.cpp)
     list(APPEND PPLAY_INC ${ANDROID_AV_INCLUDE_DIRS} ${ANDROID_CURL_INCLUDE_DIRS})
     set(PPLAY_LDFLAGS ${ANDROID_AV_LDFLAGS} ${ANDROID_CURL_STATIC_LDFLAGS} mbedcrypto log android)
 elseif (PLATFORM_LINUX AND OPTION_LINUX_STATIC)
