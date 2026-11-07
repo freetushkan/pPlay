@@ -20,6 +20,27 @@ extern "C" int ps4_mpv_use_precompiled_shaders;
 extern "C" int ps4_mpv_dump_shaders;
 #endif
 
+#ifdef __ANDROID__
+#include <dirent.h>
+#include <sys/stat.h>
+
+// the shader cache (64 hex digits names) out of the fonts directory (libass tries each file)
+static void moveShaderCache(const std::string &configPath, const std::string &cacheDir) {
+    DIR *dir = opendir(configPath.c_str());
+    if (dir == nullptr) {
+        return;
+    }
+    mkdir(cacheDir.c_str(), 0755);
+    while (struct dirent *ent = readdir(dir)) {
+        std::string name = ent->d_name;
+        if (name.size() == 64 && name.find_first_not_of("0123456789ABCDEFabcdef") == std::string::npos) {
+            rename((configPath + "/" + name).c_str(), (cacheDir + "/" + name).c_str());
+        }
+    }
+    closedir(dir);
+}
+#endif
+
 static void *get_proc_address_mpv(void *unused, const char *name) {
     return SDL_GL_GetProcAddress(name);
 }
@@ -93,6 +114,9 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     mpv_set_option_string(handle, "osd-font", "subfont.ttf");
     mpv_set_option_string(handle, "sub-fonts-dir", (configPath + "/").c_str());
     mpv_set_option_string(handle, "osd-fonts-dir", (configPath + "/").c_str());
+    // (default: the config directory, the fonts one)
+    moveShaderCache(configPath, configPath + "/cache");
+    mpv_set_option_string(handle, "gpu-shader-cache-dir", (configPath + "/cache").c_str());
 #endif
 
 #ifdef __PS5__
