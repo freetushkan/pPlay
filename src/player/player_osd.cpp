@@ -255,8 +255,8 @@ void PlayerOSD::updateTexts() {
 
     if (audioLayout) {
         // "Artist — Title", else the player title (file name)
-        std::string artist = encoding::fix(mpv->getString("metadata/by-key/artist"));
-        name = encoding::fix(mpv->getString("metadata/by-key/title"));
+        std::string artist = encoding::fix(c2d::Utility::trim(mpv->getString("metadata/by-key/artist")));
+        name = encoding::fix(c2d::Utility::trim(mpv->getString("metadata/by-key/title")));
         if (name.empty()) {
             name = encoding::fix(player->getTitle());
         }
@@ -279,8 +279,8 @@ void PlayerOSD::updateTexts() {
             parts.push_back(std::to_string(bitrate / 1000) + " kb/s");
         }
     } else {
-        // the title tag, else the player title (file name, playlist entry)
-        name = encoding::fix(mpv->getString("metadata/by-key/title"));
+        // the title tag (not a blank one), else the player title (file name, playlist entry)
+        name = encoding::fix(c2d::Utility::trim(mpv->getString("metadata/by-key/title")));
         if (name.empty()) {
             name = encoding::fix(player->getTitle());
         }
