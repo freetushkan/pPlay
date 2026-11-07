@@ -28,6 +28,14 @@ MPV_BEFORE="${MPV_BEFORE:-$(git -C "$MA" log -1 --format=%cI)}"
 cd "$MA/buildscripts"
 . ./include/depinfo.sh
 
+# mbedtls thread safe (PSA, curl's entropy): TLS in pPlay's threads and mpv's at once
+# (THREADING set: its programs not linked with -lpthread, bionic has it)
+if ! grep -q MBEDTLS_THREADING_C scripts/mbedtls.sh; then
+	sed -i 's/^make -j\$cores no_test/.\/scripts\/config.py set MBEDTLS_THREADING_C\n.\/scripts\/config.py set MBEDTLS_THREADING_PTHREAD\nexport THREADING=bionic\n&/' \
+		scripts/mbedtls.sh
+fi
+grep -n "THREADING\|no_test" scripts/mbedtls.sh
+
 # the SDK of the runner, mpv-android's NDK
 mkdir -p sdk
 if [[ -n "$ANDROID_HOME" && ! -e sdk/android-sdk-linux ]]; then
