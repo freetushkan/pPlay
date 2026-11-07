@@ -229,7 +229,7 @@ void PPLAYConfig::sanitize() {
     clamp(OPT_PROGRESS_MIN_LENGTH, 0, 60);
     clamp(OPT_PROGRESS_INTERVAL, 5, 120);
     clamp(OPT_SAVE_THREADS, 1, 4);
-    clamp(OPT_STAY_AWAKE, -1, 1440);
+    clamp(OPT_STAY_AWAKE, 0, 1440);
     clamp(OPT_SAVE_KEEP_DAYS, 0, 3650);
     clamp(OPT_SAVE_MAX_GB, 0, 100000);
 

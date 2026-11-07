@@ -74,8 +74,8 @@
 // PS5: the interface and the video at 3840x2160 if the screen is 4K (1), else 1920x1080 (0,
 // scaled to the screen); read at the start
 #define OPT_PS5_UI_4K "PS5_UI_4K"
-// no automatic sleep while playing / saving: -1 off (the system rules), else until that many
-// minutes without a key pressed, 0 always
+// no automatic sleep while playing / saving: until that many minutes without a key pressed,
+// 0 always (not on PS5: it never sleeps with the app open)
 #define OPT_STAY_AWAKE "STAY_AWAKE"
 // ".name" files and directories listed
 #define OPT_SHOW_HIDDEN "SHOW_HIDDEN"

@@ -29,7 +29,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Short seek step", "short_seek.png", Pos::Top),
                                   MenuItem("Long seek step", "long_seek.png", Pos::Top),
                                   MenuItem("Playback retry", "pl_retry.png", Pos::Top),
-                                  MenuItem("Stay awake", "awake.png", Pos::Top),
+#ifndef __PS5__
+                                  MenuItem("Prevent sleep", "awake.png", Pos::Top),
+#endif
                           }});
     categories.push_back({"Progress",
                           {
@@ -259,10 +261,12 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     addSubmenu("Resolution", "Preferred resolution", OPT_PS5_UI_4K,
                makeIntItems({{"1080p", 0}, {"4K", 1}}), Submenu::ValueType::Integer);
 #endif
-    addSubmenu("Stay awake", "Stay awake during inactivity", OPT_STAY_AWAKE,
-               makeIntItems({{"Off", -1}, {"Always", 0}, {"30 min", 30}, {"1 h", 60}, {"1.5 h", 90},
-                             {"2 h", 120}, {"3 h", 180}, {"4 h", 240}}),
+#ifndef __PS5__
+    addSubmenu("Prevent sleep", "Prevent sleep when idle", OPT_STAY_AWAKE,
+               makeIntItems({{"Always while playing", 0}, {"5 min", 5}, {"10 min", 10}, {"15 min", 15}, {"30 min", 30}, {"1 h", 60},
+                             {"1.5 h", 90}, {"2 h", 120}, {"3 h", 180}, {"4 h", 240}}),
                Submenu::ValueType::Integer);
+#endif
     addSubmenu("Saved section", "The Saved section in the menu", OPT_SHOW_SAVED,
                makeIntItems({{"If not empty", 1}, {"Not shown", 0}}), Submenu::ValueType::Integer);
     addSubmenu("Playlists section", "The Playlists section in the menu", OPT_SHOW_PLAYLISTS,

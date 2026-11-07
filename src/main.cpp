@@ -149,7 +149,9 @@ void Main::createMenus() {
 #endif
     items.emplace_back("Brightness", "brightness.png", MenuItem::Position::Top);
     items.emplace_back("Progress line", "progress_line.png", MenuItem::Position::Top);
-    items.emplace_back("Stay awake", "awake.png", MenuItem::Position::Top);
+#ifndef __PS5__
+    items.emplace_back("Prevent sleep", "awake.png", MenuItem::Position::Top);
+#endif
     items.emplace_back("Information", "info.png", MenuItem::Position::Top);
     items.emplace_back("Stop", "stop.png", MenuItem::Position::Bottom);
     menu_video = new MenuVideo(this, {Main::getSize().x, inset, 420 * scaling.x, Main::getSize().y - 2 * inset},
@@ -291,24 +293,12 @@ void Main::onUpdate() {
     }
 
     pplay::Saved::update();
-    // awake while playing / saving, up to the minutes without a key (0: always, -1: never)
+    // awake while playing / saving, up to the minutes without a key (0: always)
     bool playing = player != nullptr && !player->getMpv()->isStopped() && !player->getMpv()->isPaused();
     int awakeMinutes = config->getOption(OPT_STAY_AWAKE)->getInteger();
-    bool awake = awakeMinutes >= 0 && (playing || pplay::Saved::busy())
-                 && (awakeMinutes == 0 || idleClock.getElapsedTime().asSeconds() < (float) awakeMinutes * 60);
+    bool awake = (playing || pplay::Saved::busy())
+                 && (awakeMinutes <= 0 || idleClock.getElapsedTime().asSeconds() < (float) awakeMinutes * 60);
     pplay::Platform::keepAwake(awake, playing);
-#ifdef __PS5__
-    // the set time over while playing (fallen asleep): paused, the console to sleep, once
-    // (the system timer never runs out there)
-    bool over = awakeMinutes > 0 && playing && idleClock.getElapsedTime().asSeconds() >= (float) awakeMinutes * 60;
-    if (over && !sleepAsked) {
-        sleepAsked = true;
-        player->pause();
-        pplay::Platform::sleepNow();
-    } else if (!over && idleClock.getElapsedTime().asSeconds() < 1) {
-        sleepAsked = false;
-    }
-#endif
     std::string savedType, savedMessage;
     if (pplay::Saved::takeMessage(&savedType, &savedMessage)
         || pplay::Playlists::takeMessage(&savedType, &savedMessage)) {
