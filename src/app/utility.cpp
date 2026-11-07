@@ -362,7 +362,7 @@ std::string Utility::getWatchLater(const std::string &video_path) {
     // ignore-path-in-watch-later-config: mpv hashes the part after the last slash
     // (urls: full, but mpv 0.39)
     const bool basename = !isMpvUrl(mpvPath) || watchLaterUrlBaseName;
-#elif defined(__LINUX__)
+#elif defined(__LINUX__) || defined(__ANDROID__)
     // the whole path
     const bool basename = false;
 #else
@@ -465,7 +465,7 @@ bool Utility::deleteWatchLater(const std::string &video_path) {
     return false;
 }
 
-#if defined(__PS4__) || defined(__PS5__)
+#if defined(__PS4__) || defined(__PS5__) || defined(__ANDROID__)
 std::string Utility::getCertificatesPath() {
     return getDataPath() + "cacert.pem";
 }

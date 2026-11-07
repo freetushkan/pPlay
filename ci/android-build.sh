@@ -1,0 +1,137 @@
+#!/bin/bash -e
+#
+# pPlay for Android (arm64-v8a, armeabi-v7a, Android 6+): the native dependencies from
+# mpv-android's build scripts (ffmpeg with MediaCodec, mpv, libass...), SDL2 and libpng added
+# to their prefixes, libpplay.so per ABI, then the APK by Gradle (android/).
+#
+# usage: ci/android-build.sh <mpv-android> <SDL2> <libpng> (checkouts)
+# out: pPlay-Android.apk, symbols/<abi>/libpplay.so (unstripped)
+#
+
+ROOT="$(pwd)"
+MA="$(realpath "$1")"
+SDL="$(realpath "$2")"
+PNG="$(realpath "$3")"
+# mpv's revision: the one of mpv-android's date (it builds master)
+MPV_BEFORE="${MPV_BEFORE:-$(git -C "$MA" log -1 --format=%cI)}"
+
+cd "$MA/buildscripts"
+. ./include/depinfo.sh
+
+# the SDK of the runner, mpv-android's NDK
+mkdir -p sdk
+if [[ -n "$ANDROID_HOME" && ! -e sdk/android-sdk-linux ]]; then
+	ln -s "$ANDROID_HOME" sdk/android-sdk-linux
+fi
+IN_CI=1 WGET="wget -q" ./include/download-sdk.sh
+NDK="$MA/buildscripts/sdk/android-ndk-$v_ndk"
+NDK_TC="$NDK/build/cmake/android.toolchain.cmake"
+NDK_BIN="$(echo "$NDK"/toolchains/llvm/prebuilt/*/bin)"
+NDK_SYSROOT="$(echo "$NDK"/toolchains/llvm/prebuilt/*/sysroot)"
+
+# <mpv-android arch>:<abi>:<triple>:<libcross2d toolchain name>
+ARCHS="arm64:arm64-v8a:aarch64-linux-android:aarch64 armv7l:armeabi-v7a:arm-linux-androideabi:armv7a"
+
+fetched=0
+for entry in $ARCHS; do
+	IFS=: read -r arch abi triple tc <<<"$entry"
+	prefix="$MA/buildscripts/prefix/$arch"
+
+	# ffmpeg, mpv and theirs (the cached prefix)
+	if [ ! -f "$prefix/lib/libmpv.so" ]; then
+		if [ $fetched -eq 0 ]; then
+			IN_CI=1 WGET="wget -q" ./include/download-deps.sh
+			git -C deps/mpv checkout -q "$(git -C deps/mpv rev-list -1 --before="$MPV_BEFORE" HEAD)"
+			git -C deps/mpv log -1 --oneline
+			fetched=1
+		fi
+		./buildall.sh --arch "$arch" mpv
+	fi
+
+	common=(-DCMAKE_TOOLCHAIN_FILE="$NDK_TC" -DANDROID_ABI="$abi" -DANDROID_PLATFORM=android-23
+		-DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local)
+
+	# SDL2 (libcross2d), shared: its Java part calls it
+	if [ ! -f "$prefix/lib/libSDL2.so" ]; then
+		rm -rf "/tmp/sdl-$arch"
+		cmake -S "$SDL" -B "/tmp/sdl-$arch" "${common[@]}" -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST=OFF
+		cmake --build "/tmp/sdl-$arch" -j"$(nproc)"
+		DESTDIR="$prefix" cmake --install "/tmp/sdl-$arch"
+	fi
+
+	# the NDK's zlib, for pkg-config
+	if [ ! -f "$prefix/lib/pkgconfig/zlib.pc" ]; then
+		printf '%s\n' "Name: zlib" "Description: zlib (NDK)" "Version: 1.2.13" "Libs: -lz" "Cflags:" \
+			>"$prefix/lib/pkgconfig/zlib.pc"
+	fi
+
+	# libpng (libcross2d), static
+	if [ ! -f "$prefix/lib/libpng.a" ]; then
+		rm -rf "/tmp/png-$arch"
+		cmake -S "$PNG" -B "/tmp/png-$arch" "${common[@]}" -DPNG_SHARED=OFF -DPNG_STATIC=ON \
+			-DPNG_TESTS=OFF -DPNG_TOOLS=OFF -DPNG_HARDWARE_OPTIMIZATIONS=OFF
+		cmake --build "/tmp/png-$arch" -j"$(nproc)"
+		DESTDIR="$prefix" cmake --install "/tmp/png-$arch"
+	fi
+
+	# libcross2d asks for /opt/pacbrew/android/cmake/android-<tc>.cmake: the NDK one there
+	sudo mkdir -p /opt/pacbrew/android/cmake
+	sudo tee "/opt/pacbrew/android/cmake/android-$tc.cmake" >/dev/null <<TOOLCHAIN
+set(ANDROID_ABI $abi)
+set(ANDROID_PLATFORM android-23)
+set(ANDROID_STL c++_shared)
+include($NDK_TC)
+list(APPEND CMAKE_FIND_ROOT_PATH $prefix)
+TOOLCHAIN
+
+	# libpplay.so
+	build="$ROOT/build-android-$abi"
+	rm -rf "$build"
+	PKG_CONFIG_LIBDIR="$prefix/lib/pkgconfig" PKG_CONFIG_SYSROOT_DIR="$prefix" \
+		cmake -S "$ROOT" -B "$build" -G "Unix Makefiles" \
+		-DCMAKE_TOOLCHAIN_FILE="/opt/pacbrew/android/cmake/android-$tc.cmake" \
+		-DPLATFORM_ANDROID=ON -DANDROID_ABI="$abi" \
+		-DOPTION_BUILTIN_LIBCONFIG=ON -DOPTION_SMB2=OFF \
+		-DANDROID_ASSETS_PATH="$ROOT/android/app/src/main/assets" \
+		-DCMAKE_BUILD_TYPE=Release
+	PKG_CONFIG_LIBDIR="$prefix/lib/pkgconfig" PKG_CONFIG_SYSROOT_DIR="$prefix" \
+		make -C "$build" pplay -j"$(nproc)"
+
+	# the libraries of the APK: pPlay stripped (kept whole for the crash logs), the prefix ones
+	jni="$ROOT/android/app/src/main/jniLibs/$abi"
+	rm -rf "$jni" && mkdir -p "$jni" "$ROOT/symbols/$abi"
+	cp "$build/libpplay.so" "$ROOT/symbols/$abi/"
+	"$NDK_BIN/llvm-strip" --strip-unneeded -o "$jni/libpplay.so" "$build/libpplay.so"
+	for lib in "$prefix"/lib/*.so; do
+		cp -L "$lib" "$jni/"
+	done
+	cp "$NDK_SYSROOT/usr/lib/$triple/libc++_shared.so" "$jni/"
+
+	# all the needed libraries there, or the system ones
+	system=" libc.so libm.so libdl.so liblog.so libandroid.so libGLESv1_CM.so libGLESv2.so libGLESv3.so libEGL.so
+		libOpenSLES.so libmediandk.so libz.so libjnigraphics.so libaaudio.so libvulkan.so libcamera2ndk.so "
+	missing=0
+	for lib in "$jni"/*.so; do
+		for needed in $("$NDK_BIN/llvm-readelf" -d "$lib" | sed -n 's/.*(NEEDED).*\[\(.*\)\]/\1/p'); do
+			if [[ ! -f "$jni/$needed" && "$system" != *" $needed "* ]]; then
+				echo "Error: $(basename "$lib") needs $needed (not packaged)" >&2
+				missing=1
+			fi
+		done
+	done
+	[ $missing -eq 0 ]
+	ls -l "$jni"
+done
+
+# SDL's Java part, its version
+cp -r "$SDL/android-project/app/src/main/java/org" "$ROOT/android/app/src/main/java/"
+
+# the APK (release: signed by ANDROID_KEYSTORE if set, else the debug key)
+cd "$ROOT"
+VERSION_MAJOR=$(sed -n 's/^set(VERSION_MAJOR "\(.*\)")/\1/p' CMakeLists.txt)
+VERSION_MINOR=$(sed -n 's/^set(VERSION_MINOR "\(.*\)")/\1/p' CMakeLists.txt)
+export PPLAY_VERSION_CODE=$((VERSION_MAJOR * 100 + VERSION_MINOR))
+export PPLAY_VERSION_NAME="$VERSION_MAJOR.$VERSION_MINOR${GITHUB_SHA:+-${GITHUB_SHA:0:8}}"
+(cd android && ./gradlew --no-daemon assembleRelease)
+cp android/app/build/outputs/apk/release/app-release.apk pPlay-Android.apk
+ls -l pPlay-Android.apk

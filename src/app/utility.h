@@ -107,7 +107,7 @@ namespace pplay {
 
         static bool isWatchLaterWatched(const std::string &video_path);
 
-#if defined(__PS4__) || defined(__PS5__) || defined(__LINUX__)
+#if defined(__PS4__) || defined(__PS5__) || defined(__LINUX__) || defined(__ANDROID__)
         static std::string getCertificatesPath();
 #endif
 

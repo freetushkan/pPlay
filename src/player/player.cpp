@@ -540,6 +540,9 @@ void Player::applyConfig() {
     // a change applies from the next decoder start
 #ifdef __SWITCH__
     const char *hwdec = "nvtegra-copy";
+#elif defined(__ANDROID__)
+    // copied back: the video drawn in the interface (a texture)
+    const char *hwdec = "mediacodec-copy";
 #else
     const char *hwdec = "auto-safe";
 #endif

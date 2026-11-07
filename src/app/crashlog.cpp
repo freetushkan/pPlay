@@ -3,7 +3,7 @@
 // backtrace_symbols_fd; do not call the application logger from signal context.
 //
 
-#if defined(__linux__)
+#if defined(__linux__) && !defined(__ANDROID__)
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif

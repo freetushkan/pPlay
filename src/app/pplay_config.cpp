@@ -105,6 +105,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_PROGRESS_LINE, (int) 1});
     addOption({OPT_FOLDER_MARKS, (int) 1});
     addOption({OPT_SHOW_SAVED, (int) 1});
+    addOption({OPT_ANDROID_BACKGROUND, (int) 0});
     addOption({OPT_SHOW_PLAYLISTS, (int) 1});
     addOption({OPT_PROGRESS_MIN_LENGTH, (int) 5});
     addOption({OPT_PROGRESS_INTERVAL, (int) 10});
@@ -147,6 +148,9 @@ std::string PPLAYConfig::defaultHomePath() const {
 #else
 #if defined(__SWITCH__)
     std::string path = "/media/"; // sdmc
+#elif defined(__ANDROID__)
+    // the shared storage (all files access asked at the start)
+    std::string path = "/storage/emulated/0/";
 #else
     std::string path = "/data/media/";
 #endif

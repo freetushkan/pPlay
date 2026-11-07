@@ -39,7 +39,8 @@ namespace {
             {Input::Button::RT, SDL_SCANCODE_END},      {Input::Button::Start, SDL_SCANCODE_F1},
             {Input::Button::Select, SDL_SCANCODE_F2},
     };
-#elif !defined(NO_KEYBOARD)
+#elif !defined(NO_KEYBOARD) || defined(__ANDROID__)
+    // Android: polled here (libcross2d reads no keyboard there), the remotes are keys
     const std::vector<Input::ButtonMapping> g_keyboard = {
             {Input::Button::Up, SDL_SCANCODE_UP},
             {Input::Button::Up, SDL_SCANCODE_KP_8},
@@ -92,7 +93,7 @@ namespace {
     c2d::Input *g_input = nullptr;
 
     bool isKeyboardMapped(SDL_Scancode scancode) {
-#ifndef NO_KEYBOARD
+#if !defined(NO_KEYBOARD) || defined(__ANDROID__)
         for (const auto &map: g_keyboard) {
             if (map.value == (int) scancode) {
                 return true;
@@ -549,6 +550,16 @@ namespace pplay::InputMap {
 
     unsigned int update() {
         unsigned int held = pollDevices();
+#ifdef __ANDROID__
+        if (!g_textInput) {
+            const Uint8 *keys = SDL_GetKeyboardState(nullptr);
+            for (const auto &map: g_keyboard) {
+                if (keys[map.value]) {
+                    held |= map.button;
+                }
+            }
+        }
+#endif
 #ifdef __PS4__
         const unsigned int remoteHeld = pollPs4Remote();
 #endif

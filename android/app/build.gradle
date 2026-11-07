@@ -1,0 +1,49 @@
+apply plugin: 'com.android.application'
+
+// set by the CI: the version, the signing key (else the debug one)
+def env = System.getenv()
+
+android {
+    namespace 'com.freetushkan.pplay'
+    compileSdk = 36
+
+    defaultConfig {
+        applicationId 'com.freetushkan.pplay'
+        minSdkVersion 23
+        targetSdk 36
+        versionCode((env['PPLAY_VERSION_CODE'] ?: '1') as int)
+        versionName env['PPLAY_VERSION_NAME'] ?: 'dev'
+    }
+
+    signingConfigs {
+        release {
+            if (env['ANDROID_KEYSTORE']) {
+                storeFile file(env['ANDROID_KEYSTORE'])
+                storePassword env['ANDROID_KEYSTORE_PASSWORD']
+                keyAlias env['ANDROID_KEY_ALIAS']
+                keyPassword env['ANDROID_KEY_PASSWORD'] ?: env['ANDROID_KEYSTORE_PASSWORD']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // SDL calls its Java methods by name
+            minifyEnabled = false
+            signingConfig env['ANDROID_KEYSTORE'] ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    // the release built in the CI: lint on its own
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
+
+    packaging {
+        jniLibs {
+            // dlopen by name (SDL_main)
+            useLegacyPackaging = true
+        }
+    }
+}

@@ -39,7 +39,7 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
 
     mpv_set_option_string(handle, "config", "yes");
     mpv_set_option_string(handle, "config-dir", configPath.c_str());
-#ifdef __LINUX__
+#if defined(__LINUX__) || defined(__ANDROID__)
     // where Utility::getWatchLater() looks (default: ~/.local/state/mpv)
     mpv_set_option_string(handle, "watch-later-directory", (configPath + "/watch_later").c_str());
 #endif
@@ -82,6 +82,17 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     mpv_set_option_string(handle, "sws-scaler", "bilinear");
     mpv_set_option_string(handle, "sub-fonts-dir", "/data/pplay/mpv");
     mpv_set_option_string(handle, "osd-fonts-dir", "/data/pplay/mpv");
+#endif
+
+#ifdef __ANDROID__
+    // no fontconfig: the bundled font
+    mpv_set_option_string(handle, "tls-ca-file", pplay::Utility::getCertificatesPath().c_str());
+    mpv_set_option_string(handle, "sub-font-provider", "none");
+    mpv_set_option_string(handle, "osd-font-provider", "none");
+    mpv_set_option_string(handle, "sub-font", "subfont.ttf");
+    mpv_set_option_string(handle, "osd-font", "subfont.ttf");
+    mpv_set_option_string(handle, "sub-fonts-dir", (configPath + "/").c_str());
+    mpv_set_option_string(handle, "osd-fonts-dir", (configPath + "/").c_str());
 #endif
 
 #ifdef __PS5__

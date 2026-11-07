@@ -444,8 +444,11 @@ LogView *Main::getLogView() {
     return logView;
 }
 
-// platform, data directory, configuration and language before the ui
-int main() {
+// platform, data directory, configuration and language before the ui (Android: SDL_main, the
+// arguments needed then)
+int main(int argc, char *argv[]) {
+    (void) argc;
+    (void) argv;
     if (!pplay::Platform::init()) {
         return 0;
     }
@@ -458,7 +461,7 @@ int main() {
 #elif defined(__PS5__) || defined(__SWITCH__)
     pplay::CrashLog::install(io->getDataPath() + "crash.log");
 #endif
-#if defined(__PS4__) || defined(__SWITCH__) || defined(__LINUX__)
+#if defined(__PS4__) || defined(__SWITCH__) || defined(__LINUX__) || defined(__ANDROID__)
     // romfs (skin, mpv, lang...) -> data directory
     io->syncRomFs();
 #endif

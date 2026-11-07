@@ -32,6 +32,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
 #ifndef __PS5__
                                   MenuItem("Prevent sleep", "awake.png", Pos::Top),
 #endif
+#ifdef __ANDROID__
+                                  MenuItem("When minimized", "exit.png", Pos::Top),
+#endif
                           }});
     categories.push_back({"Progress",
                           {
@@ -260,6 +263,10 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
 #ifdef __PS5__
     addSubmenu("Resolution", "Preferred resolution", OPT_PS5_UI_4K,
                makeIntItems({{"1080p", 0}, {"4K", 1}}), Submenu::ValueType::Integer);
+#endif
+#ifdef __ANDROID__
+    addSubmenu("When minimized", "The app in the background (after a restart)", OPT_ANDROID_BACKGROUND,
+               makeIntItems({{"Paused", 0}, {"Closed, then resumed", 1}}), Submenu::ValueType::Integer);
 #endif
 #ifndef __PS5__
     addSubmenu("Prevent sleep", "Prevent sleep when idle", OPT_STAY_AWAKE,

@@ -414,3 +414,6 @@ If not empty = Если не пуст
 Not shown = Не показывать
 Source = Источник
 Saved copy = Сохранённая копия
+When minimized = При сворачивании
+The app in the background (after a restart) = Приложение в фоне (после перезапуска)
+Closed, then resumed = Закрывается, затем возобновляется

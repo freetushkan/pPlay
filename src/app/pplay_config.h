@@ -82,11 +82,14 @@
 // the playlist added to last, the last location in the playlists
 #define OPT_LAST_PLAYLIST "LAST_PLAYLIST"
 #define OPT_LAST_PLAYLISTS_PATH "LAST_PLAYLISTS_PATH"
-// hardware video decoding (Switch: nvtegra, Linux: vaapi / nvdec), 0 off
-#if defined(__SWITCH__) || defined(__LINUX__)
+// hardware video decoding (Switch: nvtegra, Linux: vaapi / nvdec, Android: mediacodec), 0 off
+#if defined(__SWITCH__) || defined(__LINUX__) || defined(__ANDROID__)
 #define PPLAY_HW_DECODING
 #endif
 #define OPT_HW_DECODING "HW_DECODING"
+// Android, sent to the background: 0 kept (paused), 1 closed (the playing file reopened at the
+// next start); read at the start
+#define OPT_ANDROID_BACKGROUND "ANDROID_BACKGROUND"
 // the Saved / Playlists sections in the main menu: 1 if not empty, 0 hidden
 #define OPT_SHOW_SAVED "SHOW_SAVED"
 #define OPT_SHOW_PLAYLISTS "SHOW_PLAYLISTS"

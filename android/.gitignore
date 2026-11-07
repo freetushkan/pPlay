@@ -1,0 +1,8 @@
+# filled by ci/android-build.sh
+app/src/main/java/org/
+app/src/main/jniLibs/
+app/src/main/assets/
+.gradle/
+build/
+app/build/
+local.properties

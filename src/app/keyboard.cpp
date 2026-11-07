@@ -54,7 +54,7 @@ int sceKernelUsleep(unsigned int usec);
 #define SCE_IME_DIALOG_STATUS_RUNNING 1
 #define SCE_IME_DIALOG_STATUS_FINISHED 2
 #define SCE_IME_DIALOG_END_STATUS_OK 0
-#elif defined(__LINUX__)
+#elif defined(__LINUX__) || defined(__ANDROID__)
 #include <algorithm>
 #include "main.h"
 #include "i18n.h"
@@ -62,7 +62,7 @@ int sceKernelUsleep(unsigned int usec);
 #endif
 
 #define SCE_IME_OPTION_MULTILINE 0x00000001
-#ifdef __LINUX__
+#if defined(__LINUX__) || defined(__ANDROID__)
 #define IME_MAX_SINGLE 4096
 #define IME_MAX_MULTI 65536
 #else
@@ -143,7 +143,7 @@ namespace {
     }
 }
 
-#ifdef __LINUX__
+#if defined(__LINUX__) || defined(__ANDROID__)
 namespace {
     // utf-8 code point boundaries
     size_t prevChar(const std::string &s, size_t i) {
@@ -439,7 +439,7 @@ namespace pplay::Keyboard {
             text = toUtf8(buffer.data());
         }
         return ok;
-#elif defined(__LINUX__)
+#elif defined(__LINUX__) || defined(__ANDROID__)
         return editText(title, text, multiline, max);
 #else
         (void) title;

@@ -112,7 +112,7 @@ Http::Response Http::perform(const Request &request) {
     curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
     curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "pPlay/" APP_VERSION);
-#if defined(__PS4__) || defined(__PS5__)
+#if defined(__PS4__) || defined(__PS5__) || defined(__ANDROID__)
     curl_easy_setopt(curl, CURLOPT_CAINFO, Utility::getCertificatesPath().c_str());
 #elif defined(__LINUX__)
     std::string certificates = Utility::getCertificatesPath();

@@ -12,6 +12,43 @@
 #include "desktop_window.h"
 #include "utility.h"
 
+#ifdef __ANDROID__
+#include <atomic>
+#include <jni.h>
+extern "C" {
+#include <libavcodec/jni.h>
+}
+
+// the library loaded by SDLActivity: ffmpeg's MediaCodec needs the VM
+extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *) {
+    av_jni_set_java_vm(vm, nullptr);
+    return JNI_VERSION_1_6;
+}
+
+namespace {
+    // the app sent to the background / back (SDL event watch: the UI thread)
+    std::atomic<bool> g_background{false};
+    std::atomic<bool> g_closeAsked{false};
+    std::atomic<mpv_handle *> g_mpv{nullptr};
+    bool g_closeInBackground = false;
+
+    int onAppEvent(void *, SDL_Event *event) {
+        if (event->type == SDL_APP_WILLENTERBACKGROUND) {
+            g_background = true;
+            if (g_closeInBackground) {
+                g_closeAsked = true;
+            } else if (g_mpv.load() != nullptr) {
+                // kept: no sound behind another app
+                mpv_set_property_string(g_mpv.load(), "pause", "yes");
+            }
+        } else if (event->type == SDL_APP_DIDENTERFOREGROUND) {
+            g_background = false;
+        }
+        return 1;
+    }
+}
+#endif
+
 #ifdef __SWITCH__
 
 #include <switch.h>
@@ -334,7 +371,7 @@ static void logResolution(Main *main) {
                                                   + std::to_string(main->getFontSize(Main::FontSize::Big)));
 }
 
-#ifdef __PS5__
+#if defined(__PS5__) || defined(__ANDROID__)
 // the interface drawn on the whole GL drawable (a window other than asked): scaled by a whole
 // factor when it can be, centered
 static void fitDrawable(Main *main) {
@@ -395,6 +432,9 @@ namespace pplay::Platform {
             printf("pPlay is already running\n");
             return false;
         }
+#elif defined(__ANDROID__)
+        // the remote "Back" as a key, not the activity closed
+        SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
 #elif __PS4__
         setvbuf(stdout, nullptr, _IONBF, 0);
 #ifdef PPLAY_PS4_JAILBREAK
@@ -433,6 +473,8 @@ namespace pplay::Platform {
 #else
         return "PS4";
 #endif
+#elif defined(__ANDROID__)
+        return "Android (" + c2d::C2DDevice::getName() + ")";
 #elif defined(_WIN32)
         return "Windows";
 #elif defined(__linux__)
@@ -455,6 +497,11 @@ namespace pplay::Platform {
             }
         }
 #else
+#ifdef __ANDROID__
+        // before SDL starts: closing needs the loop running in the background
+        g_closeInBackground = config->getOption(OPT_ANDROID_BACKGROUND)->getInteger() != 0;
+        SDL_SetHint(SDL_HINT_ANDROID_BLOCK_ON_PAUSE, g_closeInBackground ? "0" : "1");
+#endif
         (void) config;
         c2d::Vector2f size = {1920, 1080};
 #endif
@@ -465,7 +512,7 @@ namespace pplay::Platform {
 
     void started(Main *main) {
         logRenderer(main);
-#ifdef __PS5__
+#if defined(__PS5__) || defined(__ANDROID__)
         fitDrawable(main);
 #endif
         logResolution(main);
@@ -474,6 +521,9 @@ namespace pplay::Platform {
         appletLockExit();
         appletHook(&applet_hook_cookie, on_applet_hook, main);
         appletSetFocusHandlingMode(AppletFocusHandlingMode_NoSuspend);
+#elif defined(__ANDROID__)
+        g_mpv = main->getPlayer()->getMpv()->getHandle();
+        SDL_AddEventWatch(onAppEvent, nullptr);
 #elif __PS4__
         (void) main;
         char report[256];
@@ -550,6 +600,12 @@ namespace pplay::Platform {
         pplay::DesktopWindow::update(main);
 #ifdef __PS5__
         ps5RestMode(main);
+#elif defined(__ANDROID__)
+        // closed in the background: the playing file reopened at the next start
+        if (g_closeAsked.exchange(false)) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Android: closing in the background");
+            main->closeForRest();
+        }
 #endif
         static c2d::C2DClock statsClock;
         if (statsClock.getElapsedTime().asSeconds() >= 10) {
@@ -573,6 +629,10 @@ namespace pplay::Platform {
         sceSystemServiceLoadExec("exit", nullptr);
         while (true) {
         }
+#elif defined(__ANDROID__)
+        // a next start in this process would find the statics of this one
+        g_mpv = nullptr;
+        std::exit(0);
 #elif __PS4__
 #ifdef PPLAY_PS4_JAILBREAK
         terminate_jbc();

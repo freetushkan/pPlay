@@ -1,0 +1,17 @@
+// the native libraries and the assets come from ci/android-build.sh (app/src/main/jniLibs, assets)
+buildscript {
+    repositories {
+        mavenCentral()
+        google()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:9.2.1'
+    }
+}
+
+allprojects {
+    repositories {
+        mavenCentral()
+        google()
+    }
+}

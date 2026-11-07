@@ -499,8 +499,73 @@ jobs:
           path: "cmake-build/pplay.debug"
           retention-days: 90
 
+  android:
+    runs-on: ubuntu-24.04
+    # new: a failed build doesn't hold the release
+    continue-on-error: true
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      # mpv-android's build scripts (ffmpeg, mpv, libass...), SDL2, libpng
+      MPV_ANDROID_REV: 255901dd586fa750000fa0075f69d6ffdd26cd9c
+      SDL_TAG: release-2.32.10
+      PNG_TAG: v1.6.59
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+
+      - name: Create build environment
+        run: |
+          sudo apt-get update || true
+          sudo apt-get install -y autoconf pkgconf libtool ninja-build python3-pip gperf nasm wget unzip
+          sudo pip3 install meson --break-system-packages
+
+          git clone https://github.com/mpv-android/mpv-android.git "$RUNNER_TEMP/mpv-android"
+          git -C "$RUNNER_TEMP/mpv-android" checkout "$MPV_ANDROID_REV"
+          git clone --depth 1 -b "$SDL_TAG" https://github.com/libsdl-org/SDL.git "$RUNNER_TEMP/SDL"
+          git clone --depth 1 -b "$PNG_TAG" https://github.com/pnggroup/libpng.git "$RUNNER_TEMP/libpng"
+
+      - name: Cache for build dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/mpv-android/buildscripts/prefix
+          key: android-prefix-${{ env.MPV_ANDROID_REV }}-${{ env.SDL_TAG }}-${{ env.PNG_TAG }}-v1
+
+      - name: Build pPlay
+        env:
+          # optional: a stable signing key (else the debug one of the runner, a new one each time)
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/pplay.keystore"
+            export ANDROID_KEYSTORE="$RUNNER_TEMP/pplay.keystore"
+          fi
+          ci/android-build.sh "$RUNNER_TEMP/mpv-android" "$RUNNER_TEMP/SDL" "$RUNNER_TEMP/libpng"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pPlay-Android
+          path: "pPlay-Android.apk"
+
+      - name: Upload debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: pPlay-Symbols-Android
+          path: "symbols/*"
+          retention-days: 90
+
   publish:
-    needs: [ps4, ps5, ps5-pkg, switch, linux]
+    needs: [ps4, ps5, ps5-pkg, switch, linux, android]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
     steps:
@@ -525,8 +590,14 @@ jobs:
           for platform in PS4 PS5 PS5_websrv Switch; do
             (cd "artifacts/pPlay-${platform}" && zip -r "$OUT/pPlay-${VERSION}-${platform}.zip" .)
           done
-          for platform in Linux PS4 PS5 Switch; do
-            cp -r "artifacts/pPlay-Symbols-${platform}" "symbols/${platform}"
+          # Android: when built (its job may fail)
+          if [ -f artifacts/pPlay-Android/pPlay-Android.apk ]; then
+            cp artifacts/pPlay-Android/pPlay-Android.apk "$OUT/pPlay-${VERSION}-Android.apk"
+          fi
+          for platform in Linux PS4 PS5 Switch Android; do
+            if [ -d "artifacts/pPlay-Symbols-${platform}" ]; then
+              cp -r "artifacts/pPlay-Symbols-${platform}" "symbols/${platform}"
+            fi
           done
           (cd symbols && zip -r "$OUT/pPlay-${VERSION}-Symbols.zip" .)
           ls -lh "$OUT"
@@ -537,6 +608,7 @@ jobs:
         with:
           files: |
             ./release-assets/pPlay-${{ env.VERSION }}-Linux-x86_64.AppImage
+            ./release-assets/pPlay-${{ env.VERSION }}-Android.apk
             ./release-assets/pPlay-${{ env.VERSION }}-PS4.zip
             ./release-assets/pPlay-${{ env.VERSION }}-PS5.zip
             ./release-assets/pPlay-${{ env.VERSION }}-PS5_websrv.zip

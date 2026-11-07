@@ -12,6 +12,7 @@ set(PLATFORM_3DS OFF CACHE BOOL "Nintendo 3DS platform target")
 set(PLATFORM_VITA OFF CACHE BOOL "Sony PS Vita platform target")
 set(PLATFORM_PS4 OFF CACHE BOOL "Sony PS4 platform target")
 set(PLATFORM_PS5 OFF CACHE BOOL "Sony PS5 platform target")
+set(PLATFORM_ANDROID OFF CACHE BOOL "Android platform target (the native part of android/)")
 
 ####################
 # BUILD OPTIONS
@@ -25,6 +26,11 @@ if (PLATFORM_LINUX AND OPTION_LINUX_STATIC)
     list(PREPEND CMAKE_PREFIX_PATH ${LINUX_STATIC_PREFIX})
     link_directories(BEFORE ${LINUX_STATIC_PREFIX}/lib)
     set(OPTION_BUILTIN_LIBCONFIG ON CACHE BOOL "Build libconfig from sources" FORCE)
+endif ()
+
+# Android: the prefix of ci/android-build.sh (pkg-config gives the names only to libcross2d)
+if (PLATFORM_ANDROID AND DEFINED ENV{PKG_CONFIG_SYSROOT_DIR})
+    link_directories(BEFORE $ENV{PKG_CONFIG_SYSROOT_DIR}/lib)
 endif ()
 
 ###################
@@ -68,11 +74,18 @@ message(STATUS "pPlay version: ${APP_VERSION_FULL}")
 
 # deps
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
-find_package(BZip2 REQUIRED)
-find_package(MPV REQUIRED)
-find_package(ffmpeg COMPONENTS avfilter avcodec avformat avutil swscale swresample)
-find_package(ass REQUIRED)
-find_package(CURL REQUIRED)
+if (PLATFORM_ANDROID)
+    # the mpv-android prefix (ci/android-deps.sh): pkg-config only
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(ANDROID_AV REQUIRED mpv libavfilter libavformat libavcodec libswscale libswresample libavutil)
+    pkg_check_modules(ANDROID_CURL REQUIRED libcurl)
+else ()
+    find_package(BZip2 REQUIRED)
+    find_package(MPV REQUIRED)
+    find_package(ffmpeg COMPONENTS avfilter avcodec avformat avutil swscale swresample)
+    find_package(ass REQUIRED)
+    find_package(CURL REQUIRED)
+endif ()
 
 # sources
 file(GLOB PPLAY_SRC
@@ -197,6 +210,12 @@ elseif (PLATFORM_PS5)
             mpv libavdevice libavfilter libavformat libavcodec
             libswscale libswresample libavutil libass libcurl)
     list(APPEND PPLAY_LDFLAGS ${PS5_PC_STATIC_LIBRARIES})
+elseif (PLATFORM_ANDROID)
+    #####################
+    # ANDROID PLATORM: libpplay.so (SDL_main) in android/app, mpv and ffmpeg shared
+    #####################
+    list(APPEND PPLAY_INC ${ANDROID_AV_INCLUDE_DIRS} ${ANDROID_CURL_INCLUDE_DIRS})
+    set(PPLAY_LDFLAGS ${ANDROID_AV_LDFLAGS} ${ANDROID_CURL_STATIC_LDFLAGS} mbedcrypto log android)
 elseif (PLATFORM_LINUX AND OPTION_LINUX_STATIC)
     #####################
     # LINUX PLATORM, almost static: the media libraries from the static prefix
@@ -270,6 +289,9 @@ elseif (PLATFORM_PS5)
 elseif (PLATFORM_LINUX)
     list(APPEND PLATFORM_LIBS mbedtls mbedcrypto)
 endif ()
+if (PLATFORM_ANDROID)
+    target_link_options(${CMAKE_PROJECT_NAME} PRIVATE "LINKER:-z,max-page-size=16384")
+endif ()
 target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS})
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
     APP_VERSION="${APP_VERSION}"
@@ -341,6 +363,13 @@ if (PLATFORM_PS5)
     )
 else ()
     include(libcross2d/cmake/targets.cmake)
+endif ()
+
+if (PLATFORM_ANDROID)
+    # after the assets copied (libcross2d/cmake/targets.cmake): the certificates (mpv, curl)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/data/ps5/romfs/cacert.pem
+            ${ANDROID_ASSETS_PATH}/romfs/cacert.pem)
 endif ()
 
 if (PLATFORM_LINUX)
