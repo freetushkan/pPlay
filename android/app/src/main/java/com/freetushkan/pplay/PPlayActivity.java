@@ -7,6 +7,7 @@
 package com.freetushkan.pplay;
 
 import android.Manifest;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -16,7 +17,12 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
+import android.text.InputFilter;
+import android.text.InputType;
 import android.util.Log;
+import android.view.WindowManager;
+import android.view.inputmethod.EditorInfo;
+import android.widget.EditText;
 
 import org.libsdl.app.SDLActivity;
 
@@ -25,12 +31,15 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class PPlayActivity extends SDLActivity {
 
     private static final String TAG = "pPlay";
     private static String dataPath = "";
     private static String romFsPath = "";
+    private static PPlayActivity instance;
 
     @Override
     protected String[] getLibraries() {
@@ -48,6 +57,7 @@ public class PPlayActivity extends SDLActivity {
         romFsPath = romfs.getAbsolutePath();
         extractRomFs(romfs);
         askStorage();
+        instance = this;
         super.onCreate(savedInstanceState);
     }
 
@@ -130,6 +140,62 @@ public class PPlayActivity extends SDLActivity {
             requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,
                     Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
         }
+    }
+
+    // the text input (src/app/keyboard.cpp, the native thread waits): the edited text, null
+    // if cancelled
+    public static String editText(final String title, final String text, final boolean multiline,
+                                  final int max) {
+        final PPlayActivity activity = instance;
+        if (activity == null) {
+            return null;
+        }
+        final AtomicReference<String> result = new AtomicReference<>(null);
+        final CountDownLatch done = new CountDownLatch(1);
+        activity.runOnUiThread(() -> {
+            final EditText edit = new EditText(activity);
+            edit.setText(text);
+            edit.setSelection(edit.getText().length());
+            edit.setFilters(new InputFilter[]{new InputFilter.LengthFilter(max)});
+            if (multiline) {
+                edit.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+                edit.setMinLines(3);
+            } else {
+                edit.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+                edit.setSingleLine(true);
+                edit.setImeOptions(EditorInfo.IME_ACTION_DONE);
+            }
+            final AlertDialog dialog = new AlertDialog.Builder(activity)
+                    .setTitle(title)
+                    .setView(edit)
+                    .setPositiveButton(android.R.string.ok,
+                            (d, w) -> result.set(edit.getText().toString()))
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .create();
+            dialog.setOnDismissListener(d -> done.countDown());
+            if (!multiline) {
+                // the keyboard's "Done": as OK
+                edit.setOnEditorActionListener((v, action, event) -> {
+                    if (action == EditorInfo.IME_ACTION_DONE) {
+                        result.set(edit.getText().toString());
+                        dialog.dismiss();
+                        return true;
+                    }
+                    return false;
+                });
+            }
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+            }
+            dialog.show();
+            edit.requestFocus();
+        });
+        try {
+            done.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        return result.get();
     }
 
     // libcross2d (AndroidIo, ANDROIDDevice)

@@ -54,11 +54,14 @@ int sceKernelUsleep(unsigned int usec);
 #define SCE_IME_DIALOG_STATUS_RUNNING 1
 #define SCE_IME_DIALOG_STATUS_FINISHED 2
 #define SCE_IME_DIALOG_END_STATUS_OK 0
-#elif defined(__LINUX__) || defined(__ANDROID__)
+#elif defined(__LINUX__)
 #include <algorithm>
 #include "main.h"
 #include "i18n.h"
 #include "input_map.h"
+#elif defined(__ANDROID__)
+#include <jni.h>
+#include "utility.h"
 #endif
 
 #define SCE_IME_OPTION_MULTILINE 0x00000001
@@ -143,7 +146,7 @@ namespace {
     }
 }
 
-#if defined(__LINUX__) || defined(__ANDROID__)
+#ifdef __LINUX__
 namespace {
     // utf-8 code point boundaries
     size_t prevChar(const std::string &s, size_t i) {
@@ -439,8 +442,45 @@ namespace pplay::Keyboard {
             text = toUtf8(buffer.data());
         }
         return ok;
-#elif defined(__LINUX__) || defined(__ANDROID__)
+#elif defined(__LINUX__)
         return editText(title, text, multiline, max);
+#elif defined(__ANDROID__)
+        // the system dialog and keyboard (PPlayActivity.editText), this thread waits
+        auto *env = (JNIEnv *) SDL_AndroidGetJNIEnv();
+        auto activity = (jobject) SDL_AndroidGetActivity();
+        if (env == nullptr || activity == nullptr) {
+            return false;
+        }
+        jclass cls = env->GetObjectClass(activity);
+        jmethodID mid = env->GetStaticMethodID(cls, "editText",
+                                               "(Ljava/lang/String;Ljava/lang/String;ZI)Ljava/lang/String;");
+        bool ok = false;
+        if (mid != nullptr) {
+            jstring jTitle = env->NewStringUTF(title.c_str());
+            jstring jText = env->NewStringUTF(text.c_str());
+            auto result = (jstring) env->CallStaticObjectMethod(cls, mid, jTitle, jText, (jboolean) multiline,
+                                                                (jint) max);
+            if (env->ExceptionCheck()) {
+                env->ExceptionDescribe();
+                env->ExceptionClear();
+            } else if (result != nullptr) {
+                const char *utf = env->GetStringUTFChars(result, nullptr);
+                if (utf != nullptr) {
+                    text = utf;
+                    ok = true;
+                    env->ReleaseStringUTFChars(result, utf);
+                }
+                env->DeleteLocalRef(result);
+            }
+            env->DeleteLocalRef(jTitle);
+            env->DeleteLocalRef(jText);
+        } else {
+            env->ExceptionClear();
+            pplay::Utility::log(pplay::Utility::LogLevel::Error, "Keyboard: no PPlayActivity.editText");
+        }
+        env->DeleteLocalRef(cls);
+        env->DeleteLocalRef(activity);
+        return ok;
 #else
         (void) title;
         (void) multiline;
