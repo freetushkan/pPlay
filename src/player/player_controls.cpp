@@ -185,6 +185,9 @@ void Player::updateInfo() {
 
     out << encoding::fix(file.name) << "\n";
     out << pplay::tr("State") << ": " << stateText() << "\n";
+    if (isSavedCopy()) {
+        out << pplay::tr("Source") << ": " << pplay::tr("Saved copy") << "\n";
+    }
     std::string vcodec = mpv->getString("current-tracks/video/codec");
     if (!vcodec.empty() && hasVideo()) {
         out.precision(3);

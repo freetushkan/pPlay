@@ -130,9 +130,10 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     btn_play = addButton("btn_play.png");
     btn_play->setVisibility(Visibility::Hidden);
     buttons = {addButton("btn_prev.png"), addButton("btn_seek_backward_long.png"),
-               addButton("btn_seek_backward_short.png"), btn_pause, addButton("btn_frame_step.png"),
+               addButton("btn_seek_backward_short.png"), btn_pause,
                addButton("btn_seek_forward_short.png"), addButton("btn_seek_forward_long.png"),
-               addButton("btn_next.png"), addButton("btn_settings.png"), addButton("btn_stop.png")};
+               addButton("btn_frame_step.png"), addButton("btn_next.png"), addButton("btn_stop.png"),
+               addButton("btn_settings.png")};
 
     next = new Text("", main->getFontSize(Main::FontSize::Small), main->getFont());
     next->setOutlineThickness(1);
@@ -181,7 +182,7 @@ void PlayerOSD::layout(bool audio) {
     elapsed->setPosition(trackX - 14 * sc, trackY);
     remaining->setPosition(trackX + trackW + 14 * sc, trackY);
 
-    // transport in a row, settings and stop apart
+    // transport and stop in a row, settings apart
     float step = 52 * sc;
     std::vector<float> xs(buttons.size());
     if (audio) {
@@ -192,11 +193,10 @@ void PlayerOSD::layout(bool audio) {
         }
     } else {
         float left = 54 * sc + 22 * sc, right = size.x - 54 * sc - 22 * sc;
-        for (size_t i = 0; i <= (size_t) ButtonID::Next; i++) {
+        for (size_t i = 0; i <= (size_t) ButtonID::Stop; i++) {
             xs[i] = left + step * (float) i;
         }
-        xs[(size_t) ButtonID::Settings] = right - step;
-        xs[(size_t) ButtonID::Stop] = right;
+        xs[(size_t) ButtonID::Settings] = right;
     }
     for (size_t i = 0; i < buttons.size(); i++) {
         buttons[i]->setPosition(xs[i], buttonsY);
@@ -210,7 +210,7 @@ void PlayerOSD::layout(bool audio) {
     } else {
         next->setOrigin(Origin::Right);
         next->setPosition(xs[(size_t) ButtonID::Settings] - 44 * sc, buttonsY);
-        next->setSizeMax(xs[(size_t) ButtonID::Settings] - xs[(size_t) ButtonID::Next] - 100 * sc, 0);
+        next->setSizeMax(xs[(size_t) ButtonID::Settings] - xs[(size_t) ButtonID::Stop] - 100 * sc, 0);
     }
     focus->setPosition(focusX = xs[(size_t) index], buttonsY);
     textKey.clear();
@@ -368,6 +368,9 @@ void PlayerOSD::updateChips() {
     PPLAYConfig *config = main->getConfig();
     // by priority: the normalization only if there is room left
     std::vector<std::string> labels;
+    if (player->isSavedCopy()) {
+        labels.push_back(pplay::tr("Saved copy"));
+    }
     double speed = mpv->getSpeed();
     if (speed > 0 && std::fabs(speed - 1.0) > 0.001) {
         char text[16];

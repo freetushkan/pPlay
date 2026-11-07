@@ -27,12 +27,12 @@ public:
         SeekBackwardLong,
         SeekBackwardShort,
         Pause,
-        FrameStep,
         SeekForwardShort,
         SeekForwardLong,
+        FrameStep,
         Next,
-        Settings,
-        Stop
+        Stop,
+        Settings
     };
 
     explicit PlayerOSD(Main *main);

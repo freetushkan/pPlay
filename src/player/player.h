@@ -82,6 +82,9 @@ public:
 
     bool isFullscreen();
 
+    // the saved copy of the file played (no network)
+    bool isSavedCopy() const { return !copyPath.empty(); }
+
     void setFullscreen(bool maximize, bool hide = false);
 
     void setVideoStream(int streamId);
