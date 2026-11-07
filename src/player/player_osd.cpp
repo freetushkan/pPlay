@@ -138,7 +138,7 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     next->setOutlineThickness(1);
     panel->add(next);
 
-    edge = new RectangleShape({0, size.y - std::max(4.0f, std::round(6 * sc)), 0, std::max(4.0f, std::round(6 * sc))});
+    edge = new RectangleShape({0, size.y - std::max(2.0f, std::round(3 * sc)), 0, std::max(2.0f, std::round(3 * sc))});
     PlayerOSD::add(edge);
 
     layout(false);
@@ -438,7 +438,12 @@ void PlayerOSD::updateProgress() {
     elapsed->setString(clockText(position));
     double speed = std::max(0.01, mpv->getSpeed());
     remaining->setString("-" + clockText(std::max(0.0, (duration - position) / speed)));
-    edge->setSize(std::round(done * main->getSize().x), edge->getSize().y);
+    // full screen: 3 px; minimized (a quarter): taller here, 2 px on the screen
+    float sc = main->getScaling().y;
+    float minimized = std::max(0.0f, std::min(1.0f, (1 - main->getPlayer()->getScale().x) / 0.75f));
+    float height = std::max(2.0f, std::round(3 * sc + minimized * 5 * sc));
+    edge->setPosition(0, getSize().y - height);
+    edge->setSize(std::round(done * main->getSize().x), height);
 }
 
 void PlayerOSD::applyFade() {
