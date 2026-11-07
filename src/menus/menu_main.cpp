@@ -259,7 +259,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     addSubmenu("Resolution", "Preferred resolution", OPT_PS5_UI_4K,
                makeIntItems({{"1080p", 0}, {"4K", 1}}), Submenu::ValueType::Integer);
 #endif
-    addSubmenu("Stay awake", "Time until sleep during inactivity", OPT_STAY_AWAKE,
+    addSubmenu("Stay awake", "Stay awake during inactivity", OPT_STAY_AWAKE,
                makeIntItems({{"Off", -1}, {"Always", 0}, {"30 min", 30}, {"1 h", 60}, {"1.5 h", 90},
                              {"2 h", 120}, {"3 h", 180}, {"4 h", 240}}),
                Submenu::ValueType::Integer);

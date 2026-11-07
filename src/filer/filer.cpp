@@ -410,7 +410,7 @@ void Filer::addToPlaylist(const MediaFile &file) {
     std::string name = config->getOption(OPT_LAST_PLAYLIST)->getString();
     bool other = name.empty();
     if (!other) {
-        int choice = main->showMessage(pplay::tr("Add to playlist..."), pplay::tr("Playlist") + ": " + name,
+        int choice = main->showMessage(pplay::tr("Add to playlist"), pplay::tr("Playlist") + ": " + name,
                                        pplay::tr("Add"), pplay::tr("Other playlist"));
         if (choice != MessageBox::LEFT && choice != MessageBox::RIGHT) {
             return;

@@ -231,7 +231,7 @@ void DetailsView::updateHints() {
                 add(0, "Rename", Action::RenamePlaylist);
                 add(0, "Delete", Action::DeletePlaylist);
             } else {
-                add(0, "Add to playlist...", Action::AddToPlaylist);
+                add(0, "Add to playlist", Action::AddToPlaylist);
                 if (pplay::Playlists::isPlaylist(main->getFiler()->getPath())) {
                     add(0, "Remove from playlist", Action::RemoveFromPlaylist);
                 }
