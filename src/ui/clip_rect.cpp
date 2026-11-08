@@ -75,8 +75,8 @@ void pplay::FadeEdge::setBackgrounds(const Color &upper, const Color &lower, flo
     }
     if (split != splitAt) {
         splitAt = split;
-        // whole pixels: no seam between the parts
-        float height = getSize().y, at = std::round(height * split);
+        // not rounded: the same edge as the highlight's (rasterized alike, no seam)
+        float height = getSize().y, at = height * split;
         top->setSize(getSize().x, at);
         bottom->setPosition(0, at);
         bottom->setSize(getSize().x, height - at);

@@ -267,6 +267,28 @@ c2d::Color FilerItem::color() {
     return COLOR_FONT;
 }
 
+void FilerItem::onDraw(Transform &transform, bool draw) {
+    // what is behind the fade: the list, the selection highlight over the part it covers now;
+    // here: the highlight (drawn before the rows) has moved for this frame already
+    if (draw && fade->isVisible()) {
+        float x = (fade->getPosition().x + fade->getSize().x / 2) / std::max(1.0f, getSize().x);
+        float rowTop = getPosition().y, height = getSize().y;
+        float lightTop = highlight != nullptr && highlight->isVisible() ? highlight->getPosition().y : -1e9f;
+        float from = std::max(rowTop, lightTop), to = std::min(rowTop + height, lightTop + height);
+        if (to - from < 0.5f) {
+            fade->setBackground(COLOR_SURFACE);
+        } else {
+            Color lit = highlight->seenThrough(COLOR_SURFACE, x);
+            if (from <= rowTop + 0.5f) {
+                fade->setBackgrounds(lit, COLOR_SURFACE, (to - rowTop) / height);
+            } else {
+                fade->setBackgrounds(COLOR_SURFACE, lit, (from - rowTop) / height);
+            }
+        }
+    }
+    Rectangle::onDraw(transform, draw);
+}
+
 void FilerItem::onUpdate() {
     const bool isFullscreen = main->getPlayer() && main->getPlayer()->isFullscreen();
     const bool fullscreenExited = lastFullscreen && !isFullscreen;
@@ -292,24 +314,6 @@ void FilerItem::onUpdate() {
             updateWatched();
         }
         updateClock.restart();
-    }
-    // what is behind the fade: the list, the selection highlight over the part it covers now
-    // (it slides from row to row)
-    if (fade->isVisible()) {
-        float x = (fade->getPosition().x + fade->getSize().x / 2) / std::max(1.0f, getSize().x);
-        float rowTop = getPosition().y, height = getSize().y;
-        float lightTop = highlight != nullptr && highlight->isVisible() ? highlight->getPosition().y : -1e9f;
-        float from = std::max(rowTop, lightTop), to = std::min(rowTop + height, lightTop + height);
-        if (to - from < 0.5f) {
-            fade->setBackground(COLOR_SURFACE);
-        } else {
-            Color lit = highlight->seenThrough(COLOR_SURFACE, x);
-            if (from <= rowTop + 0.5f) {
-                fade->setBackgrounds(lit, COLOR_SURFACE, (to - rowTop) / height);
-            } else {
-                fade->setBackgrounds(COLOR_SURFACE, lit, (from - rowTop) / height);
-            }
-        }
     }
     // the filer fade in sets all the alphas: the line follows the text
     uint8_t alpha = textTitle->getAlpha();

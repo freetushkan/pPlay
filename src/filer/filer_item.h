@@ -22,6 +22,8 @@ public:
 
     void onUpdate();
 
+    void onDraw(c2d::Transform &transform, bool draw = true) override;
+
 private:
 
     // skin file, "" for none
