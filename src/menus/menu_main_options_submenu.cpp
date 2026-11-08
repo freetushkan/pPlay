@@ -194,6 +194,14 @@ void MenuMainOptionsSubmenu::refreshValues() {
     if (hasOption() || main->getMenuMain() == nullptr) {
         return;
     }
+    // the Auto ones: shown with the Auto setting only
+    PPLAYConfig *config = main->getConfig();
+    bool qualityAuto = config->getOption(OPT_VIDEO_QUALITY)->getInteger() == 3;
+    bool decoderAuto = false;
+#ifdef PPLAY_HW_DECODING
+    decoderAuto = config->getOption(OPT_HW_DECODING)->getInteger() == 2;
+#endif
+    bool changed = false;
     for (auto *button: buttons) {
         auto *sub = main->getMenuMain()->getMenuMainOptionsSubmenu(button->item.name);
         bool option = sub != nullptr && sub->hasOption();
@@ -201,6 +209,28 @@ void MenuMainOptionsSubmenu::refreshValues() {
         button->item.slider = option ? sub->sliderPart() : -1;
         button->item.opens = sub != nullptr && !option;
         button->refreshValue();
+        const std::string &key = sub != nullptr ? sub->getOptionName() : "";
+        bool shown = true;
+        if (key == OPT_AUTO_DROPS || key == OPT_AUTO_DROPS_TIME || key == OPT_AUTO_QUALITY_DELAY) {
+            shown = qualityAuto;
+        } else if (key == OPT_AUTO_HW_RETRY || key == OPT_AUTO_HW_RETRIES) {
+            shown = decoderAuto;
+        } else if (key == OPT_AUTO_SWITCH_PAUSE) {
+            shown = qualityAuto || decoderAuto;
+        }
+        if (button->item.enabled != shown) {
+            button->item.enabled = shown;
+            button->item.selectable = shown;
+            changed = true;
+        }
+    }
+    if (changed) {
+        fit();
+        if (!isButtonSelectable(index)) {
+            reset();
+        }
+        updateScroll();
+        updateSelectionHighlight();
     }
 }
 
@@ -365,6 +395,10 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
 }
 
 void MenuMainOptionsSubmenu::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
+    // the items shown (and the height made to them) before it slides in
+    if (visibility == Visibility::Visible) {
+        refresh();
+    }
     Menu::setVisibility(visibility, tweenPlay);
     if (visibility == Visibility::Visible) {
         refresh();

@@ -103,6 +103,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_AUTO_QUALITY_DELAY, (int) 30});
     addOption({OPT_AUTO_HW_RETRY, (int) 1});
     addOption({OPT_AUTO_HW_RETRIES, (int) 3});
+    addOption({OPT_AUTO_SWITCH_PAUSE, (int) 0});
     addOption({OPT_TS_VIEWED_SYNC, (int) 30});
     addOption({OPT_MEDIA_PROBE, (int) 1});
     addOption({OPT_AUDIO_VISUALIZER, (int) 0});

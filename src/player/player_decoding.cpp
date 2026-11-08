@@ -64,6 +64,7 @@ void Player::startDecoding() {
     qualityDelay = (float) config->getOption(OPT_AUTO_QUALITY_DELAY)->getInteger();
     hardwareRetrySecs = 60.0f * (float) config->getOption(OPT_AUTO_HW_RETRY)->getInteger();
     hardwareRetries = config->getOption(OPT_AUTO_HW_RETRIES)->getInteger();
+    switchPauseAuto = config->getOption(OPT_AUTO_SWITCH_PAUSE)->getInteger() != 0;
     qualityHold = false;
     hardwareSeen = false;
     softwareChecks = 0;
@@ -96,8 +97,9 @@ void Player::switchDecoding(bool hardware, int quality, const std::string &reaso
     pplay::Utility::log(pplay::Utility::LogLevel::Info,
                         "Player: decoding " + std::string(hardware ? "hardware" : "software") + ", quality "
                                 + std::to_string(quality) + " (" + reason + ")");
-    // paused meanwhile: not that much played without the picture
-    if (!mpv->isStopped() && !mpv->isPaused()) {
+    // paused meanwhile: not that much played without the picture (an automatic switch: if set)
+    bool manual = reason == "player menu";
+    if ((manual || switchPauseAuto) && !mpv->isStopped() && !mpv->isPaused()) {
         mpv->pause();
         switchPaused = true;
     }

@@ -40,6 +40,8 @@ public:
     // an option menu: its value as shown, one step to the next / previous one
     bool hasOption() const { return !option_name.empty(); }
 
+    const std::string &getOptionName() const { return option_name; }
+
     std::string currentText();
 
     bool step(int direction);

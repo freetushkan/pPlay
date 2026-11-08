@@ -351,6 +351,7 @@ private:
     float qualityDelay = 30;
     float hardwareRetrySecs = 60;
     int hardwareRetries = 3;
+    bool switchPauseAuto = false;
     // after a decoder change: no quality check for a while
     bool qualityHold = false;
     c2d::C2DClock qualityHoldClock;

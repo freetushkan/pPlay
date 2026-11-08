@@ -60,6 +60,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Auto: drops", "quality.png", Pos::Top),
                                   MenuItem("Auto: drops counted over", "time.png", Pos::Top),
                                   MenuItem("Auto: after a decoder change", "time.png", Pos::Top),
+                                  MenuItem("Auto: pause on a switch", "btn_pause.png", Pos::Top),
 #ifdef PPLAY_HW_DECODING
                                   MenuItem("Hardware decoding", "gpu.png", Pos::Top),
                                   MenuItem("Auto: hardware again after", "gpu.png", Pos::Top),
@@ -266,6 +267,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 50.0f, 1.0f, "%");
     addSubmenu("Auto: drops counted over", "Auto quality: drops counted over", OPT_AUTO_DROPS_TIME,
                makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 5.0f, 60.0f, 5.0f, "s");
+    addSubmenu("Auto: pause on a switch", "Auto: paused for a moment while the decoder or the quality changes",
+               OPT_AUTO_SWITCH_PAUSE, makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Auto: after a decoder change", "Auto quality: not checked after a decoder change for",
                OPT_AUTO_QUALITY_DELAY, makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust,
                0.0f, 120.0f, 5.0f, "s");
