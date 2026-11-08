@@ -9,11 +9,16 @@
 #include "utility.h"
 
 int Mpv::save(bool wait) {
+    int res;
     if (!wait) {
         const char *cmd[] = {"write-watch-later-config", nullptr};
-        return mpv_command_async(handle, 0, cmd);
+        res = mpv_command_async(handle, 0, cmd);
+    } else {
+        res = mpv_command_string(handle, "write-watch-later-config");
     }
-    return mpv_command_string(handle, "write-watch-later-config");
+    // written by mpv: read again (async: the cached reads expire in a few seconds anyway)
+    pplay::Utility::forgetWatchLater();
+    return res;
 }
 
 int Mpv::pause() {

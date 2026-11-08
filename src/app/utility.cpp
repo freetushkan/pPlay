@@ -33,6 +33,9 @@
 #include <mbedtls/version.h>
 #endif
 #include <cstdio>
+#include <chrono>
+#include <mutex>
+#include <unordered_map>
 
 #include <algorithm>
 #include <cstring>
@@ -388,9 +391,67 @@ std::string Utility::getWatchLater(const std::string &video_path) {
     return path;
 }
 
+// the watch later files read once in a while (the rows ask often, a slow storage): changed
+// by mpv in the background too, so kept a few seconds only, dropped on own writes
+namespace {
+    struct WatchLaterInfo {
+        bool exists = false;
+        bool watched = false;
+        double position = 0;
+        std::chrono::steady_clock::time_point read;
+    };
+    std::mutex g_watchLaterMutex;
+    std::unordered_map<std::string, WatchLaterInfo> g_watchLater;
+    constexpr int WatchLaterKeepSecs = 3;
+}
+
+#define WATCHED_MARK "# pplay: watched"
+
+static WatchLaterInfo readWatchLater(const std::string &path) {
+    auto now = std::chrono::steady_clock::now();
+    {
+        std::lock_guard<std::mutex> lock(g_watchLaterMutex);
+        auto it = g_watchLater.find(path);
+        if (it != g_watchLater.end() && now - it->second.read < std::chrono::seconds(WatchLaterKeepSecs)) {
+            return it->second;
+        }
+    }
+    WatchLaterInfo info;
+    info.read = now;
+    FILE *f = fopen(path.c_str(), "rb");
+    if (f != nullptr) {
+        info.exists = true;
+        char line[256];
+        while (fgets(line, sizeof(line), f) != nullptr) {
+            if (std::strncmp(line, WATCHED_MARK, strlen(WATCHED_MARK)) == 0) {
+                info.watched = true;
+            } else if (std::strncmp(line, "start=", 6) == 0) {
+                info.position = std::atof(line + 6);
+                break;
+            }
+        }
+        fclose(f);
+    }
+    std::lock_guard<std::mutex> lock(g_watchLaterMutex);
+    // (a size bound: the oldest ones not tracked, all dropped)
+    if (g_watchLater.size() > 4096) {
+        g_watchLater.clear();
+    }
+    g_watchLater[path] = info;
+    return info;
+}
+
+void Utility::forgetWatchLater(const std::string &video_path) {
+    std::lock_guard<std::mutex> lock(g_watchLaterMutex);
+    if (video_path.empty()) {
+        g_watchLater.clear();
+    } else {
+        g_watchLater.erase(getWatchLater(video_path));
+    }
+}
+
 bool Utility::isWatchLaterExist(const std::string &video_path) {
-    std::string path = getWatchLater(video_path);
-    return fileExists(path);
+    return readWatchLater(getWatchLater(video_path)).exists;
 }
 
 void Utility::fixWatchLater(const std::string &video_path) {
@@ -411,6 +472,7 @@ void Utility::fixWatchLater(const std::string &video_path) {
     }
     in.close();
     if (changed) {
+        forgetWatchLater(video_path);
         std::ofstream out(path, std::ios::trunc);
         out << text;
         log(LogLevel::Info, "Utility::fixWatchLater: " + path);
@@ -418,27 +480,14 @@ void Utility::fixWatchLater(const std::string &video_path) {
 }
 
 double Utility::watchLaterPosition(const std::string &video_path) {
-    FILE *f = fopen(getWatchLater(video_path).c_str(), "rb");
-    if (f == nullptr) {
-        return 0;
-    }
-    char line[256];
-    double position = 0;
-    while (fgets(line, sizeof(line), f) != nullptr) {
-        if (std::strncmp(line, "start=", 6) == 0) {
-            position = std::atof(line + 6);
-            break;
-        }
-    }
-    fclose(f);
-    return position;
+    return readWatchLater(getWatchLater(video_path)).position;
 }
 
 // "watched": the end kept, with a mark (a comment for mpv) so it starts over
-#define WATCHED_MARK "# pplay: watched"
 
 bool Utility::setWatchLaterWatched(const std::string &video_path, double duration) {
     std::string path = getWatchLater(video_path);
+    forgetWatchLater(video_path);
     if (pplay::Io::get() != nullptr) {
         pplay::Io::get()->create(path.substr(0, path.find_last_of('/')));
     }
@@ -452,21 +501,12 @@ bool Utility::setWatchLaterWatched(const std::string &video_path, double duratio
 }
 
 bool Utility::isWatchLaterWatched(const std::string &video_path) {
-    FILE *f = fopen(getWatchLater(video_path).c_str(), "rb");
-    if (f == nullptr) {
-        return false;
-    }
-    char line[256];
-    bool watched = false;
-    while (!watched && fgets(line, sizeof(line), f) != nullptr) {
-        watched = std::strncmp(line, WATCHED_MARK, strlen(WATCHED_MARK)) == 0;
-    }
-    fclose(f);
-    return watched;
+    return readWatchLater(getWatchLater(video_path)).watched;
 }
 
 bool Utility::deleteWatchLater(const std::string &video_path) {
     std::string path = getWatchLater(video_path);
+    forgetWatchLater(video_path);
     if (fileExists(path)) {
         return deleteFile(path);
     }
