@@ -88,7 +88,7 @@ void Player::applyQuality(int quality) {
     mpv->setQualityPreset(quality);
 }
 
-void Player::switchDecoding(bool hardware, int quality, const std::string &reason) {
+void Player::switchDecoding(bool hardware, int quality, const std::string &reason, bool notify) {
     bool decoderChange = hardware != decoderHardware;
     bool qualityChange = quality != videoQuality;
     if (!decoderChange && !qualityChange) {
@@ -133,7 +133,9 @@ void Player::switchDecoding(bool hardware, int quality, const std::string &reaso
     if (!decoderChange) {
         text = "Video quality";
     }
-    main->getStatus()->show("Info", pplay::tr(text) + ": " + pplay::tr(qualityNames[quality]));
+    if (notify) {
+        main->getStatus()->show("Info", pplay::tr(text) + ": " + pplay::tr(qualityNames[quality]));
+    }
 }
 
 void Player::setHardwareDecoding(bool hardware) {
@@ -215,7 +217,8 @@ void Player::updateDecoding() {
                                 std::string("Player: hardware decoder ")
                                         + (hardwareSeen ? "given up (" + std::to_string(hardwareFallbacks) + ")"
                                                         : "not available for this video"));
-            switchDecoding(false, quality, "hardware decoder failed");
+            // none for this video (from its start): nothing to tell
+            switchDecoding(false, quality, "hardware decoder failed", hardwareSeen);
             return;
         }
     } else if (hardwareRetryPending

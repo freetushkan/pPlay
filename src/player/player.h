@@ -276,7 +276,7 @@ private:
     void startDecoding();
 
     // decoder (hardware: false, its reinit) and quality changed, paused meanwhile
-    void switchDecoding(bool hardware, int quality, const std::string &reason);
+    void switchDecoding(bool hardware, int quality, const std::string &reason, bool notify = true);
 
     void applyQuality(int quality);
 
