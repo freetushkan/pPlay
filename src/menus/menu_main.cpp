@@ -57,8 +57,13 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     categories.push_back({"Video",
                           {
                                   MenuItem("Video quality", "quality.png", Pos::Top),
+                                  MenuItem("Auto: drops", "quality.png", Pos::Top),
+                                  MenuItem("Auto: drops counted over", "time.png", Pos::Top),
+                                  MenuItem("Auto: after a decoder change", "time.png", Pos::Top),
 #ifdef PPLAY_HW_DECODING
                                   MenuItem("Hardware decoding", "gpu.png", Pos::Top),
+                                  MenuItem("Auto: hardware again after", "gpu.png", Pos::Top),
+                                  MenuItem("Auto: hardware attempts", "gpu.png", Pos::Top),
 #endif
                           }});
     categories.push_back({"Interface",
@@ -254,9 +259,21 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::ValueType::Integer);
     addSubmenu("Video quality", "Video quality", OPT_VIDEO_QUALITY,
                makeIntItems({{"Auto", 3}, {"Best", 0}, {"Balanced", 1}, {"Fast", 2}}), Submenu::ValueType::Integer);
+    addSubmenu("Auto: drops", "Auto quality: lighter from this share of dropped frames", OPT_AUTO_DROPS,
+               makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 50.0f, 1.0f, "%");
+    addSubmenu("Auto: drops counted over", "Auto quality: drops counted over", OPT_AUTO_DROPS_TIME,
+               makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 5.0f, 60.0f, 5.0f, "s");
+    addSubmenu("Auto: after a decoder change", "Auto quality: not checked after a decoder change for",
+               OPT_AUTO_QUALITY_DELAY, makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust,
+               0.0f, 120.0f, 5.0f, "s");
 #ifdef PPLAY_HW_DECODING
     addSubmenu("Hardware decoding", "Hardware video decoding", OPT_HW_DECODING,
                makeIntItems({{"Auto", 2}, {"On", 1}, {"Off", 0}}), Submenu::ValueType::Integer);
+    addSubmenu("Auto: hardware again after", "Auto decoder: hardware tried again after (then doubled, 0 never)",
+               OPT_AUTO_HW_RETRY, makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f,
+               30.0f, 1.0f, "min");
+    addSubmenu("Auto: hardware attempts", "Auto decoder: hardware attempts per file", OPT_AUTO_HW_RETRIES,
+               makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 10.0f, 1.0f);
 #endif
     addSubmenu("Buffer length", "Network buffer length", OPT_CACHE_SECS, makeAdjustItems(), Submenu::ValueType::Integer,
                Submenu::MenuType::Adjust, 10.0f, 600.0f, 10.0f, "s");

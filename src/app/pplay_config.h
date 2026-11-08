@@ -48,6 +48,14 @@
 // 0 best (mpv.conf), 1 balanced, 2 fast (see Mpv::setQualityPreset), 3 auto (lighter on drops);
 // the start of a file, the player menu changes the current one
 #define OPT_VIDEO_QUALITY "VIDEO_QUALITY"
+// auto quality: lighter over this share of frames dropped (%) in that time (s), not checked
+// that long (s) after a decoder change
+#define OPT_AUTO_DROPS "AUTO_DROPS"
+#define OPT_AUTO_DROPS_TIME "AUTO_DROPS_TIME"
+#define OPT_AUTO_QUALITY_DELAY "AUTO_QUALITY_DELAY"
+// auto decoder: the hardware one tried again after (min, then doubled, 0 never), that many times
+#define OPT_AUTO_HW_RETRY "AUTO_HW_RETRY"
+#define OPT_AUTO_HW_RETRIES "AUTO_HW_RETRIES"
 // media information read by itself: 0 the panel opened only, 2 the selected file,
 // 1 the selected one and the files with progress (their durations)
 #define OPT_MEDIA_PROBE "MEDIA_PROBE"

@@ -345,6 +345,15 @@ private:
     bool switchPaused = false;
     c2d::C2DClock switchClock;
     c2d::C2DClock decodingClock;
+    // the Auto settings (at the start of a file)
+    double dropsShare = 0.1;
+    double dropsWindow = 10;
+    float qualityDelay = 30;
+    float hardwareRetrySecs = 60;
+    int hardwareRetries = 3;
+    // after a decoder change: no quality check for a while
+    bool qualityHold = false;
+    c2d::C2DClock qualityHoldClock;
     // drops: counted over a window of playback
     long dropsStart = -1;
     long framesStart = -1;

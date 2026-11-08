@@ -207,8 +207,9 @@ void Player::updateInfo() {
             << mpv->getInt("decoder-frame-drop-count", 0) << ", " << pplay::tr("Render") << ": " << mpv->getOsdWidth()
             << "x" << mpv->getOsdHeight() << "\n";
         static const char *qualities[] = {"Best", "Balanced", "Fast"};
-        int quality = std::max(0, std::min(2, (int) main->getConfig()->getOption(OPT_VIDEO_QUALITY)->getInteger()));
-        out << "    " << pplay::tr("Video quality") << ": " << pplay::tr(qualities[quality]) << "\n";
+        // the current file's one (the setting: its start)
+        out << "    " << pplay::tr("Video quality") << ": "
+            << (isQualityAuto() ? pplay::tr("Auto") + " · " : "") << pplay::tr(qualities[getVideoQuality()]) << "\n";
     }
     std::string acodec = mpv->getString("current-tracks/audio/codec");
     if (!acodec.empty()) {

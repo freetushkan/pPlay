@@ -21,12 +21,6 @@ namespace {
 
     // the pause of a switch (the decoder restarted, at the same position)
     constexpr float SwitchSecs = 1.5f;
-    // the hardware decoder tried again after (then doubled), that many times per file
-    constexpr float RetrySecs = 60;
-    constexpr int RetryCount = 3;
-    // drops: a lighter quality over that share of the frames, in that much playback
-    constexpr double DropsWindowSecs = 10;
-    constexpr double DropsShare = 0.1;
 
     const char *hardwareDecoder() {
 #ifdef __SWITCH__
@@ -64,6 +58,13 @@ void Player::startDecoding() {
     // auto: the best one, a balanced one for the software decoder
     videoQuality = qualityAuto ? (decoderHardware ? 0 : QualityBalanced) : std::max(0, std::min(QualityFast, quality));
     qualityBeforeSoftware = qualityAuto ? 0 : videoQuality;
+    // the Auto settings
+    dropsShare = config->getOption(OPT_AUTO_DROPS)->getInteger() / 100.0;
+    dropsWindow = config->getOption(OPT_AUTO_DROPS_TIME)->getInteger();
+    qualityDelay = (float) config->getOption(OPT_AUTO_QUALITY_DELAY)->getInteger();
+    hardwareRetrySecs = 60.0f * (float) config->getOption(OPT_AUTO_HW_RETRY)->getInteger();
+    hardwareRetries = config->getOption(OPT_AUTO_HW_RETRIES)->getInteger();
+    qualityHold = false;
     hardwareSeen = false;
     softwareChecks = 0;
     hardwareFallbacks = 0;
@@ -108,6 +109,11 @@ void Player::switchDecoding(bool hardware, int quality, const std::string &reaso
         applyQuality(quality);
     }
     decoderHardware = hardware;
+    // the drops of a decoder start (and its catching up) not counted for a while
+    if (decoderChange) {
+        qualityHold = true;
+        qualityHoldClock.restart();
+    }
 #ifdef PPLAY_HW_DECODING
     if (decoderChange) {
         // mpv restarts the decoder (at the same position)
@@ -200,7 +206,7 @@ void Player::updateDecoding() {
             }
             if (hardwareSeen) {
                 hardwareFallbacks++;
-                hardwareRetryPending = decoderAuto && hardwareFallbacks <= RetryCount;
+                hardwareRetryPending = decoderAuto && hardwareRetrySecs > 0 && hardwareFallbacks <= hardwareRetries;
                 hardwareRetryClock.restart();
             }
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
@@ -212,7 +218,7 @@ void Player::updateDecoding() {
         }
     } else if (hardwareRetryPending
                && hardwareRetryClock.getElapsedTime().asSeconds()
-                          >= RetrySecs * (float) (1 << (hardwareFallbacks - 1))) {
+                          >= hardwareRetrySecs * (float) (1 << std::min(hardwareFallbacks - 1, 10))) {
         hardwareRetryPending = false;
         softwareChecks = 0;
         switchDecoding(true, qualityAuto ? qualityBeforeSoftware : videoQuality, "hardware decoder retried");
@@ -223,6 +229,13 @@ void Player::updateDecoding() {
     // drops: the playing time only (no pause, no buffering, no seek)
     if (!qualityAuto || videoQuality >= QualityFast) {
         return;
+    }
+    if (qualityHold) {
+        if (qualityHoldClock.getElapsedTime().asSeconds() < qualityDelay) {
+            return;
+        }
+        qualityHold = false;
+        dropsStart = -1;
     }
     double time = mpv->getTime();
     if (mpv->isPaused() || mpv->isPausedForCache() || time < 0) {
@@ -239,14 +252,14 @@ void Player::updateDecoding() {
         dropsTime = time;
         return;
     }
-    if (time - dropsTime < DropsWindowSecs) {
+    if (time - dropsTime < dropsWindow) {
         return;
     }
     // (the estimated frame number: the frames of the time played, dropped or not)
     long dropped = drops - dropsStart;
     long total = std::max(1L, frames - framesStart);
     dropsStart = -1;
-    if (dropped > 0 && (double) dropped > DropsShare * (double) total) {
+    if (dropped > 0 && (double) dropped > dropsShare * (double) total) {
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
                             "Player: " + std::to_string(dropped) + " frames dropped of " + std::to_string(total));
         switchDecoding(decoderHardware, videoQuality + 1, "drops");
