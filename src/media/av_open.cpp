@@ -27,7 +27,8 @@ namespace {
         if (scheme != std::string::npos && at != std::string::npos && at < url.find('/', scheme + 3)) {
             av_dict_set(&options, "auth_type", "basic", 0);
         }
-#if defined(__PS4__) || defined(__PS5__)
+        // the bundled certificates (verified: ffmpeg's default)
+#if defined(__PS4__) || defined(__PS5__) || defined(__ANDROID__)
         av_dict_set(&options, "ca_file", pplay::Utility::getCertificatesPath().c_str(), 0);
 #endif
         return options;
