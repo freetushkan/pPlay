@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <mutex>
 #include <set>
 #include <strings.h>
 
@@ -75,10 +76,33 @@ namespace {
 
 }
 
+namespace {
+    // the connections (and TLS sessions, names) kept between the requests of all threads: no
+    // new handshake (and certificates parsed again) each time, slow on a weak CPU
+    CURLSH *g_share = nullptr;
+    std::mutex g_shareLocks[CURL_LOCK_DATA_LAST];
+
+    void shareLock(CURL *, curl_lock_data data, curl_lock_access, void *) {
+        g_shareLocks[data].lock();
+    }
+
+    void shareUnlock(CURL *, curl_lock_data data, void *) {
+        g_shareLocks[data].unlock();
+    }
+}
+
 void Http::init() {
     static bool done = false;
     if (!done) {
         curl_global_init(CURL_GLOBAL_ALL);
+        g_share = curl_share_init();
+        if (g_share != nullptr) {
+            curl_share_setopt(g_share, CURLSHOPT_LOCKFUNC, shareLock);
+            curl_share_setopt(g_share, CURLSHOPT_UNLOCKFUNC, shareUnlock);
+            curl_share_setopt(g_share, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT);
+            curl_share_setopt(g_share, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
+            curl_share_setopt(g_share, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
+        }
         done = true;
     }
 }
@@ -98,6 +122,9 @@ Http::Response Http::perform(const Request &request) {
     std::string url = normalizeUrl(request.url);
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    if (g_share != nullptr) {
+        curl_easy_setopt(curl, CURLOPT_SHARE, g_share);
+    }
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ctx);
