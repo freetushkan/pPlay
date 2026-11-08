@@ -14,6 +14,14 @@ using namespace c2d;
 VideoTexture::VideoTexture(Main *m, const c2d::Vector2f &size)
     : GLTextureBuffer({(int) size.x, (int) size.y}, Format::RGBA8) {
     main = m;
+    // created undefined (some drivers: garbage until the first frame): black
+    GLfloat previous[4];
+    glGetFloatv(GL_COLOR_CLEAR_VALUE, previous);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glClearColor(previous[0], previous[1], previous[2], previous[3]);
 }
 
 void VideoTexture::clearFrame() {
