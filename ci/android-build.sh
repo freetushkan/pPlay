@@ -17,6 +17,10 @@ GLM="$(realpath "$4")"
 # libcross2d's Android device: a Device (sdl2_renderer.cpp asks its display size)
 sed -i 's/class ANDROIDDevice {/class ANDROIDDevice : public Device {/' \
 	"$ROOT/libcross2d/include/cross2d/platforms/android/android_device.h"
+# its window opaque (no alpha): a translucent drawing left the window alpha under 1, the
+# system then blended it with black (fades, shades darker on some devices)
+sed -i 's/SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);/SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 0);/' \
+	"$ROOT/libcross2d/source/platforms/sdl2/sdl2_renderer.cpp"
 # its file sizes: 64 bits (size_t is 32 bits on armv7, files over 4 GB)
 sed -i 's/#include <string>/#include <cstdint>\n#include <string>/; s/const size_t &size = 0/uint64_t size = 0/; s/^\( *\)size_t size = 0;/\1uint64_t size = 0;/' \
 	"$ROOT/libcross2d/include/cross2d/skeleton/io.h"
