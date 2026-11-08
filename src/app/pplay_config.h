@@ -45,7 +45,8 @@
 // network cache: read ahead (seconds), memory (MB)
 #define OPT_CACHE_SECS "CACHE_SECS"
 #define OPT_CACHE_MB "CACHE_MB"
-// 0 best (mpv.conf), 1 balanced, 2 fast (see Mpv::setQualityPreset)
+// 0 best (mpv.conf), 1 balanced, 2 fast (see Mpv::setQualityPreset), 3 auto (lighter on drops);
+// the start of a file, the player menu changes the current one
 #define OPT_VIDEO_QUALITY "VIDEO_QUALITY"
 // media information read by itself: 0 the panel opened only, 2 the selected file,
 // 1 the selected one and the files with progress (their durations)
@@ -84,7 +85,8 @@
 // the playlist added to last, the last location in the playlists
 #define OPT_LAST_PLAYLIST "LAST_PLAYLIST"
 #define OPT_LAST_PLAYLISTS_PATH "LAST_PLAYLISTS_PATH"
-// hardware video decoding (Switch: nvtegra, Linux: vaapi / nvdec, Android: mediacodec), 0 off
+// hardware video decoding (Switch: nvtegra, Linux: vaapi / nvdec, Android: mediacodec), 0 off,
+// 1 on, 2 auto (software when it fails, retried later)
 #if defined(__SWITCH__) || defined(__LINUX__) || defined(__ANDROID__)
 #define PPLAY_HW_DECODING
 #endif

@@ -289,7 +289,8 @@ void Player::updateWatchdog() {
     double cache = mpv->getCacheDuration();
     long frame = mpv->getFrameNumber();
     bool video = mpv->hasMovingVideo();
-    userPaused = paused;
+    // (not the pause of a decoder switch)
+    userPaused = paused && !switchPaused;
 
     auto state = [&]() {
         char buf[192];

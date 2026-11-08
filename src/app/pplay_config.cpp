@@ -232,7 +232,10 @@ void PPLAYConfig::sanitize() {
     };
     clamp(OPT_CACHE_SECS, 10, 600);
     clamp(OPT_CACHE_MB, 50, CACHE_MB_MAX);
-    clamp(OPT_VIDEO_QUALITY, 0, 2);
+    clamp(OPT_VIDEO_QUALITY, 0, 3);
+#ifdef PPLAY_HW_DECODING
+    clamp(OPT_HW_DECODING, 0, 2);
+#endif
     clamp(OPT_PROGRESS_MIN_LENGTH, 0, 60);
     clamp(OPT_PROGRESS_INTERVAL, 5, 120);
     clamp(OPT_SAVE_THREADS, 1, 4);

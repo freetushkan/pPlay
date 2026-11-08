@@ -164,6 +164,7 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     }
 
     if (firstTry) {
+        startDecoding();
         retryCount = 0;
         lastTime = 0;
         userPaused = false;
@@ -312,6 +313,7 @@ void Player::updateFrame() {
 
 void Player::onUpdate() {
     updateExternalTracks();
+    updateDecoding();
     if (volumeDirty && volumeClock.getElapsedTime().asSeconds() >= 2) {
         saveVolume();
     }
@@ -524,31 +526,7 @@ void Player::applyConfig() {
     mpv_command_string(mpv->getHandle(), ("set network-timeout " + std::to_string(timeout)).c_str());
     mpv->setCache(main->getConfig()->getOption(OPT_CACHE_SECS)->getInteger(),
                   main->getConfig()->getOption(OPT_CACHE_MB)->getInteger());
-    const int quality = main->getConfig()->getOption(OPT_VIDEO_QUALITY)->getInteger();
-    if (quality != appliedQuality) {
-        const bool restart = appliedQuality >= 0;
-        appliedQuality = quality;
-        mpv->setQualityPreset(quality);
-        // decoder options: restart the video decoder of the playing file
-        long vid = mpv->getInt("vid", -1);
-        if (restart && !mpv->isStopped() && vid > 0) {
-            mpv_set_property_string(mpv->getHandle(), "vid", "no");
-            mpv_set_property_string(mpv->getHandle(), "vid", std::to_string(vid).c_str());
-        }
-    }
-#ifdef PPLAY_HW_DECODING
-    // a change applies from the next decoder start
-#ifdef __SWITCH__
-    const char *hwdec = "nvtegra-copy";
-#elif defined(__ANDROID__)
-    // copied back: the video drawn in the interface (a texture)
-    const char *hwdec = "mediacodec-copy";
-#else
-    const char *hwdec = "auto-safe";
-#endif
-    bool hardware = main->getConfig()->getOption(OPT_HW_DECODING)->getInteger() != 0;
-    mpv_set_property_string(mpv->getHandle(), "hwdec", hardware ? hwdec : "no");
-#endif
+    // the decoder, the quality: from the next file (the current one: the player menu)
     // the accent color, the setting
     updateAudioScreen();
 }

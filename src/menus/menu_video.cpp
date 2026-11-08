@@ -38,6 +38,12 @@ namespace {
     const char *modeNames[] = {"Stop playback", "Play next", "Loop file", "Loop directory"};
     const char *normalizeNames[] = {"Off", "Normalize", "Night mode"};
     const char *screenNames[] = {"Cover > visualizer", "Visualizer", "Icon only"};
+    const char *qualityNames[] = {"Best", "Balanced", "Fast"};
+
+    // "Auto · ..." while the playback may change it
+    std::string autoValue(bool isAuto, const char *name) {
+        return isAuto ? pplay::tr("Auto") + " · " + pplay::tr(name) : pplay::tr(name);
+    }
 
     void toggleProgressLine(PPLAYConfig *config) {
         auto *option = config->getOption(OPT_PROGRESS_LINE);
@@ -134,6 +140,12 @@ void MenuVideo::refreshValues() {
         } else if (n == "Visualization") {
             int mode = std::max(0, std::min(2, config->getOption(OPT_AUDIO_VISUALIZER)->getInteger()));
             item.value = pplay::tr(screenNames[mode]);
+        } else if (n == "Decoder") {
+            item.value = autoValue(player->isDecoderAuto(), player->isHardwareDecoding() ? "Hardware" : "Software");
+            item.valueAccent = !player->isHardwareDecoding();
+        } else if (n == "Video quality") {
+            item.value = autoValue(player->isQualityAuto(), qualityNames[player->getVideoQuality()]);
+            item.valueAccent = player->getVideoQuality() != 0;
         } else if (n == "Speed") {
             double speed = mpv->getSpeed();
             char text[16];
@@ -193,6 +205,10 @@ bool MenuVideo::onOptionChange(MenuItem *item, int direction) {
         player->setAudioNormalize(cycle(config->getOption(OPT_AUDIO_NORMALIZE)->getInteger(), direction, 3));
     } else if (n == "Visualization") {
         player->setAudioScreenMode(cycle(config->getOption(OPT_AUDIO_VISUALIZER)->getInteger(), direction, 3));
+    } else if (n == "Decoder") {
+        player->setHardwareDecoding(!player->isHardwareDecoding());
+    } else if (n == "Video quality") {
+        player->setVideoQuality(cycle(player->getVideoQuality(), direction, 3));
     } else if (n == "Speed") {
         double speed = std::round((player->getMpv()->getSpeed() + 0.05 * direction) * 100.0) / 100.0;
         player->setSpeed(std::max(0.25, std::min(3.0, speed)));
@@ -258,6 +274,12 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
             main->getPlayer()->getMenuVisualizer()->setVisibility(Visibility::Visible, true);
             setVisibility(Visibility::Hidden, true);
         }
+    } else if (item->name == "Decoder") {
+        main->getPlayer()->setHardwareDecoding(!main->getPlayer()->isHardwareDecoding());
+        refreshValues();
+    } else if (item->name == "Video quality") {
+        main->getPlayer()->setVideoQuality(cycle(main->getPlayer()->getVideoQuality(), 1, 3));
+        refreshValues();
     } else if (item->name == "Speed") {
         // A: back to the default
         main->getPlayer()->setSpeed(1);

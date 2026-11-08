@@ -58,6 +58,24 @@ public:
 
     void applyConfig();
 
+    // the decoder and the video quality of the current file (the player menu), started
+    // from the settings; Auto: changed by the playback (a stuck hardware decoder, drops)
+    static bool hasHardwareDecoding();
+
+    bool isHardwareDecoding() const { return decoderHardware; }
+
+    bool isDecoderAuto() const { return decoderAuto; }
+
+    // 0 best, 1 balanced, 2 fast
+    int getVideoQuality() const { return videoQuality; }
+
+    bool isQualityAuto() const { return qualityAuto; }
+
+    // chosen in the player menu: no more Auto for it (this file)
+    void setHardwareDecoding(bool hardware);
+
+    void setVideoQuality(int quality);
+
     // pplay::InputMap media buttons
     void onMediaKeys(unsigned int keys);
 
@@ -254,6 +272,17 @@ private:
 
     std::string visualizerGraph() const;
 
+    // player_decoding.cpp: the decoder and the quality of a new file (the settings)
+    void startDecoding();
+
+    // decoder (hardware: false, its reinit) and quality changed, paused meanwhile
+    void switchDecoding(bool hardware, int quality, const std::string &reason);
+
+    void applyQuality(int quality);
+
+    // each frame: the end of a switch, a hardware decoder given up by mpv, drops, a retry
+    void updateDecoding();
+
     // player_controls.cpp: playback information (Start toggles it)
     void updateInfo();
 
@@ -299,7 +328,28 @@ private:
     std::string playingKey;
     std::vector<MediaFile> autoplayFiles;
     mutable std::string displayTitle;
-    int appliedQuality = -1;
+    // decoding (player_decoding.cpp)
+    bool decoderHardware = false;
+    bool decoderAuto = false;
+    int videoQuality = 0;
+    bool qualityAuto = false;
+    // the quality before software decoding (back with the hardware decoder)
+    int qualityBeforeSoftware = 0;
+    // the hardware decoder worked for this file (else: not for this codec, no retry)
+    bool hardwareSeen = false;
+    int softwareChecks = 0;
+    int hardwareFallbacks = 0;
+    bool hardwareRetryPending = false;
+    c2d::C2DClock hardwareRetryClock;
+    bool switching = false;
+    bool switchPaused = false;
+    c2d::C2DClock switchClock;
+    c2d::C2DClock decodingClock;
+    // drops: counted over a window of playback
+    long dropsStart = -1;
+    long framesStart = -1;
+    double dropsTime = -1;
+    double dropsLastTime = -1;
     long startPlaybackPosition = -1;
     bool frameDrawn = false;
     // the playback restart event seen (first frame / position reached)

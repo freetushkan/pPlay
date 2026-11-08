@@ -253,10 +253,10 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Panel opened only", 0}, {"Selected file", 2}, {"Selected, with progress", 1}}),
                Submenu::ValueType::Integer);
     addSubmenu("Video quality", "Video quality", OPT_VIDEO_QUALITY,
-               makeIntItems({{"Best", 0}, {"Balanced", 1}, {"Fast", 2}}), Submenu::ValueType::Integer);
+               makeIntItems({{"Auto", 3}, {"Best", 0}, {"Balanced", 1}, {"Fast", 2}}), Submenu::ValueType::Integer);
 #ifdef PPLAY_HW_DECODING
     addSubmenu("Hardware decoding", "Hardware video decoding", OPT_HW_DECODING,
-               makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
+               makeIntItems({{"Auto", 2}, {"On", 1}, {"Off", 0}}), Submenu::ValueType::Integer);
 #endif
     addSubmenu("Buffer length", "Network buffer length", OPT_CACHE_SECS, makeAdjustItems(), Submenu::ValueType::Integer,
                Submenu::MenuType::Adjust, 10.0f, 600.0f, 10.0f, "s");
