@@ -301,7 +301,8 @@ void Player::updateFrame() {
         frame->setVisibility(Visibility::Hidden);
         return;
     }
-    FloatRect bounds = getGlobalBounds();
+    // in the parent's coordinates (as the frame): no window scaling (a resized window)
+    FloatRect bounds = getTransform().transformRect(getLocalBounds());
     frame->setPosition(std::round(bounds.left), std::round(bounds.top));
     frame->setSize(std::round(bounds.left + bounds.width) - std::round(bounds.left),
                    std::round(bounds.top + bounds.height) - std::round(bounds.top));
