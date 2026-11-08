@@ -15,6 +15,7 @@
 #endif
 
 #include "input_map.h"
+#include "i18n.h"
 #include "utility.h"
 
 using c2d::Input;
@@ -676,7 +677,12 @@ namespace pplay::InputMap {
                 {B::Down, "dpad_down"},
                 {B::Left, "dpad_left"},
                 {B::Right, "dpad_right"},
-#if defined(__PS4__) || defined(__PS5__)
+#if defined(__ANDROID__)
+                // a TV remote: OK, Back, Menu (the other buttons: their names)
+                {B::A, "tv_ok"},
+                {B::B, "tv_back"},
+                {B::X, "tv_menu"},
+#elif defined(__PS4__) || defined(__PS5__)
                 {B::A, "ps_cross"},
                 {B::B, "ps_circle"},
                 {B::X, "ps_square"},
@@ -710,6 +716,16 @@ namespace pplay::InputMap {
 
     std::string buttonName(unsigned int button) {
         using B = Input::Button;
+#ifdef __ANDROID__
+        // a TV remote
+        if (button == B::A) {
+            return "OK";
+        } else if (button == B::B) {
+            return pplay::tr("Back");
+        } else if (button == B::X) {
+            return pplay::tr("Menu");
+        }
+#endif
         // first match: the platform names, then the generic ones
         static const std::pair<unsigned int, const char *> names[] = {
                 {B::Up, "\u2191"},     {B::Down, "\u2193"},   {B::Left, "\u2190"}, {B::Right, "\u2192"},

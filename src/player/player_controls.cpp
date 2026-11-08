@@ -292,6 +292,20 @@ void Player::updateKeysInfo() {
     seek << main->getConfig()->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
     auto line = [](const std::string &key, const std::string &action) { return key + ": " + action + "\n"; };
     std::string out;
+#ifdef __ANDROID__
+    // a TV remote: its keys (and the media ones), the rest in the player menu
+    (void) seekBack, (void) seekForward, (void) speedReset, (void) speedUp;
+    std::ostringstream seekLong;
+    seekLong << main->getConfig()->getOption(OPT_SEEK_LONG_SEC)->getFloat();
+    out += line(buttonName(Input::A), pplay::tr("Select"));
+    out += line(buttonName(Input::B), pplay::tr("Back/Minimize"));
+    out += line(buttonName(Input::X), pplay::tr("Player menu"));
+    out += line(buttonName(Input::Left) + " / " + buttonName(Input::Right), "-/+ " + seek.str() + " s");
+    out += line(buttonName(Input::Up) + buttonName(Input::Down), pplay::tr("Volume"));
+    out += line("\u23EF", pplay::tr("Play/Pause"));
+    out += line("\u23EA / \u23E9", "-/+ " + seek.str() + " s");
+    out += line("\u23EE / \u23ED", "-/+ " + seekLong.str() + " s");
+#else
     out += line(buttonName(Input::A), pplay::tr("Select"));
     out += line(buttonName(Input::B), pplay::tr("Back/Minimize"));
     out += line(buttonName(Input::X), pplay::tr("Player menu"));
@@ -302,6 +316,7 @@ void Player::updateKeysInfo() {
     out += line(buttonName(Input::Y) + " + " + buttonName(Input::Up) + buttonName(Input::Down),
                 pplay::tr(pplay::Platform::backlight() >= 0 ? "Screen brightness" : "Brightness"));
     out += line(buttonName(Input::Start), pplay::tr("Information"));
+#endif
     out.pop_back();
     info_keys->setString(out);
 }
