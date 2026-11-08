@@ -57,14 +57,14 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     categories.push_back({"Video",
                           {
                                   MenuItem("Video quality", "quality.png", Pos::Top),
-                                  MenuItem("Auto: drops", "quality.png", Pos::Top),
-                                  MenuItem("Auto: drops counted over", "time.png", Pos::Top),
-                                  MenuItem("Auto: after a decoder change", "time.png", Pos::Top),
-                                  MenuItem("Auto: pause on a switch", "btn_pause.png", Pos::Top),
+                                  MenuItem("Drop threshold", "quality.png", Pos::Top),
+                                  MenuItem("Drop check period", "time.png", Pos::Top),
+                                  MenuItem("Delay after decoder switch", "time.png", Pos::Top),
+                                  MenuItem("Pause on switch", "btn_pause.png", Pos::Top),
 #ifdef PPLAY_HW_DECODING
                                   MenuItem("Hardware decoding", "gpu.png", Pos::Top),
-                                  MenuItem("Auto: hardware again after", "gpu.png", Pos::Top),
-                                  MenuItem("Auto: hardware attempts", "gpu.png", Pos::Top),
+                                  MenuItem("Hardware retry", "gpu.png", Pos::Top),
+                                  MenuItem("Hardware attempts", "gpu.png", Pos::Top),
 #endif
                           }});
     categories.push_back({"Interface",
@@ -220,7 +220,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
 
     addSubmenu("Connection timeout", "Connection timeout", OPT_NETWORK_TIMEOUT, makeAdjustItems(),
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 300.0f, 5.0f, "s");
-    addSubmenu("TorrServer sync", "TorrServer torrents and viewed marks asked again after", OPT_TS_VIEWED_SYNC,
+    addSubmenu("TorrServer sync", "Torrents and watched marks refreshed every", OPT_TS_VIEWED_SYNC,
                makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 10.0f, 600.0f, 10.0f, "s");
     addSubmenu("Progress source", "Preferred progress source", OPT_TS_PROGRESS,
                makeIntItems({{"Off", 0}, {"Local first", 1}, {"TorrServer first", 2}}), Submenu::ValueType::Integer);
@@ -263,22 +263,22 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::ValueType::Integer);
     addSubmenu("Video quality", "Video quality", OPT_VIDEO_QUALITY,
                makeIntItems({{"Auto", 3}, {"Best", 0}, {"Balanced", 1}, {"Fast", 2}}), Submenu::ValueType::Integer);
-    addSubmenu("Auto: drops", "Auto quality: lighter from this share of dropped frames", OPT_AUTO_DROPS,
+    addSubmenu("Drop threshold", "Quality lowered when this share of frames is dropped", OPT_AUTO_DROPS,
                makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 50.0f, 1.0f, "%");
-    addSubmenu("Auto: drops counted over", "Auto quality: drops counted over", OPT_AUTO_DROPS_TIME,
+    addSubmenu("Drop check period", "Dropped frames counted over", OPT_AUTO_DROPS_TIME,
                makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 5.0f, 60.0f, 5.0f, "s");
-    addSubmenu("Auto: pause on a switch", "Auto: paused for a moment while the decoder or the quality changes",
+    addSubmenu("Pause on switch", "A short pause while the decoder or quality switches",
                OPT_AUTO_SWITCH_PAUSE, makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
-    addSubmenu("Auto: after a decoder change", "Auto quality: not checked after a decoder change for",
+    addSubmenu("Delay after decoder switch", "Quality not checked after a decoder switch for",
                OPT_AUTO_QUALITY_DELAY, makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust,
                0.0f, 120.0f, 5.0f, "s");
 #ifdef PPLAY_HW_DECODING
     addSubmenu("Hardware decoding", "Hardware video decoding", OPT_HW_DECODING,
                makeIntItems({{"Auto", 2}, {"On", 1}, {"Off", 0}}), Submenu::ValueType::Integer);
-    addSubmenu("Auto: hardware again after", "Auto decoder: hardware tried again after (then doubled, 0 never)",
+    addSubmenu("Hardware retry", "Hardware decoding retried after (doubled each time, 0: never)",
                OPT_AUTO_HW_RETRY, makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f,
                30.0f, 1.0f, "min");
-    addSubmenu("Auto: hardware attempts", "Auto decoder: hardware attempts per file", OPT_AUTO_HW_RETRIES,
+    addSubmenu("Hardware attempts", "Hardware decoding attempts per file", OPT_AUTO_HW_RETRIES,
                makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 10.0f, 1.0f);
 #endif
     addSubmenu("Buffer length", "Network buffer length", OPT_CACHE_SECS, makeAdjustItems(), Submenu::ValueType::Integer,
