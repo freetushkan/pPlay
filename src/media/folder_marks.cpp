@@ -3,6 +3,8 @@
 //
 
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
 #include <atomic>
 #include <condition_variable>
 #include <deque>
@@ -52,6 +54,99 @@ namespace {
     std::deque<c2d::Io::File> g_queue;
     std::set<std::string> g_queued;
     std::atomic<unsigned int> g_rowsGeneration{1};
+    // the rows of the last run (on disk): shown at once, counted again
+    bool g_cacheDirty = false;
+
+    std::string cachePath() {
+        return Utility::getDataPath() + "cache/folder_marks";
+    }
+
+    // "files \t marked \t unwatched \t path"
+    void loadCache() {
+        FILE *f = fopen(cachePath().c_str(), "r");
+        if (f == nullptr) {
+            return;
+        }
+        char buf[8192];
+        while (fgets(buf, sizeof(buf), f) != nullptr) {
+            std::string line = buf;
+            if (line.empty() || line.back() != '\n') {
+                continue;
+            }
+            line.pop_back();
+            std::vector<std::string> fields;
+            size_t start = 0;
+            for (int i = 0; i < 3; i++) {
+                size_t tab = line.find('\t', start);
+                if (tab == std::string::npos) {
+                    break;
+                }
+                fields.push_back(line.substr(start, tab - start));
+                start = tab + 1;
+            }
+            if (fields.size() != 3 || start >= line.size()) {
+                continue;
+            }
+            Cached &cached = g_cache[line.substr(start)];
+            cached.state.ready = true;
+            cached.state.files = std::atoi(fields[0].c_str());
+            cached.state.marked = std::atoi(fields[1].c_str());
+            cached.state.unwatched = std::atoi(fields[2].c_str());
+            cached.stale = true;
+        }
+        fclose(f);
+    }
+
+    // g_mutex held: the text, written outside
+    std::string cacheText() {
+        std::string text;
+        for (auto &entry: g_cache) {
+            const FolderMarks::State &state = entry.second.state;
+            if (state.ready && state.files > 0) {
+                text += std::to_string(state.files) + "\t" + std::to_string(state.marked) + "\t"
+                        + std::to_string(state.unwatched) + "\t" + entry.first + "\n";
+            }
+        }
+        return text;
+    }
+
+    void writeCache(const std::string &text) {
+        Io *io = Io::get();
+        if (io != nullptr && !io->exist(Utility::getDataPath() + "cache")) {
+            io->create(Utility::getDataPath() + "cache");
+        }
+        std::string path = cachePath();
+        FILE *f = fopen((path + ".tmp").c_str(), "w");
+        if (f == nullptr) {
+            return;
+        }
+        bool ok = fwrite(text.data(), 1, text.size(), f) == text.size();
+        ok = fclose(f) == 0 && ok;
+        if (ok) {
+            std::rename((path + ".tmp").c_str(), path.c_str());
+        }
+    }
+
+    // the changed rows and the server marks on disk, when the work is done
+    void saveCaches() {
+        std::string text;
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            if (!g_cacheDirty) {
+                text.clear();
+            } else {
+                g_cacheDirty = false;
+                text = cacheText();
+                if (text.empty()) {
+                    text = "\n";
+                }
+            }
+        }
+        if (!text.empty()) {
+            writeCache(text);
+        }
+        TorrServe::saveViewedCache();
+    }
 
     void remember(const std::string &path, const FolderMarks::State &state) {
         auto it = g_cache.find(path);
@@ -62,6 +157,7 @@ namespace {
         g_cache[path].stale = false;
         if (changed) {
             g_rowsGeneration++;
+            g_cacheDirty = true;
         }
     }
 
@@ -127,15 +223,13 @@ namespace {
         }
     }
 
-    // false: stopped by a newer panel request
-    bool scan(const c2d::Io::File &dir, bool panel) {
-        std::vector<c2d::Io::File> files;
-        collect(dir, 0, files);
-        FolderMarks::State state;
+    // false: stopped by a newer panel request; server: the TorrServer marks asked now (once a
+    // torrent), else the known ones (the last run's too)
+    bool count(const std::vector<c2d::Io::File> &files, bool server, FolderMarks::State &state, bool *torrents) {
+        state = FolderMarks::State();
         state.files = (int) files.size();
         int mode = g_config->getOption(OPT_FOLDER_MARKS)->getInteger();
-        // the viewed files of a torrent asked once
-        std::set<std::string> torrents;
+        std::set<std::string> asked;
         for (auto &file: files) {
             if (g_cancel) {
                 return false;
@@ -145,27 +239,51 @@ namespace {
             bool local = Utility::isWatchLaterExist(url);
             size_t link = path.find("?link=");
             std::string torrent = link != std::string::npos ? path.substr(link, path.find('&', link) - link) : "";
-            bool server = TorrServe::isFileViewed(path, !torrent.empty() && torrents.insert(torrent).second);
-            if (local || server) {
+            *torrents |= !torrent.empty();
+            bool viewed = server ? TorrServe::isFileViewed(path, !torrent.empty() && asked.insert(torrent).second)
+                                 : TorrServe::isFileViewed(path, false, true);
+            if (local || viewed) {
                 state.marked++;
             }
-            if (!watched(path, url, local, server, mode)) {
+            if (!watched(path, url, local, viewed, mode)) {
                 state.unwatched++;
             }
         }
-        if (g_cancel) {
-            return false;
-        }
-        state.ready = true;
+        state.ready = !g_cancel;
+        return state.ready;
+    }
+
+    void publish(const c2d::Io::File &dir, bool panel, const FolderMarks::State &state,
+                 std::vector<c2d::Io::File> *files) {
         std::lock_guard<std::mutex> lock(g_mutex);
         remember(dir.path, state);
         if (panel && g_dir.path == dir.path) {
-            Utility::log(Utility::LogLevel::Debug, "FolderMarks: " + dir.path + ": " + std::to_string(files.size())
+            Utility::log(Utility::LogLevel::Debug, "FolderMarks: " + dir.path + ": " + std::to_string(state.files)
                                                            + " files, marked " + std::to_string(state.marked)
                                                            + ", unwatched " + std::to_string(state.unwatched));
             g_state = state;
-            g_files.swap(files);
+            if (files != nullptr) {
+                g_files = *files;
+            }
             g_generation++;
+        }
+    }
+
+    // the local progress (and the known server marks) first, then the server asked
+    bool scan(const c2d::Io::File &dir, bool panel) {
+        std::vector<c2d::Io::File> files;
+        collect(dir, 0, files);
+        FolderMarks::State state;
+        bool torrents = false;
+        if (!count(files, false, state, &torrents)) {
+            return false;
+        }
+        publish(dir, panel, state, &files);
+        if (torrents) {
+            if (!count(files, true, state, &torrents)) {
+                return false;
+            }
+            publish(dir, panel, state, nullptr);
         }
         return true;
     }
@@ -176,6 +294,12 @@ namespace {
             bool panel;
             {
                 std::unique_lock<std::mutex> lock(g_mutex);
+                if (!g_quit && !g_pending && g_queue.empty() && g_cacheDirty) {
+                    // all counted: on disk (the lock left for that)
+                    lock.unlock();
+                    saveCaches();
+                    lock.lock();
+                }
                 g_wake.wait(lock, [] { return g_quit || g_pending || !g_queue.empty(); });
                 if (g_quit) {
                     return 0;
@@ -209,6 +333,8 @@ namespace pplay::FolderMarks {
 
     void start(PPLAYConfig *config) {
         g_config = config;
+        std::lock_guard<std::mutex> lock(g_mutex);
+        loadCache();
     }
 
     void stop() {
@@ -220,6 +346,7 @@ namespace pplay::FolderMarks {
         g_wake.notify_all();
         delete (g_worker);
         g_worker = nullptr;
+        saveCaches();
     }
 
     void wake() {

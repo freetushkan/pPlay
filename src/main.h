@@ -181,6 +181,9 @@ private:
     c2d::RectangleShape *dim = nullptr;
     float dimAlpha = 0;
     c2d::C2DClock dimClock;
+    // the TorrServer marks sync shown in the status
+    bool syncing = false;
+    c2d::C2DClock syncClock;
     StatusBox *statusBox;
     PPLAYConfig *config = nullptr;
     Filer *filer = nullptr;

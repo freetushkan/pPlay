@@ -11,6 +11,7 @@
 #include "poster_cache.h"
 #include "saved.h"
 #include "folder_marks.h"
+#include "torrserve.h"
 #include "playlists.h"
 #include "menu_main_items.h"
 #include "i18n.h"
@@ -279,6 +280,20 @@ void Main::onUpdate() {
 
     messageBox->setOutlineColor(COLOR_ACCENT);
     player->updateFrame();
+
+    // the TorrServer marks asked for a while: shown (not over a full screen video), kept while
+    // it lasts
+    if (pplay::TorrServe::isSyncing() && !(player->isFullscreen() && !player->getMpv()->isStopped())) {
+        if (!syncing) {
+            syncing = true;
+            syncClock.restart();
+        } else if (syncClock.getElapsedTime().asSeconds() >= 0.5f) {
+            syncClock.restart();
+            statusBox->show("Wait", "Syncing with TorrServer");
+        }
+    } else {
+        syncing = false;
+    }
 
     bool menu = false;
     for (auto *m: Menu::all()) {

@@ -34,9 +34,14 @@ namespace pplay::TorrServe {
     bool getTree(const std::string &path, int timeout, std::vector<c2d::Io::File> *files);
 
     std::string toStreamUrl(const std::string &path);
-    // wait: may ask the server now (worker threads, a load); else the cache, a stale or
-    // missing entry fetched in the background (then viewedGeneration changes)
-    bool isFileViewed(const std::string &path, bool wait = false);
+    // wait: may ask the server now (worker threads, a load); else the cache (the last run's
+    // too), a stale or missing entry fetched in the background (then viewedGeneration
+    // changes); cached: the cache only, nothing asked
+    bool isFileViewed(const std::string &path, bool wait = false, bool cached = false);
+    // the server asked about viewed files now
+    bool isSyncing();
+    // the viewed files on disk (if changed): done by the background requests, else here
+    void saveViewedCache();
     // changes with each server answer about viewed files: the marks to show again
     unsigned int viewedGeneration();
     // the position the server keeps for a file (its "track timecode" setting), 0 if none

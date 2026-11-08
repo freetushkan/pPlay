@@ -251,6 +251,7 @@ external = external
 Select = Select
 Back/Minimize = Back/Minimize
 Play/Pause = Play/Pause
+Syncing with TorrServer = Syncing with TorrServer
 Brightness = Picture brightness
 Information = Information
 Open in a text editor = Open in a text editor

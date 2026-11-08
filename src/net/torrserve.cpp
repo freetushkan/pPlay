@@ -3,6 +3,8 @@
 //
 
 #include <algorithm>
+#include <atomic>
+#include <cstdio>
 #include <chrono>
 #include <cctype>
 #include <cstdlib>
@@ -286,6 +288,90 @@ namespace {
     std::unordered_map<std::string, Viewed> g_viewed;
     // bumped on each answer: the marks shown may change
     unsigned int g_viewedGeneration = 0;
+    // requests to the server running (the status shows a sync)
+    std::atomic<int> g_viewedFetching{0};
+
+    // kept on disk: the marks of the last run shown at once (stale: asked again), the
+    // file written by the worker when its queue is done
+    bool g_viewedLoaded = false;
+    bool g_viewedDirty = false;
+
+    std::string viewedCachePath() {
+        return pplay::Utility::getDataPath() + "cache/torrserver_viewed";
+    }
+
+    // "root|hash \t index:seconds,...", g_viewedMutex held
+    void loadViewed() {
+        if (g_viewedLoaded) {
+            return;
+        }
+        g_viewedLoaded = true;
+        FILE *f = fopen(viewedCachePath().c_str(), "r");
+        if (f == nullptr) {
+            return;
+        }
+        std::string line;
+        char buf[4096];
+        size_t count = 0;
+        while (fgets(buf, sizeof(buf), f) != nullptr) {
+            line += buf;
+            if (line.empty() || line.back() != '\n') {
+                continue;
+            }
+            line.pop_back();
+            size_t tab = line.find('\t');
+            if (tab != std::string::npos && g_viewed.find(line.substr(0, tab)) == g_viewed.end()) {
+                Viewed &viewed = g_viewed[line.substr(0, tab)];
+                std::stringstream items(line.substr(tab + 1));
+                std::string item;
+                while (std::getline(items, item, ',')) {
+                    size_t colon = item.find(':');
+                    if (colon != std::string::npos) {
+                        viewed.files[std::atoi(item.substr(0, colon).c_str())] = std::atof(item.c_str() + colon + 1);
+                    }
+                }
+                count++;
+            }
+            line.clear();
+        }
+        fclose(f);
+        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+                            "TorrServe: " + std::to_string(count) + " viewed lists from the last run");
+    }
+
+    void saveViewed() {
+        std::string text;
+        {
+            std::lock_guard<std::mutex> lock(g_viewedMutex);
+            if (!g_viewedDirty) {
+                return;
+            }
+            g_viewedDirty = false;
+            char number[64];
+            for (const auto &entry: g_viewed) {
+                std::string items;
+                for (const auto &file: entry.second.files) {
+                    snprintf(number, sizeof(number), "%d:%.0f", file.first, file.second);
+                    items += (items.empty() ? "" : ",") + std::string(number);
+                }
+                text += entry.first + "\t" + items + "\n";
+            }
+        }
+        if (pplay::Io::get() != nullptr && !pplay::Io::get()->exist(pplay::Utility::getDataPath() + "cache")) {
+            pplay::Io::get()->create(pplay::Utility::getDataPath() + "cache");
+        }
+        // written aside, then renamed: never a half file
+        std::string path = viewedCachePath();
+        FILE *f = fopen((path + ".tmp").c_str(), "w");
+        if (f == nullptr) {
+            return;
+        }
+        bool ok = fwrite(text.data(), 1, text.size(), f) == text.size();
+        ok = fclose(f) == 0 && ok;
+        if (ok) {
+            std::rename((path + ".tmp").c_str(), path.c_str());
+        }
+    }
 
     // the worker requests, in order: a body (set / rem) or a list (empty body)
     struct ViewedJob {
@@ -358,13 +444,16 @@ namespace {
         nlohmann::json request;
         request["action"] = "list";
         request["hash"] = hash;
+        g_viewedFetching++;
         nlohmann::json response =
                 nlohmann::json::parse(httpRequest(root + "viewed", 5, request.dump()), nullptr, false);
+        g_viewedFetching--;
         std::lock_guard<std::mutex> lock(g_viewedMutex);
         g_viewedPending.erase(key);
         Viewed &cached = g_viewed[key];
         // no answer: the marks kept, asked again later
         if (!response.is_discarded() && response.is_array()) {
+            g_viewedDirty = true;
             cached.files.clear();
             for (const auto &item: response) {
                 if (item.contains("file_index") && item["file_index"].is_number_integer()) {
@@ -387,7 +476,7 @@ namespace {
                 std::lock_guard<std::mutex> lock(g_viewedMutex);
                 if (g_viewedJobs.empty()) {
                     g_viewedBusy = false;
-                    return 0;
+                    break;
                 }
                 job = g_viewedJobs.front();
                 g_viewedJobs.pop_front();
@@ -398,6 +487,8 @@ namespace {
                 httpRequest(job.root + "viewed", 5, job.body);
             }
         }
+        saveViewed();
+        return 0;
     }
 
     // to the worker: a body and a list after it (its result), or a list only (once at a time)
@@ -423,13 +514,19 @@ namespace {
         g_viewedWorker = new pplay::Worker(viewedThread, nullptr);
     }
 
-    // wait: from a worker (or a load), the server asked right away when needed
-    std::map<int, double> getViewed(const std::string &root, const std::string &hash, bool wait) {
+    // wait: from a worker (or a load), the server asked right away when needed; cached: only
+    // what is known (no request)
+    std::map<int, double> getViewed(const std::string &root, const std::string &hash, bool wait,
+                                    bool cached = false) {
         const std::string key = root + "|" + hash;
         std::map<int, double> files;
         {
             std::lock_guard<std::mutex> lock(g_viewedMutex);
+            loadViewed();
             auto it = g_viewed.find(key);
+            if (cached) {
+                return it != g_viewed.end() ? it->second.files : files;
+            }
             bool found = it != g_viewed.end();
             if (found && difftime(time(nullptr), it->second.updated) < 30) {
                 return it->second.files;
@@ -561,12 +658,21 @@ namespace pplay::TorrServe {
         return g_viewedGeneration;
     }
 
-    bool isFileViewed(const std::string &p, bool wait) {
+    bool isFileViewed(const std::string &p, bool wait, bool cached) {
         // a saved copy: its network file
         const std::string path = pplay::Saved::originalOf(p);
         std::string hash;
         int index;
-        return isTorrServe(path) && fileLink(path, hash, index) && getViewed(apiRoot(path), hash, wait).count(index) > 0;
+        return isTorrServe(path) && fileLink(path, hash, index)
+               && getViewed(apiRoot(path), hash, wait, cached).count(index) > 0;
+    }
+
+    bool isSyncing() {
+        return g_viewedFetching > 0;
+    }
+
+    void saveViewedCache() {
+        saveViewed();
     }
 
     double fileProgress(const std::string &p, bool wait) {
@@ -667,6 +773,7 @@ namespace pplay::TorrServe {
             std::lock_guard<std::mutex> lock(g_viewedMutex);
             g_viewed[root + "|" + hash].files[index] = seconds;
             g_viewedGeneration++;
+            g_viewedDirty = true;
         }
         queueViewed(root, hash, request.dump());
         return true;
@@ -689,6 +796,7 @@ namespace pplay::TorrServe {
             std::lock_guard<std::mutex> lock(g_viewedMutex);
             g_viewed[root + "|" + hash].files.erase(index);
             g_viewedGeneration++;
+            g_viewedDirty = true;
         }
         queueViewed(root, hash, request.dump());
         return true;
