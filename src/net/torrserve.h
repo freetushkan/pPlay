@@ -42,6 +42,8 @@ namespace pplay::TorrServe {
     bool isSyncing();
     // the viewed files on disk (if changed): done by the background requests, else here
     void saveViewedCache();
+    // the viewed marks asked again after (s, the setting)
+    void setViewedSync(int seconds);
     // changes with each server answer about viewed files: the marks to show again
     unsigned int viewedGeneration();
     // the position the server keeps for a file (its "track timecode" setting), 0 if none

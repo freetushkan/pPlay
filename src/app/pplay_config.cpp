@@ -103,6 +103,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_AUTO_QUALITY_DELAY, (int) 30});
     addOption({OPT_AUTO_HW_RETRY, (int) 1});
     addOption({OPT_AUTO_HW_RETRIES, (int) 3});
+    addOption({OPT_TS_VIEWED_SYNC, (int) 30});
     addOption({OPT_MEDIA_PROBE, (int) 1});
     addOption({OPT_AUDIO_VISUALIZER, (int) 0});
     addOption({OPT_TEXT_ENCODING, (int) 0});
@@ -243,6 +244,7 @@ void PPLAYConfig::sanitize() {
     clamp(OPT_AUTO_QUALITY_DELAY, 0, 120);
     clamp(OPT_AUTO_HW_RETRY, 0, 30);
     clamp(OPT_AUTO_HW_RETRIES, 1, 10);
+    clamp(OPT_TS_VIEWED_SYNC, 10, 600);
 #ifdef PPLAY_HW_DECODING
     clamp(OPT_HW_DECODING, 0, 2);
 #endif

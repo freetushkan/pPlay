@@ -56,6 +56,8 @@
 // auto decoder: the hardware one tried again after (min, then doubled, 0 never), that many times
 #define OPT_AUTO_HW_RETRY "AUTO_HW_RETRY"
 #define OPT_AUTO_HW_RETRIES "AUTO_HW_RETRIES"
+// TorrServer viewed marks asked again after (s)
+#define OPT_TS_VIEWED_SYNC "TS_VIEWED_SYNC"
 // media information read by itself: 0 the panel opened only, 2 the selected file,
 // 1 the selected one and the files with progress (their durations)
 #define OPT_MEDIA_PROBE "MEDIA_PROBE"

@@ -290,6 +290,8 @@ namespace {
     unsigned int g_viewedGeneration = 0;
     // requests to the server running (the status shows a sync)
     std::atomic<int> g_viewedFetching{0};
+    // a list asked again after (s)
+    std::atomic<int> g_viewedSync{30};
 
     // kept on disk: the marks of the last run shown at once (stale: asked again), the
     // file written by the worker when its queue is done
@@ -528,7 +530,7 @@ namespace {
                 return it != g_viewed.end() ? it->second.files : files;
             }
             bool found = it != g_viewed.end();
-            if (found && difftime(time(nullptr), it->second.updated) < 30) {
+            if (found && difftime(time(nullptr), it->second.updated) < g_viewedSync) {
                 return it->second.files;
             }
             if (found) {
@@ -673,6 +675,10 @@ namespace pplay::TorrServe {
 
     void saveViewedCache() {
         saveViewed();
+    }
+
+    void setViewedSync(int seconds) {
+        g_viewedSync = std::max(10, seconds);
     }
 
     double fileProgress(const std::string &p, bool wait) {
