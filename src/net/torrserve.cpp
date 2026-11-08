@@ -146,6 +146,9 @@ namespace {
     }
 
     // ok: answered (an empty list too)
+    // the torrents list and the viewed marks asked again after (s, the setting)
+    std::atomic<int> g_syncSecs{30};
+
     std::vector<Torrent> getTorrents(const std::string &root, int timeout, bool *ok = nullptr) {
         std::vector<Torrent> torrents;
         if (ok != nullptr) {
@@ -211,13 +214,59 @@ namespace {
         return torrents;
     }
 
-    // last torrents list per server (details panel)
+    // the torrents list per server: asked once in a sync interval (all the listings, the
+    // folder marks, the details panel), a failure not asked again for a few seconds
     std::mutex g_cacheMutex;
     std::unordered_map<std::string, std::vector<Torrent>> g_torrentsCache;
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> g_torrentsAt;
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> g_torrentsFailedAt;
+    // one request at a time (the others wait for its answer)
+    std::mutex g_fetchMutex;
+    constexpr int FailedRetrySecs = 5;
 
-    void cacheTorrents(const std::string &root, const std::vector<Torrent> &torrents) {
+    bool cachedTorrents(const std::string &root, std::vector<Torrent> *torrents, bool *failed) {
+        auto now = std::chrono::steady_clock::now();
         std::lock_guard<std::mutex> lock(g_cacheMutex);
-        g_torrentsCache[root] = torrents;
+        auto failure = g_torrentsFailedAt.find(root);
+        *failed = failure != g_torrentsFailedAt.end() && now - failure->second < std::chrono::seconds(FailedRetrySecs);
+        auto at = g_torrentsAt.find(root);
+        if (at == g_torrentsAt.end() || now - at->second >= std::chrono::seconds(g_syncSecs.load())) {
+            return false;
+        }
+        *torrents = g_torrentsCache[root];
+        return true;
+    }
+
+    std::vector<Torrent> torrentsOf(const std::string &root, int timeout, bool *ok) {
+        std::vector<Torrent> torrents;
+        bool failed = false;
+        *ok = false;
+        if (cachedTorrents(root, &torrents, &failed)) {
+            *ok = true;
+            return torrents;
+        }
+        if (failed) {
+            return torrents;
+        }
+        std::lock_guard<std::mutex> fetch(g_fetchMutex);
+        // asked by another thread meanwhile
+        if (cachedTorrents(root, &torrents, &failed)) {
+            *ok = true;
+            return torrents;
+        }
+        if (failed) {
+            return torrents;
+        }
+        torrents = getTorrents(root, timeout, ok);
+        std::lock_guard<std::mutex> lock(g_cacheMutex);
+        if (*ok) {
+            g_torrentsCache[root] = torrents;
+            g_torrentsAt[root] = std::chrono::steady_clock::now();
+            g_torrentsFailedAt.erase(root);
+        } else {
+            g_torrentsFailedAt[root] = std::chrono::steady_clock::now();
+        }
+        return torrents;
     }
 
     bool hasPrefix(const std::vector<std::string> &path, const std::vector<std::string> &prefix) {
@@ -290,8 +339,6 @@ namespace {
     unsigned int g_viewedGeneration = 0;
     // requests to the server running (the status shows a sync)
     std::atomic<int> g_viewedFetching{0};
-    // a list asked again after (s)
-    std::atomic<int> g_viewedSync{30};
 
     // kept on disk: the marks of the last run shown at once (stale: asked again), the
     // file written by the worker when its queue is done
@@ -441,34 +488,55 @@ namespace {
         }
     }
 
+    // all the viewed files of a server at once (one request a sync interval, not one a torrent):
+    // the torrents without any kept empty, fresh too
     std::map<int, double> fetchViewed(const std::string &root, const std::string &hash) {
         const std::string key = root + "|" + hash;
         nlohmann::json request;
         request["action"] = "list";
-        request["hash"] = hash;
         g_viewedFetching++;
         nlohmann::json response =
                 nlohmann::json::parse(httpRequest(root + "viewed", 5, request.dump()), nullptr, false);
         g_viewedFetching--;
+        std::vector<std::string> hashes;
+        {
+            std::lock_guard<std::mutex> lock(g_cacheMutex);
+            for (const auto &torrent: g_torrentsCache[root]) {
+                hashes.push_back(torrent.hash);
+            }
+        }
         std::lock_guard<std::mutex> lock(g_viewedMutex);
         g_viewedPending.erase(key);
-        Viewed &cached = g_viewed[key];
+        time_t now = time(nullptr);
         // no answer: the marks kept, asked again later
         if (!response.is_discarded() && response.is_array()) {
-            g_viewedDirty = true;
-            cached.files.clear();
+            std::map<std::string, std::map<int, double>> byHash;
             for (const auto &item: response) {
-                if (item.contains("file_index") && item["file_index"].is_number_integer()) {
+                if (item.contains("hash") && item["hash"].is_string() && item.contains("file_index")
+                    && item["file_index"].is_number_integer()) {
                     double timecode = item.contains("timecode") && item["timecode"].is_number()
                                               ? item["timecode"].get<double>()
                                               : 0;
-                    cached.files[item["file_index"].get<int>()] = timecode;
+                    byHash[item["hash"].get<std::string>()][item["file_index"].get<int>()] = timecode;
                 }
             }
+            hashes.push_back(hash);
+            for (auto &entry: byHash) {
+                hashes.push_back(entry.first);
+            }
+            for (const auto &h: hashes) {
+                Viewed &viewed = g_viewed[root + "|" + h];
+                auto found = byHash.find(h);
+                viewed.files = found != byHash.end() ? found->second : std::map<int, double>();
+                viewed.updated = now;
+                g_viewedPending.erase(root + "|" + h);
+            }
+            g_viewedDirty = true;
+        } else {
+            g_viewed[key].updated = now;
         }
-        cached.updated = time(nullptr);
         g_viewedGeneration++;
-        return cached.files;
+        return g_viewed[key].files;
     }
 
     int viewedThread(void *) {
@@ -484,7 +552,19 @@ namespace {
                 g_viewedJobs.pop_front();
             }
             if (job.body.empty()) {
-                fetchViewed(job.root, job.hash);
+                // answered meanwhile (all of a server at once)
+                bool fresh;
+                {
+                    std::lock_guard<std::mutex> lock(g_viewedMutex);
+                    auto it = g_viewed.find(job.root + "|" + job.hash);
+                    fresh = it != g_viewed.end() && difftime(time(nullptr), it->second.updated) < g_syncSecs;
+                    if (fresh) {
+                        g_viewedPending.erase(job.root + "|" + job.hash);
+                    }
+                }
+                if (!fresh) {
+                    fetchViewed(job.root, job.hash);
+                }
             } else {
                 httpRequest(job.root + "viewed", 5, job.body);
             }
@@ -530,7 +610,7 @@ namespace {
                 return it != g_viewed.end() ? it->second.files : files;
             }
             bool found = it != g_viewed.end();
-            if (found && difftime(time(nullptr), it->second.updated) < g_viewedSync) {
+            if (found && difftime(time(nullptr), it->second.updated) < g_syncSecs) {
                 return it->second.files;
             }
             if (found) {
@@ -555,11 +635,10 @@ namespace pplay::TorrServe {
         std::string httpRoot = apiRoot(path);
         std::vector<std::string> parts = splitPath(relativeOf(path));
         bool ok = false;
-        std::vector<Torrent> torrents = getTorrents(httpRoot, timeout, &ok);
+        std::vector<Torrent> torrents = torrentsOf(httpRoot, timeout, &ok);
         if (!ok && error) {
             *error = "TorrServer: not reachable";
         }
-        cacheTorrents(httpRoot, torrents);
 
         if (parts.empty()) {
             for (const auto &torrent: torrents) {
@@ -605,11 +684,10 @@ namespace pplay::TorrServe {
         std::string httpRoot = apiRoot(path);
         std::vector<std::string> parts = splitPath(relativeOf(path));
         bool ok = false;
-        std::vector<Torrent> torrents = getTorrents(httpRoot, timeout, &ok);
+        std::vector<Torrent> torrents = torrentsOf(httpRoot, timeout, &ok);
         if (!ok) {
             return false;
         }
-        cacheTorrents(httpRoot, torrents);
         files->clear();
         for (const auto &torrent: torrents) {
             if (!parts.empty() && torrent.title != parts[0]) {
@@ -677,8 +755,8 @@ namespace pplay::TorrServe {
         saveViewed();
     }
 
-    void setViewedSync(int seconds) {
-        g_viewedSync = std::max(10, seconds);
+    void setSyncInterval(int seconds) {
+        g_syncSecs = std::max(10, seconds);
     }
 
     double fileProgress(const std::string &p, bool wait) {

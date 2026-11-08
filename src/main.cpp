@@ -62,7 +62,7 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
     pplay::Saved::start(config);
     pplay::Playlists::start(config);
     pplay::FolderMarks::start(config);
-    pplay::TorrServe::setViewedSync(config->getOption(OPT_TS_VIEWED_SYNC)->getInteger());
+    pplay::TorrServe::setSyncInterval(config->getOption(OPT_TS_VIEWED_SYNC)->getInteger());
 
     filer = new Filer(this, "/", {0, 0, Main::getSize().x, Main::getSize().y});
     filer->setLayer(1);
@@ -210,7 +210,7 @@ void Main::applyConfig() {
     pplay::Utility::setAccentColor(config->getOption(OPT_ACCENT_COLOR)->getString());
     player->applyConfig();
     pplay::Saved::configChanged();
-    pplay::TorrServe::setViewedSync(config->getOption(OPT_TS_VIEWED_SYNC)->getInteger());
+    pplay::TorrServe::setSyncInterval(config->getOption(OPT_TS_VIEWED_SYNC)->getInteger());
     static int hidden = -1;
     int showHidden = config->getOption(OPT_SHOW_HIDDEN)->getInteger();
     if (hidden >= 0 && showHidden != hidden && filer != nullptr) {
