@@ -62,6 +62,10 @@ public:
 
     void onUpdate() override;
 
+    // faded in / out by a cover of the background color: the alphas of the parts kept (a
+    // parent alpha tween would set them all)
+    void setVisibility(c2d::Visibility visibility, bool tweenPlay = false) override;
+
     // file picker: files with these extensions listed too, A picks one, X cancels;
     // the previous directory comes back after
     void startPick(const std::vector<std::string> &extensions, const std::string &dir, const std::string &hint,
@@ -132,6 +136,11 @@ private:
     c2d::C2DMutex *mutex;
 
     bool dirty = false;
+    c2d::RectangleShape *cover = nullptr;
+    // 1: covering (then hidden), -1: uncovering, 0: still
+    int fadeDirection = 0;
+    float coverAlpha = 0;
+    c2d::C2DClock fadeClock;
     unsigned int playlistGeneration = 0;
     unsigned int durationsGeneration = 0;
 

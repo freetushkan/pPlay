@@ -79,7 +79,37 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
         list->add(items.back());
     }
 
-    Filer::add(new TweenAlpha(0, 255, 0.5f));
+    // over all of it (the fade)
+    cover = new RectangleShape({rect.width, rect.height});
+    cover->setFillColor(COLOR_BG);
+    cover->setLayer(100);
+    cover->setVisibility(Visibility::Hidden);
+    Filer::add(cover);
+}
+
+void Filer::setVisibility(Visibility visibility, bool tweenPlay) {
+    if (!tweenPlay) {
+        fadeDirection = 0;
+        cover->setVisibility(Visibility::Hidden);
+        Rectangle::setVisibility(visibility, false);
+        return;
+    }
+    if (visibility == Visibility::Visible) {
+        // from the background (or where a fade out was)
+        if (!isVisible()) {
+            coverAlpha = 255;
+        }
+        Rectangle::setVisibility(Visibility::Visible, false);
+        fadeDirection = -1;
+    } else {
+        if (!isVisible()) {
+            return;
+        }
+        fadeDirection = 1;
+    }
+    cover->setFillColor({COLOR_BG.r, COLOR_BG.g, COLOR_BG.b, (uint8_t) coverAlpha});
+    cover->setVisibility(Visibility::Visible);
+    fadeClock.restart();
 }
 
 void Filer::setMediaInfo(const MediaFile &target, const MediaInfo &mediaInfo) {
@@ -552,6 +582,20 @@ void Filer::queueDurations() {
 }
 
 void Filer::onUpdate() {
+    // the fade: 0.5 s from end to end
+    if (fadeDirection != 0) {
+        float step = std::min(0.1f, fadeClock.restart().asSeconds()) * 255 / 0.5f;
+        coverAlpha = std::min(255.0f, std::max(0.0f, coverAlpha + (float) fadeDirection * step));
+        cover->setFillColor({COLOR_BG.r, COLOR_BG.g, COLOR_BG.b, (uint8_t) coverAlpha});
+        if (fadeDirection < 0 && coverAlpha <= 0) {
+            fadeDirection = 0;
+            cover->setVisibility(Visibility::Hidden);
+        } else if (fadeDirection > 0 && coverAlpha >= 255) {
+            fadeDirection = 0;
+            Rectangle::setVisibility(Visibility::Hidden, false);
+            return;
+        }
+    }
     crumbs->setPath(path);
     if (pplay::TorrServe::viewedGeneration() != durationsGeneration) {
         queueDurations();
