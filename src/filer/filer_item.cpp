@@ -293,9 +293,24 @@ void FilerItem::onUpdate() {
         }
         updateClock.restart();
     }
-    // what is behind the fade: the list, the selection highlight over it
-    float x = (fade->getPosition().x + fade->getSize().x / 2) / std::max(1.0f, getSize().x);
-    fade->setBackground(highlight ? highlight->seenThrough(COLOR_SURFACE, x) : COLOR_SURFACE);
+    // what is behind the fade: the list, the selection highlight over the part it covers now
+    // (it slides from row to row)
+    if (fade->isVisible()) {
+        float x = (fade->getPosition().x + fade->getSize().x / 2) / std::max(1.0f, getSize().x);
+        float rowTop = getPosition().y, height = getSize().y;
+        float lightTop = highlight != nullptr && highlight->isVisible() ? highlight->getPosition().y : -1e9f;
+        float from = std::max(rowTop, lightTop), to = std::min(rowTop + height, lightTop + height);
+        if (to - from < 0.5f) {
+            fade->setBackground(COLOR_SURFACE);
+        } else {
+            Color lit = highlight->seenThrough(COLOR_SURFACE, x);
+            if (from <= rowTop + 0.5f) {
+                fade->setBackgrounds(lit, COLOR_SURFACE, (to - rowTop) / height);
+            } else {
+                fade->setBackgrounds(COLOR_SURFACE, lit, (from - rowTop) / height);
+            }
+        }
+    }
     // the filer fade in sets all the alphas: the line follows the text
     uint8_t alpha = textTitle->getAlpha();
     watchedTrack->setFillColor(Color(COLOR_ACCENT.r, COLOR_ACCENT.g, COLOR_ACCENT.b, alpha));

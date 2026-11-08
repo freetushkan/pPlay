@@ -19,8 +19,9 @@ namespace pplay {
         void onDraw(c2d::Transform &transform, bool draw = true) override;
     };
 
-    // the right end of a clipped text faded to the background: a gradient over it
-    class FadeEdge : public c2d::GradientRectangle {
+    // the right end of a clipped text faded to the background: a gradient over it, in two
+    // bands (a highlight sliding over the row: what is behind each part)
+    class FadeEdge : public c2d::Rectangle {
 
     public:
 
@@ -28,17 +29,18 @@ namespace pplay {
 
         void setBackground(const c2d::Color &color);
 
-        // the parents fade (TweenAlpha) the opaque end only, the gradient stays
-        void setAlpha(uint8_t alpha, bool recursive = false) override;
-
-        uint8_t getAlpha() override { return alpha; }
+        // upper: the background of the top part (split: its share of the height), lower: the rest
+        void setBackgrounds(const c2d::Color &upper, const c2d::Color &lower, float split);
 
     private:
 
-        void apply();
+        static void apply(c2d::GradientRectangle *part, const c2d::Color &color);
 
-        c2d::Color background;
-        uint8_t alpha = 255;
+        c2d::GradientRectangle *top;
+        c2d::GradientRectangle *bottom;
+        c2d::Color upperColor;
+        c2d::Color lowerColor;
+        float splitAt = -1;
     };
 }
 

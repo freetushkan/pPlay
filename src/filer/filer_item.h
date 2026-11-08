@@ -69,7 +69,7 @@ private:
 public:
 
     // the selection highlight over this row (its fade matches it), nullptr otherwise
-    const Highlight *highlight = nullptr;
+    Highlight *highlight = nullptr;
 };
 
 #endif //PPLAY_FILERITEM_H

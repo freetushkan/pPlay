@@ -47,31 +47,44 @@ void pplay::ClipRect::onDraw(Transform &transform, bool draw) {
     }
 }
 
-pplay::FadeEdge::FadeEdge(const FloatRect &rect) : GradientRectangle(rect) {
+pplay::FadeEdge::FadeEdge(const FloatRect &rect) : Rectangle(rect) {
+    top = new GradientRectangle({0, 0, rect.width, rect.height});
+    bottom = new GradientRectangle({0, rect.height, rect.width, 0});
+    FadeEdge::add(top);
+    FadeEdge::add(bottom);
+    upperColor = lowerColor = Color::Transparent;
     setBackground(Color::Black);
 }
 
 void pplay::FadeEdge::setBackground(const Color &color) {
-    if (color == background) {
-        return;
-    }
-    background = color;
-    apply();
+    setBackgrounds(color, color, 1);
 }
 
-void pplay::FadeEdge::setAlpha(uint8_t value, bool recursive) {
-    if (value != alpha) {
-        alpha = value;
-        apply();
+void pplay::FadeEdge::setBackgrounds(const Color &upper, const Color &lower, float split) {
+    split = std::min(1.0f, std::max(0.0f, split));
+    if (upper == lower) {
+        split = 1;
     }
-    if (recursive) {
-        C2DObject::setAlpha(value, recursive);
+    if (upper != upperColor) {
+        upperColor = upper;
+        apply(top, upper);
+    }
+    if (lower != lowerColor) {
+        lowerColor = lower;
+        apply(bottom, lower);
+    }
+    if (split != splitAt) {
+        splitAt = split;
+        // whole pixels: no seam between the parts
+        float height = getSize().y, at = std::round(height * split);
+        top->setSize(getSize().x, at);
+        bottom->setPosition(0, at);
+        bottom->setSize(getSize().x, height - at);
     }
 }
 
-void pplay::FadeEdge::apply() {
-    Color transparent = background, opaque = background;
+void pplay::FadeEdge::apply(GradientRectangle *part, const Color &color) {
+    Color transparent = color;
     transparent.a = 0;
-    opaque.a = (uint8_t) (background.a * alpha / 255);
-    setColor(transparent, opaque, Direction::Right);
+    part->setColor(transparent, color, GradientRectangle::Direction::Right);
 }

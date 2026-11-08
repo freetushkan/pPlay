@@ -176,7 +176,8 @@ void Filer::setSelection(int index) {
 void Filer::placeItems() {
     for (int i = 0; i < (int) items.size(); i++) {
         items[i]->setPosition(0, std::round((float) (i - 1) * item_height + scrollOffset));
-        items[i]->highlight = top - 1 + i == item_index ? highlight : nullptr;
+        // all the rows: the highlight slides over them
+        items[i]->highlight = highlight;
     }
     mutex->lock();
     int count = (int) files.size();
