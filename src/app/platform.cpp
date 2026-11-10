@@ -606,6 +606,65 @@ namespace pplay::Platform {
 #endif
     }
 
+    void mediaState(const std::string &title, int state, long positionMs, long durationMs) {
+#ifdef __ANDROID__
+        auto *env = (JNIEnv *) SDL_AndroidGetJNIEnv();
+        auto activity = (jobject) SDL_AndroidGetActivity();
+        if (env == nullptr || activity == nullptr) {
+            return;
+        }
+        jclass cls = env->GetObjectClass(activity);
+        jmethodID mid = env->GetStaticMethodID(cls, "mediaState", "(Ljava/lang/String;IJJ)V");
+        if (mid == nullptr) {
+            env->ExceptionClear();
+        } else {
+            jstring jTitle = env->NewStringUTF(title.c_str());
+            env->CallStaticVoidMethod(cls, mid, jTitle, (jint) state, (jlong) positionMs, (jlong) durationMs);
+            if (env->ExceptionCheck()) {
+                env->ExceptionClear();
+            }
+            env->DeleteLocalRef(jTitle);
+        }
+        env->DeleteLocalRef(cls);
+        env->DeleteLocalRef(activity);
+#else
+        (void) title, (void) state, (void) positionMs, (void) durationMs;
+#endif
+    }
+
+    std::string takeMediaCommand() {
+#ifdef __ANDROID__
+        auto *env = (JNIEnv *) SDL_AndroidGetJNIEnv();
+        auto activity = (jobject) SDL_AndroidGetActivity();
+        if (env == nullptr || activity == nullptr) {
+            return "";
+        }
+        std::string value;
+        jclass cls = env->GetObjectClass(activity);
+        jmethodID mid = env->GetStaticMethodID(cls, "takeMediaCommand", "()Ljava/lang/String;");
+        if (mid == nullptr) {
+            env->ExceptionClear();
+        } else {
+            auto result = (jstring) env->CallStaticObjectMethod(cls, mid);
+            if (env->ExceptionCheck()) {
+                env->ExceptionClear();
+            } else if (result != nullptr) {
+                const char *utf = env->GetStringUTFChars(result, nullptr);
+                if (utf != nullptr) {
+                    value = utf;
+                    env->ReleaseStringUTFChars(result, utf);
+                }
+                env->DeleteLocalRef(result);
+            }
+        }
+        env->DeleteLocalRef(cls);
+        env->DeleteLocalRef(activity);
+        return value;
+#else
+        return "";
+#endif
+    }
+
     bool sleepNow() {
 #ifdef __PS5__
         int res = sceSystemStateMgrEnterStandby();

@@ -329,6 +329,40 @@ void Main::onUpdate() {
             player->setFullscreen(true);
             player->load(MediaFile(file, MediaInfo(file)));
         }
+        // the media session: the state on change (the position: a jump of over 2 s)
+        static std::string lastTitle;
+        static int lastState = 0;
+        static long lastPosition = 0;
+        Mpv *mpv = player->getMpv();
+        int state = mpv->isStopped() ? 0 : mpv->isPaused() ? 1 : 2;
+        std::string title = state == 0 ? "" : player->getFile().name;
+        long position = state == 0 ? 0 : (long) (std::max(0.0, mpv->getTime()) * 1000);
+        long expected = lastPosition + (lastState == 2 ? 500 : 0);
+        if (state != lastState || title != lastTitle || std::labs(position - expected) > 2000) {
+            pplay::Platform::mediaState(title, state, position, mpv->getDuration() * 1000);
+            lastTitle = title;
+            lastState = state;
+        }
+        lastPosition = position;
+    }
+    // its commands
+    for (std::string command = pplay::Platform::takeMediaCommand(); !command.empty();
+         command = pplay::Platform::takeMediaCommand()) {
+        Mpv *mpv = player->getMpv();
+        if (mpv->isStopped()) {
+            continue;
+        }
+        if (command == "play") {
+            player->resume();
+        } else if (command == "pause") {
+            player->pause();
+        } else if (command == "stop") {
+            player->stop();
+        } else if (command.rfind("seek ", 0) == 0) {
+            std::string secs = std::to_string(std::atoll(command.c_str() + 5) / 1000.0);
+            const char *args[] = {"seek", secs.c_str(), "absolute", nullptr};
+            mpv_command_async(mpv->getHandle(), 0, args);
+        }
     }
 #endif
     // awake while playing / saving, up to the minutes without a key (0: always)

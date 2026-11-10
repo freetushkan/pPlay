@@ -11,6 +11,9 @@ package com.freetushkan.pplay;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.media.MediaMetadata;
+import android.media.session.MediaSession;
+import android.media.session.PlaybackState;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
@@ -114,6 +117,48 @@ public class PPlayActivity extends SDLActivity {
             name = intent.getStringExtra("title");
         }
         viewed = url + "\n" + name;
+    }
+
+    // the media session: the system / remote controls (Google TV, Chromecast), commands polled
+    // by the native part: "play", "pause", "stop", "seek <ms>"
+    private static MediaSession session = null;
+    private static final java.util.concurrent.ConcurrentLinkedQueue<String> commands =
+            new java.util.concurrent.ConcurrentLinkedQueue<>();
+
+    public static String takeMediaCommand() {
+        return commands.poll();
+    }
+
+    // state: 0 stopped, 1 paused, 2 playing
+    public static void mediaState(final String title, final int state, final long position, final long duration) {
+        final PPlayActivity activity = instance;
+        if (activity == null) {
+            return;
+        }
+        activity.runOnUiThread(() -> {
+            if (session == null) {
+                session = new MediaSession(activity, "pPlay");
+                session.setCallback(new MediaSession.Callback() {
+                    @Override public void onPlay() { commands.add("play"); }
+                    @Override public void onPause() { commands.add("pause"); }
+                    @Override public void onStop() { commands.add("stop"); }
+                    @Override public void onSeekTo(long ms) { commands.add("seek " + ms); }
+                });
+            }
+            if (state == 0) {
+                session.setActive(false);
+                return;
+            }
+            session.setMetadata(new MediaMetadata.Builder()
+                    .putString(MediaMetadata.METADATA_KEY_TITLE, title)
+                    .putLong(MediaMetadata.METADATA_KEY_DURATION, duration).build());
+            session.setPlaybackState(new PlaybackState.Builder()
+                    .setActions(PlaybackState.ACTION_PLAY | PlaybackState.ACTION_PAUSE | PlaybackState.ACTION_PLAY_PAUSE
+                            | PlaybackState.ACTION_STOP | PlaybackState.ACTION_SEEK_TO)
+                    .setState(state == 2 ? PlaybackState.STATE_PLAYING : PlaybackState.STATE_PAUSED, position,
+                            state == 2 ? 1.0f : 0.0f).build());
+            session.setActive(true);
+        });
     }
 
     public static String takeViewed() {

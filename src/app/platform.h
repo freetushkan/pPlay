@@ -45,6 +45,11 @@ namespace pplay::Platform {
     // a link / file given by the system to open (Android VIEW): its url, "" if none
     std::string takeViewed(std::string *name);
 
+    // the system media session (Android): the state shown, the commands given ("" if none)
+    void mediaState(const std::string &title, int state, long positionMs, long durationMs);
+
+    std::string takeMediaCommand();
+
     // the screen backlight 0..1 (Switch handheld), -1 if none
     float backlight();
 
