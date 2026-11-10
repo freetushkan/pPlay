@@ -81,10 +81,15 @@ public class PPlayActivity extends SDLActivity {
         if (romfs.isDirectory() && prefs.getLong("romfs", -1) == installed) {
             return;
         }
+        long start = System.currentTimeMillis();
         deleteTree(romfs);
         try {
             copyAssets(getAssets(), "romfs", romfs);
             prefs.edit().putLong("romfs", installed).apply();
+            // the time taken, for the log (Io::syncRomFs)
+            try (OutputStream out = new FileOutputStream(new File(getFilesDir(), "romfs.time"))) {
+                out.write(Long.toString(System.currentTimeMillis() - start).getBytes());
+            }
         } catch (IOException e) {
             Log.e(TAG, "romfs not extracted", e);
         }

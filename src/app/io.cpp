@@ -280,9 +280,19 @@ void Io::syncRomFs() {
     }
     std::string stamp;
     bool full = !readText(getDataPath() + ".romfs", stamp) || stamp != APP_VERSION_FULL;
+#ifdef __ANDROID__
+    std::string extracted, timeFile = romfs.substr(0, romfs.find_last_not_of('/') + 1) + ".time";
+    if (readText(timeFile, extracted)) {
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Io::syncRomFs: assets extracted in " + extracted + " ms");
+        remove(timeFile.c_str());
+    }
+#endif
+    c2d::C2DClock clock;
     if (syncRomFsDir("", full) && full) {
         writeText(getDataPath() + ".romfs", APP_VERSION_FULL);
     }
+    pplay::Utility::log(pplay::Utility::LogLevel::Info, std::string("Io::syncRomFs: ") + (full ? "full" : "missing files")
+                                                                + ", " + std::to_string(clock.getElapsedTime().asMilliseconds()) + " ms");
 }
 
 bool Io::syncRomFsDir(const std::string &relativePath, bool full) {
