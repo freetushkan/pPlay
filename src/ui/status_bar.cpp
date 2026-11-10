@@ -13,6 +13,7 @@
 #include "status_bar.h"
 #include "offline.h"
 #include "utility.h"
+#include "i18n.h"
 #include "pplay_config.h"
 #include "round_rect.h"
 
@@ -136,6 +137,10 @@ StatusBar::StatusBar(Main *m) : Rectangle({0, 0, 64, 64}) {
     offline->setOrigin(Origin::Right);
     offline->setVisibility(Visibility::Hidden);
     StatusBar::add(offline);
+    offlineText = new Text(pplay::tr("Offline"), m->getFontSize(Main::FontSize::Small), m->getFont());
+    offlineText->setOrigin(Origin::Right);
+    offlineText->setVisibility(Visibility::Hidden);
+    StatusBar::add(offlineText);
     applyAlpha();
 }
 
@@ -154,6 +159,7 @@ void StatusBar::applyAlpha() {
     uint8_t a = (uint8_t) std::lround(255 * alpha);
     timeText->setFillColor({COLOR_FONT.r, COLOR_FONT.g, COLOR_FONT.b, a});
     offline->setFillColor({COLOR_FONT.r, COLOR_FONT.g, COLOR_FONT.b, a});
+    offlineText->setFillColor({COLOR_FONT.r, COLOR_FONT.g, COLOR_FONT.b, (uint8_t) std::lround(200 * alpha)});
     chip->setFillColor({10, 12, 16, (uint8_t) std::lround(170 * alpha)});
 #ifdef __SWITCH__
     battery->fade(a);
@@ -213,10 +219,13 @@ void StatusBar::onUpdate() {
     float left = timeText->getPosition().x - text.width - 16 * sc.x;
     bool off = pplay::Offline::active();
     offline->setVisibility(off ? Visibility::Visible : Visibility::Hidden);
+    offlineText->setVisibility(off ? Visibility::Visible : Visibility::Hidden);
     if (off) {
         float x = std::round(timeText->getPosition().x - text.width - 10 * sc.x);
         offline->setPosition(x, std::round(centerY));
-        left = x - offline->getGlobalBounds().width - 12 * sc.x;
+        x -= offline->getGlobalBounds().width + 6 * sc.x;
+        offlineText->setPosition(x, std::round(centerY));
+        left = x - offlineText->getLocalBounds().width - 12 * sc.x;
     }
     Vector2f chipSize = {std::round(right - left), std::round(text.height + 20 * sc.y)};
     if (chip->getSize().x != chipSize.x || chip->getSize().y != chipSize.y) {

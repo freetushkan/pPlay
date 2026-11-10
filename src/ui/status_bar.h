@@ -27,6 +27,7 @@ public:
     Battery *battery = nullptr;
     c2d::Text *timeText = nullptr;
     c2d::Texture *offline = nullptr;
+    c2d::Text *offlineText = nullptr;
 
 private:
 
