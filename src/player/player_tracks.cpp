@@ -143,6 +143,19 @@ void Player::onExternalTracksAdded() {
                     break;
                 }
             }
+        } else if (!hadWatchLater && !externalCarry[t].empty()) {
+            // the previous file's one, same name pattern
+            for (auto &found: externalAll) {
+                if (found.audio != audio || found.title != externalCarry[t]) {
+                    continue;
+                }
+                std::string url = pplay::ExternalTracks::toMpvUrl(found.path);
+                for (auto &track: tracks) {
+                    if (track.type == type && track.external && track.filename == url) {
+                        target = track.id;
+                    }
+                }
+            }
         } else if (!hadWatchLater && !trackChoiceApplied[t]) {
             // preferred language, if the current track is not
             std::string preferred =
@@ -190,8 +203,22 @@ void Player::rememberTrackChoice(bool audio, int trackId) {
     for (auto &track: mpv->getTrackList()) {
         external |= track.type == type && track.id == trackId && track.external;
     }
-    // external ones: remembered per file (ExternalTracks bindings)
+    // external ones: remembered per file (ExternalTracks bindings), the next files by name
     choice.set = !external;
+    externalCarry[audio ? 0 : 1].clear();
+    if (external) {
+        std::string url;
+        for (auto &track: mpv->getTrackList()) {
+            if (track.type == type && track.id == trackId) {
+                url = track.filename;
+            }
+        }
+        for (auto &track: externalAll) {
+            if (track.audio == audio && pplay::ExternalTracks::toMpvUrl(track.path) == url) {
+                externalCarry[audio ? 0 : 1] = track.title;
+            }
+        }
+    }
     choice.id = trackId;
     choice.layout = trackLayout(type);
 }

@@ -413,6 +413,8 @@ private:
         std::string layout;
     };
     TrackChoice trackChoice[2];
+    // an external track chosen: its name pattern (as found), looked for in the next files
+    std::string externalCarry[2];
     bool trackChoiceApplied[2] = {false, false};
     std::string confAudioLang;
     std::string confSubLang;
