@@ -367,6 +367,9 @@ private:
 
     // progress
     long lastProgressSave = 0;
+    // a restored session: no progress written until it played the save interval
+    bool holdProgress = false;
+    long holdFrom = -1;
     bool progressForgotten = false;
     long lastKnownDuration = 0;
     long lastKnownPosition = 0;

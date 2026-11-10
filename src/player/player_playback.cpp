@@ -257,6 +257,9 @@ bool Player::scheduleReload(const std::string &reason, bool counted) {
 }
 
 void Player::saveProgress(bool wait) {
+    if (holdProgress) {
+        return;
+    }
     // external tracks ids depend on the order they are added: not in watch later
     // (a stale id leaves the file without audio / with other subtitles)
     std::vector<Mpv::TrackEntry> tracks = mpv->getTrackList();

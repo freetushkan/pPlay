@@ -169,6 +169,10 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
         lastTime = 0;
         userPaused = false;
         progressForgotten = false;
+        // a restored session: its progress not written back until played a while (another
+        // client may have sent a newer one)
+        holdProgress = loadPaused;
+        holdFrom = -1;
     }
     reloadPending = false;
     watchTime = -1;
@@ -349,6 +353,13 @@ void Player::onUpdate() {
             lastKnownPosition = position;
         }
         int interval = main->getConfig()->getOption(OPT_PROGRESS_INTERVAL)->getInteger();
+        if (holdProgress && position > 0 && !mpv->isPaused()) {
+            if (holdFrom < 0) {
+                holdFrom = position;
+            } else if (std::labs(position - holdFrom) >= interval) {
+                holdProgress = false;
+            }
+        }
         if (keepsProgress(position, duration) && std::labs(position - lastProgressSave) >= interval) {
             saveProgress(false);
             pplay::Utility::log(pplay::Utility::LogLevel::Debug,
