@@ -159,6 +159,7 @@ int Main::moduleOf(const std::string &path) {
 }
 
 void Main::closeForRest() {
+    resting = true;
     quit();
 }
 
@@ -166,9 +167,11 @@ void Main::keepSession() {
     std::string session;
     if (!player->getMpv()->isStopped()) {
         player->keepProgressNow();
-        session = std::string(player->isFullscreen() ? "1" : "0") + "|" + player->getFile().path;
+        // flags: fullscreen, R: closed for the rest mode
+        session = std::string(player->isFullscreen() ? "1" : "0") + (resting ? "R" : "") + "|"
+                  + player->getFile().path;
         // the last location: the playing file (the list may show another one)
-        std::string path = session.substr(2);
+        std::string path = player->getFile().path;
         int module = moduleOf(path);
         if (module > 0) {
             config->getOption(OPT_LAST_MODULE)->setString(networkModuleName(module));
@@ -193,8 +196,17 @@ void Main::restoreSession() {
     // once: a file failing here is not retried at each start
     config->getOption(OPT_REST_SESSION)->setString("");
     config->save();
+    size_t bar = session.find('|');
+    if (bar == std::string::npos) {
+        return;
+    }
     bool fullscreen = session[0] == '1';
-    std::string path = session.substr(2);
+    bool rest = session.substr(0, bar).find('R') != std::string::npos;
+    std::string path = session.substr(bar + 1);
+    int mode = config->getOption(OPT_RESTORE_SESSION)->getInteger();
+    if (mode == 0 || (mode == 1 && !rest)) {
+        return;
+    }
     MediaFile file = filer->getSelection();
     // gone meanwhile (a removed torrent, an unreachable share): the list only
     if (file.path != path || !pplay::Utility::isMedia(file)) {

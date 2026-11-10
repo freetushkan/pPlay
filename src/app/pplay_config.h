@@ -80,6 +80,8 @@
 #define OPT_PS5_KEEP_IN_REST "PS5_KEEP_IN_REST"
 // closed while playing (any exit): "<fullscreen 0/1>|<the playing file>", reopened at the next start
 #define OPT_REST_SESSION "REST_SESSION"
+// the last playing file opened at the start: 0 never, 1 after the rest mode (PS5), 2 always
+#define OPT_RESTORE_SESSION "RESTORE_SESSION"
 // saved copies (<home>/.pplay_save): parallel downloads, kept days (0: forever, by the last
 // access), size limit (GB, 0: none, the oldest access removed first)
 #define OPT_SAVE_THREADS "SAVE_THREADS"

@@ -119,6 +119,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_PROGRESS_INTERVAL, (int) 10});
     addOption({OPT_PS5_KEEP_IN_REST, (int) 0});
     addOption({OPT_REST_SESSION, ""});
+    addOption({OPT_RESTORE_SESSION, (int) 2});
 #ifdef __SWITCH__
     addOption({OPT_SAVE_THREADS, (int) 1});
 #else

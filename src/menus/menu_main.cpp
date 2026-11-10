@@ -33,6 +33,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Sleep timer", "awake.png", Pos::Top),
 #else
                                   MenuItem("Prevent sleep", "awake.png", Pos::Top),
+                                  MenuItem("Restore last file", "playlist.png", Pos::Top),
 #endif
 #ifdef __ANDROID__
                                   MenuItem("When minimized", "exit.png", Pos::Top),
@@ -302,6 +303,13 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                              {"1.5 h", 90}, {"2 h", 120}, {"3 h", 180}}),
                Submenu::ValueType::Integer);
 #else
+    addSubmenu("Restore last file", "The file playing at the exit opened at the start", OPT_RESTORE_SESSION,
+#ifdef __PS5__
+               makeIntItems({{"Off", 0}, {"After rest mode", 1}, {"Always", 2}}),
+#else
+               makeIntItems({{"Off", 0}, {"Always", 2}}),
+#endif
+               Submenu::ValueType::Integer);
     addSubmenu("Prevent sleep", "Prevent sleep when idle", OPT_STAY_AWAKE,
                makeIntItems({{"Always while playing", 0}, {"5 min", 5}, {"10 min", 10}, {"15 min", 15}, {"30 min", 30}, {"1 h", 60},
                              {"1.5 h", 90}, {"2 h", 120}, {"3 h", 180}, {"4 h", 240}}),

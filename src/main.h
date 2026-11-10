@@ -144,6 +144,9 @@ public:
     // quit for rest mode (PS5), as any exit: the playing file reopened at the next start
     void closeForRest();
 
+    // closed for the rest mode (the session marked)
+    bool resting = false;
+
 private:
 
     // the sleep timer (PS5) ran out, until a key
