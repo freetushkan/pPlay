@@ -7,6 +7,8 @@
 #include "main.h"
 #include "paths.h"
 #include "filer.h"
+#include "external_tracks.h"
+#include "history.h"
 #include "folder_marks.h"
 #include "round_rect.h"
 #include "utility.h"
@@ -388,7 +390,15 @@ void Filer::resetProgress(const MediaFile &file) {
         main->getStatus()->show("Info", "Removing TorrServer watched state");
         pplay::TorrServe::remFileViewed(file.path);
     }
+    forgetPlayback(file.path);
     dirty = true;
+}
+
+// with the progress: the last playback date, the external files bound to it
+void Filer::forgetPlayback(const std::string &path) {
+    std::string key = Player::keyOf(path);
+    pplay::History::forget(key);
+    pplay::ExternalTracks::save(key, {});
 }
 
 void Filer::unsave(const MediaFile &file) {
@@ -554,6 +564,7 @@ void Filer::markFolder(const MediaFile &dir, bool watched) {
             if (server) {
                 pplay::TorrServe::remFileViewed(path);
             }
+            forgetPlayback(path);
         }
         count++;
     }

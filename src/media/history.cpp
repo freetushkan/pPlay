@@ -85,6 +85,15 @@ namespace pplay::History {
         save();
     }
 
+    void forget(const std::string &key) {
+        if (!g_loaded) {
+            load();
+        }
+        if (g_history.erase(key) > 0) {
+            save();
+        }
+    }
+
     time_t lastPlayed(const std::string &key) {
         if (!g_loaded) {
             load();

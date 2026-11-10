@@ -83,6 +83,8 @@ private:
 
     void resetProgress(const MediaFile &file);
 
+    void forgetPlayback(const std::string &path);
+
     // the full duration kept, locally and on TorrServer
     void markWatched(const MediaFile &file);
 

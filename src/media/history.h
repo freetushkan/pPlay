@@ -13,6 +13,9 @@ namespace pplay::History {
     // playback started now
     void touch(const std::string &key);
 
+    // the date dropped (the progress reset)
+    void forget(const std::string &key);
+
     // 0: never played
     time_t lastPlayed(const std::string &key);
 }
