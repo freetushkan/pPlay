@@ -242,10 +242,12 @@ namespace {
             *torrents |= !torrent.empty();
             bool viewed = server ? TorrServe::isFileViewed(path, !torrent.empty() && asked.insert(torrent).second)
                                  : TorrServe::isFileViewed(path, false, true);
-            if (local || viewed) {
+            bool done = watched(path, url, local, viewed, mode);
+            // by marks: the marks only (a position does not count), by progress: any position too
+            if (mode == 2 ? local || viewed : done) {
                 state.marked++;
             }
-            if (!watched(path, url, local, viewed, mode)) {
+            if (!done) {
                 state.unwatched++;
             }
         }
