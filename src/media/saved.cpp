@@ -27,6 +27,7 @@
 #include "i18n.h"
 #include "io.h"
 #include "media_info.h"
+#include "external_tracks.h"
 #include "net_http.h"
 #include "paths.h"
 #include "poster_cache.h"
@@ -888,6 +889,8 @@ namespace {
         return Outcome::Done;
     }
 
+    void spawn();
+
     void saveFile(const Job &job) {
         std::shared_ptr<std::atomic<bool>> cancel;
         {
@@ -923,7 +926,30 @@ namespace {
             TorrServe::remFileViewed(job.file.path);
         }
 
+        // the subtitles the player finds for it, saved too
+        std::vector<ExternalTracks::Track> subtitles;
+        if (result == Outcome::Done && g_config->getOption(OPT_EXTERNAL_TRACKS)->getInteger() != 0
+            && !ExternalTracks::isSubtitle(job.file.name) && !ExternalTracks::isAudio(job.file.name)) {
+            int timeout = g_config->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
+            for (auto &track: ExternalTracks::find(Io::get(), job.file.path, job.file.name, timeout)) {
+                if (!track.audio) {
+                    subtitles.push_back(track);
+                }
+            }
+        }
+
         std::lock_guard<std::mutex> lock(g_mutex);
+        for (auto &track: subtitles) {
+            std::string key, leaf = track.path.substr(track.path.rfind('/') + 1);
+            if (g_byRemote.count(track.path) > 0
+                || !place(c2d::Io::File(leaf, track.path, c2d::Io::Type::File, 0), &key)) {
+                continue;
+            }
+            g_jobs.push_back({false, c2d::Io::File(leaf, track.path, c2d::Io::Type::File, 0), key});
+        }
+        if (!subtitles.empty()) {
+            spawn();
+        }
         auto it = g_files.find(job.key);
         if (it == g_files.end() || it->second.cancel != cancel) {
             changed();
