@@ -139,6 +139,10 @@ Http::Response Http::perform(const Request &request) {
     curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
     curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "pPlay/" APP_VERSION);
+    if (!Utility::isTlsVerify()) {
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+    }
 #if defined(__PS4__) || defined(__PS5__) || defined(__ANDROID__)
     curl_easy_setopt(curl, CURLOPT_CAINFO, Utility::getCertificatesPath().c_str());
 #elif defined(__LINUX__)

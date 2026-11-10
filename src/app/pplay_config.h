@@ -21,6 +21,8 @@
 #define OPT_LAST_NETWORK_PATH "NETWORK1_LAST"
 #define OPT_LAST_MODULE "LAST_MODULE"
 #define OPT_NETWORK_TIMEOUT "NETWORK_TIMEOUT"
+// TLS certificates checked (mpv, curl, the media probes): 1 on, 0 off
+#define OPT_TLS_VERIFY "TLS_VERIFY"
 #define OPT_NETWORK_RETRIES "NETWORK_RETRIES"
 #ifdef __SMB2__
 #define OPT_SMB_READ_BUFFER_MB "SMB_READ_BUFFER_MB"

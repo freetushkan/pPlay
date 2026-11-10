@@ -33,6 +33,7 @@
 #include <mbedtls/version.h>
 #endif
 #include <cstdio>
+#include <atomic>
 #include <chrono>
 #include <mutex>
 #include <unordered_map>
@@ -511,6 +512,16 @@ bool Utility::deleteWatchLater(const std::string &video_path) {
         return deleteFile(path);
     }
     return false;
+}
+
+static std::atomic<bool> g_tlsVerify{true};
+
+bool Utility::isTlsVerify() {
+    return g_tlsVerify;
+}
+
+void Utility::setTlsVerify(bool verify) {
+    g_tlsVerify = verify;
 }
 
 #if defined(__PS4__) || defined(__PS5__) || defined(__ANDROID__)

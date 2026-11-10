@@ -73,6 +73,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     }
     addOption({OPT_LAST_MODULE, "LOCAL"});
     addOption({OPT_NETWORK_TIMEOUT, (int) 15});
+    addOption({OPT_TLS_VERIFY, (int) 1});
     addOption({OPT_NETWORK_RETRIES, (int) 3});
 #ifdef __SMB2__
     addOption({OPT_SMB_READ_BUFFER_MB, (int) 10});
