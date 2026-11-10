@@ -212,7 +212,8 @@ void Main::applyConfig() {
     pplay::Saved::configChanged();
     pplay::TorrServe::setSyncInterval(config->getOption(OPT_TS_VIEWED_SYNC)->getInteger());
     static int hidden = -1;
-    int showHidden = config->getOption(OPT_SHOW_HIDDEN)->getInteger();
+    int showHidden = config->getOption(OPT_SHOW_HIDDEN)->getInteger()
+                     + 2 * config->getOption(OPT_SHOW_ALL_FILES)->getInteger();
     if (hidden >= 0 && showHidden != hidden && filer != nullptr) {
         MediaFile selected = filer->getSelection();
         filer->getDir(filer->getPath());

@@ -77,6 +77,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Text encoding", "encoding.png", Pos::Top),
                                   MenuItem("Accent color", "color.png", Pos::Top),
                                   MenuItem("Hidden files", "hidden.png", Pos::Top),
+                                  MenuItem("Other files", "file_other.png", Pos::Top),
                                   MenuItem("Saved section", "saved.png", Pos::Top),
                                   MenuItem("Playlists section", "playlist.png", Pos::Top),
                                   MenuItem("Swap controls", "swap.png", Pos::Top),
@@ -320,6 +321,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     addSubmenu("Playlists section", "The Playlists section in the menu", OPT_SHOW_PLAYLISTS,
                makeIntItems({{"If not empty", 1}, {"Not shown", 0}}), Submenu::ValueType::Integer);
     addSubmenu("Hidden files", "Files and folders starting with a dot", OPT_SHOW_HIDDEN,
+               makeIntItems({{"Hidden", 0}, {"Shown", 1}}), Submenu::ValueType::Integer);
+    addSubmenu("Other files", "Files that are not media", OPT_SHOW_ALL_FILES,
                makeIntItems({{"Hidden", 0}, {"Shown", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Saving threads", "Files saved at once", OPT_SAVE_THREADS,
                makeIntItems({{"1", 1}, {"2", 2}, {"3", 3}, {"4", 4}}), Submenu::ValueType::Integer);

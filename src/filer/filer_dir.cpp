@@ -124,6 +124,11 @@ bool Filer::getDir(const std::string &p) {
     pplay::Io::DeviceType type = ((pplay::Io *) main->getIo())->getDeviceType(p);
     int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
     bool hidden = main->getConfig()->getOption(OPT_SHOW_HIDDEN)->getInteger() != 0;
+    // all the files (not while picking a track file)
+    bool all = !picking && main->getConfig()->getOption(OPT_SHOW_ALL_FILES)->getInteger() != 0;
+    if (all) {
+        listed.clear();
+    }
     // a playlist: its entries, as listed in it; the saved copies: from their index
     bool playlist = pplay::Playlists::isPlaylist(path);
     bool saved = !playlist && type == pplay::Io::DeviceType::Local && pplay::Saved::isInside(path);
@@ -147,7 +152,7 @@ bool Filer::getDir(const std::string &p) {
             rank = r;
             cover = file.path;
         }
-        bool wanted = file.type != Io::Type::File || playlist;
+        bool wanted = file.type != Io::Type::File || playlist || all;
         for (auto &e: ext) {
             wanted = wanted || Utility::endsWith(file.name, e, false);
         }

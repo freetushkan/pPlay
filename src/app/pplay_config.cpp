@@ -129,6 +129,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_SAVE_MAX_GB, (int) 0});
     addOption({OPT_LAST_SAVED_PATH, ""});
     addOption({OPT_SHOW_HIDDEN, (int) 0});
+    addOption({OPT_SHOW_ALL_FILES, (int) 0});
     addOption({OPT_STAY_AWAKE, (int) 0});
 #ifdef __PS5__
     addOption({OPT_PS5_SLEEP_TIMER, (int) 0});

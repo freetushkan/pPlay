@@ -98,6 +98,8 @@
 #define OPT_STAY_AWAKE "STAY_AWAKE"
 // ".name" files and directories listed
 #define OPT_SHOW_HIDDEN "SHOW_HIDDEN"
+// all the files listed (not only the media ones): 1
+#define OPT_SHOW_ALL_FILES "SHOW_ALL_FILES"
 // the playlist added to last, the last location in the playlists
 #define OPT_LAST_PLAYLIST "LAST_PLAYLIST"
 #define OPT_LAST_PLAYLISTS_PATH "LAST_PLAYLISTS_PATH"
