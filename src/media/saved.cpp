@@ -664,6 +664,8 @@ namespace {
                 return;
             }
             data = std::move(response.body);
+            std::string error;
+            PosterCache::store(poster, data, &error);
         }
         std::lock_guard<std::mutex> lock(g_mutex);
         auto it = g_torrents.find(torrent);
