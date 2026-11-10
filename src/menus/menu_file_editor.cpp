@@ -9,7 +9,6 @@
 
 using namespace c2d;
 
-#define ID_EDIT_ALL (-100)
 #define ID_ADD_LINE (-101)
 #define ID_FILE (-102)
 #define ID_EXTERNAL (-103)
@@ -88,17 +87,9 @@ void MenuFileEditor::openFile(const std::string &relativePath, int selectLine) {
     setCompact(true);
 
     std::vector<MenuItem> items;
-    std::string whole = text;
-    if (!whole.empty() && whole.back() == '\n') {
-        whole.pop_back();
-    }
-    const bool canEditAll = pplay::Keyboard::length(whole) <= pplay::Keyboard::maxLength(true);
 #ifdef __LINUX__
     items.emplace_back("Open in a text editor", "", MenuItem::Position::Top, ID_EXTERNAL);
 #endif
-    if (canEditAll) {
-        items.emplace_back("Edit whole file", "", MenuItem::Position::Top, ID_EDIT_ALL);
-    }
     for (size_t i = 0; i < lines.size(); i++) {
         MenuItem item("line", "", MenuItem::Position::Top, (int) i);
         item.label = lines[i].empty() ? pplay::tr("<empty line>") : lines[i];
@@ -112,7 +103,7 @@ void MenuFileEditor::openFile(const std::string &relativePath, int selectLine) {
 #ifdef __LINUX__
         first++;
 #endif
-        int target = std::min(selectLine + first + (canEditAll ? 1 : 0), (int) buttons.size() - 1);
+        int target = std::min(selectLine + first, (int) buttons.size() - 1);
         index = target;
         updateSelectionState();
         ensureSelectionVisible();
@@ -157,25 +148,6 @@ bool MenuFileEditor::save(const std::vector<std::string> &newLines) {
     return true;
 }
 
-void MenuFileEditor::editAll() {
-    std::string text = joinLines(lines);
-    if (!text.empty() && text.back() == '\n') {
-        text.pop_back();
-    }
-    if (pplay::Keyboard::length(text) > pplay::Keyboard::maxLength(true)) {
-        main->showMessage(pplay::tr("Info"),
-                          pplay::tr("The file is too long for the keyboard, edit it line by line"), pplay::tr("OK"));
-        return;
-    }
-    if (!pplay::Keyboard::edit(currentFile, text, true)) {
-        return;
-    }
-    std::string file = currentFile;
-    if (save(splitLines(text))) {
-        openFile(file);
-    }
-}
-
 void MenuFileEditor::editLine(int line) {
     std::vector<std::string> newLines = lines;
     std::string text = line < (int) lines.size() ? lines[line] : std::string();
@@ -213,8 +185,6 @@ void MenuFileEditor::onOptionSelection(MenuItem *item) {
     }
     if (id == ID_EXTERNAL) {
         openExternal();
-    } else if (id == ID_EDIT_ALL) {
-        editAll();
     } else if (id == ID_ADD_LINE) {
         editLine((int) lines.size());
     } else if (id >= 0) {

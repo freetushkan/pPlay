@@ -1,6 +1,6 @@
 //
 // Settings > Edit files: pplay.cfg and mpv files, edited with the system keyboard
-// (whole file or line by line).
+// (line by line).
 //
 
 #ifndef PPLAY_MENU_FILE_EDITOR_H
@@ -30,7 +30,6 @@ private:
 
     void openFile(const std::string &relativePath, int selectLine = -1);
 
-    void editAll();
 
     void editLine(int line);
 

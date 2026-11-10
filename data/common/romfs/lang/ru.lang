@@ -89,14 +89,12 @@ Classic Red = Классический красный
 
 # Configuration files editor
 Edit files = Редактор файлов
-Edit whole file = Редактировать весь файл
 Add a line = Добавить строку
 <empty line> = <пустая строка>
 Configuration applied = Настройки применены
 Could not write = Не удалось записать
 Invalid configuration, the changes were discarded = Ошибка в настройках, изменения отменены
 Saved, restart pPlay to apply mpv changes = Сохранено, перезапустите pPlay для применения настроек mpv
-The file is too long for the keyboard, edit it line by line = Файл слишком длинный для клавиатуры, редактируйте по строкам
 
 # Files
 BACK = НАЗАД

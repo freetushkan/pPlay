@@ -112,8 +112,12 @@ void LogView::show() {
     using pplay::InputMap::buttonName;
     title->setString(pplay::tr("Log") + ": " + pplay::Utility::getLogPath());
     hint->setString(buttonName(Input::Up) + buttonName(Input::Down) + " / " + buttonName(Input::Left)
-                    + buttonName(Input::Right) + ": " + pplay::tr("Scroll") + "   " + buttonName(Input::Y) + ": "
-                    + pplay::tr("Clear log") + "   " + buttonName(Input::B) + ": " + pplay::tr("Back"));
+                    + buttonName(Input::Right) + ": " + pplay::tr("Scroll") + "   "
+#ifndef __ANDROID__
+                    // (a TV remote: no such key, Settings clears it)
+                    + buttonName(Input::Y) + ": " + pplay::tr("Clear log") + "   "
+#endif
+                    + buttonName(Input::B) + ": " + pplay::tr("Back"));
     box->setOutlineColor(COLOR_ACCENT);
     load();
     render();
@@ -146,11 +150,16 @@ bool LogView::onInput(c2d::Input::Player *players) {
         setVisibility(Visibility::Hidden);
         return true;
     }
+#ifndef __ANDROID__
     if (keys & Input::Y) {
         pplay::Utility::clearLog();
         main->getStatus()->show("Info", pplay::tr("Log cleared"));
         load();
-    } else if (keys & (Input::Up | Input::Down)) {
+        render();
+        return true;
+    }
+#endif
+    if (keys & (Input::Up | Input::Down)) {
         first += (keys & Input::Up) ? -1 : 1;
     } else if (keys & (Input::Left | Input::Right | Input::LB | Input::RB)) {
         first += ((keys & (Input::Left | Input::LB)) ? -1 : 1) * std::max(1, maxLines - 1);

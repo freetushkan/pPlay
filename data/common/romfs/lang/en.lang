@@ -90,14 +90,12 @@ Classic Red = Classic Red
 
 # Configuration files editor
 Edit files = Edit files
-Edit whole file = Edit whole file
 Add a line = Add a line
 <empty line> = <empty line>
 Configuration applied = Configuration applied
 Could not write = Could not write
 Invalid configuration, the changes were discarded = Invalid configuration, the changes were discarded
 Saved, restart pPlay to apply mpv changes = Saved, restart pPlay to apply mpv changes
-The file is too long for the keyboard, edit it line by line = The file is too long for the keyboard, edit it line by line
 
 # Files
 BACK = BACK
