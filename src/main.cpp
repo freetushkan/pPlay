@@ -317,6 +317,20 @@ void Main::onUpdate() {
     }
 
     pplay::Saved::update();
+#ifdef __ANDROID__
+    // a link / file opened with pPlay from another app
+    static C2DClock viewClock;
+    if (viewClock.getElapsedTime().asMilliseconds() > 500) {
+        viewClock.restart();
+        std::string name, url = pplay::Platform::takeViewed(&name);
+        if (!url.empty()) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: opened from another app: " + url);
+            c2d::Io::File file(name, url, c2d::Io::Type::File, 0);
+            player->setFullscreen(true);
+            player->load(MediaFile(file, MediaInfo(file)));
+        }
+    }
+#endif
     // awake while playing / saving, up to the minutes without a key (0: always)
     bool playing = player != nullptr && !player->getMpv()->isStopped() && !player->getMpv()->isPaused();
     int awakeMinutes = config->getOption(OPT_STAY_AWAKE)->getInteger();

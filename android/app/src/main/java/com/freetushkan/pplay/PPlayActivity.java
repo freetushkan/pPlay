@@ -11,6 +11,10 @@ package com.freetushkan.pplay;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.database.Cursor;
+import android.net.Uri;
+import android.os.ParcelFileDescriptor;
+import android.provider.OpenableColumns;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
@@ -67,6 +71,55 @@ public class PPlayActivity extends SDLActivity {
         askStorage();
         instance = this;
         super.onCreate(savedInstanceState);
+        takeView(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        takeView(intent);
+    }
+
+    // a link / file opened with pPlay (VIEW): "<url>\n<name>", taken by the native part
+    private static volatile String viewed = null;
+
+    private void takeView(Intent intent) {
+        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction()) || intent.getData() == null) {
+            return;
+        }
+        Uri uri = intent.getData();
+        String name = uri.getLastPathSegment() != null ? uri.getLastPathSegment() : uri.toString();
+        String url = uri.toString();
+        if ("content".equals(uri.getScheme())) {
+            try (Cursor c = getContentResolver().query(uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+                if (c != null && c.moveToFirst() && c.getString(0) != null) {
+                    name = c.getString(0);
+                }
+            } catch (Exception ignored) {
+            }
+            try {
+                ParcelFileDescriptor fd = getContentResolver().openFileDescriptor(uri, "r");
+                if (fd == null) {
+                    return;
+                }
+                url = "fd://" + fd.detachFd();
+            } catch (Exception e) {
+                Log.e(TAG, "can't open " + uri, e);
+                return;
+            }
+        } else if ("file".equals(uri.getScheme())) {
+            url = uri.getPath();
+        }
+        if (intent.getStringExtra("title") != null) {
+            name = intent.getStringExtra("title");
+        }
+        viewed = url + "\n" + name;
+    }
+
+    public static String takeViewed() {
+        String v = viewed;
+        viewed = null;
+        return v;
     }
 
     // a new install or update: the bundled files again

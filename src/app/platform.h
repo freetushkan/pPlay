@@ -42,6 +42,9 @@ namespace pplay::Platform {
     // the console put to sleep now (PS5: rest mode); false if it can't
     bool sleepNow();
 
+    // a link / file given by the system to open (Android VIEW): its url, "" if none
+    std::string takeViewed(std::string *name);
+
     // the screen backlight 0..1 (Switch handheld), -1 if none
     float backlight();
 

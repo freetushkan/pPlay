@@ -570,6 +570,42 @@ namespace pplay::Platform {
         (void) playing;
     }
 
+    std::string takeViewed(std::string *name) {
+#ifdef __ANDROID__
+        auto *env = (JNIEnv *) SDL_AndroidGetJNIEnv();
+        auto activity = (jobject) SDL_AndroidGetActivity();
+        if (env == nullptr || activity == nullptr) {
+            return "";
+        }
+        std::string value;
+        jclass cls = env->GetObjectClass(activity);
+        jmethodID mid = env->GetStaticMethodID(cls, "takeViewed", "()Ljava/lang/String;");
+        if (mid == nullptr) {
+            env->ExceptionClear();
+        } else {
+            auto result = (jstring) env->CallStaticObjectMethod(cls, mid);
+            if (env->ExceptionCheck()) {
+                env->ExceptionClear();
+            } else if (result != nullptr) {
+                const char *utf = env->GetStringUTFChars(result, nullptr);
+                if (utf != nullptr) {
+                    value = utf;
+                    env->ReleaseStringUTFChars(result, utf);
+                }
+                env->DeleteLocalRef(result);
+            }
+        }
+        env->DeleteLocalRef(cls);
+        env->DeleteLocalRef(activity);
+        size_t nl = value.find('\n');
+        *name = nl == std::string::npos ? value : value.substr(nl + 1);
+        return value.substr(0, nl);
+#else
+        (void) name;
+        return "";
+#endif
+    }
+
     bool sleepNow() {
 #ifdef __PS5__
         int res = sceSystemStateMgrEnterStandby();
