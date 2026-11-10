@@ -13,8 +13,11 @@
 namespace pplay {
 
     class Utility {
-
     public:
+        // certificates checked (all: mpv, curl, the media probes); the setting
+        static bool isTlsVerify();
+
+        static void setTlsVerify(bool verify);
 
         enum class LogLevel {
             Off = 0,
@@ -113,10 +116,6 @@ namespace pplay {
 #if defined(__PS4__) || defined(__PS5__) || defined(__LINUX__) || defined(__ANDROID__)
         static std::string getCertificatesPath();
 
-        // certificates checked (all: mpv, curl, the media probes); the setting
-        static bool isTlsVerify();
-
-        static void setTlsVerify(bool verify);
 #endif
 
         static std::string getKeysString(unsigned int keys);
