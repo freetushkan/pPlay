@@ -157,7 +157,10 @@ void KeyHints::applyColors() {
     for (int i = 0; i < (int) items.size(); i++) {
         auto *text = texts[i];
         if (buttons && i == focus) {
-            items[i]->setFillColor(COLOR_ACCENT);
+            // the accent a bit darker: the white text readable on it
+            Color accent = COLOR_ACCENT;
+            items[i]->setFillColor({(uint8_t) (accent.r * 0.78f), (uint8_t) (accent.g * 0.78f),
+                                    (uint8_t) (accent.b * 0.78f), accent.a});
             text->setFillColor(COLOR_WHITE);
             if (icons[i] != nullptr) {
                 icons[i]->setFillColor(COLOR_WHITE);
