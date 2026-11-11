@@ -530,6 +530,7 @@ Mpv *Player::getMpv() {
 
 void Player::applyConfig() {
     // certificates checked (mpv: not by default), the next streams
+    pplay::Utility::setWatchedTolerance(main->getConfig()->getOption(OPT_WATCHED_TOLERANCE)->getInteger());
     pplay::Utility::setTlsVerify(main->getConfig()->getOption(OPT_TLS_VERIFY)->getInteger() != 0);
     mpv_set_property_string(mpv->getHandle(), "tls-verify", pplay::Utility::isTlsVerify() ? "yes" : "no");
     applyLanguages();

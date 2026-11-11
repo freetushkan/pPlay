@@ -514,6 +514,17 @@ bool Utility::deleteWatchLater(const std::string &video_path) {
     return false;
 }
 
+static std::atomic<int> g_watchedTolerance{0};
+
+void Utility::setWatchedTolerance(int seconds) {
+    g_watchedTolerance = seconds;
+}
+
+bool Utility::isNearEnd(double position, double duration) {
+    int tolerance = g_watchedTolerance;
+    return tolerance > 0 && duration > 0 && position > 0 && duration - position <= tolerance;
+}
+
 static std::atomic<bool> g_tlsVerify{true};
 
 bool Utility::isTlsVerify() {

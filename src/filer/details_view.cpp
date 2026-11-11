@@ -90,12 +90,12 @@ bool DetailsView::isResettable(const MediaFile &file) {
 
 bool DetailsView::isWatched(const MediaFile &file, double position) {
     std::string url = pplay::TorrServe::toStreamUrl(file.path);
+    long duration = file.mediaInfo.duration;
     if (pplay::Utility::isWatchLaterExist(url)) {
-        return pplay::Utility::isWatchLaterWatched(url);
+        return pplay::Utility::isWatchLaterWatched(url) || pplay::Utility::isNearEnd(position, (double) duration);
     }
     // the server one only: at its end (the player then starts over)
-    long duration = file.mediaInfo.duration;
-    return duration > 0 && position >= (double) duration - 30;
+    return duration > 0 && (position >= (double) duration - 30 || pplay::Utility::isNearEnd(position, (double) duration));
 }
 
 void DetailsView::setFile(const MediaFile &f) {

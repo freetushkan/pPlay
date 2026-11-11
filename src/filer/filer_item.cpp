@@ -244,7 +244,8 @@ void FilerItem::updateWatched() {
     float part = 0;
     if (file.type == Io::Type::File && file.mediaInfo.duration > 0) {
         double position = pplay::TorrServe::keptPosition(file.path, main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger());
-        part = (float) std::min(1.0, position / (double) file.mediaInfo.duration);
+        part = pplay::Utility::isNearEnd(position, (double) file.mediaInfo.duration)
+               ? 1.0f : (float) std::min(1.0, position / (double) file.mediaInfo.duration);
     }
     if (part < 0.01f) {
         watchedTrack->setVisibility(Visibility::Hidden);

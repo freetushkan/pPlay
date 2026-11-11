@@ -185,7 +185,9 @@ namespace {
         }
         long duration = MediaInfo(c2d::Io::File(Paths::getLeafName(path), path, c2d::Io::Type::File)).duration;
         double position = TorrServe::keptPosition(path, g_config->getOption(OPT_TS_PROGRESS)->getInteger());
-        return duration > 0 && position > 0 && (double) duration - position <= std::max(90.0, duration * 0.1);
+        return duration > 0 && position > 0
+               && ((double) duration - position <= std::max(90.0, duration * 0.1)
+                   || Utility::isNearEnd(position, (double) duration));
     }
 
     void collect(const c2d::Io::File &dir, int depth, std::vector<c2d::Io::File> &out) {

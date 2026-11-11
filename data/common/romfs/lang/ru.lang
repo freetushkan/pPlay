@@ -444,3 +444,5 @@ When minimized = При сворачивании
 The app in the background (after a restart) = Приложение в фоне (после перезапуска)
 Closed, then resumed = Закрывается, затем возобновляется
 Offline = Офлайн
+Watched before the end = Просмотрено до конца за
+Watched if stopped that close to the end = Считать просмотренным, если до конца осталось не больше

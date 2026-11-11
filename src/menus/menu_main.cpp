@@ -248,6 +248,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 60.0f, 1.0f, "min");
     addSubmenu("Progress save interval", "Progress save interval", OPT_PROGRESS_INTERVAL, makeAdjustItems(),
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 5.0f, 120.0f, 5.0f, "s");
+    addSubmenu("Watched before the end", "Watched if stopped that close to the end", OPT_WATCHED_TOLERANCE,
+               makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 600.0f, 5.0f, "s");
     addSubmenu("Progress line", "Progress line always on screen", OPT_PROGRESS_LINE,
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Folder marks", "Folders watched in the list", OPT_FOLDER_MARKS,

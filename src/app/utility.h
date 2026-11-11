@@ -19,6 +19,11 @@ namespace pplay {
 
         static void setTlsVerify(bool verify);
 
+        // a position that close to the end: watched (the setting, seconds, 0 off)
+        static void setWatchedTolerance(int seconds);
+
+        static bool isNearEnd(double position, double duration);
+
         enum class LogLevel {
             Off = 0,
             Error = 1,

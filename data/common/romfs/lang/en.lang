@@ -445,3 +445,5 @@ When minimized = When minimized
 The app in the background (after a restart) = The app in the background (after a restart)
 Closed, then resumed = Closed, then resumed
 Offline = Offline
+Watched before the end = Watched before the end
+Watched if stopped that close to the end = Watched if stopped that close to the end
