@@ -162,6 +162,10 @@ private:
     // the session kept at the exit, once
     void restoreSession();
 
+    // a link / file given by another app: a TorrServer one in its network (listed, selected),
+    // else played as it is
+    void openLink(const std::string &url, const std::string &name);
+
     // the network of a path, -1 local
     int moduleOf(const std::string &path);
 

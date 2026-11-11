@@ -8,6 +8,8 @@
 #include "paths.h"
 #include "saved.h"
 #include "playlists.h"
+#include "torrserve.h"
+#include "pplay_config.h"
 
 using namespace c2d;
 using namespace pplay;
@@ -143,6 +145,49 @@ void Main::show(MenuType type) {
         }
         filer->clearHistory();
     }
+}
+
+void Main::openLink(const std::string &url, const std::string &name) {
+    // the current network first, then the others (one host: several users)
+    std::vector<int> order;
+    if (currentModuleIndex > 0) {
+        order.push_back(currentModuleIndex);
+    }
+    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+        if (i != currentModuleIndex) {
+            order.push_back(i);
+        }
+    }
+    int timeout = config->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
+    for (int i: order) {
+        std::string network = Paths::ensureTrailingSlash(config->getOption(PPLAYConfig::networkOption(i))->getString());
+        if (network == "/" || pplayIo->getDeviceType(network) != pplay::Io::DeviceType::TorrServe
+            || !TorrServe::isLinkOf(network, url)) {
+            continue;
+        }
+        c2d::Io::File found;
+        if (!TorrServe::findLinkFile(network, url, timeout, &found)) {
+            continue;
+        }
+        currentModuleIndex = i;
+        filer->setVisibility(Visibility::Visible, true);
+        if (filer->getDir(Paths::extractDirPath(found.path))) {
+            filer->selectByPath(found.path);
+            filer->clearHistory();
+            MediaFile file = filer->getSelection();
+            if (file.path == found.path) {
+                pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: link of network " + std::to_string(i)
+                                                                            + ": " + found.path);
+                syncLastLocation();
+                player->setFullscreen(true);
+                player->load(file);
+                return;
+            }
+        }
+    }
+    c2d::Io::File file(name, url, c2d::Io::Type::File, 0);
+    player->setFullscreen(true);
+    player->load(MediaFile(file, MediaInfo(file)));
 }
 
 int Main::moduleOf(const std::string &path) {

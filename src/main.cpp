@@ -325,9 +325,7 @@ void Main::onUpdate() {
         std::string name, url = pplay::Platform::takeViewed(&name);
         if (!url.empty()) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: opened from another app: " + url);
-            c2d::Io::File file(name, url, c2d::Io::Type::File, 0);
-            player->setFullscreen(true);
-            player->load(MediaFile(file, MediaInfo(file)));
+            openLink(url, name);
         }
         // the media session: the state on change (the position: a jump of over 2 s)
         static std::string lastTitle;

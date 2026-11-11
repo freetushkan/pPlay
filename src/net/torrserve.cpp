@@ -733,6 +733,76 @@ namespace pplay::TorrServe {
         return replaceScheme(rootOf(path)) + "stream/?link=" + hash + "&index=" + std::to_string(index) + "&play";
     }
 
+    namespace {
+        struct LinkParts {
+            std::string user, host, base, hash;
+            int index = -1;
+        };
+
+        // scheme://[user[:password]@]host[:port]/<base>[stream...|play/...]
+        LinkParts linkParts(const std::string &u, bool link) {
+            LinkParts parts;
+            std::string url = replaceScheme(u);
+            size_t scheme = url.find("://");
+            if (scheme == std::string::npos) {
+                return parts;
+            }
+            size_t slash = url.find('/', scheme + 3);
+            std::string authority = url.substr(scheme + 3, slash == std::string::npos ? std::string::npos : slash - scheme - 3);
+            std::string path = slash == std::string::npos ? "/" : url.substr(slash);
+            size_t at = authority.rfind('@');
+            if (at != std::string::npos) {
+                parts.user = authority.substr(0, std::min(authority.find(':'), at));
+                authority = authority.substr(at + 1);
+            }
+            parts.host = c2d::Utility::toLower(authority);
+            if (!link) {
+                parts.base = c2d::Utility::endsWith(path, "/") ? path : path + "/";
+                return parts;
+            }
+            size_t query = path.find('?');
+            std::string route = path.substr(0, query);
+            size_t play = route.find("/play/");
+            size_t stream = route.find("/stream");
+            if (play != std::string::npos) {
+                // /play/<hash>/<index>
+                parts.base = route.substr(0, play + 1);
+                std::string rest = route.substr(play + 6);
+                size_t sep = rest.find('/');
+                parts.hash = rest.substr(0, sep);
+                parts.index = sep == std::string::npos ? 1 : std::atoi(rest.c_str() + sep + 1);
+            } else if (stream != std::string::npos && fileLink(path, parts.hash, parts.index)) {
+                parts.base = route.substr(0, stream + 1);
+            }
+            parts.hash = c2d::Utility::toLower(unescapeSegment(parts.hash));
+            return parts;
+        }
+    }
+
+    bool isLinkOf(const std::string &network, const std::string &url) {
+        LinkParts link = linkParts(url, true), net = linkParts(network, false);
+        return !link.hash.empty() && !link.host.empty() && link.host == net.host && link.base == net.base
+               && (link.user.empty() || link.user == net.user);
+    }
+
+    bool findLinkFile(const std::string &network, const std::string &url, int timeout, c2d::Io::File *file) {
+        LinkParts link = linkParts(url, true);
+        std::vector<c2d::Io::File> files;
+        if (link.hash.empty() || !getTree(network, timeout, &files)) {
+            return false;
+        }
+        for (auto &f: files) {
+            std::string hash;
+            int index;
+            if (fileLink(f.path, hash, index) && index == link.index
+                && c2d::Utility::toLower(unescapeSegment(hash)) == link.hash) {
+                *file = f;
+                return true;
+            }
+        }
+        return false;
+    }
+
     unsigned int viewedGeneration() {
         std::lock_guard<std::mutex> lock(g_viewedMutex);
         return g_viewedGeneration;

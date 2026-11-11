@@ -34,6 +34,12 @@ namespace pplay::TorrServe {
     bool getTree(const std::string &path, int timeout, std::vector<c2d::Io::File> *files);
 
     std::string toStreamUrl(const std::string &path);
+
+    // a TorrServer link (".../stream/...?link=<hash>&index=<n>", ".../play/<hash>/<n>") of this
+    // network (its host, port and path; the user too if the link has one)
+    bool isLinkOf(const std::string &network, const std::string &url);
+    // its file in the network, listed (false: no such torrent / file there)
+    bool findLinkFile(const std::string &network, const std::string &url, int timeout, c2d::Io::File *file);
     // wait: may ask the server now (worker threads, a load); else the cache (the last run's
     // too), a stale or missing entry fetched in the background (then viewedGeneration
     // changes); cached: the cache only, nothing asked
