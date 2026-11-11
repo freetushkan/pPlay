@@ -640,6 +640,10 @@ void Filer::onUpdate() {
     MediaFile probed;
     if (probe->poll(&probed)) {
         setMediaInfo(probed, probed.mediaInfo);
+        std::string error = probe->takeError();
+        if (!error.empty()) {
+            main->getStatus()->show("Error", encoding::fix(error));
+        }
     }
     if (dirty) {
         setSelection(item_index);

@@ -38,6 +38,9 @@ public:
 
     void clearBackground();
 
+    // a probe failed (its first time): "<name>: <error>", once; "" if none
+    std::string takeError();
+
 private:
 
     static int run(void *data);
@@ -55,6 +58,8 @@ private:
     std::atomic<bool> done{false};
     std::atomic<bool> failed{false};
     bool delivered = false;
+    std::string error;
+    std::string failure;
 };
 
 #endif //PPLAY_MEDIA_PROBE_H

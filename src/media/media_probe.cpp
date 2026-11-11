@@ -154,6 +154,12 @@ void MediaProbe::clearBackground() {
     background.clear();
 }
 
+std::string MediaProbe::takeError() {
+    std::string out;
+    out.swap(failure);
+    return out;
+}
+
 void MediaProbe::reset() {
     tried.clear();
     failures.clear();
@@ -172,7 +178,11 @@ bool MediaProbe::poll(MediaFile *file) {
         thread = nullptr;
         *file = job;
         finished = true;
-        if (failed && ++failures[job.path] < PROBE_TRIES) {
+        int count = failed ? ++failures[job.path] : 0;
+        if (count == 1) {
+            failure = job.name + ": " + (error.empty() ? "error" : error);
+        }
+        if (failed && count < PROBE_TRIES) {
             tried.erase(job.path);
         }
     }
@@ -241,6 +251,7 @@ int MediaProbe::run(void *data) {
         info.save(self->job);
     }
     self->failed = failed;
+    self->error = error;
     self->job.mediaInfo = info;
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "MediaProbe: " + url + (error.empty() ? "" : ": " + error)
                                                                 + " (" + std::to_string(info.videos.size()) + "v "
