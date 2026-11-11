@@ -80,13 +80,6 @@ void KeyHints::setHints(const std::vector<Hint> &list) {
         if (glyph != nullptr) {
             icon = new Sprite(glyph);
             item->add(icon);
-        } else if (hint.keys != 0) {
-            // no glyph: the key name
-            std::string name;
-            for (unsigned int bit = 1; bit != 0; bit <<= 1) {
-                name += (hint.keys & bit) ? pplay::InputMap::buttonName(bit) : "";
-            }
-            label = name + " " + label;
         }
         auto *text = new C2DText(label, main->getFontSize(Main::FontSize::Small), main->getFont());
         item->add(text);
@@ -130,6 +123,12 @@ void KeyHints::layout() {
     for (size_t i = 0; i < items.size(); i++) {
         auto *item = items[i];
         auto *text = texts[i];
+        // a key with no glyph (not on an Android remote): a button only, no hint
+        bool shown = buttons || hints[i].keys == 0 || icons[i] != nullptr;
+        item->setVisibility(shown ? Visibility::Visible : Visibility::Hidden);
+        if (!shown) {
+            continue;
+        }
         // the glyph a bit higher than the letters, then the action
         float iconWidth = 0;
         if (icons[i] != nullptr) {
