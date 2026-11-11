@@ -786,8 +786,17 @@ namespace pplay::TorrServe {
 
     bool findLinkFile(const std::string &network, const std::string &url, int timeout, c2d::Io::File *file) {
         LinkParts link = linkParts(url, true);
+        if (link.hash.empty()) {
+            return false;
+        }
+        // the list asked again: the torrent may have been added just now
+        {
+            std::lock_guard<std::mutex> lock(g_cacheMutex);
+            g_torrentsAt.erase(apiRoot(network));
+            g_torrentsFailedAt.erase(apiRoot(network));
+        }
         std::vector<c2d::Io::File> files;
-        if (link.hash.empty() || !getTree(network, timeout, &files)) {
+        if (!getTree(network, timeout, &files)) {
             return false;
         }
         for (auto &f: files) {
