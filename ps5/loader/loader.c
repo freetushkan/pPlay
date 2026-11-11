@@ -1,7 +1,6 @@
 /*
  * pPlay PS5 loader, sent to elfldr by the launcher package: syncs the package
- * files to /data/homebrew/pplay, the shared libraries to /user/homebrew/lib, then
- * starts pplay.elf as the BigApp (closing the launcher). Errors are reported on
+ * files to /data/homebrew/pplay, then starts pplay.elf as the BigApp (closing the launcher). Errors are reported on
  * stdout ("PPLAY_ERROR ...") and with notifications.
  * Changed files: by the package manifest (ps5/pplay/.manifest, "<sha256> <size> <path>"
  * lines) against the one installed with them, else by their size and mtime.
@@ -37,9 +36,7 @@
 #define MARKER          PKG_SUBDIR "/pplay.elf"
 #define ZST_EXT         ".zst"
 #define DATA_DIR        "/data/homebrew/pplay"
-#define LIB_DIR         "/user/homebrew/lib"
 #define MANIFEST        ".manifest"
-#define MAX_UPDATED     64
 
 typedef struct notify_request {
     char useless1[45];
@@ -194,9 +191,6 @@ typedef struct manifest {
 // count -1: no manifest
 static manifest_t g_package = {NULL, -1};
 static manifest_t g_installed = {NULL, -1};
-// the libraries updated in the data directory, installed again
-static char g_updated[MAX_UPDATED][256];
-static int g_updated_count = 0;
 
 static void load_manifest(const char *path, manifest_t *m) {
     char line[PATH_MAX + 128];
@@ -416,9 +410,6 @@ static int sync_tree(const char *src, const char *dst, const char *rel, int *cop
             ret = fail("can't %s %s (%s)", packed ? "unpack" : "copy", d, strerror(errno));
         } else {
             (*copied)++;
-            if (!rel[0] && g_updated_count < MAX_UPDATED) {
-                snprintf(g_updated[g_updated_count++], sizeof(g_updated[0]), "%s", r);
-            }
         }
     }
 
@@ -426,46 +417,8 @@ static int sync_tree(const char *src, const char *dst, const char *rel, int *cop
     return ret;
 }
 
-static int is_shared_lib(const char *name) {
-    return strstr(name, ".so") != NULL;
-}
-
-// shared libraries -> /user/homebrew/lib
-static int install_libs(const char *src_dir, int *copied) {
-    char s[PATH_MAX], d[PATH_MAX];
-    struct dirent *e;
-    struct stat st;
-    DIR *dir;
-    int ret = 0;
-
-    if (!(dir = opendir(src_dir))) {
-        return 0;
-    }
-    while (ret == 0 && (e = readdir(dir))) {
-        if (!is_shared_lib(e->d_name)) {
-            continue;
-        }
-        snprintf(s, sizeof(s), "%s/%s", src_dir, e->d_name);
-        snprintf(d, sizeof(d), "%s/%s", LIB_DIR, e->d_name);
-        int updated = 0;
-        for (int i = 0; i < g_updated_count; i++) {
-            updated |= !strcmp(g_updated[i], e->d_name);
-        }
-        if (stat(s, &st) != 0 || !S_ISREG(st.st_mode) || (!updated && same_file(&st, st.st_size, d))) {
-            continue;
-        }
-        if (mkdirs(LIB_DIR) != 0) {
-            ret = fail("can't create %s (%s)", LIB_DIR, strerror(errno));
-        } else if (copy_file(s, d, &st) != 0) {
-            ret = fail("can't copy %s (%s)", d, strerror(errno));
-        } else {
-            (*copied)++;
-        }
-    }
-    closedir(dir);
-    return ret;
-}
-
+// the libraries (Mesa...) from its directory: LD_LIBRARY_PATH, searched before
+// /user/homebrew/lib by the SDK's loader
 static int launch_bigapp(const char *dir, const char *elf) {
     char env[PATH_MAX + 32];
     char *argv[] = {NULL};
@@ -515,9 +468,6 @@ int main(int argc, char *argv[]) {
     load_manifest(DATA_DIR "/" MANIFEST, &g_installed);
 
     if (sync_tree(src, DATA_DIR, "", &copied) != 0) {
-        return EXIT_FAILURE;
-    }
-    if (install_libs(DATA_DIR, &copied) != 0) {
         return EXIT_FAILURE;
     }
     // all in place: what is installed now
