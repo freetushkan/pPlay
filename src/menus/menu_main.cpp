@@ -101,7 +101,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
             MenuItem("Edit files", "edit.png", Pos::Top),
             MenuItem("Media information", "media_info.png", Pos::Top),
             MenuItem("Clear cache", "clear_cache.png", Pos::Top),
-            MenuItem("Standby after", "awake.png", Pos::Top),
+            MenuItem("Standby", "awake.png", Pos::Top),
     };
 #ifdef __SWITCH__
     system.emplace_back("CPU boost", "cpu.png", Pos::Top);
@@ -244,7 +244,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 60.0f, 1.0f, "min");
     addSubmenu("Progress save interval", "Progress save interval", OPT_PROGRESS_INTERVAL, makeAdjustItems(),
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 5.0f, 120.0f, 5.0f, "s");
-    addSubmenu("Watched before the end", "Watched if stopped that close to the end", OPT_WATCHED_TOLERANCE,
+    addSubmenu("End margin", "Watched with this left", OPT_WATCHED_TOLERANCE,
                makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 600.0f, 5.0f, "s");
     addSubmenu("Progress line", "Progress line always on screen", OPT_PROGRESS_LINE,
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
@@ -296,8 +296,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     addSubmenu("When minimized", "The app in the background (after a restart)", OPT_ANDROID_BACKGROUND,
                makeIntItems({{"Paused", 0}, {"Closed, then resumed", 1}}), Submenu::ValueType::Integer);
 #endif
-    addSubmenu("Standby after", "Standby after the time without keys, nothing playing", OPT_STANDBY_TIME,
-               makeIntItems({{"System", 0}, {"5 min", 5}, {"10 min", 10}, {"15 min", 15}, {"30 min", 30},
+    addSubmenu("Standby", "Standby when idle", OPT_STANDBY_TIME,
+               makeIntItems({{"By system", 0}, {"5 min", 5}, {"10 min", 10}, {"15 min", 15}, {"30 min", 30},
                              {"1 h", 60}, {"2 h", 120}, {"3 h", 180}}),
                Submenu::ValueType::Integer);
     addSubmenu("Restore last file", "The file playing at the exit opened at the start", OPT_RESTORE_SESSION,
