@@ -131,13 +131,13 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_LAST_SAVED_PATH, ""});
     addOption({OPT_SHOW_HIDDEN, (int) 0});
     addOption({OPT_SHOW_ALL_FILES, (int) 0});
-    // minutes without keys, nothing playing, to the standby (0: the system's); the Switch: its own
+    // idle minutes before standby, 0: system timers
 #ifdef __SWITCH__
     addOption({OPT_STANDBY_TIME, (int) 0});
 #else
     addOption({OPT_STANDBY_TIME, (int) 60});
 #endif
-    // the player menu: minutes playing without keys, -1 the end of the file, 0 off
+    // minutes, -1: end of file, 0: off
     addOption({OPT_SLEEP_TIMER, (int) 0});
 #ifdef __PS5__
     addOption({OPT_PS5_UI_4K, (int) 0});

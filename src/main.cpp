@@ -315,7 +315,6 @@ void Main::onUpdate() {
 
     pplay::Saved::update();
 #ifdef __ANDROID__
-    // a link / file opened with pPlay from another app
     static C2DClock viewClock;
     if (viewClock.getElapsedTime().asMilliseconds() > 500) {
         viewClock.restart();
@@ -324,7 +323,7 @@ void Main::onUpdate() {
             pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: opened from another app: " + url);
             openLink(url, name);
         }
-        // the media session: the state on change (the position: a jump of over 2 s)
+        // media session: updated on state change or a seek
         static std::string lastTitle;
         static int lastState = 0;
         static long lastPosition = 0;
@@ -340,7 +339,6 @@ void Main::onUpdate() {
         }
         lastPosition = position;
     }
-    // its commands
     for (std::string command = pplay::Platform::takeMediaCommand(); !command.empty();
          command = pplay::Platform::takeMediaCommand()) {
         Mpv *mpv = player->getMpv();
@@ -360,8 +358,7 @@ void Main::onUpdate() {
         }
     }
 #endif
-    // awake while playing (the sleep timer: up to it) or saving; else up to the standby time
-    // (the system's: its own timers)
+    // awake while playing or saving, otherwise until the standby time (0: system timers)
     bool playing = player != nullptr && !player->getMpv()->isStopped() && !player->getMpv()->isPaused();
     float idle = idleClock.getElapsedTime().asSeconds();
     int standby = config->getOption(OPT_STANDBY_TIME)->getInteger();
@@ -373,7 +370,6 @@ void Main::onUpdate() {
     }
     bool endSleep = player != nullptr && player->takeEndSleep();
     if (!sleepAsked && (endSleep || (playing && sleepMinutes > 0 && idle >= (float) sleepMinutes * 60))) {
-        // the sleep timer: paused, the session kept (the file playing now), the standby
         sleepAsked = true;
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: sleep timer");
         if (playing) {

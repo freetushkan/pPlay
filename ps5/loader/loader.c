@@ -417,8 +417,7 @@ static int sync_tree(const char *src, const char *dst, const char *rel, int *cop
     return ret;
 }
 
-// the libraries (Mesa...) from its directory: LD_LIBRARY_PATH, searched before
-// /user/homebrew/lib by the SDK's loader
+// libraries are found via LD_LIBRARY_PATH before /user/homebrew/lib
 static int launch_bigapp(const char *dir, const char *elf) {
     char env[PATH_MAX + 32];
     char *argv[] = {NULL};

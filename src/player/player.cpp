@@ -169,8 +169,8 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
         lastTime = 0;
         userPaused = false;
         progressForgotten = false;
-        // a restored session: its progress not written back until played a while (another
-        // client may have sent a newer one)
+        // restored session: progress written only after playing a while,
+        // another client may have a newer one
         holdProgress = loadPaused;
         holdFrom = -1;
     }
@@ -529,7 +529,6 @@ Mpv *Player::getMpv() {
 }
 
 void Player::applyConfig() {
-    // certificates checked (mpv: not by default), the next streams
     pplay::Utility::setWatchedTolerance(main->getConfig()->getOption(OPT_WATCHED_TOLERANCE)->getInteger());
     pplay::Utility::setTlsVerify(main->getConfig()->getOption(OPT_TLS_VERIFY)->getInteger() != 0);
     mpv_set_property_string(mpv->getHandle(), "tls-verify", pplay::Utility::isTlsVerify() ? "yes" : "no");
@@ -542,7 +541,7 @@ void Player::applyConfig() {
     mpv_command_string(mpv->getHandle(), ("set network-timeout " + std::to_string(timeout)).c_str());
     mpv->setCache(main->getConfig()->getOption(OPT_CACHE_SECS)->getInteger(),
                   main->getConfig()->getOption(OPT_CACHE_MB)->getInteger());
-    // the decoder, the quality: from the next file (the current one: the player menu)
+    // takes effect from the next file
     // the accent color, the setting
     updateAudioScreen();
 }

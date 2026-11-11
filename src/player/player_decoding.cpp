@@ -58,7 +58,6 @@ void Player::startDecoding() {
     // auto: the best one, a balanced one for the software decoder
     videoQuality = qualityAuto ? (decoderHardware ? 0 : QualityBalanced) : std::max(0, std::min(QualityFast, quality));
     qualityBeforeSoftware = qualityAuto ? 0 : videoQuality;
-    // the Auto settings
     dropsShare = config->getOption(OPT_AUTO_DROPS)->getInteger() / 100.0;
     dropsWindow = config->getOption(OPT_AUTO_DROPS_TIME)->getInteger();
     qualityDelay = (float) config->getOption(OPT_AUTO_QUALITY_DELAY)->getInteger();
@@ -170,7 +169,6 @@ void Player::updateDecoding() {
     if (mpv->isStopped()) {
         return;
     }
-    // the end of a switch: played again
     if (switching) {
         if (switchClock.getElapsedTime().asSeconds() < SwitchSecs) {
             return;
@@ -185,7 +183,6 @@ void Player::updateDecoding() {
         decodingClock.restart();
         return;
     }
-    // once a second
     if (decodingClock.getElapsedTime().asSeconds() < 1) {
         return;
     }

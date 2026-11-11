@@ -124,7 +124,6 @@ bool Filer::getDir(const std::string &p) {
     pplay::Io::DeviceType type = ((pplay::Io *) main->getIo())->getDeviceType(p);
     int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
     bool hidden = main->getConfig()->getOption(OPT_SHOW_HIDDEN)->getInteger() != 0;
-    // all the files (not while picking a track file)
     bool all = !picking && main->getConfig()->getOption(OPT_SHOW_ALL_FILES)->getInteger() != 0;
     if (all) {
         listed.clear();

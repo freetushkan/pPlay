@@ -765,7 +765,6 @@ namespace pplay::TorrServe {
             size_t play = route.find("/play/");
             size_t stream = route.find("/stream");
             if (play != std::string::npos) {
-                // /play/<hash>/<index>
                 parts.base = route.substr(0, play + 1);
                 std::string rest = route.substr(play + 6);
                 size_t sep = rest.find('/');

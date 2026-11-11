@@ -83,7 +83,7 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     mpv_set_option_string(handle, "cache-pause", "yes");
     mpv_set_option_string(handle, "cache-secs", "60");
     mpv_set_option_string(handle, "stream-lavf-o", "reconnect_on_network_error=1");
-    // the certificates (bundled, the system's on Linux): ffmpeg's TLS has no default store here
+    // ffmpeg's TLS has no default CA store on these platforms
     std::string certificates = pplay::Utility::getCertificatesPath();
     if (!certificates.empty()) {
         mpv_set_option_string(handle, "tls-ca-file", certificates.c_str());
@@ -117,7 +117,6 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     mpv_set_option_string(handle, "osd-font", "subfont.ttf");
     mpv_set_option_string(handle, "sub-fonts-dir", (configPath + "/").c_str());
     mpv_set_option_string(handle, "osd-fonts-dir", (configPath + "/").c_str());
-    // (default: the config directory, the fonts one)
     moveShaderCache(configPath, configPath + "/cache");
     mpv_set_option_string(handle, "gpu-shader-cache-dir", (configPath + "/cache").c_str());
 #endif

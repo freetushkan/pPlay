@@ -53,7 +53,6 @@ public:
 
     void stop();
 
-    // the file ended with the sleep timer at its end, once
     bool takeEndSleep() {
         bool sleep = endSleep;
         endSleep = false;
@@ -335,7 +334,6 @@ private:
     std::string playingKey;
     std::vector<MediaFile> autoplayFiles;
     mutable std::string displayTitle;
-    // decoding (player_decoding.cpp)
     bool decoderHardware = false;
     bool decoderAuto = false;
     int videoQuality = 0;
@@ -374,7 +372,6 @@ private:
 
     // progress
     long lastProgressSave = 0;
-    // a restored session: no progress written until it played the save interval
     bool holdProgress = false;
     long holdFrom = -1;
     bool progressForgotten = false;
@@ -420,7 +417,7 @@ private:
         std::string layout;
     };
     TrackChoice trackChoice[2];
-    // an external track chosen: its name pattern (as found), looked for in the next files
+    // chosen external track's name pattern, reused for the next files
     std::string externalCarry[2];
     bool trackChoiceApplied[2] = {false, false};
     std::string confAudioLang;

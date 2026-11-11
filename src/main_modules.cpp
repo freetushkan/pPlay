@@ -149,7 +149,7 @@ void Main::show(MenuType type) {
 }
 
 void Main::openLink(const std::string &url, const std::string &name) {
-    // the current network first, then the others (one host: several users)
+    // current network first: one host may be in several networks
     std::vector<int> order;
     if (currentModuleIndex > 0) {
         order.push_back(currentModuleIndex);
@@ -210,7 +210,7 @@ void Main::closeForRest() {
 }
 
 void Main::goToSleep() {
-    // written now: the app may not be told (or not live) at the standby
+    // the app may not get a suspend event
     if (pplay::Platform::hasStandby()) {
         resting = true;
         keepSession();

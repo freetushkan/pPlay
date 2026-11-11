@@ -310,7 +310,7 @@ void DetailsView::layout() {
     float separatorY = hints->getPosition().y - margin * 0.6f;
     separator->setPosition(margin, separatorY);
     float viewHeight = std::max(1.0f, separatorY - margin * 0.6f - top);
-    // clipped by the panel top (the margin: the content's first offset, scrolled away)
+    // clipped at the panel edge, the top margin scrolls with the content
     contentTop = top;
     view->setPosition(0, 0);
     view->setSize(getSize().x, viewHeight + top);
@@ -398,7 +398,6 @@ DetailsView::Action DetailsView::onKeys(unsigned int keys) {
         float max = std::max(0.0f, contentHeight - (view->getSize().y - contentTop));
         float step = std::max((view->getSize().y - contentTop) * 0.35f, (float) detailsText->getCharacterSize() * 3);
         if ((keys & Input::Right) && hints->count() > 0) {
-            // the buttons at once
             button = 0;
         } else if (keys & (Input::Down | Input::Right)) {
             // at the end: the buttons

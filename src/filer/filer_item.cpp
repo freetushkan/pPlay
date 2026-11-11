@@ -306,7 +306,7 @@ void FilerItem::onUpdate() {
         folderClock.restart();
         setFile(file);
     }
-    // watched state changes (playback elsewhere), the accent color (changed: at once)
+    // watched state (may change elsewhere) and accent color
     bool accentChanged = COLOR_ACCENT.r != lastAccent.r || COLOR_ACCENT.g != lastAccent.g || COLOR_ACCENT.b != lastAccent.b;
     if (accentChanged || (!isFullscreen && (updateClock.getElapsedTime().asSeconds() > 30.0f || fullscreenExited))) {
         lastAccent = COLOR_ACCENT;

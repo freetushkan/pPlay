@@ -14,12 +14,12 @@ namespace pplay {
 
     class Utility {
     public:
-        // certificates checked (all: mpv, curl, the media probes); the setting
+        // TLS verification for mpv, curl and probes
         static bool isTlsVerify();
 
         static void setTlsVerify(bool verify);
 
-        // a position that close to the end: watched (the setting, seconds, 0 off)
+        // watched if this close to the end (seconds, 0: off)
         static void setWatchedTolerance(int seconds);
 
         static bool isNearEnd(double position, double duration);
@@ -118,7 +118,7 @@ namespace pplay {
         // the cached reads of a watch later file dropped (all: an empty path), after mpv wrote
         static void forgetWatchLater(const std::string &video_path = "");
 
-        // the certificates file ("" if none: the TLS library's own store)
+        // CA file, "" for the library default
         static std::string getCertificatesPath();
 
 

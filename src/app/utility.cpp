@@ -536,7 +536,7 @@ void Utility::setTlsVerify(bool verify) {
 }
 
 #if defined(__SWITCH__)
-// the system's (as curl's): written once a run as PEM, the trusted ones
+// the system store exported as PEM once per run
 std::string Utility::getCertificatesPath() {
     static std::once_flag once;
     static std::string path;

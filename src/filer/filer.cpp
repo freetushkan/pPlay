@@ -81,7 +81,6 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
         list->add(items.back());
     }
 
-    // over all of it (the fade)
     cover = new RectangleShape({rect.width, rect.height});
     cover->setFillColor(COLOR_BG);
     cover->setLayer(100);
@@ -178,7 +177,6 @@ void Filer::setSelection(int index) {
 void Filer::placeItems() {
     for (int i = 0; i < (int) items.size(); i++) {
         items[i]->setPosition(0, std::round((float) (i - 1) * item_height + scrollOffset));
-        // all the rows: the highlight slides over them
         items[i]->highlight = highlight;
     }
     mutex->lock();
@@ -330,7 +328,7 @@ void Filer::run(DetailsView::Action action) {
             }
             break;
         case Action::Reset:
-            // the key: marked watched if nothing to reset
+            // nothing to reset: marks watched
             if (!DetailsView::isResettable(selection)) {
                 if (selection.type == Io::Type::File && !isPlaceholder(selection) && pplay::Utility::isMedia(selection)) {
                     markWatched(selection);
@@ -602,7 +600,6 @@ void Filer::queueDurations() {
 }
 
 void Filer::onUpdate() {
-    // the fade: 0.5 s from end to end
     if (fadeDirection != 0) {
         float step = std::min(0.1f, fadeClock.restart().asSeconds()) * 255 / 0.5f;
         coverAlpha = std::min(255.0f, std::max(0.0f, coverAlpha + (float) fadeDirection * step));

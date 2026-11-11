@@ -59,7 +59,7 @@ namespace {
         std::vector<const char *> names;
     };
 
-    // the sleep: that long playing without a key, or the end of the file
+    // minutes playing without a key, -1: the end of the file
     const Choices g_sleep = {OPT_SLEEP_TIMER, {0, -1, 15, 30, 45, 60, 90, 120, 180},
                              {"Off", "End of file", "15 min", "30 min", "45 min", "1 h", "1.5 h", "2 h", "3 h"}};
 

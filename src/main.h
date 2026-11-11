@@ -162,11 +162,10 @@ private:
     // the session kept at the exit, once
     void restoreSession();
 
-    // the sleep timer, the standby time: the standby (the screen off on Android)
+    // standby (Android: screen off)
     void goToSleep();
 
-    // a link / file given by another app: a TorrServer one in its network (listed, selected),
-    // else played as it is
+    // a link from another app: a known TorrServer one opened in its network, else played as is
     void openLink(const std::string &url, const std::string &name);
 
     // the network of a path, -1 local

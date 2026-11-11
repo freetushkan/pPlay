@@ -717,7 +717,6 @@ namespace pplay::InputMap {
     std::string buttonName(unsigned int button) {
         using B = Input::Button;
 #ifdef __ANDROID__
-        // a TV remote
         if (button == B::A) {
             return "OK";
         } else if (button == B::B) {

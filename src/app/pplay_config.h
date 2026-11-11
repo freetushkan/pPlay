@@ -21,7 +21,7 @@
 #define OPT_LAST_NETWORK_PATH "NETWORK1_LAST"
 #define OPT_LAST_MODULE "LAST_MODULE"
 #define OPT_NETWORK_TIMEOUT "NETWORK_TIMEOUT"
-// TLS certificates checked (mpv, curl, the media probes): 1 on, 0 off
+// TLS verification (mpv, curl, probes)
 #define OPT_TLS_VERIFY "TLS_VERIFY"
 #define OPT_WATCHED_TOLERANCE "WATCHED_TOLERANCE"
 #define OPT_NETWORK_RETRIES "NETWORK_RETRIES"
@@ -99,7 +99,7 @@
 // 0 always (not on PS5: it never sleeps with the app open)
 // ".name" files and directories listed
 #define OPT_SHOW_HIDDEN "SHOW_HIDDEN"
-// all the files listed (not only the media ones): 1
+// list non-media files too
 #define OPT_SHOW_ALL_FILES "SHOW_ALL_FILES"
 // the playlist added to last, the last location in the playlists
 #define OPT_LAST_PLAYLIST "LAST_PLAYLIST"

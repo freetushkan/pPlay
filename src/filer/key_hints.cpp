@@ -123,7 +123,7 @@ void KeyHints::layout() {
     for (size_t i = 0; i < items.size(); i++) {
         auto *item = items[i];
         auto *text = texts[i];
-        // a key with no glyph (not on an Android remote): a button only, no hint
+        // keys missing on an Android remote: button only
         bool shown = buttons || hints[i].keys == 0 || icons[i] != nullptr;
         item->setVisibility(shown ? Visibility::Visible : Visibility::Hidden);
         if (!shown) {
@@ -156,7 +156,7 @@ void KeyHints::applyColors() {
     for (int i = 0; i < (int) items.size(); i++) {
         auto *text = texts[i];
         if (buttons && i == focus) {
-            // the accent a bit darker: the white text readable on it
+            // darker accent for the white text
             Color accent = COLOR_ACCENT;
             items[i]->setFillColor({(uint8_t) (accent.r * 0.78f), (uint8_t) (accent.g * 0.78f),
                                     (uint8_t) (accent.b * 0.78f), accent.a});

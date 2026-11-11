@@ -30,7 +30,6 @@ private:
 
     c2d::C2DClock valuesClock;
 
-    // all of them: Visualization for the audio only
     std::vector<MenuItem> allItems;
     int visualization = 1;
 };

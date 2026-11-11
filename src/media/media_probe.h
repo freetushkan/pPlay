@@ -38,7 +38,7 @@ public:
 
     void clearBackground();
 
-    // a probe failed (its first time): "<name>: <error>", once; "" if none
+    // first failure of a file: "<name>: <error>", returned once
     std::string takeError();
 
 private:

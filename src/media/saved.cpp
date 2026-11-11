@@ -926,7 +926,7 @@ namespace {
             TorrServe::remFileViewed(job.file.path);
         }
 
-        // the subtitles the player finds for it, saved too
+        // the subtitles found for it
         std::vector<ExternalTracks::Track> subtitles;
         if (result == Outcome::Done && g_config->getOption(OPT_EXTERNAL_TRACKS)->getInteger() != 0
             && !ExternalTracks::isSubtitle(job.file.name) && !ExternalTracks::isAudio(job.file.name)) {

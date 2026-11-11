@@ -94,7 +94,7 @@ public class PPlayActivity extends SDLActivity {
         takeView(intent);
     }
 
-    // a link / file opened with pPlay (VIEW): "<url>\n<name>", taken by the native part
+    // VIEW intent: "<url>\n<name>"
     private static volatile String viewed = null;
 
     private void takeView(Intent intent) {
@@ -130,8 +130,7 @@ public class PPlayActivity extends SDLActivity {
         viewed = url + "\n" + name;
     }
 
-    // the media session: the system / remote controls (Google TV, Chromecast), commands polled
-    // by the native part: "play", "pause", "stop", "seek <ms>"
+    // media session; commands polled by the native side
     private static MediaSession session = null;
     private static final java.util.concurrent.ConcurrentLinkedQueue<String> commands =
             new java.util.concurrent.ConcurrentLinkedQueue<>();
@@ -140,7 +139,6 @@ public class PPlayActivity extends SDLActivity {
         return commands.poll();
     }
 
-    // state: 0 stopped, 1 paused, 2 playing
     public static void mediaState(final String title, final int state, final long position, final long duration) {
         final PPlayActivity activity = instance;
         if (activity == null) {
@@ -165,8 +163,7 @@ public class PPlayActivity extends SDLActivity {
                 activity.notifyMedia(null, false);
                 return;
             }
-            // the audio focus: the system's current media session (Google TV shares it with the
-            // phones of the network, its cast controls)
+            // audio focus makes this the active session (shared by Google TV with phones)
             if (state == 2) {
                 activity.audioFocus(true);
             }
@@ -224,7 +221,7 @@ public class PPlayActivity extends SDLActivity {
         }
     }
 
-    // the notification of the session (phones: the shade, the lock screen), its buttons
+    // media notification
     private static final String MEDIA_ACTION = "com.freetushkan.pplay.MEDIA";
     private static final int MEDIA_NOTIFICATION = 1;
     private boolean mediaReceiver = false;
@@ -302,7 +299,7 @@ public class PPlayActivity extends SDLActivity {
         manager.notify(MEDIA_NOTIFICATION, builder.build());
     }
 
-    // the sleep timer: the screen dark (the system turns it off, not kept on), back on a key
+    // sleep timer: dim the screen until a key
     public static void screenOff(final boolean off) {
         final PPlayActivity activity = instance;
         if (activity == null) {
@@ -339,7 +336,6 @@ public class PPlayActivity extends SDLActivity {
         try {
             copyAssets(getAssets(), "romfs", romfs);
             prefs.edit().putLong("romfs", installed).apply();
-            // the time taken, for the log (Io::syncRomFs)
             try (OutputStream out = new FileOutputStream(new File(getFilesDir(), "romfs.time"))) {
                 out.write(Long.toString(System.currentTimeMillis() - start).getBytes());
             }
