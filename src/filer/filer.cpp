@@ -330,6 +330,14 @@ void Filer::run(DetailsView::Action action) {
             }
             break;
         case Action::Reset:
+            // the key: marked watched if nothing to reset
+            if (!DetailsView::isResettable(selection)) {
+                if (selection.type == Io::Type::File && !isPlaceholder(selection) && pplay::Utility::isMedia(selection)) {
+                    markWatched(selection);
+                    pplay::FolderMarks::forget();
+                }
+                break;
+            }
             resetProgress(selection);
             pplay::FolderMarks::forget();
             break;

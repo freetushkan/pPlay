@@ -197,7 +197,7 @@ void DetailsView::updateHints() {
             add(Input::Y, "Reset progress", Action::Reset);
         }
         if (file.type == Io::Type::File && !empty && !watched && pplay::Utility::isMedia(file)) {
-            add(0, "Mark watched", Action::Watched);
+            add(resettable ? 0 : Input::Y, "Mark watched", Action::Watched);
         }
         // a directory: its files listed in a thread, the buttons once known
         if (file.type == Io::Type::Directory && !empty && file.name != "..") {
@@ -257,6 +257,8 @@ void DetailsView::updateHints() {
         }
         if (resettable) {
             add(Input::Y, "Reset progress", Action::Reset);
+        } else if (file.type == Io::Type::File && !Filer::isPlaceholder(file) && pplay::Utility::isMedia(file)) {
+            add(Input::Y, "Mark watched", Action::Watched);
         }
     }
     hints->setHints(list);
