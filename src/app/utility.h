@@ -118,10 +118,9 @@ namespace pplay {
         // the cached reads of a watch later file dropped (all: an empty path), after mpv wrote
         static void forgetWatchLater(const std::string &video_path = "");
 
-#if defined(__PS4__) || defined(__PS5__) || defined(__LINUX__) || defined(__ANDROID__)
+        // the certificates file ("" if none: the TLS library's own store)
         static std::string getCertificatesPath();
 
-#endif
 
         static std::string getKeysString(unsigned int keys);
 

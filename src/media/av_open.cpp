@@ -28,9 +28,10 @@ namespace {
             av_dict_set(&options, "auth_type", "basic", 0);
         }
         // the bundled certificates, checked unless turned off (the setting)
-#if defined(__PS4__) || defined(__PS5__) || defined(__ANDROID__)
-        av_dict_set(&options, "ca_file", pplay::Utility::getCertificatesPath().c_str(), 0);
-#endif
+        std::string certificates = pplay::Utility::getCertificatesPath();
+        if (!certificates.empty()) {
+            av_dict_set(&options, "ca_file", certificates.c_str(), 0);
+        }
         av_dict_set(&options, "tls_verify", pplay::Utility::isTlsVerify() ? "1" : "0", 0);
         return options;
     }

@@ -535,7 +535,63 @@ void Utility::setTlsVerify(bool verify) {
     g_tlsVerify = verify;
 }
 
-#if defined(__PS4__) || defined(__PS5__) || defined(__ANDROID__)
+#if defined(__SWITCH__)
+// the system's (as curl's): written once a run as PEM, the trusted ones
+std::string Utility::getCertificatesPath() {
+    static std::once_flag once;
+    static std::string path;
+    std::call_once(once, [] {
+        if (R_FAILED(sslInitialize(1))) {
+            Utility::log(LogLevel::Error, "Utility: ssl service not available");
+            return;
+        }
+        u32 all = (u32) SslCaCertificateId_All, size = 0, count = 0;
+        std::vector<u8> buffer;
+        if (R_SUCCEEDED(sslGetCertificateBufSize(&all, 1, &size)) && size > 0) {
+            buffer.resize(size);
+            if (R_FAILED(sslGetCertificates(buffer.data(), size, &all, 1, &count))) {
+                count = 0;
+            }
+        }
+        sslExit();
+        static const char b64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        std::string pem;
+        auto *infos = (SslBuiltInCertificateInfo *) buffer.data();
+        int written = 0;
+        for (u32 i = 0; i < count; i++) {
+            if (infos[i].status != SslTrustedCertStatus_EnabledTrusted || infos[i].cert_data == nullptr) {
+                continue;
+            }
+            std::string text;
+            const u8 *d = infos[i].cert_data;
+            for (u64 j = 0; j < infos[i].cert_size; j += 3) {
+                u32 n = (u32) d[j] << 16;
+                if (j + 1 < infos[i].cert_size) n |= (u32) d[j + 1] << 8;
+                if (j + 2 < infos[i].cert_size) n |= d[j + 2];
+                text += b64[(n >> 18) & 63];
+                text += b64[(n >> 12) & 63];
+                text += j + 1 < infos[i].cert_size ? b64[(n >> 6) & 63] : '=';
+                text += j + 2 < infos[i].cert_size ? b64[n & 63] : '=';
+            }
+            pem += "-----BEGIN CERTIFICATE-----\n";
+            for (size_t k = 0; k < text.size(); k += 64) {
+                pem += text.substr(k, 64) + "\n";
+            }
+            pem += "-----END CERTIFICATE-----\n";
+            written++;
+        }
+        std::string file = getDataPath() + "system_ca.pem";
+        FILE *f = written > 0 ? fopen(file.c_str(), "wb") : nullptr;
+        if (f != nullptr) {
+            fwrite(pem.data(), 1, pem.size(), f);
+            fclose(f);
+            path = file;
+        }
+        Utility::log(LogLevel::Info, "Utility: system certificates: " + std::to_string(written));
+    });
+    return path;
+}
+#elif defined(__PS4__) || defined(__PS5__) || defined(__ANDROID__)
 std::string Utility::getCertificatesPath() {
     return getDataPath() + "cacert.pem";
 }
@@ -553,6 +609,10 @@ std::string Utility::getCertificatesPath() {
             return path;
         }
     }
+    return "";
+}
+#else
+std::string Utility::getCertificatesPath() {
     return "";
 }
 #endif

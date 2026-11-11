@@ -83,10 +83,14 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     mpv_set_option_string(handle, "cache-pause", "yes");
     mpv_set_option_string(handle, "cache-secs", "60");
     mpv_set_option_string(handle, "stream-lavf-o", "reconnect_on_network_error=1");
+    // the certificates (bundled, the system's on Linux): ffmpeg's TLS has no default store here
+    std::string certificates = pplay::Utility::getCertificatesPath();
+    if (!certificates.empty()) {
+        mpv_set_option_string(handle, "tls-ca-file", certificates.c_str());
+    }
 
 #if defined(__PS4__) || defined(__PS5__)
     mpv_set_option_string(handle, "ignore-path-in-watch-later-config", "yes");
-    mpv_set_option_string(handle, "tls-ca-file", pplay::Utility::getCertificatesPath().c_str());
     mpv_set_option_string(handle, "sub-ass-override", "force");
     mpv_set_option_string(handle, "osd-rendering-mode", "normal");
     mpv_set_option_string(handle, "sub-font-provider", "none");
@@ -107,7 +111,6 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
 
 #ifdef __ANDROID__
     // no fontconfig: the bundled font
-    mpv_set_option_string(handle, "tls-ca-file", pplay::Utility::getCertificatesPath().c_str());
     mpv_set_option_string(handle, "sub-font-provider", "none");
     mpv_set_option_string(handle, "osd-font-provider", "none");
     mpv_set_option_string(handle, "sub-font", "subfont.ttf");
