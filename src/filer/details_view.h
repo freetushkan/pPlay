@@ -122,6 +122,7 @@ private:
     int button = -1;
     float scroll = 0;
     float scrollShown = 0;
+    float contentTop = 0;
     float contentHeight = 0;
     bool playing = false;
     // the minimized player covers the panel bottom

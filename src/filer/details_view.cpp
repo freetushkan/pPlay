@@ -310,8 +310,10 @@ void DetailsView::layout() {
     float separatorY = hints->getPosition().y - margin * 0.6f;
     separator->setPosition(margin, separatorY);
     float viewHeight = std::max(1.0f, separatorY - margin * 0.6f - top);
-    view->setPosition(0, top);
-    view->setSize(getSize().x, viewHeight);
+    // clipped by the panel top (the margin: the content's first offset, scrolled away)
+    contentTop = top;
+    view->setPosition(0, 0);
+    view->setSize(getSize().x, viewHeight + top);
 
     // title, the poster with the details right of it (narrow) or below
     float y = 0;
@@ -358,14 +360,14 @@ void DetailsView::layout() {
 }
 
 void DetailsView::scrollBy(float delta) {
-    float max = std::max(0.0f, contentHeight - view->getSize().y);
+    float max = std::max(0.0f, contentHeight - (view->getSize().y - contentTop));
     scroll = std::max(0.0f, std::min(max, scroll + delta));
     updateScroll();
 }
 
 void DetailsView::updateScroll() {
-    content->setPosition(0, -std::round(scrollShown));
-    float viewHeight = view->getSize().y;
+    content->setPosition(0, contentTop - std::round(scrollShown));
+    float viewHeight = view->getSize().y - contentTop;
     if (contentHeight <= viewHeight + 1) {
         scrollBar->setVisibility(Visibility::Hidden);
         return;
@@ -374,7 +376,7 @@ void DetailsView::updateScroll() {
     float max = contentHeight - viewHeight;
     scrollBar->setSize(scrollBar->getSize().x, barHeight);
     scrollBar->setPosition(getSize().x - MARGIN * main->getScaling().x / 2,
-                           view->getPosition().y + (viewHeight - barHeight) * std::min(1.0f, scrollShown / max));
+                           contentTop + (viewHeight - barHeight) * std::min(1.0f, scrollShown / max));
     scrollBar->setVisibility(Visibility::Visible);
 }
 
@@ -393,8 +395,8 @@ DetailsView::Action DetailsView::onKeys(unsigned int keys) {
     }
 
     if (button < 0) {
-        float max = std::max(0.0f, contentHeight - view->getSize().y);
-        float step = std::max(view->getSize().y * 0.35f, (float) detailsText->getCharacterSize() * 3);
+        float max = std::max(0.0f, contentHeight - (view->getSize().y - contentTop));
+        float step = std::max((view->getSize().y - contentTop) * 0.35f, (float) detailsText->getCharacterSize() * 3);
         if ((keys & Input::Right) && hints->count() > 0) {
             // the buttons at once
             button = 0;
