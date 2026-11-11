@@ -306,10 +306,10 @@ void FilerItem::onUpdate() {
         folderClock.restart();
         setFile(file);
     }
-    // watched state changes (playback elsewhere), the accent color
-    if (file.type == Io::Type::Directory
-        || (file.type == Io::Type::File && !isFullscreen
-            && (updateClock.getElapsedTime().asSeconds() > 30.0f || fullscreenExited))) {
+    // watched state changes (playback elsewhere), the accent color (changed: at once)
+    bool accentChanged = COLOR_ACCENT.r != lastAccent.r || COLOR_ACCENT.g != lastAccent.g || COLOR_ACCENT.b != lastAccent.b;
+    if (accentChanged || (!isFullscreen && (updateClock.getElapsedTime().asSeconds() > 30.0f || fullscreenExited))) {
+        lastAccent = COLOR_ACCENT;
         setColor(color());
         if (file.type == Io::Type::File) {
             updateWatched();

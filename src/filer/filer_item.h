@@ -39,6 +39,8 @@ private:
 
     c2d::C2DClock updateClock;
 
+    c2d::Color lastAccent;
+
     c2d::Text *textTitle;
     // duration
     c2d::Text *info;
