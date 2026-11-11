@@ -19,6 +19,9 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.IntentFilter;
 import android.os.Build;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
 import android.media.MediaMetadata;
 import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
@@ -146,6 +149,9 @@ public class PPlayActivity extends SDLActivity {
         activity.runOnUiThread(() -> {
             if (session == null) {
                 session = new MediaSession(activity, "pPlay");
+                session.setSessionActivity(PendingIntent.getActivity(activity, 0,
+                        new Intent(activity, PPlayActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                        PendingIntent.FLAG_IMMUTABLE));
                 session.setCallback(new MediaSession.Callback() {
                     @Override public void onPlay() { commands.add("play"); }
                     @Override public void onPause() { commands.add("pause"); }
@@ -155,11 +161,18 @@ public class PPlayActivity extends SDLActivity {
             }
             if (state == 0) {
                 session.setActive(false);
+                activity.audioFocus(false);
                 activity.notifyMedia(null, false);
                 return;
             }
+            // the audio focus: the system's current media session (Google TV shares it with the
+            // phones of the network, its cast controls)
+            if (state == 2) {
+                activity.audioFocus(true);
+            }
             session.setMetadata(new MediaMetadata.Builder()
                     .putString(MediaMetadata.METADATA_KEY_TITLE, title)
+                    .putString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE, title)
                     .putLong(MediaMetadata.METADATA_KEY_DURATION, duration).build());
             session.setPlaybackState(new PlaybackState.Builder()
                     .setActions(PlaybackState.ACTION_PLAY | PlaybackState.ACTION_PAUSE | PlaybackState.ACTION_PLAY_PAUSE
@@ -169,6 +182,46 @@ public class PPlayActivity extends SDLActivity {
             session.setActive(true);
             activity.notifyMedia(title, state == 2);
         });
+    }
+
+    private Object focusRequest = null;
+    private AudioManager.OnAudioFocusChangeListener focusListener = null;
+    private boolean focused = false;
+
+    private void audioFocus(boolean gain) {
+        AudioManager audio = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        if (audio == null || gain == focused) {
+            return;
+        }
+        if (focusListener == null) {
+            focusListener = change -> {
+                if (change == AudioManager.AUDIOFOCUS_LOSS || change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
+                    focused = change != AudioManager.AUDIOFOCUS_LOSS;
+                    commands.add("pause");
+                }
+            };
+        }
+        AudioManager.OnAudioFocusChangeListener listener = focusListener;
+        if (Build.VERSION.SDK_INT >= 26) {
+            if (focusRequest == null) {
+                focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                        .setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE).build())
+                        .setOnAudioFocusChangeListener(listener).build();
+            }
+            if (gain) {
+                focused = audio.requestAudioFocus((AudioFocusRequest) focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
+            } else {
+                audio.abandonAudioFocusRequest((AudioFocusRequest) focusRequest);
+                focused = false;
+            }
+        } else if (gain) {
+            focused = audio.requestAudioFocus(listener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+                      == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
+        } else {
+            audio.abandonAudioFocus(listener);
+            focused = false;
+        }
     }
 
     // the notification of the session (phones: the shade, the lock screen), its buttons
