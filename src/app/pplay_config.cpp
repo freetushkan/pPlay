@@ -137,10 +137,8 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
 #else
     addOption({OPT_STANDBY_TIME, (int) 60});
 #endif
-#ifdef __PS5__
     // the player menu: minutes playing without keys, -1 the end of the file, 0 off
     addOption({OPT_SLEEP_TIMER, (int) 0});
-#endif
 #ifdef __PS5__
     addOption({OPT_PS5_UI_4K, (int) 0});
 #endif
