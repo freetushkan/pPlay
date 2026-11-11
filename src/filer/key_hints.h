@@ -64,6 +64,7 @@ private:
     bool buttons = false;
     int focus = -1;
     float height = 0;
+    c2d::Color lastAccent;
 };
 
 #endif //PPLAY_KEY_HINTS_H

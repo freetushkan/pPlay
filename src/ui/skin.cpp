@@ -9,6 +9,10 @@
 
 c2d::Texture *pplay::Skin::texture(const std::string &name) {
     static std::map<std::string, c2d::Texture *> textures;
+    // no name: none (the skin directory itself is no picture)
+    if (name.empty()) {
+        return nullptr;
+    }
     auto it = textures.find(name);
     if (it != textures.end()) {
         return it->second;

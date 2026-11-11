@@ -177,6 +177,9 @@ void KeyHints::applyColors() {
 
 void KeyHints::onUpdate() {
     // the accent color may change
-    applyColors();
+    if (COLOR_ACCENT.r != lastAccent.r || COLOR_ACCENT.g != lastAccent.g || COLOR_ACCENT.b != lastAccent.b) {
+        lastAccent = COLOR_ACCENT;
+        applyColors();
+    }
     Rectangle::onUpdate();
 }
