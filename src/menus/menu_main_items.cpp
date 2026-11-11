@@ -107,8 +107,12 @@ namespace pplay::MenuMainItems {
         return "PlayStation 4";
 #elif defined(__PS5__)
         return "PlayStation 5";
-#else
+#elif defined(__ANDROID__)
+        return "Android";
+#elif defined(__linux__)
         return "Linux";
+#else
+        return "unknown";
 #endif
     }
 
