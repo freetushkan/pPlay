@@ -551,10 +551,11 @@ namespace pplay::Platform {
             last = state;
         }
 #elif defined(__PS4__)
-        // the idle timer (screen off, rest mode) restarted
+        // the idle timer (screen off, rest mode) restarted often, the screen saver off
         static c2d::C2DClock tick;
-        if (on && tick.getElapsedTime().asSeconds() > 20) {
+        if (on && tick.getElapsedTime().asSeconds() > 5) {
             sceSystemServicePowerTick();
+            sceSystemServiceTurnOffScreenSaver();
             tick.restart();
         }
 #elif !defined(__PS5__)
@@ -666,7 +667,7 @@ namespace pplay::Platform {
     }
 
     bool hasStandby() {
-#if defined(__PS5__) || defined(__SWITCH__)
+#if defined(__PS5__) || defined(__SWITCH__) || defined(__PS4__)
         return true;
 #else
         return false;
@@ -701,6 +702,23 @@ namespace pplay::Platform {
 #ifdef __PS5__
         int res = sceSystemStateMgrEnterStandby();
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS5: rest mode asked: " + std::to_string(res));
+        return res == 0;
+#elif defined(__PS4__)
+        // not in the OpenOrbis stubs: from the system module
+        static int (*enterStandby)() = nullptr;
+        static bool looked = false;
+        if (!looked) {
+            looked = true;
+            int handle = (int) sceKernelLoadStartModule("/system/common/lib/libSceSystemStateMgr.sprx", 0, nullptr, 0,
+                                                        nullptr, nullptr);
+            if (handle > 0) {
+                sceKernelDlsym(handle, "sceSystemStateMgrEnterStandby", (void **) &enterStandby);
+            }
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS4: standby module " + std::to_string(handle)
+                                                                        + (enterStandby ? "" : ", no function"));
+        }
+        int res = enterStandby != nullptr ? enterStandby() : -1;
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS4: rest mode asked: " + std::to_string(res));
         return res == 0;
 #elif defined(__SWITCH__)
         Result res = appletRequestToSleep();
