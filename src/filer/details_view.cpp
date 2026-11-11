@@ -395,7 +395,10 @@ DetailsView::Action DetailsView::onKeys(unsigned int keys) {
     if (button < 0) {
         float max = std::max(0.0f, contentHeight - view->getSize().y);
         float step = std::max(view->getSize().y * 0.35f, (float) detailsText->getCharacterSize() * 3);
-        if (keys & (Input::Down | Input::Right)) {
+        if ((keys & Input::Right) && hints->count() > 0) {
+            // the buttons at once
+            button = 0;
+        } else if (keys & (Input::Down | Input::Right)) {
             // at the end: the buttons
             if (scroll < max - 0.5f) {
                 scrollBy(step);
