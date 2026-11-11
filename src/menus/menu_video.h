@@ -29,6 +29,10 @@ private:
     void onUpdate() override;
 
     c2d::C2DClock valuesClock;
+
+    // all of them: Visualization for the audio only
+    std::vector<MenuItem> allItems;
+    int visualization = 1;
 };
 
 #endif //PPLAY_MENU_VIDEO_H

@@ -98,7 +98,7 @@ namespace {
 }
 
 MenuVideo::MenuVideo(Main *main, const c2d::FloatRect &rect, const std::vector<MenuItem> &items)
-    : Menu(main, rect, "Playback options", withValues(items), false) {}
+    : Menu(main, rect, "Playback options", withValues(items), false), allItems(withValues(items)) {}
 
 void MenuVideo::refreshValues() {
     Player *player = main->getPlayer();
@@ -178,6 +178,20 @@ void MenuVideo::refreshValues() {
 }
 
 void MenuVideo::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
+    Player *player = main->getPlayer();
+    if (visibility == Visibility::Visible && player != nullptr && player->getMpv() != nullptr) {
+        int audio = player->getMpv()->hasMovingVideo() ? 0 : 1;
+        if (audio != visualization) {
+            visualization = audio;
+            std::vector<MenuItem> items;
+            for (auto &item: allItems) {
+                if (audio || item.name != "Visualization") {
+                    items.push_back(item);
+                }
+            }
+            setItems(items);
+        }
+    }
     Menu::setVisibility(visibility, tweenPlay);
     if (visibility == Visibility::Visible) {
         refreshValues();
