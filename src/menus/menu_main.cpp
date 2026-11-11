@@ -298,7 +298,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
 #endif
     addSubmenu("Standby", "Standby when idle", OPT_STANDBY_TIME,
                makeIntItems({{"By system", 0}, {"5 min", 5}, {"10 min", 10}, {"15 min", 15}, {"30 min", 30},
-                             {"1 h", 60}, {"2 h", 120}, {"3 h", 180}}),
+                             {"1 h", 60}, {"2 h", 120}, {"3 h", 180}, {"6 h", 360}, {"12 h", 720}, {"Never", -1}}),
                Submenu::ValueType::Integer);
     addSubmenu("Restore last file", "The file playing at the exit opened at the start", OPT_RESTORE_SESSION,
 #ifdef __PS5__
