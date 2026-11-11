@@ -168,7 +168,9 @@ void Player::onStopEvent(int reason) {
         main->getStatus()->show("Error", "Could not load file");
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent could not load file");
     } else if (reason == MPV_END_FILE_REASON_EOF && playbackCompleted && !isPlaylistFile()) {
-        const int autoplayMode = main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger();
+        // the sleep timer at the end of the file: nothing next
+        endSleep = main->getConfig()->getOption(OPT_SLEEP_TIMER)->getInteger() < 0;
+        const int autoplayMode = endSleep ? 0 : main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger();
         if (autoplayMode == 2) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent loopFile current=" + file.path);
             load(file, true, "pause=yes,start=0");

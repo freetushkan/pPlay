@@ -155,11 +155,7 @@ void Main::createMenus() {
 #endif
     items.emplace_back("Brightness", "brightness.png", MenuItem::Position::Top);
     items.emplace_back("Progress line", "progress_line.png", MenuItem::Position::Top);
-#ifdef __PS5__
     items.emplace_back("Sleep timer", "awake.png", MenuItem::Position::Top);
-#else
-    items.emplace_back("Prevent sleep", "awake.png", MenuItem::Position::Top);
-#endif
     items.emplace_back("Information", "info.png", MenuItem::Position::Top);
     items.emplace_back("Stop", "stop.png", MenuItem::Position::Bottom);
     menu_video = new MenuVideo(this, {Main::getSize().x, inset, 420 * scaling.x, Main::getSize().y - 2 * inset},
@@ -245,6 +241,7 @@ bool Main::onInput(c2d::Input::Player *players) {
         return true;
     }
     idleClock.restart();
+    pplay::Platform::wake();
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
                         "Main::onInput keys=" + pplay::Utility::getKeysString(keys) + pplay::InputMap::toString(keys));
 
@@ -363,26 +360,32 @@ void Main::onUpdate() {
         }
     }
 #endif
-    // awake while playing / saving, up to the minutes without a key (0: always)
+    // awake while playing (the sleep timer: up to it) or saving; else up to the standby time
+    // (the system's: its own timers)
     bool playing = player != nullptr && !player->getMpv()->isStopped() && !player->getMpv()->isPaused();
-    int awakeMinutes = config->getOption(OPT_STAY_AWAKE)->getInteger();
-    bool awake = (playing || pplay::Saved::busy())
-                 && (awakeMinutes <= 0 || idleClock.getElapsedTime().asSeconds() < (float) awakeMinutes * 60);
-    pplay::Platform::keepAwake(awake, playing);
-#ifdef __PS5__
-    // the sleep timer: that long without a key (playing, paused or not), paused, rest mode, once
-    int sleepMinutes = config->getOption(OPT_PS5_SLEEP_TIMER)->getInteger();
     float idle = idleClock.getElapsedTime().asSeconds();
-    if (sleepMinutes > 0 && idle >= (float) sleepMinutes * 60 && !sleepAsked) {
+    int standby = config->getOption(OPT_STANDBY_TIME)->getInteger();
+    int sleepMinutes = config->getOption(OPT_SLEEP_TIMER)->getInteger();
+    bool awake = !sleepAsked && (playing || pplay::Saved::busy() || (standby > 0 && idle < (float) standby * 60));
+    pplay::Platform::keepAwake(awake, playing);
+    if (idle < 1) {
+        sleepAsked = false;
+    }
+    bool endSleep = player != nullptr && player->takeEndSleep();
+    if (!sleepAsked && (endSleep || (playing && sleepMinutes > 0 && idle >= (float) sleepMinutes * 60))) {
+        // the sleep timer: paused, the session kept (the file playing now), the standby
         sleepAsked = true;
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: sleep timer");
         if (playing) {
             player->pause();
         }
-        pplay::Platform::sleepNow();
-    } else if (idle < 1) {
-        sleepAsked = false;
+        goToSleep();
+    } else if (!sleepAsked && !playing && !pplay::Saved::busy() && standby > 0 && idle >= (float) standby * 60
+               && pplay::Platform::hasStandby()) {
+        sleepAsked = true;
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: standby time");
+        goToSleep();
     }
-#endif
     std::string savedType, savedMessage;
     if (pplay::Saved::takeMessage(&savedType, &savedMessage)
         || pplay::Playlists::takeMessage(&savedType, &savedMessage)) {

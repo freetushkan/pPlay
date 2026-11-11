@@ -59,15 +59,9 @@ namespace {
         std::vector<const char *> names;
     };
 
-#ifdef __PS5__
-    // rest mode after that long without a key, 0 off
-    const Choices g_sleep = {OPT_PS5_SLEEP_TIMER, {0, 15, 30, 45, 60, 90, 120, 180},
-                             {"Off", "15 min", "30 min", "45 min", "1 h", "1.5 h", "2 h", "3 h"}};
-#else
-    const Choices g_sleep = {OPT_STAY_AWAKE, {0, 5, 10, 15, 30, 60, 90, 120, 180, 240},
-                             {"Always while playing", "5 min", "10 min", "15 min", "30 min", "1 h", "1.5 h", "2 h",
-                              "3 h", "4 h"}};
-#endif
+    // the sleep: that long playing without a key, or the end of the file
+    const Choices g_sleep = {OPT_SLEEP_TIMER, {0, -1, 15, 30, 45, 60, 90, 120, 180},
+                             {"Off", "End of file", "15 min", "30 min", "45 min", "1 h", "1.5 h", "2 h", "3 h"}};
 
     int choiceIndex(PPLAYConfig *config, const Choices &choices) {
         int value = config->getOption(choices.option)->getInteger();
@@ -168,7 +162,7 @@ void MenuVideo::refreshValues() {
             item.valueAccent = player->isInfoVisible();
         } else if (n == "Progress line") {
             item.value = pplay::tr(config->getOption(OPT_PROGRESS_LINE)->getInteger() ? "On" : "Off");
-        } else if (n == "Prevent sleep" || n == "Sleep timer") {
+        } else if (n == "Sleep timer") {
             int index = choiceIndex(config, g_sleep);
             item.value = pplay::tr(g_sleep.names[index]);
             item.valueAccent = index != 0;
@@ -234,7 +228,7 @@ bool MenuVideo::onOptionChange(MenuItem *item, int direction) {
         player->setInfoVisible(!player->isInfoVisible());
     } else if (n == "Progress line") {
         toggleProgressLine(config);
-    } else if (n == "Prevent sleep" || n == "Sleep timer") {
+    } else if (n == "Sleep timer") {
         changeChoice(config, g_sleep, direction);
     } else {
         return false;
@@ -307,7 +301,7 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
     } else if (item->name == "Progress line") {
         toggleProgressLine(main->getConfig());
         refreshValues();
-    } else if (item->name == "Prevent sleep" || item->name == "Sleep timer") {
+    } else if (item->name == "Sleep timer") {
         changeChoice(main->getConfig(), g_sleep, 1);
         refreshValues();
     } else if (item->name == "Stop") {

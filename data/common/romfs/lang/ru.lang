@@ -446,3 +446,6 @@ Closed, then resumed = Закрывается, затем возобновляе
 Offline = Офлайн
 Watched before the end = Просмотрено до конца за
 Watched if stopped that close to the end = Считать просмотренным, если до конца осталось не больше
+Standby after = Режим ожидания через
+Standby after the time without keys, nothing playing = Режим ожидания после этого времени без нажатий, когда ничего не играет
+End of file = В конце файла

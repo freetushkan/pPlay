@@ -9,6 +9,7 @@
 #include "saved.h"
 #include "playlists.h"
 #include "torrserve.h"
+#include "platform.h"
 #include "pplay_config.h"
 
 using namespace c2d;
@@ -206,6 +207,16 @@ int Main::moduleOf(const std::string &path) {
 void Main::closeForRest() {
     resting = true;
     quit();
+}
+
+void Main::goToSleep() {
+    // written now: the app may not be told (or not live) at the standby
+    if (pplay::Platform::hasStandby()) {
+        resting = true;
+        keepSession();
+        config->save();
+    }
+    pplay::Platform::sleepNow();
 }
 
 void Main::keepSession() {

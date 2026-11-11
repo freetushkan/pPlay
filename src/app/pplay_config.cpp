@@ -131,9 +131,15 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_LAST_SAVED_PATH, ""});
     addOption({OPT_SHOW_HIDDEN, (int) 0});
     addOption({OPT_SHOW_ALL_FILES, (int) 0});
-    addOption({OPT_STAY_AWAKE, (int) 0});
+    // minutes without keys, nothing playing, to the standby (0: the system's); the Switch: its own
+#ifdef __SWITCH__
+    addOption({OPT_STANDBY_TIME, (int) 0});
+#else
+    addOption({OPT_STANDBY_TIME, (int) 60});
+#endif
 #ifdef __PS5__
-    addOption({OPT_PS5_SLEEP_TIMER, (int) 0});
+    // the player menu: minutes playing without keys, -1 the end of the file, 0 off
+    addOption({OPT_SLEEP_TIMER, (int) 0});
 #endif
 #ifdef __PS5__
     addOption({OPT_PS5_UI_4K, (int) 0});
@@ -256,7 +262,8 @@ void PPLAYConfig::sanitize() {
     clamp(OPT_PROGRESS_MIN_LENGTH, 0, 60);
     clamp(OPT_PROGRESS_INTERVAL, 5, 120);
     clamp(OPT_SAVE_THREADS, 1, 4);
-    clamp(OPT_STAY_AWAKE, 0, 1440);
+    clamp(OPT_STANDBY_TIME, 0, 1440);
+    clamp(OPT_SLEEP_TIMER, -1, 1440);
     clamp(OPT_SAVE_KEEP_DAYS, 0, 3650);
     clamp(OPT_SAVE_MAX_GB, 0, 100000);
 

@@ -29,12 +29,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Short seek step", "short_seek.png", Pos::Top),
                                   MenuItem("Long seek step", "long_seek.png", Pos::Top),
                                   MenuItem("Playback retry", "pl_retry.png", Pos::Top),
-#ifdef __PS5__
-                                  MenuItem("Sleep timer", "awake.png", Pos::Top),
-#else
-                                  MenuItem("Prevent sleep", "awake.png", Pos::Top),
                                   MenuItem("Restore last file", "playlist.png", Pos::Top),
-#endif
 #ifdef __ANDROID__
                                   MenuItem("When minimized", "exit.png", Pos::Top),
 #endif
@@ -106,6 +101,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
             MenuItem("Edit files", "edit.png", Pos::Top),
             MenuItem("Media information", "media_info.png", Pos::Top),
             MenuItem("Clear cache", "clear_cache.png", Pos::Top),
+            MenuItem("Standby after", "awake.png", Pos::Top),
     };
 #ifdef __SWITCH__
     system.emplace_back("CPU boost", "cpu.png", Pos::Top);
@@ -300,12 +296,10 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     addSubmenu("When minimized", "The app in the background (after a restart)", OPT_ANDROID_BACKGROUND,
                makeIntItems({{"Paused", 0}, {"Closed, then resumed", 1}}), Submenu::ValueType::Integer);
 #endif
-#ifdef __PS5__
-    addSubmenu("Sleep timer", "Rest mode after the time without keys", OPT_PS5_SLEEP_TIMER,
-               makeIntItems({{"Off", 0}, {"15 min", 15}, {"30 min", 30}, {"45 min", 45}, {"1 h", 60},
-                             {"1.5 h", 90}, {"2 h", 120}, {"3 h", 180}}),
+    addSubmenu("Standby after", "Standby after the time without keys, nothing playing", OPT_STANDBY_TIME,
+               makeIntItems({{"System", 0}, {"5 min", 5}, {"10 min", 10}, {"15 min", 15}, {"30 min", 30},
+                             {"1 h", 60}, {"2 h", 120}, {"3 h", 180}}),
                Submenu::ValueType::Integer);
-#else
     addSubmenu("Restore last file", "The file playing at the exit opened at the start", OPT_RESTORE_SESSION,
 #ifdef __PS5__
                makeIntItems({{"Off", 0}, {"After rest mode", 1}, {"Always", 2}}),
@@ -313,11 +307,6 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Off", 0}, {"Always", 2}}),
 #endif
                Submenu::ValueType::Integer);
-    addSubmenu("Prevent sleep", "Prevent sleep when idle", OPT_STAY_AWAKE,
-               makeIntItems({{"Always while playing", 0}, {"5 min", 5}, {"10 min", 10}, {"15 min", 15}, {"30 min", 30}, {"1 h", 60},
-                             {"1.5 h", 90}, {"2 h", 120}, {"3 h", 180}, {"4 h", 240}}),
-               Submenu::ValueType::Integer);
-#endif
     addSubmenu("Saved section", "The Saved section in the menu", OPT_SHOW_SAVED,
                makeIntItems({{"If not empty", 1}, {"Not shown", 0}}), Submenu::ValueType::Integer);
     addSubmenu("Playlists section", "The Playlists section in the menu", OPT_SHOW_PLAYLISTS,

@@ -42,6 +42,12 @@ namespace pplay::Platform {
     // the console put to sleep now (PS5: rest mode); false if it can't
     bool sleepNow();
 
+    // the app can put the console in standby (PS5, Switch)
+    bool hasStandby();
+
+    // a key after a sleepNow() without a standby (Android: the screen back)
+    void wake();
+
     // a link / file given by the system to open (Android VIEW): its url, "" if none
     std::string takeViewed(std::string *name);
 

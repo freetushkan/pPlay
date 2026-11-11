@@ -665,13 +665,63 @@ namespace pplay::Platform {
 #endif
     }
 
+    bool hasStandby() {
+#if defined(__PS5__) || defined(__SWITCH__)
+        return true;
+#else
+        return false;
+#endif
+    }
+
+#ifdef __ANDROID__
+    // PPlayActivity.screenOff(boolean)
+    static void androidScreenOff(bool off) {
+        auto *env = (JNIEnv *) SDL_AndroidGetJNIEnv();
+        auto activity = (jobject) SDL_AndroidGetActivity();
+        if (env == nullptr || activity == nullptr) {
+            return;
+        }
+        jclass cls = env->GetObjectClass(activity);
+        jmethodID mid = env->GetStaticMethodID(cls, "screenOff", "(Z)V");
+        if (mid == nullptr) {
+            env->ExceptionClear();
+        } else {
+            env->CallStaticVoidMethod(cls, mid, (jboolean) off);
+            if (env->ExceptionCheck()) {
+                env->ExceptionClear();
+            }
+        }
+        env->DeleteLocalRef(cls);
+        env->DeleteLocalRef(activity);
+    }
+    static bool g_screenOff = false;
+#endif
+
     bool sleepNow() {
 #ifdef __PS5__
         int res = sceSystemStateMgrEnterStandby();
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS5: rest mode asked: " + std::to_string(res));
         return res == 0;
+#elif defined(__SWITCH__)
+        Result res = appletRequestToSleep();
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Switch: sleep asked: " + std::to_string(res));
+        return R_SUCCEEDED(res);
+#elif defined(__ANDROID__)
+        // no standby for an app: the screen dark, then off by the system (not kept on)
+        g_screenOff = true;
+        androidScreenOff(true);
+        return true;
 #else
         return false;
+#endif
+    }
+
+    void wake() {
+#ifdef __ANDROID__
+        if (g_screenOff) {
+            g_screenOff = false;
+            androidScreenOff(false);
+        }
 #endif
     }
 

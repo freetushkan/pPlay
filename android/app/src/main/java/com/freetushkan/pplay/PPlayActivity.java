@@ -249,6 +249,20 @@ public class PPlayActivity extends SDLActivity {
         manager.notify(MEDIA_NOTIFICATION, builder.build());
     }
 
+    // the sleep timer: the screen dark (the system turns it off, not kept on), back on a key
+    public static void screenOff(final boolean off) {
+        final PPlayActivity activity = instance;
+        if (activity == null) {
+            return;
+        }
+        activity.runOnUiThread(() -> {
+            android.view.WindowManager.LayoutParams params = activity.getWindow().getAttributes();
+            params.screenBrightness = off ? android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_OFF
+                                          : android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
+            activity.getWindow().setAttributes(params);
+        });
+    }
+
     public static String takeViewed() {
         String v = viewed;
         viewed = null;

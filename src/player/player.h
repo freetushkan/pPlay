@@ -53,6 +53,13 @@ public:
 
     void stop();
 
+    // the file ended with the sleep timer at its end, once
+    bool takeEndSleep() {
+        bool sleep = endSleep;
+        endSleep = false;
+        return sleep;
+    }
+
     // the previous / next file (or playlist entry), false if none
     bool playSibling(int direction);
 
@@ -439,6 +446,7 @@ private:
     std::string externalJobPath;
     std::string externalJobName;
     std::vector<pplay::ExternalTracks::Track> externalFound;
+    bool endSleep = false;
 };
 
 #endif //PPLAY_PLAYER_H

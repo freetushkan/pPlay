@@ -447,3 +447,6 @@ Closed, then resumed = Closed, then resumed
 Offline = Offline
 Watched before the end = Watched before the end
 Watched if stopped that close to the end = Watched if stopped that close to the end
+Standby after = Standby after
+Standby after the time without keys, nothing playing = Standby after the time without keys, nothing playing
+End of file = End of file

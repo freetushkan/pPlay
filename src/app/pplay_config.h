@@ -93,10 +93,10 @@
 // scaled to the screen); read at the start
 #define OPT_PS5_UI_4K "PS5_UI_4K"
 // PS5: rest mode after that many minutes without a key, 0 off
-#define OPT_PS5_SLEEP_TIMER "PS5_SLEEP_TIMER"
+#define OPT_SLEEP_TIMER "SLEEP_TIMER"
+#define OPT_STANDBY_TIME "STANDBY_TIME"
 // no automatic sleep while playing / saving: until that many minutes without a key pressed,
 // 0 always (not on PS5: it never sleeps with the app open)
-#define OPT_STAY_AWAKE "STAY_AWAKE"
 // ".name" files and directories listed
 #define OPT_SHOW_HIDDEN "SHOW_HIDDEN"
 // all the files listed (not only the media ones): 1
