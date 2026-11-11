@@ -11,6 +11,14 @@ package com.freetushkan.pplay;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
+import android.os.Build;
 import android.media.MediaMetadata;
 import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
@@ -147,6 +155,7 @@ public class PPlayActivity extends SDLActivity {
             }
             if (state == 0) {
                 session.setActive(false);
+                activity.notifyMedia(null, false);
                 return;
             }
             session.setMetadata(new MediaMetadata.Builder()
@@ -158,7 +167,86 @@ public class PPlayActivity extends SDLActivity {
                     .setState(state == 2 ? PlaybackState.STATE_PLAYING : PlaybackState.STATE_PAUSED, position,
                             state == 2 ? 1.0f : 0.0f).build());
             session.setActive(true);
+            activity.notifyMedia(title, state == 2);
         });
+    }
+
+    // the notification of the session (phones: the shade, the lock screen), its buttons
+    private static final String MEDIA_ACTION = "com.freetushkan.pplay.MEDIA";
+    private static final int MEDIA_NOTIFICATION = 1;
+    private boolean mediaReceiver = false;
+    private boolean notificationsAsked = false;
+
+    @Override
+    protected void onDestroy() {
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager != null) {
+            manager.cancel(MEDIA_NOTIFICATION);
+        }
+        super.onDestroy();
+    }
+
+    private PendingIntent mediaIntent(String command, int code) {
+        Intent intent = new Intent(MEDIA_ACTION).setPackage(getPackageName()).putExtra("command", command);
+        return PendingIntent.getBroadcast(this, code, intent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
+    private void notifyMedia(String title, boolean playing) {
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager == null) {
+            return;
+        }
+        if (title == null) {
+            manager.cancel(MEDIA_NOTIFICATION);
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            if (!notificationsAsked) {
+                notificationsAsked = true;
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 3);
+            }
+            return;
+        }
+        if (!mediaReceiver) {
+            mediaReceiver = true;
+            BroadcastReceiver receiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    String command = intent.getStringExtra("command");
+                    if (command != null) {
+                        commands.add(command);
+                    }
+                }
+            };
+            if (Build.VERSION.SDK_INT >= 33) {
+                registerReceiver(receiver, new IntentFilter(MEDIA_ACTION), Context.RECEIVER_NOT_EXPORTED);
+            } else {
+                registerReceiver(receiver, new IntentFilter(MEDIA_ACTION));
+            }
+        }
+        Notification.Builder builder;
+        if (Build.VERSION.SDK_INT >= 26) {
+            manager.createNotificationChannel(new NotificationChannel("playback", "Playback", NotificationManager.IMPORTANCE_LOW));
+            builder = new Notification.Builder(this, "playback");
+        } else {
+            builder = new Notification.Builder(this);
+        }
+        Intent open = new Intent(this, PPlayActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        builder.setSmallIcon(playing ? android.R.drawable.ic_media_play : android.R.drawable.ic_media_pause)
+                .setContentTitle(title)
+                .setContentIntent(PendingIntent.getActivity(this, 0, open, PendingIntent.FLAG_IMMUTABLE))
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .setOngoing(playing)
+                .setShowWhen(false)
+                .addAction(new Notification.Action.Builder(
+                        playing ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play,
+                        playing ? "Pause" : "Play", mediaIntent(playing ? "pause" : "play", 1)).build())
+                .addAction(new Notification.Action.Builder(android.R.drawable.ic_menu_close_clear_cancel,
+                        "Stop", mediaIntent("stop", 2)).build())
+                .setStyle(new Notification.MediaStyle().setMediaSession(session.getSessionToken())
+                        .setShowActionsInCompactView(0, 1));
+        manager.notify(MEDIA_NOTIFICATION, builder.build());
     }
 
     public static String takeViewed() {
