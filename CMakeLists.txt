@@ -36,6 +36,14 @@ endif ()
 ###################
 # MODULES
 ###################
+# libcross2d compiles ~30 emulator shaders at start, pPlay draws with its texture and color ones
+# only: the rest skipped (a slow GPU, its shader cache dropped by an update: a minute)
+set(C2D_SHADERS ${CMAKE_CURRENT_SOURCE_DIR}/libcross2d/source/platforms/gl2/gl_shaders.cpp)
+file(READ ${C2D_SHADERS} C2D_SHADERS_SRC)
+string(REPLACE "if (device == \"pocket2\") {" "if (true) {" C2D_SHADERS_NEW "${C2D_SHADERS_SRC}")
+if (NOT C2D_SHADERS_NEW STREQUAL C2D_SHADERS_SRC)
+    file(WRITE ${C2D_SHADERS} "${C2D_SHADERS_NEW}")
+endif ()
 add_subdirectory(libcross2d)
 
 ##############
