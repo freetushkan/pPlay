@@ -116,7 +116,7 @@ public class PPlayActivity extends SDLActivity {
                 if (fd == null) {
                     return;
                 }
-                url = "fd://" + fd.detachFd();
+                url = "fdclose://" + fd.detachFd();
             } catch (Exception e) {
                 Log.e(TAG, "can't open " + uri, e);
                 return;

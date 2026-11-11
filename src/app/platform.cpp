@@ -2,6 +2,8 @@
 // Platform specific startup and shutdown.
 //
 
+#include <cstdarg>
+#include <cstring>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -551,7 +553,6 @@ namespace pplay::Platform {
             last = state;
         }
 #elif defined(__PS4__)
-        // the idle timer (screen off, rest mode) restarted often, the screen saver off
         static c2d::C2DClock tick;
         if (on && tick.getElapsedTime().asSeconds() > 5) {
             sceSystemServicePowerTick();
@@ -571,8 +572,9 @@ namespace pplay::Platform {
         (void) playing;
     }
 
-    std::string takeViewed(std::string *name) {
 #ifdef __ANDROID__
+    // a static method of PPlayActivity; its String result if it has one
+    static std::string callActivity(const char *method, const char *signature, ...) {
         auto *env = (JNIEnv *) SDL_AndroidGetJNIEnv();
         auto activity = (jobject) SDL_AndroidGetActivity();
         if (env == nullptr || activity == nullptr) {
@@ -580,24 +582,40 @@ namespace pplay::Platform {
         }
         std::string value;
         jclass cls = env->GetObjectClass(activity);
-        jmethodID mid = env->GetStaticMethodID(cls, "takeViewed", "()Ljava/lang/String;");
+        jmethodID mid = env->GetStaticMethodID(cls, method, signature);
         if (mid == nullptr) {
             env->ExceptionClear();
         } else {
-            auto result = (jstring) env->CallStaticObjectMethod(cls, mid);
+            va_list args;
+            va_start(args, signature);
+            bool string = signature[strlen(signature) - 1] == ';';
+            jobject result = string ? env->CallStaticObjectMethodV(cls, mid, args) : nullptr;
+            if (!string) {
+                env->CallStaticVoidMethodV(cls, mid, args);
+            }
+            va_end(args);
             if (env->ExceptionCheck()) {
                 env->ExceptionClear();
             } else if (result != nullptr) {
-                const char *utf = env->GetStringUTFChars(result, nullptr);
+                const char *utf = env->GetStringUTFChars((jstring) result, nullptr);
                 if (utf != nullptr) {
                     value = utf;
-                    env->ReleaseStringUTFChars(result, utf);
+                    env->ReleaseStringUTFChars((jstring) result, utf);
                 }
+            }
+            if (result != nullptr) {
                 env->DeleteLocalRef(result);
             }
         }
         env->DeleteLocalRef(cls);
         env->DeleteLocalRef(activity);
+        return value;
+    }
+#endif
+
+    std::string takeViewed(std::string *name) {
+#ifdef __ANDROID__
+        std::string value = callActivity("takeViewed", "()Ljava/lang/String;");
         size_t nl = value.find('\n');
         *name = nl == std::string::npos ? value : value.substr(nl + 1);
         return value.substr(0, nl);
@@ -610,24 +628,13 @@ namespace pplay::Platform {
     void mediaState(const std::string &title, int state, long positionMs, long durationMs) {
 #ifdef __ANDROID__
         auto *env = (JNIEnv *) SDL_AndroidGetJNIEnv();
-        auto activity = (jobject) SDL_AndroidGetActivity();
-        if (env == nullptr || activity == nullptr) {
+        if (env == nullptr) {
             return;
         }
-        jclass cls = env->GetObjectClass(activity);
-        jmethodID mid = env->GetStaticMethodID(cls, "mediaState", "(Ljava/lang/String;IJJ)V");
-        if (mid == nullptr) {
-            env->ExceptionClear();
-        } else {
-            jstring jTitle = env->NewStringUTF(title.c_str());
-            env->CallStaticVoidMethod(cls, mid, jTitle, (jint) state, (jlong) positionMs, (jlong) durationMs);
-            if (env->ExceptionCheck()) {
-                env->ExceptionClear();
-            }
-            env->DeleteLocalRef(jTitle);
-        }
-        env->DeleteLocalRef(cls);
-        env->DeleteLocalRef(activity);
+        jstring jTitle = env->NewStringUTF(title.c_str());
+        callActivity("mediaState", "(Ljava/lang/String;IJJ)V", jTitle, (jint) state, (jlong) positionMs,
+                     (jlong) durationMs);
+        env->DeleteLocalRef(jTitle);
 #else
         (void) title, (void) state, (void) positionMs, (void) durationMs;
 #endif
@@ -635,32 +642,7 @@ namespace pplay::Platform {
 
     std::string takeMediaCommand() {
 #ifdef __ANDROID__
-        auto *env = (JNIEnv *) SDL_AndroidGetJNIEnv();
-        auto activity = (jobject) SDL_AndroidGetActivity();
-        if (env == nullptr || activity == nullptr) {
-            return "";
-        }
-        std::string value;
-        jclass cls = env->GetObjectClass(activity);
-        jmethodID mid = env->GetStaticMethodID(cls, "takeMediaCommand", "()Ljava/lang/String;");
-        if (mid == nullptr) {
-            env->ExceptionClear();
-        } else {
-            auto result = (jstring) env->CallStaticObjectMethod(cls, mid);
-            if (env->ExceptionCheck()) {
-                env->ExceptionClear();
-            } else if (result != nullptr) {
-                const char *utf = env->GetStringUTFChars(result, nullptr);
-                if (utf != nullptr) {
-                    value = utf;
-                    env->ReleaseStringUTFChars(result, utf);
-                }
-                env->DeleteLocalRef(result);
-            }
-        }
-        env->DeleteLocalRef(cls);
-        env->DeleteLocalRef(activity);
-        return value;
+        return callActivity("takeMediaCommand", "()Ljava/lang/String;");
 #else
         return "";
 #endif
@@ -675,26 +657,6 @@ namespace pplay::Platform {
     }
 
 #ifdef __ANDROID__
-    // PPlayActivity.screenOff(boolean)
-    static void androidScreenOff(bool off) {
-        auto *env = (JNIEnv *) SDL_AndroidGetJNIEnv();
-        auto activity = (jobject) SDL_AndroidGetActivity();
-        if (env == nullptr || activity == nullptr) {
-            return;
-        }
-        jclass cls = env->GetObjectClass(activity);
-        jmethodID mid = env->GetStaticMethodID(cls, "screenOff", "(Z)V");
-        if (mid == nullptr) {
-            env->ExceptionClear();
-        } else {
-            env->CallStaticVoidMethod(cls, mid, (jboolean) off);
-            if (env->ExceptionCheck()) {
-                env->ExceptionClear();
-            }
-        }
-        env->DeleteLocalRef(cls);
-        env->DeleteLocalRef(activity);
-    }
     static bool g_screenOff = false;
 #endif
 
@@ -704,7 +666,7 @@ namespace pplay::Platform {
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS5: rest mode asked: " + std::to_string(res));
         return res == 0;
 #elif defined(__PS4__)
-        // not in the OpenOrbis stubs: from the system module
+        // not in the OpenOrbis stubs
         static int (*enterStandby)() = nullptr;
         static bool looked = false;
         if (!looked) {
@@ -725,9 +687,9 @@ namespace pplay::Platform {
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Switch: sleep asked: " + std::to_string(res));
         return R_SUCCEEDED(res);
 #elif defined(__ANDROID__)
-        // no standby for an app: the screen dark, then off by the system (not kept on)
+        // no standby for apps: dim the screen, the system turns it off
         g_screenOff = true;
-        androidScreenOff(true);
+        callActivity("screenOff", "(Z)V", (jboolean) true);
         return true;
 #else
         return false;
@@ -738,7 +700,7 @@ namespace pplay::Platform {
 #ifdef __ANDROID__
         if (g_screenOff) {
             g_screenOff = false;
-            androidScreenOff(false);
+            callActivity("screenOff", "(Z)V", (jboolean) false);
         }
 #endif
     }

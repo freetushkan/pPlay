@@ -215,6 +215,7 @@ void Main::goToSleep() {
         resting = true;
         keepSession();
         config->save();
+        resting = false;
     }
     pplay::Platform::sleepNow();
 }
