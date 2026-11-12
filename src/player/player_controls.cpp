@@ -301,7 +301,7 @@ void Player::updateKeysInfo() {
     std::ostringstream seek;
     seek << main->getConfig()->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
     auto line = [](const std::string &key, const std::string &action) { return key + ": " + action + "\n"; };
-    std::string out;
+    std::string out = "\n";
 #ifdef __ANDROID__
     // a TV remote: its keys (and the media ones), the rest in the player menu
     (void) seekBack, (void) seekForward, (void) speedReset, (void) speedUp;
