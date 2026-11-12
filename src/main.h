@@ -207,6 +207,7 @@ private:
     bool exit = false;
     bool running = true;
     int currentModuleIndex = 1;
+    c2d::RectangleShape *blackout = nullptr;
 };
 
 #endif //PPLAY_MAIN_H

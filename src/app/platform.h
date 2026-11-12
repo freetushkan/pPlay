@@ -45,8 +45,8 @@ namespace pplay::Platform {
     // standby on request (PS4, PS5, Switch)
     bool hasStandby();
 
-    // after sleepNow() on Android: screen back on
-    void wake();
+    // a standby kind to choose: the system's or a black screen (no standby on request)
+    bool hasStandbyChoice();
 
     // Android VIEW intent: url ("" if none)
     std::string takeViewed(std::string *name);

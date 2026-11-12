@@ -220,6 +220,10 @@ void Main::goToSleep() {
         config->save();
         resting = false;
     }
+    if (config->getOption(OPT_STANDBY_MODE)->getInteger() == 1 && pplay::Platform::hasStandbyChoice()) {
+        blackout->setVisibility(Visibility::Visible);
+        return;
+    }
     pplay::Platform::sleepNow();
 }
 

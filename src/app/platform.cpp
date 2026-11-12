@@ -656,10 +656,6 @@ namespace pplay::Platform {
 #endif
     }
 
-#ifdef __ANDROID__
-    static bool g_screenOff = false;
-#endif
-
     bool sleepNow() {
 #ifdef __PS5__
         int res = sceSystemStateMgrEnterStandby();
@@ -692,22 +688,16 @@ namespace pplay::Platform {
         Result res = appletRequestToSleep();
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Switch: sleep asked: " + std::to_string(res));
         return R_SUCCEEDED(res);
-#elif defined(__ANDROID__)
-        // no standby for apps: dim the screen, the system turns it off
-        g_screenOff = true;
-        callActivity("screenOff", "(Z)V", (jboolean) true);
-        return true;
 #else
         return false;
 #endif
     }
 
-    void wake() {
-#ifdef __ANDROID__
-        if (g_screenOff) {
-            g_screenOff = false;
-            callActivity("screenOff", "(Z)V", (jboolean) false);
-        }
+    bool hasStandbyChoice() {
+#if defined(__ANDROID__) || defined(__LINUX__)
+        return true;
+#else
+        return false;
 #endif
     }
 

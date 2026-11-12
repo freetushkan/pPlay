@@ -56,6 +56,12 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
     statusBox->setLayer(10);
     Main::add(statusBox);
 
+    blackout = new RectangleShape(getSize());
+    blackout->setFillColor(Color::Black);
+    blackout->setLayer(1000);
+    blackout->setVisibility(Visibility::Hidden);
+    Main::add(blackout);
+
     // media information, pictures cache: what is not used for a month removed
     pplayIo->create(pplayIo->getDataPath() + "cache");
     pplay::PosterCache::cleanup(30);
@@ -230,6 +236,16 @@ Main::~Main() {
 }
 
 bool Main::onInput(c2d::Input::Player *players) {
+    // the black screen: any key brings the interface back, nothing else
+    if (blackout->isVisible()) {
+        unsigned int pressed = players[0].buttons;
+        if (pressed != 0 && pressed != Input::Button::Delay) {
+            blackout->setVisibility(Visibility::Hidden);
+            idleClock.restart();
+            sleepAsked = false;
+        }
+        return true;
+    }
 
     if (messageBox->isVisible()) {
         // don't handle input if message box is visible
@@ -241,7 +257,6 @@ bool Main::onInput(c2d::Input::Player *players) {
         return true;
     }
     idleClock.restart();
-    pplay::Platform::wake();
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
                         "Main::onInput keys=" + pplay::Utility::getKeysString(keys) + pplay::InputMap::toString(keys));
 
@@ -363,7 +378,9 @@ void Main::onUpdate() {
     float idle = idleClock.getElapsedTime().asSeconds();
     int standby = config->getOption(OPT_STANDBY_TIME)->getInteger();
     int sleepMinutes = config->getOption(OPT_SLEEP_TIMER)->getInteger();
-    bool awake = !sleepAsked && (playing || pplay::Saved::busy() || standby < 0 || (standby > 0 && idle < (float) standby * 60));
+    bool black = config->getOption(OPT_STANDBY_MODE)->getInteger() == 1 && pplay::Platform::hasStandbyChoice();
+    bool awake = blackout->isVisible()
+                 || (!sleepAsked && (playing || pplay::Saved::busy() || standby < 0 || (standby > 0 && idle < (float) standby * 60)));
     pplay::Platform::keepAwake(awake, playing);
     if (idle < 1) {
         sleepAsked = false;
@@ -377,7 +394,7 @@ void Main::onUpdate() {
         }
         goToSleep();
     } else if (!sleepAsked && !playing && !pplay::Saved::busy() && standby > 0 && idle >= (float) standby * 60
-               && pplay::Platform::hasStandby()) {
+               && (pplay::Platform::hasStandby() || black)) {
         sleepAsked = true;
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: standby time");
         goToSleep();
