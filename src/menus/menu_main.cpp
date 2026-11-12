@@ -73,6 +73,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Other files", "file_other.png", Pos::Top),
                                   MenuItem("Saved section", "saved.png", Pos::Top),
                                   MenuItem("Playlists section", "playlist.png", Pos::Top),
+                                  MenuItem("Media information", "media_info.png", Pos::Top),
                                   MenuItem("Swap controls", "swap.png", Pos::Top),
                           }});
     std::vector<MenuItem> networks;
@@ -97,7 +98,6 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     std::vector<MenuItem> system = {
             MenuItem("Local home path", "home.png", Pos::Top),
             MenuItem("Edit files", "edit.png", Pos::Top),
-            MenuItem("Media information", "media_info.png", Pos::Top),
             MenuItem("Clear cache", "clear_cache.png", Pos::Top),
             MenuItem("Standby", "awake.png", Pos::Top),
 #ifdef __ANDROID__
