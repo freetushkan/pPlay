@@ -175,19 +175,24 @@ namespace {
         return io->list(io->getDeviceType(dir.path), dir.path, timeout, &error, false, hidden);
     }
 
-    // a file watched: its mark, or (by progress) its position close to the end (the credits)
+    // a file watched. By marks: any check of its row (a local entry, the server's mark). By
+    // progress: its position near the end (the cached duration, no probes), a local watched mark,
+    // else its checks
     bool watched(const std::string &path, const std::string &url, bool local, bool server, int mode) {
-        if (local ? Utility::isWatchLaterWatched(url) : server) {
-            return true;
+        bool checked = local || server;
+        if (mode != 2) {
+            return checked;
         }
-        if (mode != 2 || !local) {
-            return false;
+        if (local && Utility::isWatchLaterWatched(url)) {
+            return true;
         }
         long duration = MediaInfo(c2d::Io::File(Paths::getLeafName(path), path, c2d::Io::Type::File)).duration;
         double position = TorrServe::keptPosition(path, g_config->getOption(OPT_TS_PROGRESS)->getInteger());
-        return duration > 0 && position > 0
-               && ((double) duration - position <= std::max(90.0, duration * 0.1)
-                   || Utility::isNearEnd(position, (double) duration));
+        if (duration > 0 && position > 0) {
+            return (double) duration - position <= std::max(90.0, duration * 0.1)
+                   || Utility::isNearEnd(position, (double) duration);
+        }
+        return checked;
     }
 
     void collect(const c2d::Io::File &dir, int depth, std::vector<c2d::Io::File> &out) {
@@ -245,8 +250,8 @@ namespace {
             bool viewed = server ? TorrServe::isFileViewed(path, !torrent.empty() && asked.insert(torrent).second)
                                  : TorrServe::isFileViewed(path, false, true);
             bool done = watched(path, url, local, viewed, mode);
-            // by marks: the marks only (a position does not count), by progress: any position too
-            if (mode == 2 ? local || viewed : done) {
+            // any check: the folder started (gray)
+            if (local || viewed) {
                 state.marked++;
             }
             if (!done) {
