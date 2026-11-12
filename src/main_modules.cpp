@@ -213,17 +213,15 @@ void Main::closeForRest() {
 }
 
 void Main::goToSleep() {
-    // the app may not get a suspend event
-    if (pplay::Platform::hasStandby()) {
-        resting = true;
-        keepSession();
-        config->save();
-        resting = false;
-    }
-    if (config->getOption(OPT_STANDBY_MODE)->getInteger() == 1 && pplay::Platform::hasStandbyChoice()) {
+    if (!pplay::Platform::hasStandby()) {
         blackout->setVisibility(Visibility::Visible);
         return;
     }
+    // the app may not get a suspend event
+    resting = true;
+    keepSession();
+    config->save();
+    resting = false;
     pplay::Platform::sleepNow();
 }
 

@@ -664,7 +664,7 @@ namespace pplay::Platform {
     }
 
     bool hasStandby() {
-#if defined(__PS5__) || defined(__SWITCH__) || defined(__PS4__)
+#if defined(__PS5__) || defined(__SWITCH__)
         return true;
 #else
         return false;
@@ -676,45 +676,10 @@ namespace pplay::Platform {
         int res = sceSystemStateMgrEnterStandby();
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS5: rest mode asked: " + std::to_string(res));
         return res == 0;
-#elif defined(__PS4__)
-        // not in the OpenOrbis stubs
-        static int (*enterStandby)() = nullptr;
-        static bool looked = false;
-        if (!looked) {
-            looked = true;
-            // the system libraries: under the app's sandbox word ("/<word>/common/lib")
-            std::string word = sceKernelGetFsSandboxRandomWord() != nullptr ? sceKernelGetFsSandboxRandomWord() : "";
-            std::vector<std::string> paths = {"/" + word + "/common/lib/libSceSystemStateMgr.sprx",
-                                              "/" + word + "/priv/lib/libSceSystemStateMgr.sprx",
-                                              "/system/common/lib/libSceSystemStateMgr.sprx"};
-            for (const std::string &p: paths) {
-                const char *path = p.c_str();
-                int handle = (int) sceKernelLoadStartModule(path, 0, nullptr, 0, nullptr, nullptr);
-                int found = handle >= 0 ? sceKernelDlsym(handle, "sceSystemStateMgrEnterStandby", (void **) &enterStandby) : -1;
-                char text[160];
-                snprintf(text, sizeof(text), "PS4: %s: module 0x%08x, function 0x%08x", path, (unsigned int) handle,
-                         (unsigned int) found);
-                pplay::Utility::log(pplay::Utility::LogLevel::Info, text);
-                if (enterStandby != nullptr) {
-                    break;
-                }
-            }
-        }
-        int res = enterStandby != nullptr ? enterStandby() : -1;
-        pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS4: rest mode asked: " + std::to_string(res));
-        return res == 0;
 #elif defined(__SWITCH__)
         Result res = appletRequestToSleep();
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Switch: sleep asked: " + std::to_string(res));
         return R_SUCCEEDED(res);
-#else
-        return false;
-#endif
-    }
-
-    bool hasStandbyChoice() {
-#if defined(__ANDROID__) || defined(__LINUX__)
-        return true;
 #else
         return false;
 #endif

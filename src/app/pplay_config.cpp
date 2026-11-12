@@ -137,8 +137,6 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
 #else
     addOption({OPT_STANDBY_TIME, (int) 60});
 #endif
-    // 0: the system's (consoles: standby; else its own timers), 1: a black screen
-    addOption({OPT_STANDBY_MODE, (int) 0});
     // minutes, -1: end of file, 0: off
     addOption({OPT_SLEEP_TIMER, (int) 0});
 #ifdef __PS5__
@@ -262,8 +260,12 @@ void PPLAYConfig::sanitize() {
     clamp(OPT_PROGRESS_MIN_LENGTH, 0, 60);
     clamp(OPT_PROGRESS_INTERVAL, 5, 120);
     clamp(OPT_SAVE_THREADS, 1, 4);
+#ifdef __PS4__
+    // "never" not kept by the system
+    clamp(OPT_STANDBY_TIME, 0, 1440);
+#else
     clamp(OPT_STANDBY_TIME, -1, 1440);
-    clamp(OPT_STANDBY_MODE, 0, 1);
+#endif
     clamp(OPT_SLEEP_TIMER, -1, 1440);
     clamp(OPT_SAVE_KEEP_DAYS, 0, 3650);
     clamp(OPT_SAVE_MAX_GB, 0, 100000);

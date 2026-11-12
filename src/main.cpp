@@ -378,7 +378,6 @@ void Main::onUpdate() {
     float idle = idleClock.getElapsedTime().asSeconds();
     int standby = config->getOption(OPT_STANDBY_TIME)->getInteger();
     int sleepMinutes = config->getOption(OPT_SLEEP_TIMER)->getInteger();
-    bool black = config->getOption(OPT_STANDBY_MODE)->getInteger() == 1 && pplay::Platform::hasStandbyChoice();
     bool awake = blackout->isVisible()
                  || (!sleepAsked && (playing || pplay::Saved::busy() || standby < 0 || (standby > 0 && idle < (float) standby * 60)));
     pplay::Platform::keepAwake(awake, playing);
@@ -393,8 +392,7 @@ void Main::onUpdate() {
             player->pause();
         }
         goToSleep();
-    } else if (!sleepAsked && !playing && !pplay::Saved::busy() && standby > 0 && idle >= (float) standby * 60
-               && (pplay::Platform::hasStandby() || black)) {
+    } else if (!sleepAsked && !playing && !pplay::Saved::busy() && standby > 0 && idle >= (float) standby * 60) {
         sleepAsked = true;
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: standby time");
         goToSleep();

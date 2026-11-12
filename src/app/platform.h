@@ -42,11 +42,9 @@ namespace pplay::Platform {
     // the console put to sleep now (PS5: rest mode); false if it can't
     bool sleepNow();
 
-    // standby on request (PS4, PS5, Switch)
+    // standby on request (PS5, Switch); else a black screen
     bool hasStandby();
 
-    // a standby kind to choose: the system's or a black screen (no standby on request)
-    bool hasStandbyChoice();
 
     // Android VIEW intent: url ("" if none)
     std::string takeViewed(std::string *name);

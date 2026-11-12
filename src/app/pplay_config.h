@@ -95,7 +95,6 @@
 // PS5: rest mode after that many minutes without a key, 0 off
 #define OPT_SLEEP_TIMER "SLEEP_TIMER"
 #define OPT_STANDBY_TIME "STANDBY_TIME"
-#define OPT_STANDBY_MODE "STANDBY_MODE"
 // no automatic sleep while playing / saving: until that many minutes without a key pressed,
 // 0 always (not on PS5: it never sleeps with the app open)
 // ".name" files and directories listed

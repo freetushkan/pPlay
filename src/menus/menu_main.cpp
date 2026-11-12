@@ -100,9 +100,6 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
             MenuItem("Media information", "media_info.png", Pos::Top),
             MenuItem("Clear cache", "clear_cache.png", Pos::Top),
             MenuItem("Standby", "awake.png", Pos::Top),
-#if defined(__ANDROID__) || defined(__LINUX__)
-            MenuItem("Standby kind", "awake.png", Pos::Top),
-#endif
 #ifdef __ANDROID__
             MenuItem("Background behavior", "exit.png", Pos::Top),
 #endif
@@ -302,12 +299,13 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Keep in memory", 0}, {"Save state and close", 1}}), Submenu::ValueType::Integer);
 #endif
     addSubmenu("Standby", "Standby when idle", OPT_STANDBY_TIME,
-               makeMinuteItems({5, 10, 15, 30, 60, 120, 180, 360, 720}, {{"By system", 0}}, {{"Never", -1}}),
+               makeMinuteItems({5, 10, 15, 30, 60, 120, 180, 360, 720}, {{"By system", 0}},
+#ifdef __PS4__
+                               {}),
+#else
+                               {{"Never", -1}}),
+#endif
                Submenu::ValueType::Integer);
-    if (pplay::Platform::hasStandbyChoice()) {
-        addSubmenu("Standby kind", "Standby kind", OPT_STANDBY_MODE,
-                   makeIntItems({{"By system", 0}, {"Black screen", 1}}), Submenu::ValueType::Integer);
-    }
     addSubmenu("Restore last file", "The file playing at the exit opened at the start", OPT_RESTORE_SESSION,
 #ifdef __PS5__
                makeIntItems({{"Off", 0}, {"After rest mode", 1}, {"Always", 2}}),
