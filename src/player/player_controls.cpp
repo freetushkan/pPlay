@@ -53,6 +53,15 @@ bool Player::onInput(c2d::Input::Player *players) {
         return true;
     }
 
+    // loading: Back minimizes, other keys show the OSD
+    if (isFullscreen() && isLoading() && !menu && !mainMenu && !main->getFiler()->isVisible()) {
+        if ((keys & Input::B) && !osd->isExpanded()) {
+            setFullscreen(false);
+            return true;
+        }
+        loadingOsd = true;
+    }
+
     // minimized: the OSD keeps nothing
     if (mpv->isStopped() || main->getFiler()->isVisible() || menu || mainMenu) {
         return isFullscreen() && !mainMenu && C2DObject::onInput(players);

@@ -58,8 +58,8 @@ void Player::onMpvEvent(mpv_event *event) {
                 mpv_command(mpv->getHandle(), remove);
             }
             appliedAudioFilter = AudioFilterUnknown;
-            main->getStatus()->show("Wait", pplay::tr("Loading file")
-                                                    + " \"" + encoding::fix(file.name) + "\"", true);
+            loadingOsd = false;
+            showLoading();
             startPlaybackPosition = -1;
             frameDrawn = false;
             playbackStarted = false;
@@ -114,6 +114,10 @@ void Player::onMpvEvent(mpv_event *event) {
         default:
             break;
     }
+}
+
+void Player::showLoading() {
+    main->getStatus()->show("Wait", pplay::tr("Loading file") + " \"" + encoding::fix(file.name) + "\"", true);
 }
 
 void Player::onStopEvent(int reason) {

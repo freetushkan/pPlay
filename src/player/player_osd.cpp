@@ -490,9 +490,10 @@ void PlayerOSD::onUpdate() {
     Mpv *mpv = player->getMpv();
     float dt = std::min(0.1f, frameClock.restart().asSeconds());
 
-    bool audio = player->getAudioScreen() != Player::AudioScreen::None;
-    // shown once the file shows something (a video panel over an audio file else)
-    bool ready = !mpv->isStopped() && (audio || player->isPlaybackStarted());
+    bool loading = player->isLoading();
+    bool audio = player->getAudioScreen() != Player::AudioScreen::None || (loading && player->guessesAudio());
+    // shown once the file shows something, or on a key while loading
+    bool ready = !mpv->isStopped() && (audio || player->isPlaybackStarted() || (loading && player->isLoadingOsd()));
     bool active = player->isFullscreen() && ready;
     lineShown = ready && main->getConfig()->getOption(OPT_PROGRESS_LINE)->getInteger() != 0;
     if (!laidOut || audio != audioLayout) {

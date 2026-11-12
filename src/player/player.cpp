@@ -380,6 +380,9 @@ void Player::onUpdate() {
             if (!reloadPending) {
                 updateWatchdog();
             }
+            if (!playbackStarted && !main->getStatus()->isVisible()) {
+                showLoading();
+            }
             if (!frameDrawn && mpv->isAvailable()) {
                 if (position > 0.0 && startPlaybackPosition == -1) {
                     startPlaybackPosition = position;

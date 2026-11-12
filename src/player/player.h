@@ -53,6 +53,8 @@ public:
 
     void stop();
 
+    void showLoading();
+
     bool takeEndSleep() {
         bool sleep = endSleep;
         endSleep = false;
@@ -179,6 +181,14 @@ public:
 
     // the first frame (or the audio screen) shown: the panel may appear
     bool isPlaybackStarted() const { return playbackStarted; }
+
+    // a file loading (nothing shown yet); the OSD shown meanwhile on a key
+    bool isLoading() { return !playbackStarted && !mpv->isStopped(); }
+
+    bool isLoadingOsd() const { return loadingOsd; }
+
+    // the OSD layout before the playback tells: by the extension
+    bool guessesAudio() const { return pplay::ExternalTracks::isAudio(file.name); }
 
     bool isPlaylistFile() const;
 
@@ -444,6 +454,7 @@ private:
     std::string externalJobName;
     std::vector<pplay::ExternalTracks::Track> externalFound;
     bool endSleep = false;
+    bool loadingOsd = false;
 };
 
 #endif //PPLAY_PLAYER_H
