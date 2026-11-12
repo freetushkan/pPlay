@@ -303,7 +303,10 @@ void Filer::run(DetailsView::Action action) {
             if (selection.type == Io::Type::Directory) {
                 enter(item_index);
             } else if (pplay::Utility::isMedia(selection)) {
-                if (pplay::Offline::isOffline(selection.path) && pplay::Saved::localCopy(selection.path).empty()) {
+                if (!player->getMpv()->isStopped()
+                    && pplay::Saved::originalOf(player->getFile().path) == pplay::Saved::originalOf(selection.path)) {
+                    player->setFullscreen(true);
+                } else if (pplay::Offline::isOffline(selection.path) && pplay::Saved::localCopy(selection.path).empty()) {
                     main->getStatus()->show("Error", pplay::tr("Offline: the file is not accessible"));
                 } else {
                     player->setFullscreen(true);
