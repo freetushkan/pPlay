@@ -35,6 +35,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     categories.push_back({"Progress",
                           {
                                   MenuItem("Keep progress from", "progress_from.png", Pos::Top),
+                                  MenuItem("End margin", "progress_from.png", Pos::Top),
                                   MenuItem("Progress save interval", "time.png", Pos::Top),
                                   MenuItem("Progress line", "progress_line.png", Pos::Top),
                                   MenuItem("Folder marks", "progress_end.png", Pos::Top),
