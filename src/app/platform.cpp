@@ -679,9 +679,17 @@ namespace pplay::Platform {
         if (clock.getElapsedTime().asSeconds() >= 1) {
             clock.restart();
             Status status = {};
-            if (((int (*)(Status *)) sceSystemServiceGetStatus)(&status) == 0) {
-                away = status.isInBackgroundExecution || status.isSystemUiOverlaid;
+            int res = ((int (*)(Status *)) sceSystemServiceGetStatus)(&status);
+            bool now = res == 0 && (status.isInBackgroundExecution || status.isSystemUiOverlaid);
+            static int lastRes = 1;
+            if (now != away || res != lastRes) {
+                char text[96];
+                snprintf(text, sizeof(text), "Platform: status 0x%08x, background %d, system menu %d", (unsigned int) res,
+                         (int) status.isInBackgroundExecution, (int) status.isSystemUiOverlaid);
+                pplay::Utility::log(pplay::Utility::LogLevel::Info, text);
+                lastRes = res;
             }
+            away = now;
         }
         return away;
 #else
