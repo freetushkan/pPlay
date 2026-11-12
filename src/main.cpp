@@ -381,29 +381,50 @@ void Main::onUpdate() {
     if (frameClock.getElapsedTime().asSeconds() > 5 || pplay::Platform::isAway()) {
         idleClock.restart();
         sleepAsked = false;
+        if (sleepCountdown) {
+            sleepCountdown = false;
+            statusBox->hide();
+        }
     }
     frameClock.restart();
     float idle = idleClock.getElapsedTime().asSeconds();
     int standby = config->getOption(OPT_STANDBY_TIME)->getInteger();
     int sleepMinutes = config->getOption(OPT_SLEEP_TIMER)->getInteger();
-    bool awake = blackout->isVisible()
+    bool awake = blackout->isVisible() || sleepCountdown
                  || (!sleepAsked && (playing || pplay::Saved::busy() || standby < 0 || (standby > 0 && idle < (float) standby * 60)));
     pplay::Platform::keepAwake(awake, playing);
     if (idle < 1) {
         sleepAsked = false;
+        // a key: the countdown cancelled
+        if (sleepCountdown) {
+            sleepCountdown = false;
+            statusBox->hide();
+        }
     }
     bool endSleep = player != nullptr && player->takeEndSleep();
     if (!sleepAsked && (endSleep || (playing && sleepMinutes > 0 && idle >= (float) sleepMinutes * 60))) {
         sleepAsked = true;
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: sleep timer");
-        if (playing) {
-            player->pause();
-        }
-        goToSleep();
+        startSleepCountdown();
     } else if (!sleepAsked && !playing && !pplay::Saved::busy() && standby > 0 && idle >= (float) standby * 60) {
         sleepAsked = true;
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: standby time");
-        goToSleep();
+        startSleepCountdown();
+    }
+    // the countdown before it (a key cancels it)
+    if (sleepCountdown) {
+        int left = SleepCountdownSecs - (int) countdownClock.getElapsedTime().asSeconds();
+        if (left <= 0) {
+            sleepCountdown = false;
+            statusBox->hide();
+            if (player != nullptr && !player->getMpv()->isStopped() && !player->getMpv()->isPaused()) {
+                player->pause();
+            }
+            goToSleep();
+        } else if (left != countdownShown) {
+            countdownShown = left;
+            statusBox->show("Wait", pplay::tr("Standby in") + " " + std::to_string(left) + " " + pplay::tr("s"), true);
+        }
     }
     std::string savedType, savedMessage;
     if (pplay::Saved::takeMessage(&savedType, &savedMessage)

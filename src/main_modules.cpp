@@ -212,6 +212,12 @@ void Main::closeForRest() {
     quit();
 }
 
+void Main::startSleepCountdown() {
+    sleepCountdown = true;
+    countdownShown = -1;
+    countdownClock.restart();
+}
+
 void Main::goToSleep() {
     if (!pplay::Platform::hasStandby()) {
         blackout->setVisibility(Visibility::Visible);

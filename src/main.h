@@ -165,6 +165,8 @@ private:
     // standby (Android: screen off)
     void goToSleep();
 
+    void startSleepCountdown();
+
     // a link from another app: a known TorrServer one opened in its network, else played as is
     void openLink(const std::string &url, const std::string &name);
 
@@ -208,6 +210,10 @@ private:
     bool running = true;
     int currentModuleIndex = 1;
     c2d::RectangleShape *blackout = nullptr;
+    static constexpr int SleepCountdownSecs = 15;
+    bool sleepCountdown = false;
+    int countdownShown = -1;
+    c2d::C2DClock countdownClock;
 };
 
 #endif //PPLAY_MAIN_H
