@@ -11,6 +11,7 @@
 #include <ctime>
 
 #include "cross2d/c2d.h"
+#include "i18n.h"
 
 #ifdef __SWITCH__
 #if __has_include("cross2d/platforms/switch/switch_sys.h")
@@ -512,6 +513,18 @@ bool Utility::deleteWatchLater(const std::string &video_path) {
         return deleteFile(path);
     }
     return false;
+}
+
+std::string Utility::formatMinutes(int minutes) {
+    int hours = minutes / 60, rest = minutes % 60;
+    std::string text;
+    if (hours > 0) {
+        text = std::to_string(hours) + " " + pplay::tr("h");
+    }
+    if (rest > 0 || hours == 0) {
+        text += (text.empty() ? "" : " ") + std::to_string(rest) + " " + pplay::tr("min");
+    }
+    return text;
 }
 
 static std::atomic<int> g_watchedTolerance{0};

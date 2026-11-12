@@ -18,6 +18,11 @@ namespace pplay::MenuMainItems {
 
     std::vector<MenuItem> makeIntItems(const std::vector<std::pair<std::string, int>> &values);
 
+    // durations in minutes, named "1 h 15 min"; the special ones before / after
+    std::vector<MenuItem> makeMinuteItems(const std::vector<int> &minutes,
+                                          const std::vector<std::pair<std::string, int>> &before,
+                                          const std::vector<std::pair<std::string, int>> &after);
+
     // "Network x" menu key
     std::string networkKey(int index);
 

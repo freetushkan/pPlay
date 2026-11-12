@@ -199,6 +199,17 @@ namespace pplay::MenuMainItems {
         return items;
     }
 
+    std::vector<MenuItem> makeMinuteItems(const std::vector<int> &minutes,
+                                          const std::vector<std::pair<std::string, int>> &before,
+                                          const std::vector<std::pair<std::string, int>> &after) {
+        std::vector<std::pair<std::string, int>> values = before;
+        for (int m: minutes) {
+            values.emplace_back(pplay::Utility::formatMinutes(m), m);
+        }
+        values.insert(values.end(), after.begin(), after.end());
+        return makeIntItems(values);
+    }
+
     std::vector<MenuItem> makeAccentColorItems() {
         static const std::pair<const char *, const char *> colors[] = {
                 {"Base Blue", "#1078C8"},      {"Muted Cyan", "#008EA0"},        {"Muted Crimson", "#D64545"},

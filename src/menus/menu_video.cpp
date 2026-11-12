@@ -60,9 +60,11 @@ namespace {
     };
 
     // minutes playing without a key, -1: the end of the file
-    const Choices g_sleep = {OPT_SLEEP_TIMER, {0, -1, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180},
-                             {"Off", "End of file", "15 min", "30 min", "45 min", "1 h", "75 min", "1.5 h", "105 min",
-                              "2 h", "135 min", "150 min", "165 min", "3 h"}};
+    const Choices g_sleep = {OPT_SLEEP_TIMER, {0, -1, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180}, {}};
+
+    std::string sleepName(int value) {
+        return value == 0 ? pplay::tr("Off") : value < 0 ? pplay::tr("End of file") : pplay::Utility::formatMinutes(value);
+    }
 
     int choiceIndex(PPLAYConfig *config, const Choices &choices);
 
@@ -176,7 +178,7 @@ void MenuVideo::refreshValues() {
             item.value = pplay::tr(config->getOption(OPT_PROGRESS_LINE)->getInteger() ? "On" : "Off");
         } else if (n == "Sleep timer") {
             int index = choiceIndex(config, g_sleep);
-            item.value = pplay::tr(g_sleep.names[index]);
+            item.value = sleepName(g_sleep.values[index]);
             item.valueAccent = index != 0;
             item.slider = (float) index / (float) (g_sleep.values.size() - 1);
         }

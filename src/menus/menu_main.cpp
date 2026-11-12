@@ -302,8 +302,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Keep in memory", 0}, {"Save state and close", 1}}), Submenu::ValueType::Integer);
 #endif
     addSubmenu("Standby", "Standby when idle", OPT_STANDBY_TIME,
-               makeIntItems({{"By system", 0}, {"5 min", 5}, {"10 min", 10}, {"15 min", 15}, {"30 min", 30},
-                             {"1 h", 60}, {"2 h", 120}, {"3 h", 180}, {"6 h", 360}, {"12 h", 720}, {"Never", -1}}),
+               makeMinuteItems({5, 10, 15, 30, 60, 120, 180, 360, 720}, {{"By system", 0}}, {{"Never", -1}}),
                Submenu::ValueType::Integer);
     if (pplay::Platform::hasStandbyChoice()) {
         addSubmenu("Standby kind", "Standby kind", OPT_STANDBY_MODE,

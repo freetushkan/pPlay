@@ -24,6 +24,9 @@ namespace pplay {
 
         static bool isNearEnd(double position, double duration);
 
+        // "45 min", "1 h", "1 h 15 min" (translated)
+        static std::string formatMinutes(int minutes);
+
         enum class LogLevel {
             Off = 0,
             Error = 1,
