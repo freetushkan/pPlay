@@ -52,6 +52,27 @@ mediacodecStuck() {
 	[ "$(grep -c "Decoder stuck\|stuck_since = 0" "$1")" -eq 2 ]
 }
 
+# a dependency's tarball unpacked into deps/<name> (download-deps.sh skips it then): each url
+# tried a few times, the archive checked before unpacking
+prefetch() {
+	local name="$1" archive="/tmp/prefetch-$1.tar.gz" url try
+	shift
+	[ -d "deps/$name" ] && return 0
+	for url in "$@"; do
+		for try in 1 2 3; do
+			if wget -q -O "$archive" "$url" && gzip -t "$archive" 2>/dev/null; then
+				mkdir -p "deps/$name"
+				tar -xzf "$archive" -C "deps/$name" --strip-components=1
+				rm -f "$archive"
+				return 0
+			fi
+			echo "prefetch: $url failed ($try)" >&2
+			sleep 5
+		done
+	done
+	return 1
+}
+
 # the SDK of the runner, mpv-android's NDK
 mkdir -p sdk
 if [[ -n "$ANDROID_HOME" && ! -e sdk/android-sdk-linux ]]; then
@@ -74,6 +95,11 @@ for entry in $ARCHS; do
 	# ffmpeg, mpv and theirs (the cached prefix)
 	if [ ! -f "$prefix/lib/libmpv.so" ]; then
 		if [ $fetched -eq 0 ]; then
+			# its tarballs (lua.org, curl.se: sometimes cut off) fetched first, retried, with mirrors
+			prefetch lua "https://www.lua.org/ftp/lua-$v_lua.tar.gz" \
+				"https://www.tecgraf.puc-rio.br/lua/mirror/ftp/lua-$v_lua.tar.gz"
+			prefetch curl "https://curl.se/download/curl-$v_curl.tar.gz" \
+				"https://github.com/curl/curl/releases/download/curl-${v_curl//./_}/curl-$v_curl.tar.gz"
 			IN_CI=1 WGET="wget -q" ./include/download-deps.sh
 			git -C deps/mpv checkout -q "$(git -C deps/mpv rev-list -1 --before="$MPV_BEFORE" HEAD)"
 			git -C deps/mpv log -1 --oneline
