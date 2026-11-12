@@ -79,7 +79,14 @@ int Mpv::getOsdHeight() {
 
 int Mpv::seek(double position) {
     std::string cmd = "no-osd seek " + std::to_string(position);
-    return mpv_command_string(handle, cmd.c_str());
+    int res = mpv_command_string(handle, cmd.c_str());
+    // paused: a hardware decoder gives the new frame only with more input (MediaCodec...), one
+    // frame stepped to show it
+    std::string hwdec = getString("hwdec-current");
+    if (res >= 0 && isPaused() && !hwdec.empty() && hwdec != "no") {
+        mpv_command_string(handle, "no-osd frame-step");
+    }
+    return res;
 }
 
 std::string Mpv::setSpeed(double speed) {
