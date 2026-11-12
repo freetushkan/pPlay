@@ -210,7 +210,7 @@ private:
     bool running = true;
     int currentModuleIndex = 1;
     c2d::RectangleShape *blackout = nullptr;
-    static constexpr int SleepCountdownSecs = 15;
+    static constexpr int SleepCountdownSecs = 60;
     bool sleepCountdown = false;
     int countdownShown = -1;
     c2d::C2DClock countdownClock;
