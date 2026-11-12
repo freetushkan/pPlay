@@ -298,8 +298,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"1080p", 0}, {"4K", 1}}), Submenu::ValueType::Integer);
 #endif
 #ifdef __ANDROID__
-    addSubmenu("When minimized", "The app in the background (after a restart)", OPT_ANDROID_BACKGROUND,
-               makeIntItems({{"Paused", 0}, {"Closed, then resumed", 1}}), Submenu::ValueType::Integer);
+    addSubmenu("Background behavior", "Application behavior when minimized", OPT_ANDROID_BACKGROUND,
+               makeIntItems({{"Keep in memory", 0}, {"Save state and close", 1}}), Submenu::ValueType::Integer);
 #endif
     addSubmenu("Standby", "Standby when idle", OPT_STANDBY_TIME,
                makeIntItems({{"By system", 0}, {"5 min", 5}, {"10 min", 10}, {"15 min", 15}, {"30 min", 30},
