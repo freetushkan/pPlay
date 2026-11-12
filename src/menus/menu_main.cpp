@@ -31,9 +31,6 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Long seek step", "long_seek.png", Pos::Top),
                                   MenuItem("Playback retry", "pl_retry.png", Pos::Top),
                                   MenuItem("Restore last file", "playlist.png", Pos::Top),
-#ifdef __ANDROID__
-                                  MenuItem("When minimized", "exit.png", Pos::Top),
-#endif
                           }});
     categories.push_back({"Progress",
                           {
@@ -105,6 +102,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
             MenuItem("Standby", "awake.png", Pos::Top),
 #if defined(__ANDROID__) || defined(__LINUX__)
             MenuItem("Standby kind", "awake.png", Pos::Top),
+#endif
+#ifdef __ANDROID__
+            MenuItem("Background behavior", "exit.png", Pos::Top),
 #endif
     };
 #ifdef __SWITCH__
