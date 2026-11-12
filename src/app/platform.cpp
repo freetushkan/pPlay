@@ -553,17 +553,20 @@ namespace pplay::Platform {
             last = state;
         }
 #elif defined(__PS4__)
+        // the video playback tick: what video apps report to keep the console awake (the power
+        // tick alone not enough); the OpenOrbis headers declare them void: results logged
         static c2d::C2DClock tick;
         if (on && tick.getElapsedTime().asSeconds() > 5) {
-            // (void in the OpenOrbis headers: their results, logged when they change)
-            static int lastTick = 1, lastSaver = 1;
+            static int lastVideo = 1, lastTick = 1, lastSaver = 1;
+            int videoResult = ((int (*)()) sceSystemServiceTickVideoPlayback)();
             int tickResult = ((int (*)()) sceSystemServicePowerTick)();
             int saverResult = ((int (*)()) sceSystemServiceTurnOffScreenSaver)();
-            if (tickResult != lastTick || saverResult != lastSaver) {
-                char text[96];
-                snprintf(text, sizeof(text), "PS4: power tick 0x%08x, screen saver off 0x%08x", (unsigned int) tickResult,
-                         (unsigned int) saverResult);
+            if (videoResult != lastVideo || tickResult != lastTick || saverResult != lastSaver) {
+                char text[128];
+                snprintf(text, sizeof(text), "PS4: video tick 0x%08x, power tick 0x%08x, screen saver off 0x%08x",
+                         (unsigned int) videoResult, (unsigned int) tickResult, (unsigned int) saverResult);
                 pplay::Utility::log(pplay::Utility::LogLevel::Info, text);
+                lastVideo = videoResult;
                 lastTick = tickResult;
                 lastSaver = saverResult;
             }
