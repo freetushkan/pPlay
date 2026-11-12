@@ -11,6 +11,7 @@
 #include "io.h"
 #include "offline.h"
 #include "saved.h"
+#include "torrserve.h"
 #include "utility.h"
 
 #define LISTS_DIR ".lists"
@@ -141,5 +142,13 @@ namespace pplay::Offline {
 
     bool active() {
         return g_active;
+    }
+
+    bool isOffline(const std::string &path) {
+        Io::DeviceType type = Io::get()->getDeviceType(path);
+        if (type == Io::DeviceType::Local) {
+            return false;
+        }
+        return g_active || (type == Io::DeviceType::TorrServe && !TorrServe::isReachable(path));
     }
 }

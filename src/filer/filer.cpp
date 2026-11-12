@@ -14,6 +14,7 @@
 #include "utility.h"
 #include "torrserve.h"
 #include "saved.h"
+#include "offline.h"
 #include "playlists.h"
 #include "keyboard.h"
 #include "encodings.h"
@@ -302,8 +303,12 @@ void Filer::run(DetailsView::Action action) {
             if (selection.type == Io::Type::Directory) {
                 enter(item_index);
             } else if (pplay::Utility::isMedia(selection)) {
-                player->setFullscreen(true);
-                player->load(selection);
+                if (pplay::Offline::isOffline(selection.path) && pplay::Saved::localCopy(selection.path).empty()) {
+                    main->getStatus()->show("Error", pplay::tr("Offline: the file is not accessible"));
+                } else {
+                    player->setFullscreen(true);
+                    player->load(selection);
+                }
             }
             break;
         case Action::Parent:

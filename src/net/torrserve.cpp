@@ -15,6 +15,7 @@
 #include <deque>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <json.hpp>
@@ -220,6 +221,8 @@ namespace {
     std::unordered_map<std::string, std::vector<Torrent>> g_torrentsCache;
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> g_torrentsAt;
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> g_torrentsFailedAt;
+    // the servers not answering their last list request
+    std::unordered_set<std::string> g_unreachable;
     // one request at a time (the others wait for its answer)
     std::mutex g_fetchMutex;
     constexpr int FailedRetrySecs = 5;
@@ -282,8 +285,13 @@ namespace {
             g_torrentsCache[root] = torrents;
             g_torrentsAt[root] = std::chrono::steady_clock::now();
             g_torrentsFailedAt.erase(root);
+            // back: listed again (the kept listing replaced)
+            if (g_unreachable.erase(root) > 0) {
+                g_torrentsGeneration++;
+            }
         } else {
             g_torrentsFailedAt[root] = std::chrono::steady_clock::now();
+            g_unreachable.insert(root);
         }
         return torrents;
     }
@@ -828,6 +836,11 @@ namespace pplay::TorrServe {
             }
         }
         return false;
+    }
+
+    bool isReachable(const std::string &path) {
+        std::lock_guard<std::mutex> lock(g_cacheMutex);
+        return g_unreachable.count(apiRoot(path)) == 0;
     }
 
     unsigned int torrentsGeneration() {

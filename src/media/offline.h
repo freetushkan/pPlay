@@ -21,6 +21,9 @@ namespace pplay::Offline {
 
     // the last network listing was the kept one
     bool active();
+
+    // a network path offline: its server unreachable (TorrServer: its sync too), its listing the kept one
+    bool isOffline(const std::string &path);
 }
 
 #endif //PPLAY_OFFLINE_H

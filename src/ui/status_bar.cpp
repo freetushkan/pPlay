@@ -217,7 +217,7 @@ void StatusBar::onUpdate() {
     float centerY = timeText->getPosition().y - originY + text.top + text.height / 2;
     float right = getSize().x - 22 * sc.x;
     float left = timeText->getPosition().x - text.width - 16 * sc.x;
-    bool off = pplay::Offline::active();
+    bool off = main->getFiler() != nullptr && pplay::Offline::isOffline(main->getFiler()->getPath());
     offline->setVisibility(off ? Visibility::Visible : Visibility::Hidden);
     offlineText->setVisibility(off ? Visibility::Visible : Visibility::Hidden);
     if (off) {

@@ -55,6 +55,9 @@ namespace pplay::TorrServe {
 
     // changes with any server's torrents list
     unsigned int torrentsGeneration();
+
+    // its server answered the last list request (sync, listings)
+    bool isReachable(const std::string &path);
     // the position the server keeps for a file (its "track timecode" setting), 0 if none
     double fileProgress(const std::string &path, bool wait = false);
     // sent in a thread
