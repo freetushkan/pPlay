@@ -171,7 +171,10 @@ void Main::openLink(const std::string &url, const std::string &name) {
             continue;
         }
         currentModuleIndex = i;
-        filer->setVisibility(Visibility::Visible, true);
+        // not over a fullscreen player (its keys would go to the filer)
+        if (!player->isFullscreen()) {
+            filer->setVisibility(Visibility::Visible, true);
+        }
         if (filer->getDir(Paths::extractDirPath(found.path))) {
             filer->selectByPath(found.path);
             filer->clearHistory();
