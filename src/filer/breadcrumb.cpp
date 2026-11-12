@@ -118,6 +118,16 @@ Breadcrumb::Breadcrumb(Main *m, const FloatRect &rect) : Rectangle(rect), main(m
     }
 }
 
+void Breadcrumb::setWidth(float width) {
+    if (std::fabs(width - getSize().x) < 1) {
+        return;
+    }
+    setSize(width, getSize().y);
+    std::string path = current;
+    current.clear();
+    setPath(path);
+}
+
 void Breadcrumb::setPath(const std::string &path) {
     if (path == current) {
         return;

@@ -29,7 +29,12 @@ public:
     c2d::Texture *offline = nullptr;
     c2d::Text *offlineText = nullptr;
 
+    // the left edge of its chip (screen x)
+    float getChipLeft() const { return chipLeft; }
+
 private:
+
+    float chipLeft = 0;
 
     void applyAlpha();
 

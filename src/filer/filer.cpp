@@ -613,6 +613,10 @@ void Filer::onUpdate() {
             return;
         }
     }
+    StatusBar *bar = main->getStatusBar();
+    if (bar != nullptr) {
+        crumbs->setWidth(std::max(1.0f, bar->getChipLeft() - crumbs->getPosition().x - 12 * main->getScaling().x));
+    }
     crumbs->setPath(path);
     if (pplay::TorrServe::viewedGeneration() != durationsGeneration) {
         queueDurations();

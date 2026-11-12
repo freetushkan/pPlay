@@ -227,6 +227,7 @@ void StatusBar::onUpdate() {
         offlineText->setPosition(x, std::round(centerY));
         left = x - offlineText->getLocalBounds().width - 12 * sc.x;
     }
+    chipLeft = left;
     Vector2f chipSize = {std::round(right - left), std::round(text.height + 20 * sc.y)};
     if (chip->getSize().x != chipSize.x || chip->getSize().y != chipSize.y) {
         chip->setSize(chipSize);

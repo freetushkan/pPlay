@@ -22,6 +22,9 @@ public:
 
     void setPath(const std::string &path);
 
+    // the width left by the status bar: the path laid out again on a change
+    void setWidth(float width);
+
 private:
 
     // the shown names: the place (device / host), then the directories
