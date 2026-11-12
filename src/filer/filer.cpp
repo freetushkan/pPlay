@@ -617,6 +617,18 @@ void Filer::onUpdate() {
     if (pplay::TorrServe::viewedGeneration() != durationsGeneration) {
         queueDurations();
     }
+    // the torrents changed on the server: listed again, the selection kept
+    if (pplay::TorrServe::torrentsGeneration() != torrentsGeneration) {
+        torrentsGeneration = pplay::TorrServe::torrentsGeneration();
+        if (pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::TorrServe) {
+            std::string selected = getSelection().path;
+            int index = item_index;
+            getDir(path);
+            if (!selectByPath(selected)) {
+                setSelection(std::max(0, std::min(index, (int) files.size() - 1)));
+            }
+        }
+    }
     // a playlist written (an addition done): listed again
     if (pplay::Playlists::generation() != playlistGeneration) {
         playlistGeneration = pplay::Playlists::generation();

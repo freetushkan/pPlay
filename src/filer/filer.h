@@ -144,6 +144,7 @@ private:
     float coverAlpha = 0;
     c2d::C2DClock fadeClock;
     unsigned int playlistGeneration = 0;
+    unsigned int torrentsGeneration = 0;
     unsigned int durationsGeneration = 0;
 
     // the files with a kept position but no duration (no progress line): probed in turn

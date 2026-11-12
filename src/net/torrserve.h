@@ -52,6 +52,9 @@ namespace pplay::TorrServe {
     void setSyncInterval(int seconds);
     // changes with each server answer about viewed files: the marks to show again
     unsigned int viewedGeneration();
+
+    // changes with any server's torrents list
+    unsigned int torrentsGeneration();
     // the position the server keeps for a file (its "track timecode" setting), 0 if none
     double fileProgress(const std::string &path, bool wait = false);
     // sent in a thread

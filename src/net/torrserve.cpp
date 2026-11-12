@@ -223,6 +223,21 @@ namespace {
     // one request at a time (the others wait for its answer)
     std::mutex g_fetchMutex;
     constexpr int FailedRetrySecs = 5;
+    // bumped when a server's list changes (torrents added, removed, renamed)
+    std::atomic<unsigned int> g_torrentsGeneration{0};
+
+    bool sameTorrents(const std::vector<Torrent> &a, const std::vector<Torrent> &b) {
+        if (a.size() != b.size()) {
+            return false;
+        }
+        for (size_t i = 0; i < a.size(); i++) {
+            if (a[i].hash != b[i].hash || a[i].title != b[i].title || a[i].category != b[i].category
+                || a[i].files.size() != b[i].files.size()) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     bool cachedTorrents(const std::string &root, std::vector<Torrent> *torrents, bool *failed) {
         auto now = std::chrono::steady_clock::now();
@@ -260,6 +275,10 @@ namespace {
         torrents = getTorrents(root, timeout, ok);
         std::lock_guard<std::mutex> lock(g_cacheMutex);
         if (*ok) {
+            auto known = g_torrentsCache.find(root);
+            if (known != g_torrentsCache.end() && !sameTorrents(known->second, torrents)) {
+                g_torrentsGeneration++;
+            }
             g_torrentsCache[root] = torrents;
             g_torrentsAt[root] = std::chrono::steady_clock::now();
             g_torrentsFailedAt.erase(root);
@@ -809,6 +828,10 @@ namespace pplay::TorrServe {
             }
         }
         return false;
+    }
+
+    unsigned int torrentsGeneration() {
+        return g_torrentsGeneration;
     }
 
     unsigned int viewedGeneration() {
