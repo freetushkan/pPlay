@@ -22,6 +22,12 @@ StatusBox::StatusBox(Main *m) : Rectangle({0, 0, 64, 64}) {
     // Main sets BottomLeft as the origin, so position the bottom edge below the top margin.
     StatusBox::setPosition(0, std::round(18 * sc.y + StatusBox::getSize().y));
 
+    // a soft shadow (the filer: over the path line)
+    for (int i = 0; i < 3; i++) {
+        shadows[i] = new RoundRect({10, std::round(26 * sc.y)});
+        shadows[i]->setOrigin(Origin::Left);
+        StatusBox::add(shadows[i]);
+    }
     chip = new RoundRect({10, std::round(26 * sc.y)});
     chip->setOrigin(Origin::Left);
     chip->setFillColor(Color(10, 12, 16, 170));
@@ -41,7 +47,6 @@ StatusBox::StatusBox(Main *m) : Rectangle({0, 0, 64, 64}) {
     messageText->setPosition(0, StatusBox::getSize().y / 2);
     StatusBox::add(messageText);
 
-    textColor = COLOR_FONT;
     clock = new C2DClock();
     mutex = SDL_CreateMutex();
 
@@ -66,16 +71,23 @@ void StatusBox::setVisibility(Visibility visibility, bool tweenPlay) {
 
 void StatusBox::applyAlpha() {
     uint8_t a = (uint8_t) std::lround(255 * alpha);
-    chip->setFillColor({10, 12, 16, (uint8_t) std::lround(170 * alpha)});
+    // over the player: translucent dark; over the filer: opaque gray with a shadow; an error: red
+    bool player = main->getPlayer() != nullptr && main->getPlayer()->isFullscreen();
+    Color base = error ? Color(170, 48, 44, 255) : player ? Color(10, 12, 16, 170) : Color(44, 48, 54, 255);
+    chip->setFillColor({base.r, base.g, base.b, (uint8_t) std::lround(base.a * alpha)});
+    for (int i = 0; i < 3; i++) {
+        uint8_t shade = player ? 0 : (uint8_t) std::lround((70 - 20 * i) * alpha);
+        shadows[i]->setFillColor({0, 0, 0, shade});
+    }
     icon->setAlpha(a);
-    messageText->setFillColor({textColor.r, textColor.g, textColor.b, a});
+    messageText->setFillColor({COLOR_FONT.r, COLOR_FONT.g, COLOR_FONT.b, a});
 }
 
 void StatusBox::show(const std::string &type, const std::string &message, bool inf, bool drawNow) {
 
     SDL_LockMutex(mutex);
     messageText->setString(pplay::tr(message));
-    textColor = type == "Error" ? Color(240, 120, 110, 255) : COLOR_FONT;
+    error = type == "Error";
     bool spinning = inf || type == "Wait";
     icon->setVisibility(spinning ? Visibility::Visible : Visibility::Hidden);
     applyAlpha();
@@ -163,8 +175,21 @@ void StatusBox::onUpdate() {
     Vector2f chipSize = {std::round(std::max(1.0f, right - left)), std::round(fontSize + 20 * sc.y)};
     if (chip->getSize().x != chipSize.x || chip->getSize().y != chipSize.y) {
         chip->setSize(chipSize);
+        for (int i = 0; i < 3; i++) {
+            float grow = std::round((2 + 2 * i) * sc.y);
+            shadows[i]->setSize(chipSize.x + 2 * grow, chipSize.y + 2 * grow);
+        }
     }
     chip->setPosition(left, std::round(centerY));
+    for (int i = 0; i < 3; i++) {
+        float grow = std::round((2 + 2 * i) * sc.y);
+        shadows[i]->setPosition(left - grow, std::round(centerY + sc.y));
+    }
+    // the player switched meanwhile: its colors
+    if (player != wasPlayer) {
+        wasPlayer = player;
+        applyAlpha();
+    }
     Rectangle::onUpdate();
 }
 

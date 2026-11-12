@@ -38,9 +38,11 @@ private:
 
     Main *main;
     RoundRect *chip = nullptr;
+    RoundRect *shadows[3] = {};
+    bool error = false;
+    bool wasPlayer = false;
     c2d::Texture *icon = nullptr;
     c2d::Text *messageText = nullptr;
-    c2d::Color textColor;
     c2d::Clock *clock = nullptr;
     SDL_mutex *mutex = nullptr;
     float alpha = 1, target = 1;
