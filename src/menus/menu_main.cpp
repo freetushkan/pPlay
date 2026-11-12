@@ -246,6 +246,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 5.0f, 120.0f, 5.0f, "s");
     addSubmenu("End margin", "Watched with this left", OPT_WATCHED_TOLERANCE,
                makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 600.0f, 5.0f, "s");
+    getMenuMainOptionsSubmenu("End margin")->setZeroLabel("Off");
     addSubmenu("Progress line", "Progress line always on screen", OPT_PROGRESS_LINE,
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Folder marks", "Folders watched in the list", OPT_FOLDER_MARKS,
@@ -315,16 +316,14 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Hidden", 0}, {"Shown", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Other files", "Files that are not media", OPT_SHOW_ALL_FILES,
                makeIntItems({{"Hidden", 0}, {"Shown", 1}}), Submenu::ValueType::Integer);
-    addSubmenu("Saving threads", "Files saved at once", OPT_SAVE_THREADS,
-               makeIntItems({{"1", 1}, {"2", 2}, {"3", 3}, {"4", 4}}), Submenu::ValueType::Integer);
-    addSubmenu("Retention period", "Delete files not opened for this long", OPT_SAVE_KEEP_DAYS,
-               makeIntItems({{"Never", 0}, {"7 days", 7}, {"14 days", 14}, {"30 days", 30}, {"60 days", 60},
-                             {"90 days", 90}, {"180 days", 180}, {"365 days", 365}}),
-               Submenu::ValueType::Integer);
+    addSubmenu("Saving threads", "Files saved at once", OPT_SAVE_THREADS, makeAdjustItems(),
+               Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 4.0f, 1.0f);
+    addSubmenu("Retention period", "Delete files not opened for this long", OPT_SAVE_KEEP_DAYS, makeAdjustItems(),
+               Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 365.0f, 1.0f, "d");
+    getMenuMainOptionsSubmenu("Retention period")->setZeroLabel("Never");
     addSubmenu("Storage limit", "Delete oldest files when the storage limit is exceeded", OPT_SAVE_MAX_GB,
-               makeIntItems({{"No limit", 0}, {"5 GB", 5}, {"10 GB", 10}, {"25 GB", 25}, {"50 GB", 50}, {"100 GB", 100},
-                             {"200 GB", 200}, {"500 GB", 500}, {"1000 GB", 1000}, {"2000 GB", 2000}}),
-               Submenu::ValueType::Integer);
+               makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 2000.0f, 5.0f, "GB");
+    getMenuMainOptionsSubmenu("Storage limit")->setZeroLabel("No limit");
     addSubmenu("Logging", "Log to file", OPT_LOG_LEVEL,
                makeIntItems({{"Off", 0}, {"Error", 1}, {"Info", 2}, {"Debug", 3}, {"Trace", 4}}),
                Submenu::ValueType::Integer);

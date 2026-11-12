@@ -47,6 +47,9 @@ public:
     bool step(int direction);
 
     // a number option: where it is between its bounds (0..1), -1 for the others
+    // the text of 0 (off, no limit...)
+    void setZeroLabel(const std::string &label) { zeroLabel = label; }
+
     float sliderPart() const;
 
     // name in MenuMain (back navigation)
@@ -79,6 +82,7 @@ private:
     float step_value;
     std::string value_unit;
     std::string key;
+    std::string zeroLabel;
 };
 
 #endif //PPLAY_MENU_MAIN_OPTIONS_SUBMENU_H

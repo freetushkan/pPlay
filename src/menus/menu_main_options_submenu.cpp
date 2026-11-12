@@ -138,7 +138,8 @@ std::string MenuMainOptionsSubmenu::currentText() {
         return value.empty() ? pplay::tr("<empty>") : value;
     }
     if (menu_type == MenuType::Adjust) {
-        return formatValue(getCurrentValue());
+        float value = getCurrentValue();
+        return value == 0 && !zeroLabel.empty() ? pplay::tr(zeroLabel) : formatValue(value);
     }
     for (auto *button: buttons) {
         if (value_type == ValueType::Integer ? button->item.id == (int) getCurrentValue()
@@ -325,7 +326,8 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
             return;
         }
         auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(item->name);
-        if (submenu != nullptr) {
+        // a slider: changed with left / right only
+        if (submenu != nullptr && submenu->menu_type != MenuType::Adjust) {
             setVisibility(Visibility::Hidden, true);
             submenu->setVisibility(Visibility::Visible, true);
         }
