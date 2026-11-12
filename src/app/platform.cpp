@@ -575,14 +575,9 @@ namespace pplay::Platform {
 #elif !defined(__PS5__)
         // Linux, Android: the screen saver / the screen kept on
         static int last = -1;
-        static c2d::C2DClock again;
-        if ((int) on != last || again.getElapsedTime().asSeconds() > 10) {
-            SDL_EnableScreenSaver();
-            if (on) {
-                SDL_DisableScreenSaver();
-            }
+        if ((int) on != last) {
+            on ? SDL_DisableScreenSaver() : SDL_EnableScreenSaver();
             last = on;
-            again.restart();
         }
 #else
         (void) on;
