@@ -671,13 +671,19 @@ namespace pplay::Platform {
         static bool looked = false;
         if (!looked) {
             looked = true;
-            int handle = (int) sceKernelLoadStartModule("/system/common/lib/libSceSystemStateMgr.sprx", 0, nullptr, 0,
-                                                        nullptr, nullptr);
-            if (handle > 0) {
-                sceKernelDlsym(handle, "sceSystemStateMgrEnterStandby", (void **) &enterStandby);
+            const char *paths[] = {"libSceSystemStateMgr.sprx", "/system/common/lib/libSceSystemStateMgr.sprx",
+                                   "/system/priv/lib/libSceSystemStateMgr.sprx"};
+            for (const char *path: paths) {
+                int handle = (int) sceKernelLoadStartModule(path, 0, nullptr, 0, nullptr, nullptr);
+                int found = handle >= 0 ? sceKernelDlsym(handle, "sceSystemStateMgrEnterStandby", (void **) &enterStandby) : -1;
+                char text[160];
+                snprintf(text, sizeof(text), "PS4: %s: module 0x%08x, function 0x%08x", path, (unsigned int) handle,
+                         (unsigned int) found);
+                pplay::Utility::log(pplay::Utility::LogLevel::Info, text);
+                if (enterStandby != nullptr) {
+                    break;
+                }
             }
-            pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS4: standby module " + std::to_string(handle)
-                                                                        + (enterStandby ? "" : ", no function"));
         }
         int res = enterStandby != nullptr ? enterStandby() : -1;
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "PS4: rest mode asked: " + std::to_string(res));
