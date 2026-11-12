@@ -151,16 +151,28 @@ public class PPlayActivity extends SDLActivity {
                         new Intent(activity, PPlayActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
                         PendingIntent.FLAG_IMMUTABLE));
                 session.setCallback(new MediaSession.Callback() {
-                    @Override public void onPlay() { commands.add("play"); }
+                    @Override public void onPlay() {
+                        // in the background the native loop waits: the app brought back first
+                        if (background) {
+                            activity.startActivity(new Intent(activity, PPlayActivity.class)
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
+                        }
+                        commands.add("play");
+                    }
                     @Override public void onPause() { commands.add("pause"); }
-                    @Override public void onStop() { commands.add("stop"); }
+                    @Override public void onStop() {
+                        commands.add("stop");
+                        if (background) {
+                            activity.endSession();
+                        }
+                    }
                     @Override public void onSeekTo(long ms) { commands.add("seek " + ms); }
                 });
             }
+            lastTitle = title;
+            lastPosition = position;
             if (state == 0) {
-                session.setActive(false);
-                activity.audioFocus(false);
-                activity.notifyMedia(null, false);
+                activity.endSession();
                 return;
             }
             // audio focus makes this the active session (shared by Google TV with phones)
@@ -179,6 +191,30 @@ public class PPlayActivity extends SDLActivity {
             session.setActive(true);
             activity.notifyMedia(title, state == 2);
         });
+    }
+
+    // the app in the background: paused there (platform.cpp), the native loop waiting
+    private static volatile boolean background = false;
+    private static String lastTitle = null;
+    private static long lastPosition = 0;
+
+    private void endSession() {
+        if (session != null) {
+            session.setActive(false);
+        }
+        audioFocus(false);
+        notifyMedia(null, false);
+    }
+
+    // the state shown paused at once (the native side tells nothing until back)
+    private void showPaused() {
+        if (session == null || lastTitle == null || !session.isActive()) {
+            return;
+        }
+        session.setPlaybackState(new PlaybackState.Builder()
+                .setActions(PlaybackState.ACTION_PLAY | PlaybackState.ACTION_PLAY_PAUSE | PlaybackState.ACTION_STOP)
+                .setState(PlaybackState.STATE_PAUSED, lastPosition, 0.0f).build());
+        notifyMedia(lastTitle, false);
     }
 
     private Object focusRequest = null;
@@ -410,6 +446,8 @@ public class PPlayActivity extends SDLActivity {
 
     @Override
     protected void onPause() {
+        background = true;
+        showPaused();
         synchronized (accessLock) {
             if (asking) {
                 leftForAccess = true;
@@ -421,6 +459,7 @@ public class PPlayActivity extends SDLActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        background = false;
         // back from the access settings
         synchronized (accessLock) {
             if (asking && leftForAccess) {
