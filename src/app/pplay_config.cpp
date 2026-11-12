@@ -260,12 +260,7 @@ void PPLAYConfig::sanitize() {
     clamp(OPT_PROGRESS_MIN_LENGTH, 0, 60);
     clamp(OPT_PROGRESS_INTERVAL, 5, 120);
     clamp(OPT_SAVE_THREADS, 1, 4);
-#ifdef __PS4__
-    // "never" not kept by the system
-    clamp(OPT_STANDBY_TIME, 0, 1440);
-#else
     clamp(OPT_STANDBY_TIME, -1, 1440);
-#endif
     clamp(OPT_SLEEP_TIMER, -1, 1440);
     clamp(OPT_SAVE_KEEP_DAYS, 0, 3650);
     clamp(OPT_SAVE_MAX_GB, 0, 100000);

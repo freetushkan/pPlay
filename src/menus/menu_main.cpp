@@ -299,12 +299,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Keep in memory", 0}, {"Save state and close", 1}}), Submenu::ValueType::Integer);
 #endif
     addSubmenu("Standby", "Standby when idle", OPT_STANDBY_TIME,
-               makeMinuteItems({5, 10, 15, 30, 60, 120, 180, 360, 720}, {{"By system", 0}},
-#ifdef __PS4__
-                               {}),
-#else
-                               {{"Never", -1}}),
-#endif
+               makeMinuteItems({5, 10, 15, 30, 60, 120, 180, 360, 720}, {{"By system", 0}}, {{"Never", -1}}),
                Submenu::ValueType::Integer);
     addSubmenu("Restore last file", "The file playing at the exit opened at the start", OPT_RESTORE_SESSION,
 #ifdef __PS5__
