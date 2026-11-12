@@ -135,6 +135,7 @@ int sceSystemServiceReceiveEvent(void *event);
 int sceSystemServiceEnableSuspendNotification();
 int sceSystemServiceDeclareReadyForSuspend();
 int sceSystemServicePowerTick();
+int sceSystemServiceGetStatus(void *status);
 int32_t sceAgcSuspendPoint();
 int sceKernelSendNotificationRequest(int device, void *request, size_t size, int blocking);
 int sceSystemStateMgrEnterStandby();
@@ -658,6 +659,33 @@ namespace pplay::Platform {
         return callActivity("takeMediaCommand", "()Ljava/lang/String;");
 #else
         return "";
+#endif
+    }
+
+    bool isAway() {
+#if defined(__PS4__) || defined(__PS5__)
+        // SceSystemServiceStatus
+        struct Status {
+            int32_t eventNum;
+            bool isSystemUiOverlaid;
+            bool isInBackgroundExecution;
+            bool isCpuMode7CpuNormal;
+            bool isGameLiveStreamingOnAir;
+            bool isOutOfVrPlayArea;
+            uint8_t reserved[125];
+        };
+        static c2d::C2DClock clock;
+        static bool away = false;
+        if (clock.getElapsedTime().asSeconds() >= 1) {
+            clock.restart();
+            Status status = {};
+            if (((int (*)(Status *)) sceSystemServiceGetStatus)(&status) == 0) {
+                away = status.isInBackgroundExecution || status.isSystemUiOverlaid;
+            }
+        }
+        return away;
+#else
+        return false;
 #endif
     }
 

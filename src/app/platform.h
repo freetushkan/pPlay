@@ -45,6 +45,9 @@ namespace pplay::Platform {
     // standby on request (PS5, Switch); else a black screen
     bool hasStandby();
 
+    // the user elsewhere: another app, the system menu over this one (PS4, PS5)
+    bool isAway();
+
 
     // Android VIEW intent: url ("" if none)
     std::string takeViewed(std::string *name);

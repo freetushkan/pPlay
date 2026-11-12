@@ -375,9 +375,10 @@ void Main::onUpdate() {
 #endif
     // awake while playing or saving, otherwise until the standby time (0: system timers, -1: never)
     bool playing = player != nullptr && !player->getMpv()->isStopped() && !player->getMpv()->isPaused();
-    // back from the background / a suspend (no frames meanwhile): the idle time starts over
+    // the user elsewhere, or back from the background / a suspend (no frames meanwhile): the
+    // idle time starts over
     static C2DClock frameClock;
-    if (frameClock.getElapsedTime().asSeconds() > 5) {
+    if (frameClock.getElapsedTime().asSeconds() > 5 || pplay::Platform::isAway()) {
         idleClock.restart();
         sleepAsked = false;
     }
