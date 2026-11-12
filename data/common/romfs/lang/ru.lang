@@ -231,8 +231,6 @@ Filipino = Филиппинский
 
 # keys hints, keyboard text box, text editor (Linux)
 Open = Открыть
-Local first = Сначала локальная
-TorrServer first = Сначала TorrServer
 Continue from = Продолжить с
 Play = Воспроизвести
 Back = Назад
@@ -292,6 +290,8 @@ Year = Год
 Genre = Жанр
 Progress source = Источник прогресса
 Preferred progress source = Предпочтительный источник прогресса просмотра
+Local first = Локальные данные
+TorrServer first = TorrServer
 
 # Progress
 Progress line = Линия прогресса
