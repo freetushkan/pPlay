@@ -4,7 +4,6 @@
 # Escapes: \n (new line), \t, \\, \= . Lines starting with # are comments.
 # Put your own files (or fixed copies) in the pPlay data directory, "lang" folder:
 # they are listed in Settings > Language and override the bundled ones.
-# This file lists every key: copy it to start a new language.
 
 @name = English
 
@@ -340,11 +339,11 @@ Saved = Saved
 Saved files = Saved files
 Saving threads = Saving threads
 Files saved at once = Files saved at once
-Keep saved files = Keep saved files
-Not opened for (the oldest removed) = Not opened for (the oldest removed)
+Retention period = Retention period
+Delete files not opened for this long = Delete files not opened for this long
 Saved files limit = Saved files limit
-Saved files size (the oldest removed) = Saved files size (the oldest removed)
-Forever = Forever
+Delete oldest files when the storage limit is exceeded = Delete oldest files when the storage limit is exceeded
+Never = Never
 7 days = 7 days
 14 days = 14 days
 30 days = 30 days

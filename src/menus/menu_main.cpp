@@ -93,8 +93,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     categories.push_back({"Saved files",
                           {
                                   MenuItem("Saving threads", "save_threads.png", Pos::Top),
-                                  MenuItem("Keep saved files", "calendar.png", Pos::Top),
-                                  MenuItem("Saved files limit", "storage.png", Pos::Top),
+                                  MenuItem("Retention period", "calendar.png", Pos::Top),
+                                  MenuItem("Storage limit", "storage.png", Pos::Top),
                           }});
     std::vector<MenuItem> system = {
             MenuItem("Local home path", "home.png", Pos::Top),
@@ -317,12 +317,12 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Hidden", 0}, {"Shown", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Saving threads", "Files saved at once", OPT_SAVE_THREADS,
                makeIntItems({{"1", 1}, {"2", 2}, {"3", 3}, {"4", 4}}), Submenu::ValueType::Integer);
-    addSubmenu("Keep saved files", "Not opened for (the oldest removed)", OPT_SAVE_KEEP_DAYS,
-               makeIntItems({{"Forever", 0}, {"7 days", 7}, {"14 days", 14}, {"30 days", 30}, {"60 days", 60},
+    addSubmenu("Retention period", "Delete files not opened for this long", OPT_SAVE_KEEP_DAYS,
+               makeIntItems({{"Never", 0}, {"7 days", 7}, {"14 days", 14}, {"30 days", 30}, {"60 days", 60},
                              {"90 days", 90}, {"180 days", 180}, {"365 days", 365}}),
                Submenu::ValueType::Integer);
-    addSubmenu("Saved files limit", "Saved files size (the oldest removed)", OPT_SAVE_MAX_GB,
-               makeIntItems({{"No limit", 0}, {"10 GB", 10}, {"25 GB", 25}, {"50 GB", 50}, {"100 GB", 100},
+    addSubmenu("Storage limit", "Delete oldest files when the storage limit is exceeded", OPT_SAVE_MAX_GB,
+               makeIntItems({{"No limit", 0}, {"5 GB", 5}, {"10 GB", 10}, {"25 GB", 25}, {"50 GB", 50}, {"100 GB", 100},
                              {"200 GB", 200}, {"500 GB", 500}, {"1000 GB", 1000}, {"2000 GB", 2000}}),
                Submenu::ValueType::Integer);
     addSubmenu("Logging", "Log to file", OPT_LOG_LEVEL,
