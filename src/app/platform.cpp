@@ -555,8 +555,18 @@ namespace pplay::Platform {
 #elif defined(__PS4__)
         static c2d::C2DClock tick;
         if (on && tick.getElapsedTime().asSeconds() > 5) {
-            sceSystemServicePowerTick();
-            sceSystemServiceTurnOffScreenSaver();
+            // (void in the OpenOrbis headers: their results, logged when they change)
+            static int lastTick = 1, lastSaver = 1;
+            int tickResult = ((int (*)()) sceSystemServicePowerTick)();
+            int saverResult = ((int (*)()) sceSystemServiceTurnOffScreenSaver)();
+            if (tickResult != lastTick || saverResult != lastSaver) {
+                char text[96];
+                snprintf(text, sizeof(text), "PS4: power tick 0x%08x, screen saver off 0x%08x", (unsigned int) tickResult,
+                         (unsigned int) saverResult);
+                pplay::Utility::log(pplay::Utility::LogLevel::Info, text);
+                lastTick = tickResult;
+                lastSaver = saverResult;
+            }
             tick.restart();
         }
 #elif !defined(__PS5__)
@@ -672,9 +682,13 @@ namespace pplay::Platform {
         static bool looked = false;
         if (!looked) {
             looked = true;
-            const char *paths[] = {"libSceSystemStateMgr.sprx", "/system/common/lib/libSceSystemStateMgr.sprx",
-                                   "/system/priv/lib/libSceSystemStateMgr.sprx"};
-            for (const char *path: paths) {
+            // the system libraries: under the app's sandbox word ("/<word>/common/lib")
+            std::string word = sceKernelGetFsSandboxRandomWord() != nullptr ? sceKernelGetFsSandboxRandomWord() : "";
+            std::vector<std::string> paths = {"/" + word + "/common/lib/libSceSystemStateMgr.sprx",
+                                              "/" + word + "/priv/lib/libSceSystemStateMgr.sprx",
+                                              "/system/common/lib/libSceSystemStateMgr.sprx"};
+            for (const std::string &p: paths) {
+                const char *path = p.c_str();
                 int handle = (int) sceKernelLoadStartModule(path, 0, nullptr, 0, nullptr, nullptr);
                 int found = handle >= 0 ? sceKernelDlsym(handle, "sceSystemStateMgrEnterStandby", (void **) &enterStandby) : -1;
                 char text[160];
