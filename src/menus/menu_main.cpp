@@ -330,7 +330,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 365.0f, 1.0f, "d");
     getMenuMainOptionsSubmenu("Retention period")->setZeroLabel("Never");
     addSubmenu("Storage limit", "Delete oldest files when the storage limit is exceeded", OPT_SAVE_MAX_GB,
-               makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 2000.0f, 5.0f, "GB");
+               makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 2000.0f, 1.0f, "GB");
     getMenuMainOptionsSubmenu("Storage limit")->setZeroLabel("No limit");
     addSubmenu("Logging", "Log to file", OPT_LOG_LEVEL,
                makeIntItems({{"Off", 0}, {"Error", 1}, {"Info", 2}, {"Debug", 3}, {"Trace", 4}}),
