@@ -25,7 +25,7 @@ namespace {
             if (n == "Playlist" || n == "Audio" || n == "Video" || n == "Subtitles") {
                 item.opens = true;
             }
-            if (n == "Speed" || n == "Brightness" || n == "Screen brightness") {
+            if (n == "Speed" || n == "Brightness" || n == "Screen brightness" || n == "Sleep timer") {
                 item.slider = 0;
             }
             if (n != "Stop" && n != "Playlist") {
@@ -60,8 +60,20 @@ namespace {
     };
 
     // minutes playing without a key, -1: the end of the file
-    const Choices g_sleep = {OPT_SLEEP_TIMER, {0, -1, 15, 30, 45, 60, 90, 120, 180},
-                             {"Off", "End of file", "15 min", "30 min", "45 min", "1 h", "1.5 h", "2 h", "3 h"}};
+    const Choices g_sleep = {OPT_SLEEP_TIMER, {0, -1, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180},
+                             {"Off", "End of file", "15 min", "30 min", "45 min", "1 h", "75 min", "1.5 h", "105 min",
+                              "2 h", "135 min", "150 min", "165 min", "3 h"}};
+
+    int choiceIndex(PPLAYConfig *config, const Choices &choices);
+
+    // a slider: stops at its ends
+    void stepChoice(PPLAYConfig *config, const Choices &choices, int direction) {
+        int index = std::max(0, std::min((int) choices.values.size() - 1, choiceIndex(config, choices) + direction));
+        auto *option = config->getOption(choices.option);
+        option->setType(c2d::config::Option::Type::Integer);
+        option->setInteger(choices.values[index]);
+        config->save();
+    }
 
     int choiceIndex(PPLAYConfig *config, const Choices &choices) {
         int value = config->getOption(choices.option)->getInteger();
@@ -166,6 +178,7 @@ void MenuVideo::refreshValues() {
             int index = choiceIndex(config, g_sleep);
             item.value = pplay::tr(g_sleep.names[index]);
             item.valueAccent = index != 0;
+            item.slider = (float) index / (float) (g_sleep.values.size() - 1);
         }
         button->refreshValue();
     }
@@ -229,7 +242,7 @@ bool MenuVideo::onOptionChange(MenuItem *item, int direction) {
     } else if (n == "Progress line") {
         toggleProgressLine(config);
     } else if (n == "Sleep timer") {
-        changeChoice(config, g_sleep, direction);
+        stepChoice(config, g_sleep, direction);
     } else {
         return false;
     }
@@ -302,7 +315,7 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
         toggleProgressLine(main->getConfig());
         refreshValues();
     } else if (item->name == "Sleep timer") {
-        changeChoice(main->getConfig(), g_sleep, 1);
+        stepChoice(main->getConfig(), g_sleep, 1);
         refreshValues();
     } else if (item->name == "Stop") {
         main->getPlayer()->stop();
