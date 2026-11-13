@@ -132,8 +132,8 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     btn_pause->setScale(btn_pause->getScale().x * 1.2f, btn_pause->getScale().y * 1.2f);
     btn_play->setScale(btn_play->getScale().x * 1.2f, btn_play->getScale().y * 1.2f);
     btn_play->setVisibility(Visibility::Hidden);
-    buttons = {addButton("btn_prev.png"), addButton("btn_seek_backward_long.png"), btn_pause,
-               addButton("btn_seek_forward_long.png"), addButton("btn_next.png"), addButton("btn_stop.png"),
+    buttons = {addButton("btn_prev.png"), addButton("btn_seek_backward.png"), btn_pause,
+               addButton("btn_seek_forward.png"), addButton("btn_next.png"), addButton("btn_stop.png"),
                addButton("btn_frame_step.png"), addButton("btn_settings.png")};
 
     next = new Text("", main->getFontSize(Main::FontSize::Small), main->getFont());
