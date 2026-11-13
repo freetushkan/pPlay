@@ -134,26 +134,17 @@ void Player::scrub(int direction) {
     double duration = (double) mpv->getDuration();
     double time = mpv->getTime();
     // a new one: another direction, or a pause since the last key
-    float since = scrubLast.getElapsedTime().asSeconds();
-    bool fresh = !scrubbing || direction != scrubDirection || since > 0.6f;
-    if (fresh) {
+    if (!scrubbing || direction != scrubDirection || scrubLast.getElapsedTime().asSeconds() > 0.6f) {
         scrubbing = true;
         scrubDirection = direction;
         scrubTarget = std::max(0.0, time);
         scrubHeld.restart();
     }
     float held = scrubHeld.getElapsedTime().asSeconds();
-    // a tap: about 0.5 % of the file (5..15 s); held: a speed growing from it (seconds of the
-    // file a second), the whole file in 20 s at most, slower where little is left that way
+    // a tap: about 0.5 % of the file (5..15 s); held: growing; at most a sixth of what is left that way
     double base = duration > 0 ? std::max(5.0, std::min(15.0, duration * 0.005)) : 10.0;
-    double step = base;
-    if (!fresh) {
-        double left = direction > 0 ? (duration > 0 ? duration - scrubTarget : 600.0) : scrubTarget;
-        double speed = base * 4 * (1.0 + 1.5 * held * held);
-        speed = std::min(speed, duration > 0 ? duration / 20 : 120.0);
-        speed = std::min(speed, std::max(base * 4, left));
-        step = speed * std::min(0.5f, since);
-    }
+    double left = direction > 0 ? (duration > 0 ? duration - scrubTarget : 600.0) : scrubTarget;
+    double step = std::min(base * (1.0 + 0.6 * held * held), std::max(base, left / 6));
     scrubTarget += direction * step;
     scrubTarget = std::max(0.0, duration > 0 ? std::min(scrubTarget, duration - 1) : scrubTarget);
     scrubPending = true;
