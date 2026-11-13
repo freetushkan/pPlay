@@ -58,6 +58,10 @@ public:
     // a seek key (held: repeated): a small step first, faster while held, slower near the ends
     void scrub(int direction);
 
+    bool isScrubbing() const { return scrubbing; }
+
+    double getScrubTarget() const { return scrubTarget; }
+
     // the bumpers and triggers: 0 normal, 1 swapped, 2 off
     int shoulderMode();
 
@@ -468,6 +472,7 @@ private:
     double scrubTarget = 0;
     c2d::C2DClock scrubHeld;
     c2d::C2DClock scrubLast;
+    c2d::C2DClock scrubSeek;
 };
 
 #endif //PPLAY_PLAYER_H

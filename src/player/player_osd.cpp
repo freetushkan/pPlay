@@ -428,8 +428,10 @@ void PlayerOSD::updateChips() {
 }
 
 void PlayerOSD::updateProgress() {
-    Mpv *mpv = main->getPlayer()->getMpv();
-    double position = std::max(0.0, mpv->getTime());
+    Player *player = main->getPlayer();
+    Mpv *mpv = player->getMpv();
+    // seeking: where it goes (the stream may lag behind)
+    double position = player->isScrubbing() ? player->getScrubTarget() : std::max(0.0, mpv->getTime());
     double duration = (double) mpv->getDuration();
     float width = track->getSize().x;
     float done = duration > 0 ? (float) std::min(1.0, position / duration) : 0;
