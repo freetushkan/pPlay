@@ -29,7 +29,7 @@ using namespace c2d;
 // details right of the poster up to this part of the panel width
 #define POSTER_SIDE 0.4f
 // not focused poster height, of the panel width (a 2:3 poster is on the side)
-#define POSTER_HEIGHT 0.55f
+#define POSTER_HEIGHT 0.45f
 
 DetailsView::DetailsView(Main *m, const c2d::FloatRect &rect) : Rectangle(rect), main(m) {
     float margin = MARGIN * main->getScaling().x;
