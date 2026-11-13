@@ -27,9 +27,9 @@ public:
         SeekBackward,
         Pause,
         SeekForward,
-        FrameStep,
         Next,
         Stop,
+        FrameStep,
         Settings
     };
 

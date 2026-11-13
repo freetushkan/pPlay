@@ -133,9 +133,8 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     btn_play->setScale(btn_play->getScale().x * 1.2f, btn_play->getScale().y * 1.2f);
     btn_play->setVisibility(Visibility::Hidden);
     buttons = {addButton("btn_prev.png"), addButton("btn_seek_backward_long.png"), btn_pause,
-               addButton("btn_seek_forward_long.png"),
-               addButton("btn_frame_step.png"), addButton("btn_next.png"), addButton("btn_stop.png"),
-               addButton("btn_settings.png")};
+               addButton("btn_seek_forward_long.png"), addButton("btn_next.png"), addButton("btn_stop.png"),
+               addButton("btn_frame_step.png"), addButton("btn_settings.png")};
 
     next = new Text("", main->getFontSize(Main::FontSize::Small), main->getFont());
     next->setOutlineThickness(1);
@@ -184,7 +183,7 @@ void PlayerOSD::layout(bool audio) {
     elapsed->setPosition(trackX - 14 * sc, trackY);
     remaining->setPosition(trackX + trackW + 14 * sc, trackY);
 
-    // transport and stop in a row, settings apart
+    // transport, stop and frame step in a row, settings apart
     float step = 52 * sc;
     std::vector<float> xs(buttons.size());
     if (audio) {
@@ -195,7 +194,7 @@ void PlayerOSD::layout(bool audio) {
         }
     } else {
         float left = 54 * sc + 22 * sc, right = size.x - 54 * sc - 22 * sc;
-        for (size_t i = 0; i <= (size_t) ButtonID::Stop; i++) {
+        for (size_t i = 0; i < (size_t) ButtonID::Settings; i++) {
             xs[i] = left + step * (float) i;
         }
         xs[(size_t) ButtonID::Settings] = right;
@@ -212,7 +211,7 @@ void PlayerOSD::layout(bool audio) {
     } else {
         next->setOrigin(Origin::Right);
         next->setPosition(xs[(size_t) ButtonID::Settings] - 44 * sc, buttonsY);
-        next->setSizeMax(xs[(size_t) ButtonID::Settings] - xs[(size_t) ButtonID::Stop] - 100 * sc, 0);
+        next->setSizeMax(xs[(size_t) ButtonID::Settings] - xs[(size_t) ButtonID::FrameStep] - 100 * sc, 0);
     }
     focus->setPosition(focusX = xs[(size_t) index], buttonsY);
     textKey.clear();
