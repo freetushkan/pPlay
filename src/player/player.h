@@ -55,6 +55,12 @@ public:
 
     void showLoading();
 
+    // a seek key (held: repeated): a small step first, faster while held, slower near the ends
+    void scrub(int direction);
+
+    // the bumpers and triggers: 0 normal, 1 swapped, 2 off
+    int shoulderMode();
+
     bool takeEndSleep() {
         bool sleep = endSleep;
         endSleep = false;
@@ -455,6 +461,13 @@ private:
     std::vector<pplay::ExternalTracks::Track> externalFound;
     bool endSleep = false;
     bool loadingOsd = false;
+    void updateScrub();
+    bool scrubbing = false;
+    bool scrubPending = false;
+    int scrubDirection = 0;
+    double scrubTarget = 0;
+    c2d::C2DClock scrubHeld;
+    c2d::C2DClock scrubLast;
 };
 
 #endif //PPLAY_PLAYER_H

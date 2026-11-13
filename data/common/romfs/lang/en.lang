@@ -30,12 +30,6 @@ Loop file = Loop file
 Loop directory = Loop directory
 
 # Settings
-Short seek step = Short seek step
-Long seek step = Long seek step
-Seek short step = Seek short step
-Seek long step = Seek long step
-Swap controls = Swap controls
-Triggers and buttons = Triggers and buttons
 Normal = Normal
 Swapped = Swapped
 Accent color = Accent color
@@ -426,3 +420,5 @@ GB = GB
 Standby in = Standby in
 s = s
 Offline: the file is not accessible = Offline: the file is not accessible
+Bumpers and triggers = Bumpers and triggers
+Seek = Seek

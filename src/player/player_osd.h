@@ -24,11 +24,9 @@ public:
     // the navigation order
     enum class ButtonID {
         Previous,
-        SeekBackwardLong,
-        SeekBackwardShort,
+        SeekBackward,
         Pause,
-        SeekForwardShort,
-        SeekForwardLong,
+        SeekForward,
         FrameStep,
         Next,
         Stop,

@@ -27,8 +27,6 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     categories.push_back({"Playback",
                           {
                                   MenuItem("Playback mode", "pl_mode.png", Pos::Top),
-                                  MenuItem("Short seek step", "short_seek.png", Pos::Top),
-                                  MenuItem("Long seek step", "long_seek.png", Pos::Top),
                                   MenuItem("Playback retry", "pl_retry.png", Pos::Top),
                                   MenuItem("Restore last file", "restore.png", Pos::Top),
                           }});
@@ -75,7 +73,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Saved section", "saved.png", Pos::Top),
                                   MenuItem("Playlists section", "playlist.png", Pos::Top),
                                   MenuItem("Media information", "media_info.png", Pos::Top),
-                                  MenuItem("Swap controls", "swap.png", Pos::Top),
+#if !defined(__ANDROID__) && !defined(__LINUX__)
+                                  MenuItem("Bumpers and triggers", "swap.png", Pos::Top),
+#endif
                           }});
     std::vector<MenuItem> networks;
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
@@ -236,12 +236,10 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     addSubmenu("Playback mode", "At file end..", OPT_AUTOPLAY_MODE,
                makeIntItems({{"Stop playback", 0}, {"Play next", 1}, {"Loop file", 2}, {"Loop directory", 3}}),
                Submenu::ValueType::Integer);
-    addSubmenu("Swap controls", "Triggers and buttons", OPT_SWAP_CONTROLS,
-               makeIntItems({{"Normal", 0}, {"Swapped", 1}}), Submenu::ValueType::Integer);
-    addSubmenu("Short seek step", "Seek short step", OPT_SEEK_SHORT_SEC, makeAdjustItems(), Submenu::ValueType::Float,
-               Submenu::MenuType::Adjust, 1.0f, 600.0f, 1.0f, "s");
-    addSubmenu("Long seek step", "Seek long step", OPT_SEEK_LONG_SEC, makeAdjustItems(), Submenu::ValueType::Float,
-               Submenu::MenuType::Adjust, 10.0f, 3600.0f, 10.0f, "s");
+#if !defined(__ANDROID__) && !defined(__LINUX__)
+    addSubmenu("Bumpers and triggers", "Bumpers and triggers", OPT_SWAP_CONTROLS,
+               makeIntItems({{"Normal", 0}, {"Swapped", 1}, {"Off", 2}}), Submenu::ValueType::Integer);
+#endif
     addSubmenu("Keep progress from", "Keep progress of files from", OPT_PROGRESS_MIN_LENGTH, makeAdjustItems(),
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 60.0f, 1.0f, "min");
     addSubmenu("Progress save interval", "Progress save interval", OPT_PROGRESS_INTERVAL, makeAdjustItems(),

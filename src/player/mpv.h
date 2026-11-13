@@ -62,6 +62,11 @@ public:
 
     int seek(double position);
 
+    // to a time: keyframes only (fast, while scrubbing) or exact
+    int seekTo(double time, bool exact);
+
+    bool isSeeking();
+
     std::string setSpeed(double speed);
 
     double getSpeed();

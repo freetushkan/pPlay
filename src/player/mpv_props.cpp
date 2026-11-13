@@ -228,6 +228,23 @@ double Mpv::getTime() {
     return time;
 }
 
+int Mpv::seekTo(double time, bool exact) {
+    std::string cmd = "no-osd seek " + std::to_string(time) + (exact ? " absolute+exact" : " absolute+keyframes");
+    int res = mpv_command_string(handle, cmd.c_str());
+    // paused: a hardware decoder gives the new frame only with more input, one frame stepped
+    std::string hwdec = getString("hwdec-current");
+    if (res >= 0 && isPaused() && !hwdec.empty() && hwdec != "no") {
+        mpv_command_string(handle, "no-osd frame-step");
+    }
+    return res;
+}
+
+bool Mpv::isSeeking() {
+    int res = 0;
+    mpv_get_property(handle, "seeking", MPV_FORMAT_FLAG, &res);
+    return res == 1;
+}
+
 bool Mpv::isPausedForCache() {
     int res = 0;
     mpv_get_property(handle, "paused-for-cache", MPV_FORMAT_FLAG, &res);

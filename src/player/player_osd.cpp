@@ -128,10 +128,12 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     };
     btn_pause = addButton("btn_pause.png");
     btn_play = addButton("btn_play.png");
+    // play / pause: bigger
+    btn_pause->setScale(btn_pause->getScale().x * 1.2f, btn_pause->getScale().y * 1.2f);
+    btn_play->setScale(btn_play->getScale().x * 1.2f, btn_play->getScale().y * 1.2f);
     btn_play->setVisibility(Visibility::Hidden);
-    buttons = {addButton("btn_prev.png"), addButton("btn_seek_backward_long.png"),
-               addButton("btn_seek_backward_short.png"), btn_pause,
-               addButton("btn_seek_forward_short.png"), addButton("btn_seek_forward_long.png"),
+    buttons = {addButton("btn_prev.png"), addButton("btn_seek_backward_long.png"), btn_pause,
+               addButton("btn_seek_forward_long.png"),
                addButton("btn_frame_step.png"), addButton("btn_next.png"), addButton("btn_stop.png"),
                addButton("btn_settings.png")};
 
@@ -585,10 +587,6 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
         }
         clock.restart();
     } else if (keys & Input::A) {
-        auto cfg = main->getConfig();
-        float s_short = cfg->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
-        float s_long = cfg->getOption(OPT_SEEK_LONG_SEC)->getFloat();
-
         switch ((ButtonID) index) {
             case ButtonID::Pause: {
                 bool pause = !mpv->isPaused();
@@ -602,17 +600,10 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
                 mpv_command_string(mpv->getHandle(), "frame-step");
                 setPaused(true);
                 break;
-            case ButtonID::SeekForwardShort:
-                mpv->seek(s_short);
-                break;
-            case ButtonID::SeekForwardLong:
-                mpv->seek(s_long);
-                break;
-            case ButtonID::SeekBackwardShort:
-                mpv->seek(-s_short);
-                break;
-            case ButtonID::SeekBackwardLong:
-                mpv->seek(-s_long);
+            case ButtonID::SeekForward:
+            case ButtonID::SeekBackward:
+                // held: faster
+                player->scrub((ButtonID) index == ButtonID::SeekForward ? 1 : -1);
                 break;
             case ButtonID::Previous:
             case ButtonID::Next:

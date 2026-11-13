@@ -82,8 +82,6 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_AUTOPLAY_MODE, (int) 1});
     addOption({OPT_LOG_LEVEL, (int) 0}); // 0 OFF, 1 ERROR, 2 INFO, 3 DEBUG, 4 TRACE
     addOption({OPT_SWAP_CONTROLS, (int) 0});
-    addOption({OPT_SEEK_SHORT_SEC, (float) 30.0});
-    addOption({OPT_SEEK_LONG_SEC, (float) 300.0});
 #ifdef __SWITCH__
     addOption({OPT_CPU_BOOST, "Disabled"}); // Disabled, Enabled
 #endif

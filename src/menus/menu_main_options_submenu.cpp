@@ -49,7 +49,7 @@ namespace {
 std::string MenuMainOptionsSubmenu::formatValue(float value) const {
     std::ostringstream oss;
 
-    if (option_name == OPT_SEEK_SHORT_SEC || option_name == OPT_SEEK_LONG_SEC || option_name == OPT_NETWORK_TIMEOUT) {
+    if (option_name == OPT_NETWORK_TIMEOUT) {
         return formatTimeMMSS(value);
     }
 

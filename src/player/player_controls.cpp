@@ -29,27 +29,19 @@ bool Player::onInput(c2d::Input::Player *players) {
         return true;
     }
 
-    int swap = main->getConfig()->getOption(OPT_SWAP_CONTROLS)->getInteger();
-    int btnSpeedReset = swap ? c2d::Input::LT : c2d::Input::LB;
-    int btnSpeedUp = swap ? c2d::Input::RT : c2d::Input::RB;
-    int btnSeekBack = swap ? c2d::Input::LB : c2d::Input::LT;
-    int btnSeekForward = swap ? c2d::Input::RB : c2d::Input::RT;
-    float seek = main->getConfig()->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
-
-    // without the OSD: the target time as a message
-    auto quietSeek = [this](float delta) {
-        double duration = (double) mpv->getDuration();
-        double target = std::max(0.0, mpv->getTime() + delta);
-        target = duration > 0 ? std::min(target, duration) : target;
-        mpv->seek(delta);
-        main->getStatus()->show("Info", pplay::Utility::formatTime(target) + " / " + pplay::Utility::formatTime(duration));
-    };
+    // the bumpers and triggers: 0 normal, 1 swapped, 2 off
+    int shoulders = shoulderMode();
+    bool swap = shoulders == 1;
+    int btnSpeedReset = shoulders == 2 ? 0 : swap ? c2d::Input::LT : c2d::Input::LB;
+    int btnSpeedUp = shoulders == 2 ? 0 : swap ? c2d::Input::RT : c2d::Input::RB;
+    int btnSeekBack = shoulders == 2 ? 0 : swap ? c2d::Input::LB : c2d::Input::LT;
+    int btnSeekForward = shoulders == 2 ? 0 : swap ? c2d::Input::RB : c2d::Input::RT;
 
     // the menus (tracks, settings...): seeking still works (to listen again while choosing)
     bool menu = isMenuVisible();
     bool mainMenu = main->getMenuMain()->isMenuVisible();
     if (((menu && isFullscreen()) || mainMenu) && !mpv->isStopped() && (keys & (btnSeekBack | btnSeekForward))) {
-        quietSeek((keys & btnSeekBack) ? -seek : seek);
+        scrub((keys & btnSeekBack) ? -1 : 1);
         return true;
     }
 
@@ -67,20 +59,19 @@ bool Player::onInput(c2d::Input::Player *players) {
         return isFullscreen() && !mainMenu && C2DObject::onInput(players);
     }
 
-    if (keys & btnSpeedReset) {
+    if (btnSpeedReset && (keys & btnSpeedReset)) {
         if (mpv->getSpeed() != 1.00) {
             setSpeed(1);
         } else {
             getMpv()->seek(-1.00f);
         }
-    } else if (keys & btnSpeedUp) {
+    } else if (btnSpeedUp && (keys & btnSpeedUp)) {
         double new_speed = mpv->getSpeed() + 0.05;
         if (new_speed <= 3) {
             setSpeed(new_speed);
         }
     } else if (keys & (btnSeekBack | btnSeekForward)) {
-        osd->peek();
-        getMpv()->seek(((keys & btnSeekBack) ? -seek : seek));
+        scrub((keys & btnSeekBack) ? -1 : 1);
         return true;
     } else if (keys & Input::Start) {
         setInfoVisible(!isInfoVisible());
@@ -104,9 +95,9 @@ bool Player::onInput(c2d::Input::Player *players) {
         return C2DObject::onInput(players);
     }
 
-    // left / right: the short seek (the OSD keeps them for its buttons)
+    // left / right: the seek (the OSD keeps them for its buttons)
     if (keys & (Input::Left | Input::Right)) {
-        quietSeek((keys & Input::Left) ? -seek : seek);
+        scrub((keys & Input::Left) ? -1 : 1);
         return true;
     }
 
@@ -130,12 +121,61 @@ bool Player::onInput(c2d::Input::Player *players) {
     return true;
 }
 
+int Player::shoulderMode() {
+#if defined(__ANDROID__) || defined(__LINUX__)
+    // no setting there: the default
+    return 0;
+#else
+    return main->getConfig()->getOption(OPT_SWAP_CONTROLS)->getInteger();
+#endif
+}
+
+void Player::scrub(int direction) {
+    double duration = (double) mpv->getDuration();
+    double time = mpv->getTime();
+    // a new one: another direction, or a pause since the last key
+    if (!scrubbing || direction != scrubDirection || scrubLast.getElapsedTime().asSeconds() > 0.6f) {
+        scrubbing = true;
+        scrubDirection = direction;
+        scrubTarget = std::max(0.0, time);
+        scrubHeld.restart();
+    }
+    float held = scrubHeld.getElapsedTime().asSeconds();
+    // a tap: about 0.5 % of the file (5..15 s); held: growing; at most a sixth of what is left that way
+    double base = duration > 0 ? std::max(5.0, std::min(15.0, duration * 0.005)) : 10.0;
+    double left = direction > 0 ? (duration > 0 ? duration - scrubTarget : 600.0) : scrubTarget;
+    double step = std::min(base * (1.0 + 0.6 * held * held), std::max(base, left / 6));
+    scrubTarget += direction * step;
+    scrubTarget = std::max(0.0, duration > 0 ? std::min(scrubTarget, duration - 1) : scrubTarget);
+    scrubPending = true;
+    scrubLast.restart();
+    osd->peek();
+    main->getStatus()->show("Info", pplay::Utility::formatTime(scrubTarget) + " / " + pplay::Utility::formatTime(duration));
+}
+
+void Player::updateScrub() {
+    if (!scrubbing || mpv->isStopped()) {
+        scrubbing = false;
+        return;
+    }
+    // one seek at a time (each shows its frame), the last one exact
+    if (mpv->isSeeking()) {
+        return;
+    }
+    bool done = scrubLast.getElapsedTime().asSeconds() > 0.4f;
+    if (scrubPending || done) {
+        mpv->seekTo(scrubTarget, done);
+        scrubPending = false;
+    }
+    if (done) {
+        scrubbing = false;
+    }
+}
+
 void Player::onMediaKeys(unsigned int keys) {
     if (mpv->isStopped()) {
         return;
     }
-    const float seekShort = main->getConfig()->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
-    const float seekLong = main->getConfig()->getOption(OPT_SEEK_LONG_SEC)->getFloat();
 
     if (keys & pplay::InputMap::PlayPause) {
         bool paused = mpv->isPaused();
@@ -146,11 +186,10 @@ void Player::onMediaKeys(unsigned int keys) {
         main->getStatus()->show("Info", "Stopping playback");
         stop();
     } else if (keys & (pplay::InputMap::FastForward | pplay::InputMap::Rewind)) {
-        osd->peek();
-        mpv->seek((keys & pplay::InputMap::Rewind) ? -seekShort : seekShort);
+        scrub((keys & pplay::InputMap::Rewind) ? -1 : 1);
     } else if (keys & (pplay::InputMap::Next | pplay::InputMap::Previous)) {
         osd->peek();
-        mpv->seek((keys & pplay::InputMap::Previous) ? -seekLong : seekLong);
+        playSibling((keys & pplay::InputMap::Previous) ? -1 : 1);
     } else if (keys & (pplay::InputMap::VolumeUp | pplay::InputMap::VolumeDown)) {
         changeVolume((keys & pplay::InputMap::VolumeUp) ? 1 : -1);
     }
@@ -293,35 +332,36 @@ std::string Player::trackInfo(const std::string &type) {
 
 void Player::updateKeysInfo() {
     using pplay::InputMap::buttonName;
-    int swap = main->getConfig()->getOption(OPT_SWAP_CONTROLS)->getInteger();
+    int shoulders = shoulderMode();
+    bool swap = shoulders == 1;
     unsigned int seekBack = swap ? Input::LB : Input::LT;
     unsigned int seekForward = swap ? Input::RB : Input::RT;
     unsigned int speedReset = swap ? Input::LT : Input::LB;
     unsigned int speedUp = swap ? Input::RT : Input::RB;
-    std::ostringstream seek;
-    seek << main->getConfig()->getOption(OPT_SEEK_SHORT_SEC)->getFloat();
+    std::string seek = pplay::tr("Seek");
     auto line = [](const std::string &key, const std::string &action) { return key + ": " + action + "\n"; };
     std::string out = "\n";
 #ifdef __ANDROID__
     // a TV remote: its keys (and the media ones), the rest in the player menu
-    (void) seekBack, (void) seekForward, (void) speedReset, (void) speedUp;
-    std::ostringstream seekLong;
-    seekLong << main->getConfig()->getOption(OPT_SEEK_LONG_SEC)->getFloat();
+    (void) seekBack, (void) seekForward, (void) speedReset, (void) speedUp, (void) shoulders;
     out += line(buttonName(Input::A), pplay::tr("Select"));
     out += line(buttonName(Input::B), pplay::tr("Back/Minimize"));
     out += line(buttonName(Input::X), pplay::tr("Player menu"));
-    out += line(buttonName(Input::Left) + " / " + buttonName(Input::Right), "-/+ " + seek.str() + " s");
+    out += line(buttonName(Input::Left) + " / " + buttonName(Input::Right), seek);
     out += line(buttonName(Input::Up) + buttonName(Input::Down), pplay::tr("Volume"));
     out += line("\u23EF", pplay::tr("Play/Pause"));
-    out += line("\u23EA / \u23E9", "-/+ " + seek.str() + " s");
-    out += line("\u23EE / \u23ED", "-/+ " + seekLong.str() + " s");
+    out += line("\u23EA / \u23E9", seek);
+    out += line("\u23EE / \u23ED", pplay::tr("Previous") + " / " + pplay::tr("Next"));
 #else
     out += line(buttonName(Input::A), pplay::tr("Select"));
     out += line(buttonName(Input::B), pplay::tr("Back/Minimize"));
     out += line(buttonName(Input::X), pplay::tr("Player menu"));
-    out += line(buttonName(seekBack) + " / " + buttonName(seekForward), "-/+ " + seek.str() + " s");
-    out += line(buttonName(speedReset), pplay::tr("Speed") + " 1.00");
-    out += line(buttonName(speedUp), pplay::tr("Speed") + " +0.05");
+    out += line(buttonName(Input::Left) + " / " + buttonName(Input::Right), seek);
+    if (shoulders != 2) {
+        out += line(buttonName(seekBack) + " / " + buttonName(seekForward), seek);
+        out += line(buttonName(speedReset), pplay::tr("Speed") + " 1.00");
+        out += line(buttonName(speedUp), pplay::tr("Speed") + " +0.05");
+    }
     out += line(buttonName(Input::Up) + buttonName(Input::Down), pplay::tr("Volume"));
     out += line(buttonName(Input::Y) + " + " + buttonName(Input::Up) + buttonName(Input::Down),
                 pplay::tr(pplay::Platform::backlight() >= 0 ? "Screen brightness" : "Brightness"));

@@ -317,6 +317,7 @@ void Player::updateFrame() {
 }
 
 void Player::onUpdate() {
+    updateScrub();
     updateExternalTracks();
     updateDecoding();
     if (volumeDirty && volumeClock.getElapsedTime().asSeconds() >= 2) {

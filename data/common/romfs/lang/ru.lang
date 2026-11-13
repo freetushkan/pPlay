@@ -30,12 +30,6 @@ Loop file = Повторять файл
 Loop directory = Повторять папку
 
 # Settings
-Short seek step = Короткая перемотка
-Long seek step = Длинная перемотка
-Seek short step = Шаг короткой перемотки
-Seek long step = Шаг длинной перемотки
-Swap controls = Кнопки управления
-Triggers and buttons = Триггеры и бамперы
 Normal = Обычно
 Swapped = Поменяны местами
 Accent color = Цвет акцента
@@ -426,3 +420,5 @@ GB = ГБ
 Standby in = Режим ожидания через
 s = с
 Offline: the file is not accessible = Нет связи: файл недоступен
+Bumpers and triggers = Бамперы и триггеры
+Seek = Перемотка
