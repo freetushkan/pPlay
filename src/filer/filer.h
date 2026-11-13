@@ -155,6 +155,7 @@ private:
     std::function<void(const MediaFile &)> pickCallback;
     std::string pickPrevPath;
     std::string pickPrevSelection;
+    float crumbsWidth = 0;
 };
 
 #endif //NXFILER_FILER_H

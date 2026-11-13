@@ -55,7 +55,8 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     probe = new MediaProbe();
     Filer::add(details);
 
-    crumbs = new Breadcrumb(main, {16 * m->getScaling().x, 0, size.x - 150 * m->getScaling().x, crumbHeight});
+    crumbsWidth = size.x - 150 * m->getScaling().x;
+    crumbs = new Breadcrumb(main, {16 * m->getScaling().x, 0, crumbsWidth, crumbHeight});
     Filer::add(crumbs);
     float padTop = std::round(12 * m->getScaling().y);
     size.y -= crumbHeight + padTop;
@@ -623,7 +624,7 @@ void Filer::onUpdate() {
     }
     StatusBar *bar = main->getStatusBar();
     if (bar != nullptr) {
-        crumbs->setWidth(std::max(1.0f, bar->getChipLeft() - crumbs->getPosition().x - 12 * main->getScaling().x));
+        crumbs->setWidth(std::max(1.0f, crumbsWidth - bar->getOfflineWidth()));
     }
     crumbs->setPath(path);
     if (pplay::TorrServe::viewedGeneration() != durationsGeneration) {

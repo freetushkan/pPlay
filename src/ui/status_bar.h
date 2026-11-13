@@ -29,12 +29,12 @@ public:
     c2d::Texture *offline = nullptr;
     c2d::Text *offlineText = nullptr;
 
-    // the left edge of its chip (screen x)
-    float getChipLeft() const { return chipLeft; }
+    // the room the offline label takes in its chip
+    float getOfflineWidth() const { return offlineWidth; }
 
 private:
 
-    float chipLeft = 0;
+    float offlineWidth = 0;
 
     void applyAlpha();
 

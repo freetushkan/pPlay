@@ -592,9 +592,19 @@ namespace {
         }
         nlohmann::json response;
         if (!skip) {
-            g_viewedFetching++;
+            // (a retry of a server not answering: silent)
+            bool shown;
+            {
+                std::lock_guard<std::mutex> lock(g_cacheMutex);
+                shown = g_unreachable.count(root) == 0;
+            }
+            if (shown) {
+                g_viewedFetching++;
+            }
             response = nlohmann::json::parse(httpRequest(root + "viewed", 5, request.dump()), nullptr, false);
-            g_viewedFetching--;
+            if (shown) {
+                g_viewedFetching--;
+            }
         } else {
             response = nlohmann::json::value_t::discarded;
         }
