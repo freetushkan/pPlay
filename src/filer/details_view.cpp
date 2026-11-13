@@ -13,6 +13,8 @@
 #include "key_hints.h"
 #include "player.h"
 #include "poster_loader.h"
+#include "poster_cache.h"
+#include "offline.h"
 #include "details_info.h"
 #include "details_view.h"
 #include "folder_marks.h"
@@ -114,8 +116,11 @@ void DetailsView::setFile(const MediaFile &f) {
     details = info.details;
     // the file own cover, the directory one, the torrent one: the next one if it fails
     posterUrls.clear();
+    // offline: the cached ones only (local pictures too), nothing asked from the network
+    bool offline = pplay::Offline::isOffline(file.path);
     for (auto &url: {info.cover, file.type == Io::Type::File ? folderCover : "", info.poster}) {
-        if (!url.empty()) {
+        bool local = c2d::Utility::startWith(url, "dir:") && url.find("://") == std::string::npos;
+        if (!url.empty() && (!offline || local || !pplay::PosterCache::find(url).empty())) {
             posterUrls.push_back(url);
         }
     }
