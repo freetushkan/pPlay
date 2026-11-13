@@ -149,6 +149,10 @@ namespace pplay::Offline {
         if (type == Io::DeviceType::Local) {
             return false;
         }
-        return g_active || (type == Io::DeviceType::TorrServe && !TorrServe::isReachable(path));
+        // TorrServer: its server answering (its listings made from its kept list meanwhile)
+        if (type == Io::DeviceType::TorrServe) {
+            return !TorrServe::isReachable(path);
+        }
+        return g_active;
     }
 }

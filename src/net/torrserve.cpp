@@ -150,6 +150,10 @@ namespace {
     // the torrents list and the viewed marks asked again after (s, the setting)
     std::atomic<int> g_syncSecs{30};
 
+    void storeTorrentsList(const std::string &root, const std::string &response);
+
+    bool parseTorrents(const std::string &response, std::vector<Torrent> *out);
+
     std::vector<Torrent> getTorrents(const std::string &root, int timeout, bool *ok = nullptr) {
         std::vector<Torrent> torrents;
         if (ok != nullptr) {
@@ -163,12 +167,37 @@ namespace {
         }
 
         pplay::Utility::log(pplay::Utility::LogLevel::Trace, "TorrServe::getTorrents response=" + response);
-        nlohmann::json json = nlohmann::json::parse(response, nullptr, false);
-        if (json.is_discarded() || !json.is_array()) {
+        if (!parseTorrents(response, &torrents)) {
             return torrents;
         }
         if (ok != nullptr) {
             *ok = true;
+        }
+        storeTorrentsList(root, response);
+        return torrents;
+    }
+
+    // the last list of a server kept on disk: its listings offline (all the torrents, entered or not)
+    std::string torrentsListPath(const std::string &root) {
+        char name[32];
+        snprintf(name, sizeof(name), "%016llx", (unsigned long long) std::hash<std::string>{}(root));
+        return pplay::Utility::getDataPath() + "cache/torrserver_list_" + name;
+    }
+
+    void storeTorrentsList(const std::string &root, const std::string &response) {
+        std::string path = torrentsListPath(root), old;
+        if (pplay::Io::get()->readText(path, old) && old == response) {
+            return;
+        }
+        pplay::Io::get()->create(pplay::Utility::getDataPath() + "cache");
+        pplay::Io::get()->writeText(path, response);
+    }
+
+    bool parseTorrents(const std::string &response, std::vector<Torrent> *out) {
+        std::vector<Torrent> &torrents = *out;
+        nlohmann::json json = nlohmann::json::parse(response, nullptr, false);
+        if (json.is_discarded() || !json.is_array()) {
+            return false;
         }
 
         for (const auto &item: json) {
@@ -212,7 +241,7 @@ namespace {
             }
             torrents.push_back(torrent);
         }
-        return torrents;
+        return true;
     }
 
     // the torrents list per server: asked once in a sync interval (all the listings, the
@@ -223,6 +252,7 @@ namespace {
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> g_torrentsFailedAt;
     // the servers not answering their last list request
     std::unordered_set<std::string> g_unreachable;
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> g_viewedFailedAt;
     // one request at a time (the others wait for its answer)
     std::mutex g_fetchMutex;
     constexpr int FailedRetrySecs = 5;
@@ -246,7 +276,9 @@ namespace {
         auto now = std::chrono::steady_clock::now();
         std::lock_guard<std::mutex> lock(g_cacheMutex);
         auto failure = g_torrentsFailedAt.find(root);
-        *failed = failure != g_torrentsFailedAt.end() && now - failure->second < std::chrono::seconds(FailedRetrySecs);
+        // unreachable: asked again in a sync interval (its kept list used meanwhile)
+        int retry = g_unreachable.count(root) > 0 ? g_syncSecs.load() : FailedRetrySecs;
+        *failed = failure != g_torrentsFailedAt.end() && now - failure->second < std::chrono::seconds(retry);
         auto at = g_torrentsAt.find(root);
         if (at == g_torrentsAt.end() || now - at->second >= std::chrono::seconds(g_syncSecs.load())) {
             return false;
@@ -255,7 +287,36 @@ namespace {
         return true;
     }
 
+    // the server not answering: its last list (this run's, else the one kept on disk)
+    std::vector<Torrent> staleTorrents(const std::string &root) {
+        {
+            std::lock_guard<std::mutex> lock(g_cacheMutex);
+            auto known = g_torrentsCache.find(root);
+            if (known != g_torrentsCache.end()) {
+                return known->second;
+            }
+        }
+        std::vector<Torrent> torrents;
+        std::string response;
+        if (pplay::Io::get()->readText(torrentsListPath(root), response) && parseTorrents(response, &torrents)) {
+            std::lock_guard<std::mutex> lock(g_cacheMutex);
+            g_torrentsCache[root] = torrents;
+        }
+        return torrents;
+    }
+
+    std::vector<Torrent> fetchTorrents(const std::string &root, int timeout, bool *ok);
+
     std::vector<Torrent> torrentsOf(const std::string &root, int timeout, bool *ok) {
+        std::vector<Torrent> torrents = fetchTorrents(root, timeout, ok);
+        if (!*ok) {
+            torrents = staleTorrents(root);
+            *ok = !torrents.empty();
+        }
+        return torrents;
+    }
+
+    std::vector<Torrent> fetchTorrents(const std::string &root, int timeout, bool *ok) {
         std::vector<Torrent> torrents;
         bool failed = false;
         *ok = false;
@@ -521,13 +582,39 @@ namespace {
         const std::string key = root + "|" + hash;
         nlohmann::json request;
         request["action"] = "list";
-        g_viewedFetching++;
-        nlohmann::json response =
-                nlohmann::json::parse(httpRequest(root + "viewed", 5, request.dump()), nullptr, false);
-        g_viewedFetching--;
+        // unreachable: not asked again before the next sync (the kept marks shown meanwhile)
+        bool skip;
+        {
+            std::lock_guard<std::mutex> lock(g_cacheMutex);
+            auto failed = g_viewedFailedAt.find(root);
+            skip = g_unreachable.count(root) > 0 && failed != g_viewedFailedAt.end()
+                   && std::chrono::steady_clock::now() - failed->second < std::chrono::seconds(g_syncSecs.load());
+        }
+        nlohmann::json response;
+        if (!skip) {
+            g_viewedFetching++;
+            response = nlohmann::json::parse(httpRequest(root + "viewed", 5, request.dump()), nullptr, false);
+            g_viewedFetching--;
+        } else {
+            response = nlohmann::json::value_t::discarded;
+        }
         std::vector<std::string> hashes;
         {
             std::lock_guard<std::mutex> lock(g_cacheMutex);
+            if (!skip) {
+                if (!response.is_discarded() && response.is_array()) {
+                    // back: listed again
+                    if (g_unreachable.erase(root) > 0) {
+                        g_torrentsAt.erase(root);
+                        g_torrentsFailedAt.erase(root);
+                        g_torrentsGeneration++;
+                    }
+                    g_viewedFailedAt.erase(root);
+                } else {
+                    g_unreachable.insert(root);
+                    g_viewedFailedAt[root] = std::chrono::steady_clock::now();
+                }
+            }
             for (const auto &torrent: g_torrentsCache[root]) {
                 hashes.push_back(torrent.hash);
             }
