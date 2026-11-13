@@ -319,10 +319,10 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 4.0f, 1.0f);
     addSubmenu("Retention period", "Delete files not opened for this long", OPT_SAVE_KEEP_DAYS, makeAdjustItems(),
                Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 365.0f, 1.0f, "d");
-    getMenuMainOptionsSubmenu("Retention period")->setZeroLabel("Never");
+    getMenuMainOptionsSubmenu("Retention period")->setZeroLabel("∞");
     addSubmenu("Storage limit", "Delete oldest files when the storage limit is exceeded", OPT_SAVE_MAX_GB,
                makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 2000.0f, 1.0f, "GB");
-    getMenuMainOptionsSubmenu("Storage limit")->setZeroLabel("No limit");
+    getMenuMainOptionsSubmenu("Storage limit")->setZeroLabel("∞");
     addSubmenu("Logging", "Log to file", OPT_LOG_LEVEL,
                makeIntItems({{"Off", 0}, {"Error", 1}, {"Info", 2}, {"Debug", 3}, {"Trace", 4}}),
                Submenu::ValueType::Integer);

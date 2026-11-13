@@ -337,7 +337,6 @@ Retention period = Срок хранения
 Delete files not opened for this long = Удалять файлы, не открывавшиеся дольше этого срока
 Storage limit = Объём
 Delete oldest files when the storage limit is exceeded = Удалять старые файлы при превышении лимита
-No limit = Без ограничений
 Save = Сохранить
 Save folder = Сохранить папку
 Saving = Сохранение

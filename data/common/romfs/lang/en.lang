@@ -337,7 +337,6 @@ Retention period = Retention period
 Delete files not opened for this long = Delete files not opened for this long
 Storage limit = Storage limit
 Delete oldest files when the storage limit is exceeded = Delete oldest files when the storage limit is exceeded
-No limit = No limit
 Save = Save
 Save folder = Save folder
 Saving = Saving
