@@ -30,7 +30,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Short seek step", "short_seek.png", Pos::Top),
                                   MenuItem("Long seek step", "long_seek.png", Pos::Top),
                                   MenuItem("Playback retry", "pl_retry.png", Pos::Top),
-                                  MenuItem("Restore last file", "playlist.png", Pos::Top),
+                                  MenuItem("Restore last file", "restore.png", Pos::Top),
                           }});
     categories.push_back({"Progress",
                           {
@@ -39,7 +39,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Progress save interval", "time.png", Pos::Top),
                                   MenuItem("Progress line", "progress_line.png", Pos::Top),
                                   MenuItem("Folder marks", "progress_end.png", Pos::Top),
-                                  MenuItem("Progress source", "network.png", Pos::Top),
+                                  MenuItem("Progress source", "net_torrserve.png", Pos::Top),
                           }});
     categories.push_back({"Audio and subtitles",
                           {
@@ -82,8 +82,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
         networks.emplace_back(networkKey(i), networkIcon(main->getConfig(), i), Pos::Top);
     }
     networks.emplace_back("Connection timeout", "timeout.png", Pos::Top);
-    networks.emplace_back("Certificate check", "network.png", Pos::Top);
-    networks.emplace_back("TorrServer sync", "network.png", Pos::Top);
+    networks.emplace_back("Certificate check", "tls.png", Pos::Top);
+    networks.emplace_back("TorrServer sync", "sync.png", Pos::Top);
     networks.emplace_back("Buffer length", "buffer.png", Pos::Top);
     networks.emplace_back("Buffer memory", "memory.png", Pos::Top);
 #ifdef __SMB2__
@@ -109,7 +109,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     system.emplace_back("CPU boost", "cpu.png", Pos::Top);
 #endif
 #if defined(__PS5__) && defined(PPLAY_PS5_KEEP_IN_REST)
-    system.emplace_back("Keep in rest mode", "system.png", Pos::Top);
+    system.emplace_back("Keep in rest mode", "rest.png", Pos::Top);
 #endif
     system.emplace_back("Logging", "log.png", Pos::Top);
     system.emplace_back("View log", "log.png", Pos::Top);
