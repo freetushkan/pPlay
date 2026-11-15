@@ -40,6 +40,7 @@ public:
         Watched,
         Save,
         Unsave,
+        CancelSaving,
         AddToPlaylist,
         RenamePlaylist,
         DeletePlaylist,

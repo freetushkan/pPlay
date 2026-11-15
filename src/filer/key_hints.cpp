@@ -22,6 +22,15 @@ int KeyHints::idAt(int index) const {
     return index >= 0 && index < (int) hints.size() ? hints[index].id : 0;
 }
 
+int KeyHints::usable(int index, int direction) const {
+    for (int i = index; i >= 0 && i < (int) hints.size(); i += direction) {
+        if (!hints[i].off) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 int KeyHints::neighbor(int index, int direction) {
     if (index < 0 || index >= (int) items.size()) {
         return -1;
@@ -30,8 +39,11 @@ int KeyHints::neighbor(int index, int direction) {
     float x = items[index]->getPosition().x + items[index]->getSize().x / 2;
     // the next row y
     float rowY = -1;
-    for (auto *item: items) {
-        float iy = item->getPosition().y;
+    for (int i = 0; i < (int) items.size(); i++) {
+        if (hints[i].off) {
+            continue;
+        }
+        float iy = items[i]->getPosition().y;
         if ((direction < 0 && iy < y && (rowY < 0 || iy > rowY))
             || (direction > 0 && iy > y && (rowY < 0 || iy < rowY))) {
             rowY = iy;
@@ -40,7 +52,7 @@ int KeyHints::neighbor(int index, int direction) {
     int best = -1;
     float bestDistance = 0;
     for (int i = 0; i < (int) items.size(); i++) {
-        if (rowY < 0 || items[i]->getPosition().y != rowY) {
+        if (rowY < 0 || hints[i].off || items[i]->getPosition().y != rowY) {
             continue;
         }
         float distance = std::fabs(items[i]->getPosition().x + items[i]->getSize().x / 2 - x);
@@ -163,6 +175,12 @@ void KeyHints::applyColors() {
             text->setFillColor(COLOR_WHITE);
             if (icons[i] != nullptr) {
                 icons[i]->setFillColor(COLOR_WHITE);
+            }
+        } else if (buttons && hints[i].off) {
+            items[i]->setFillColor(Color(255, 255, 255, 12));
+            text->setFillColor(COLOR_GRAY_LIGHT);
+            if (icons[i] != nullptr) {
+                icons[i]->setFillColor(COLOR_GRAY_LIGHT);
             }
         } else {
             items[i]->setFillColor(buttons ? Color(255, 255, 255, 28) : Color::Transparent);

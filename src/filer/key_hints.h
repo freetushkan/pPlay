@@ -20,9 +20,11 @@ public:
         unsigned int keys = 0; // a glyph, or the key name
         std::string action;    // menu key, translated
         int id = 0;
+        // dimmed, never focused
+        bool off = false;
 
         bool operator==(const Hint &other) const {
-            return keys == other.keys && action == other.action && id == other.id;
+            return keys == other.keys && action == other.action && id == other.id && off == other.off;
         }
     };
 
@@ -39,6 +41,11 @@ public:
     int count() const { return (int) hints.size(); }
 
     int idAt(int index) const;
+
+    bool isOff(int index) const { return index >= 0 && index < (int) hints.size() && hints[index].off; }
+
+    // the next one not off from index (itself too) in the direction, -1 if none
+    int usable(int index, int direction) const;
 
     // the closest item of the row above (-1) or below (1), -1 if none
     int neighbor(int index, int direction);

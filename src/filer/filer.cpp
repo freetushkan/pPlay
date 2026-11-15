@@ -371,6 +371,10 @@ void Filer::run(DetailsView::Action action) {
         case Action::Unsave:
             unsave(selection);
             break;
+        case Action::CancelSaving:
+            pplay::Saved::cancel(selection.path);
+            main->getStatus()->show("Info", pplay::tr("Saving canceled"));
+            break;
         case Action::AddToPlaylist:
             addToPlaylist(selection);
             break;

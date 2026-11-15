@@ -73,6 +73,12 @@ namespace pplay::Saved {
     // the copies under a network or a Saved section path, their downloads stopped; the count
     int remove(const std::string &path);
 
+    // the unfinished copies under a network path: their downloads stopped, the saved ones kept; the count
+    int cancel(const std::string &path);
+
+    // of these network files: the bytes saved (the parts too), of all; all saved
+    bool progressOf(const std::vector<c2d::Io::File> &files, int64_t *done, int64_t *total);
+
     // a Saved section directory: its saved files and directories
     std::vector<c2d::Io::File> list(const std::string &dir);
 

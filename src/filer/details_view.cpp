@@ -182,8 +182,8 @@ void DetailsView::updateHints() {
     bool resettable = isResettable(file);
 
     std::vector<KeyHints::Hint> list;
-    auto add = [&list](unsigned int keys, const std::string &action, Action id) {
-        list.push_back({keys, action, (int) id});
+    auto add = [&list](unsigned int keys, const std::string &action, Action id, bool off = false) {
+        list.push_back({keys, action, (int) id, off});
     };
     // the action first, the navigation, the reset last
     if (focused) {
@@ -215,19 +215,35 @@ void DetailsView::updateHints() {
                 add(0, "Mark folder watched", Action::WatchedFolder);
             }
         }
-        // a copy: saved (the rest of a directory), its progress, removed
+        // a copy: saved, its part (of all the files of a directory), stopped, removed
         bool network = pplay::Saved::canSave(file);
         if (!empty && file.name != ".." && (network || pplay::Saved::isInside(file.path))) {
             pplay::Saved::State state = pplay::Saved::stateOf(file.path);
-            if (state.pending > 0) {
-                char percent[16];
-                snprintf(percent, sizeof(percent), " %d%%", (int) (state.progress * 100));
-                add(0, pplay::tr("Saving") + percent, Action::None);
-            } else if (network && !state.complete && (file.type == Io::Type::Directory || state.saved == 0)) {
-                add(0, file.type == Io::Type::Directory ? "Save folder" : "Save", Action::Save);
+            if (network) {
+                std::vector<c2d::Io::File> files;
+                bool listed = file.type != Io::Type::Directory || pplay::FolderMarks::allFiles(file.path, &files);
+                if (file.type != Io::Type::Directory) {
+                    files.push_back(file);
+                }
+                int64_t done = 0, total = 0;
+                bool all = state.complete || (listed && pplay::Saved::progressOf(files, &done, &total));
+                std::string label = state.pending > 0 ? pplay::tr("Saving")
+                                                      : pplay::tr(file.type == Io::Type::Directory ? "Save folder" : "Save");
+                if (all && state.pending == 0) {
+                    add(0, "Saved fully", Action::None, true);
+                } else {
+                    if (total > 0 && (done > 0 || state.pending > 0)) {
+                        char percent[16];
+                        snprintf(percent, sizeof(percent), " %d%%", (int) std::min<int64_t>(99, done * 100 / total));
+                        label += percent;
+                    }
+                    add(0, label, Action::Save);
+                }
             }
-            if (state.saved > 0 || state.pending > 0) {
-                add(0, state.saved > 0 ? "Delete saved" : "Cancel saving", Action::Unsave);
+            if (state.pending > 0) {
+                add(0, "Cancel saving", Action::CancelSaving);
+            } else if (state.saved > 0 || state.failed) {
+                add(0, "Delete saved", Action::Unsave);
             }
         }
         // playlists: the list ones, their entries, the rest
@@ -269,6 +285,11 @@ void DetailsView::updateHints() {
     hints->setHints(list);
     if (button >= hints->count()) {
         button = hints->count() - 1;
+    }
+    // the focused one turned off: the next, else the previous
+    if (hints->isOff(button)) {
+        int next = hints->usable(button, 1);
+        button = next >= 0 ? next : hints->usable(button, -1);
     }
     hints->setFocus(button);
 }
@@ -403,13 +424,13 @@ DetailsView::Action DetailsView::onKeys(unsigned int keys) {
         float max = std::max(0.0f, contentHeight - (view->getSize().y - contentTop));
         float step = std::max((view->getSize().y - contentTop) * 0.35f, (float) detailsText->getCharacterSize() * 3);
         if ((keys & Input::Right) && hints->count() > 0) {
-            button = 0;
+            button = hints->usable(0, 1);
         } else if (keys & (Input::Down | Input::Right)) {
             // at the end: the buttons
             if (scroll < max - 0.5f) {
                 scrollBy(step);
             } else if (hints->count() > 0) {
-                button = 0;
+                button = hints->usable(0, 1);
             }
         } else if (keys & Input::Up) {
             scrollBy(-step);
@@ -427,12 +448,14 @@ DetailsView::Action DetailsView::onKeys(unsigned int keys) {
             button = below >= 0 ? below : button;
         } else if (keys & Input::Left) {
             // the row start: out of the panel
-            if (!hints->sameRow(button, button - 1)) {
+            int left = hints->usable(button - 1, -1);
+            if (left < 0 || !hints->sameRow(button, left)) {
                 return Action::Files;
             }
-            button--;
+            button = left;
         } else if (keys & Input::Right) {
-            button = hints->sameRow(button, button + 1) ? button + 1 : button;
+            int right = hints->usable(button + 1, 1);
+            button = right >= 0 && hints->sameRow(button, right) ? right : button;
         } else if (keys & Input::A) {
             return (Action) hints->idAt(button);
         }

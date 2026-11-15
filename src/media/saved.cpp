@@ -1325,6 +1325,61 @@ namespace pplay::Saved {
         return (int) keys.size();
     }
 
+    int cancel(const std::string &path) {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        std::string key = remoteKey(path);
+        if (key.empty() || key.find("://") == std::string::npos) {
+            return 0;
+        }
+        std::vector<std::string> keys;
+        each(key, [&](const std::string &file, const Entry &e) {
+            if (!e.saved) {
+                keys.push_back(file);
+            }
+        });
+        for (auto &file: keys) {
+            removeEntry(file);
+        }
+        size_t jobs = g_jobs.size();
+        g_jobs.erase(std::remove_if(g_jobs.begin(), g_jobs.end(),
+                                    [&key](const Job &job) {
+                                        return job.dir && under(noSlash(job.file.path), key);
+                                    }),
+                     g_jobs.end());
+        // not whole any more: it, the directories above, the ones in it
+        if (!keys.empty() || jobs != g_jobs.size()) {
+            for (auto it = g_wholeDirs.begin(); it != g_wholeDirs.end();) {
+                it = under(key, *it) || under(*it, key) ? g_wholeDirs.erase(it) : std::next(it);
+            }
+        }
+        prune();
+        g_dirty = true;
+        changed();
+        return (int) keys.size();
+    }
+
+    bool progressOf(const std::vector<c2d::Io::File> &files, int64_t *done, int64_t *total) {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        *done = 0;
+        *total = 0;
+        bool all = !files.empty();
+        for (auto &file: files) {
+            int64_t size = (int64_t) file.size;
+            auto known = g_byRemote.find(isVirtual(file.path) ? remoteOfVirtual(file.path) : file.path);
+            auto f = known != g_byRemote.end() ? g_files.find(known->second) : g_files.end();
+            if (f == g_files.end()) {
+                all = false;
+                *total += size;
+                continue;
+            }
+            size = size > 0 ? size : f->second.size;
+            *total += size;
+            *done += f->second.saved ? size : std::min(size, f->second.done);
+            all = all && f->second.saved;
+        }
+        return all;
+    }
+
     std::vector<c2d::Io::File> list(const std::string &dir) {
         std::lock_guard<std::mutex> lock(g_mutex);
         std::vector<c2d::Io::File> files;

@@ -50,6 +50,9 @@ namespace pplay::FolderMarks {
 
     // the media files of the listed directory
     std::vector<c2d::Io::File> files(const std::string &path);
+
+    // all its files (the hidden ones excepted), false while listed
+    bool allFiles(const std::string &path, std::vector<c2d::Io::File> *files);
 }
 
 #endif //PPLAY_FOLDER_MARKS_H

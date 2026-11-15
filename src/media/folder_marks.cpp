@@ -42,6 +42,8 @@ namespace {
     c2d::Io::File g_dir;
     FolderMarks::State g_state;
     std::vector<c2d::Io::File> g_files;
+    // all the files (not hidden): what saving the directory takes
+    std::vector<c2d::Io::File> g_all;
 
     // the rows: their directories counted one by one, kept a while
     const float ROW_KEEP_SECS = 60;
@@ -195,7 +197,8 @@ namespace {
         return checked;
     }
 
-    void collect(const c2d::Io::File &dir, int depth, std::vector<c2d::Io::File> &out) {
+    void collect(const c2d::Io::File &dir, int depth, std::vector<c2d::Io::File> &out,
+                 std::vector<c2d::Io::File> *all) {
         if (g_cancel || out.size() >= MAX_FILES) {
             return;
         }
@@ -207,6 +210,9 @@ namespace {
                 for (auto &file: tree) {
                     if (out.size() >= MAX_FILES) {
                         break;
+                    }
+                    if (all != nullptr && (file.name.empty() || file.name[0] != '.')) {
+                        all->push_back(file);
                     }
                     if (Utility::isMedia(file)) {
                         out.push_back(file);
@@ -222,9 +228,14 @@ namespace {
             }
             if (file.type == c2d::Io::Type::Directory) {
                 if (depth < MAX_DEPTH) {
-                    collect(file, depth + 1, out);
+                    collect(file, depth + 1, out, all);
                 }
-            } else if (Utility::isMedia(file) && out.size() < MAX_FILES) {
+                continue;
+            }
+            if (all != nullptr && file.type == c2d::Io::Type::File && (file.name.empty() || file.name[0] != '.')) {
+                all->push_back(file);
+            }
+            if (Utility::isMedia(file) && out.size() < MAX_FILES) {
                 out.push_back(file);
             }
         }
@@ -263,7 +274,7 @@ namespace {
     }
 
     void publish(const c2d::Io::File &dir, bool panel, const FolderMarks::State &state,
-                 std::vector<c2d::Io::File> *files) {
+                 std::vector<c2d::Io::File> *files, std::vector<c2d::Io::File> *all = nullptr) {
         std::lock_guard<std::mutex> lock(g_mutex);
         remember(dir.path, state);
         if (panel && g_dir.path == dir.path) {
@@ -274,20 +285,23 @@ namespace {
             if (files != nullptr) {
                 g_files = *files;
             }
+            if (all != nullptr) {
+                g_all = *all;
+            }
             g_generation++;
         }
     }
 
     // the local progress (and the known server marks) first, then the server asked
     bool scan(const c2d::Io::File &dir, bool panel) {
-        std::vector<c2d::Io::File> files;
-        collect(dir, 0, files);
+        std::vector<c2d::Io::File> files, all;
+        collect(dir, 0, files, panel ? &all : nullptr);
         FolderMarks::State state;
         bool torrents = false;
         if (!count(files, false, state, &torrents)) {
             return false;
         }
-        publish(dir, panel, state, &files);
+        publish(dir, panel, state, &files, &all);
         if (torrents) {
             if (!count(files, true, state, &torrents)) {
                 return false;
@@ -421,6 +435,7 @@ namespace pplay::FolderMarks {
             g_dir = dir;
             g_state = State();
             g_files.clear();
+            g_all.clear();
             g_generation++;
             g_pending = true;
             g_cancel = true;
@@ -440,5 +455,14 @@ namespace pplay::FolderMarks {
     std::vector<c2d::Io::File> files(const std::string &path) {
         std::lock_guard<std::mutex> lock(g_mutex);
         return path == g_dir.path && g_state.ready ? g_files : std::vector<c2d::Io::File>();
+    }
+
+    bool allFiles(const std::string &path, std::vector<c2d::Io::File> *files) {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        if (path != g_dir.path || !g_state.ready) {
+            return false;
+        }
+        *files = g_all;
+        return true;
     }
 }
