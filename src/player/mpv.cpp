@@ -91,7 +91,6 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
 
 #if defined(__PS4__) || defined(__PS5__)
     mpv_set_option_string(handle, "ignore-path-in-watch-later-config", "yes");
-    mpv_set_option_string(handle, "sub-ass-override", "force");
     mpv_set_option_string(handle, "osd-rendering-mode", "normal");
     mpv_set_option_string(handle, "sub-font-provider", "none");
     mpv_set_option_string(handle, "osd-font-provider", "none");

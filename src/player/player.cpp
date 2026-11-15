@@ -538,6 +538,8 @@ void Player::applyConfig() {
     mpv_set_property_string(mpv->getHandle(), "tls-verify", pplay::Utility::isTlsVerify() ? "yes" : "no");
     applyLanguages();
     applyAudioFilter();
+    mpv_set_property_string(mpv->getHandle(), "sub-ass-override",
+                            main->getConfig()->getOption(OPT_SUB_ASS_PLAIN)->getInteger() != 0 ? "force" : "scale");
     const int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
 #ifdef __SMB2__
     pplay::Smb::configureStream(main->getConfig()->getOption(OPT_SMB_READ_BUFFER_MB)->getInteger(), timeout);

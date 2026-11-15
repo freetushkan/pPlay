@@ -93,6 +93,11 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_AUDIO_LANGUAGE, "Auto"});
     addOption({OPT_SUB_LANGUAGE, "Off"});
     addOption({OPT_EXTERNAL_TRACKS, (int) 1});
+#if defined(__PS4__) || defined(__PS5__)
+    addOption({OPT_SUB_ASS_PLAIN, (int) 1});
+#else
+    addOption({OPT_SUB_ASS_PLAIN, (int) 0});
+#endif
     addOption({OPT_AUDIO_NORMALIZE, (int) 0});
     addOption({OPT_VOLUME, (int) -1});
     addOption({OPT_CACHE_SECS, (int) 60});

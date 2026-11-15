@@ -39,6 +39,7 @@
 #define OPT_SUB_LANGUAGE "SUB_LANGUAGE"
 // external audio / subtitles files found next to the video
 #define OPT_EXTERNAL_TRACKS "EXTERNAL_TRACKS"
+#define OPT_SUB_ASS_PLAIN "SUB_ASS_PLAIN"
 // 0 off, 1 normalize, 2 night mode (dialogue up, no LFE, compressed)
 #define OPT_AUDIO_NORMALIZE "AUDIO_NORMALIZE"
 // last volume (-1: mpv.conf)

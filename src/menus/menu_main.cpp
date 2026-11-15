@@ -257,6 +257,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::ValueType::String);
     addSubmenu("External tracks", "External audio and subtitles", OPT_EXTERNAL_TRACKS,
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
+    addSubmenu("Styled subtitles", "ASS subtitles: their own look, or the plain one", OPT_SUB_ASS_PLAIN,
+               makeIntItems({{"As made", 0}, {"Plain", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Volume normalization", "Volume normalization", OPT_AUDIO_NORMALIZE,
                makeIntItems({{"Off", 0}, {"Normalize", 1}, {"Night mode", 2}}), Submenu::ValueType::Integer);
     addSubmenu("Visualization", "Audio files screen", OPT_AUDIO_VISUALIZER,
