@@ -44,8 +44,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Audio language", "audio.png", Pos::Top),
                                   MenuItem("Subtitles language", "subtitles.png", Pos::Top),
                                   MenuItem("External tracks", "external.png", Pos::Top),
-                                  MenuItem("Styled subtitles", "color.png", Pos::Top),
-                                  MenuItem("Audio channels", "audio.png", Pos::Top),
+                                  MenuItem("Styled subtitles", "sub_style.png", Pos::Top),
+                                  MenuItem("Audio channels", "audio_channels.png", Pos::Top),
                                   MenuItem("Volume normalization", "normalize.png", Pos::Top),
                                   MenuItem("Visualization", "visualizer.png", Pos::Top),
                           }});
@@ -61,7 +61,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Hardware retry", "gpu.png", Pos::Top),
                                   MenuItem("Hardware attempts", "gpu.png", Pos::Top),
 #endif
-                                  MenuItem("Dithering", "quality.png", Pos::Top),
+                                  MenuItem("Dithering", "dither.png", Pos::Top),
                           }});
     categories.push_back({"Interface",
                           {
