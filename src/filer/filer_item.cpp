@@ -194,11 +194,14 @@ void FilerItem::setFile(const MediaFile &f) {
     info->setPosition(x, getSize().y / 2);
     x -= info->getString().empty() ? 0 : info->getLocalBounds().width + 16 * main->getScaling().x;
     check->setPosition(x, getSize().y / 2);
-    float shift = std::round(check->getLocalBounds().width * 0.45f);
+    // two: narrowed to the width of one
+    float narrow = both ? 1 / 1.45f : 1;
+    check->setScale(narrow, 1);
+    check2->setScale(narrow, 1);
     check2->setVisibility(both ? Visibility::Visible : Visibility::Hidden);
     check2->setFillColor(COLOR_ACCENT);
-    check2->setPosition(x - shift, getSize().y / 2);
-    x -= marks.empty() ? 0 : check->getLocalBounds().width + (both ? shift : 0) + 10 * main->getScaling().x;
+    check2->setPosition(x - check->getLocalBounds().width * narrow * 0.45f, getSize().y / 2);
+    x -= marks.empty() ? 0 : check->getLocalBounds().width + 10 * main->getScaling().x;
     x -= updateSavedMark(x);
     float width = x - textX;
     if (width != clip->getSize().x) {
