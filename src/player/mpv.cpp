@@ -100,13 +100,6 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     mpv_set_option_string(handle, "osd-font", "subfont.ttf");
 #endif
 
-#ifdef __PS4__
-    mpv_set_option_string(handle, "cscale", "bilinear");
-    mpv_set_option_string(handle, "scale", "bilinear");
-    mpv_set_option_string(handle, "dscale", "bilinear");
-    mpv_set_option_string(handle, "sws-scaler", "bilinear");
-#endif
-
 #ifdef __ANDROID__
     // no fontconfig: the bundled font
     mpv_set_option_string(handle, "sub-font-provider", "none");
@@ -254,7 +247,8 @@ const std::vector<const char *> &Mpv::qualityOptions() {
                                                     "hdr-compute-peak",
                                                     "vd-lavc-skiploopfilter",
                                                     "vd-lavc-fast",
-                                                    "framedrop"};
+                                                    "framedrop",
+                                                    "sws-scaler"};
     return names;
 }
 
@@ -266,7 +260,7 @@ void Mpv::setQualityPreset(int preset) {
     // non reference frames; fast: loop filter skipped, fast decoding, late frames not decoded
     std::map<std::string, std::string> values = qualityDefaults;
     if (preset >= 1) {
-        for (const char *name: {"scale", "dscale", "cscale"}) {
+        for (const char *name: {"scale", "dscale", "cscale", "sws-scaler"}) {
             values[name] = "bilinear";
         }
         for (const char *name:
