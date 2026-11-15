@@ -99,6 +99,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_SUB_ASS_PLAIN, (int) 0});
 #endif
     addOption({OPT_AUDIO_NORMALIZE, (int) 0});
+    addOption({OPT_AUDIO_CHANNELS, (int) 0});
     addOption({OPT_VOLUME, (int) -1});
     addOption({OPT_CACHE_SECS, (int) 60});
     addOption({OPT_CACHE_MB, (int) 150});
@@ -252,6 +253,7 @@ void PPLAYConfig::sanitize() {
     clamp(OPT_CACHE_SECS, 10, 600);
     clamp(OPT_CACHE_MB, 50, CACHE_MB_MAX);
     clamp(OPT_VIDEO_QUALITY, 0, 3);
+    clamp(OPT_AUDIO_CHANNELS, 0, 3);
     clamp(OPT_DITHER, 0, 2);
     clamp(OPT_AUTO_DROPS, 1, 50);
     clamp(OPT_AUTO_DROPS_TIME, 5, 60);

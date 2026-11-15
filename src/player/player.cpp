@@ -540,6 +540,14 @@ void Player::applyConfig() {
     applyAudioFilter();
     mpv_set_property_string(mpv->getHandle(), "sub-ass-override",
                             main->getConfig()->getOption(OPT_SUB_ASS_PLAIN)->getInteger() != 0 ? "force" : "scale");
+    // on change only (the audio output opened again)
+    static const char *channels[] = {"stereo", "auto-safe", "5.1", "7.1"};
+    static int appliedLayout = -1;
+    int layout = std::max(0, std::min(3, main->getConfig()->getOption(OPT_AUDIO_CHANNELS)->getInteger()));
+    if (layout != appliedLayout) {
+        appliedLayout = layout;
+        mpv_set_property_string(mpv->getHandle(), "audio-channels", channels[layout]);
+    }
     int dither = main->getConfig()->getOption(OPT_DITHER)->getInteger();
     mpv_set_property_string(mpv->getHandle(), "dither", dither == 0 ? "no" : dither == 1 ? "ordered" : "fruit");
     mpv_set_property_string(mpv->getHandle(), "dither-depth", dither == 0 ? "no" : "auto");

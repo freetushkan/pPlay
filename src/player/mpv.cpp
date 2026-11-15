@@ -80,7 +80,6 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     mpv_set_option_string(handle, "video-sync", "audio");
 #endif
 
-    mpv_set_option_string(handle, "audio-channels", "stereo");
     mpv_set_option_string(handle, "audio-normalize-downmix", "yes");
     mpv_set_option_string(handle, "cache-pause", "yes");
     mpv_set_option_string(handle, "cache-secs", "60");

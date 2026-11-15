@@ -42,6 +42,8 @@
 #define OPT_SUB_ASS_PLAIN "SUB_ASS_PLAIN"
 // 0 off, 1 normalize, 2 night mode (dialogue up, no LFE, compressed)
 #define OPT_AUDIO_NORMALIZE "AUDIO_NORMALIZE"
+// output channels: 0 stereo, 1 auto (the device ones), 2 5.1, 3 7.1
+#define OPT_AUDIO_CHANNELS "AUDIO_CHANNELS"
 // last volume (-1: mpv.conf)
 #define OPT_VOLUME "VOLUME"
 // network cache: read ahead (seconds), memory (MB)
