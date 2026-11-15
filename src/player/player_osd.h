@@ -98,7 +98,7 @@ private:
     pplay::ClipRect *titleClip = nullptr;
     c2d::Text *title = nullptr;
     std::string titleShown;
-    float titleMax = 0, titleY = 0;
+    float titleMax = 0, titleY = 0, metaY = 0;
     c2d::C2DClock titleClock;
     c2d::Text *meta = nullptr;
     c2d::RectangleShape *track = nullptr;

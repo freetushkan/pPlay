@@ -102,7 +102,7 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     remaining->setOrigin(Origin::Left);
     panel->add(remaining);
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 6; i++) {
         Chip chip{new RoundRect({10, std::round(22 * sc)}),
                   new Text("", main->getFontSize(Main::FontSize::XS), main->getFont())};
         chip.text->setOrigin(Origin::Center);
@@ -171,11 +171,14 @@ void PlayerOSD::layout(bool audio) {
         float margin = 54 * sc;
         buttonsY = size.y - 40 * sc;
         trackY = buttonsY - 38 * sc;
-        titleY = trackY - 26 * sc;
+        // the title alone on its line, the media info under it, the chips right of that
+        metaY = trackY - 26 * sc;
+        titleY = metaY - 30 * sc;
         trackX = margin + 80 * sc;
         trackW = size.x - 2 * trackX;
-        titleMax = size.x * 0.5f;
+        titleMax = size.x - 2 * margin;
         meta->setOrigin(Origin::Left);
+        meta->setPosition(margin, metaY);
         peekOffset = 50 * sc;
     }
     track->setPosition(trackX, trackY - track->getSize().y / 2);
@@ -330,28 +333,25 @@ void PlayerOSD::placeTitle() {
     FloatRect bounds = title->getLocalBounds();
     float width = std::min(bounds.width, titleMax);
     // Keep equal room for the text outline and glyph antialiasing on both sides.
-    float padding = audioLayout ? std::ceil(2.0f * sc) : 0.0f;
+    float padding = std::ceil(2.0f * sc);
     float clipWidth = width + 2 * padding;
     if (titleClip->getSize().x != clipWidth) {
         titleClip->setSize(clipWidth, titleClip->getSize().y);
     }
-    float x = 54 * sc;
+    float x = 54 * sc - padding;
     if (audioLayout) {
         FloatRect zone = AudioView::zone();
         float center = (zone.left + zone.width / 2) * main->getSize().x;
         x = center - clipWidth / 2;
     }
     titleClip->setPosition(std::round(x), std::round(titleY - titleClip->getSize().y / 2));
-    if (!audioLayout) {
-        meta->setPosition(x + width + 14 * sc, titleY + 2 * sc);
-    }
 }
 
 void PlayerOSD::scrollTitle() {
     // too long: a pause, to the end, a pause, back to the start
     const float sc = main->getScaling().y;
     FloatRect bounds = title->getLocalBounds();
-    float padding = audioLayout ? std::ceil(2.0f * sc) : 0.0f;
+    float padding = std::ceil(2.0f * sc);
     float contentWidth = titleClip->getSize().x - 2 * padding;
     float overflow = bounds.width - contentWidth;
     float offset = 0;
@@ -365,7 +365,7 @@ void PlayerOSD::scrollTitle() {
         offset = std::min(overflow, std::max(0.0f, moved));
     }
     // Text::Origin::Left includes a negative outline origin; compensate it and the glyph bearing.
-    float inset = audioLayout ? padding - title->getOutlineThickness() - bounds.left : 0.0f;
+    float inset = padding - title->getOutlineThickness() - bounds.left;
     title->setPosition(inset - std::round(offset), titleClip->getSize().y / 2);
 }
 
@@ -401,9 +401,9 @@ void PlayerOSD::updateChips() {
     const Vector2f size = main->getSize();
     const float sc = main->getScaling().y;
     float pad = 12 * sc, gap = 8 * sc;
-    // video: right of the title line; audio: the bar width
+    // video: right of the media info; audio: the bar width
     float room = audioLayout ? track->getSize().x
-                             : size.x - 54 * sc - (meta->getPosition().x + meta->getLocalBounds().width + 24 * sc);
+                             : size.x - 54 * sc - (meta->getPosition().x + meta->getLocalBounds().width + 32 * sc);
     std::vector<size_t> used;
     float width = 0;
     for (size_t i = 0; i < labels.size() && used.size() < chips.size(); i++) {
@@ -420,7 +420,7 @@ void PlayerOSD::updateChips() {
         used.push_back(i);
     }
     float x = audioLayout ? (size.x - width) / 2 : size.x - 54 * sc - width;
-    float y = audioLayout ? track->getPosition().y + 32 * sc : titleY;
+    float y = audioLayout ? track->getPosition().y + 32 * sc : metaY;
     for (size_t i = 0; i < chips.size(); i++) {
         bool shown = i < used.size();
         chips[i].back->setVisibility(shown ? Visibility::Visible : Visibility::Hidden);
