@@ -157,6 +157,9 @@ public:
     // network cache: read ahead seconds, memory
     void setCache(int seconds, int megabytes);
 
+    // the subtitles bottom, % of the screen height (100: the default place)
+    void setSubPos(double pos);
+
 private:
 
     static const std::vector<const char *> &qualityOptions();
@@ -172,6 +175,9 @@ private:
     mpv_render_context *context = nullptr;
     double lastVolume = -1;
     double lastSpeed = -1;
+    double lastSubPos = 100;
+    // older mpv: an integer option
+    bool subPosInt = false;
 };
 
 #endif //PPLAY_MPV_H

@@ -299,6 +299,25 @@ void Mpv::setQualityPreset(int preset) {
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "Mpv::setQualityPreset: " + std::to_string(preset));
 }
 
+void Mpv::setSubPos(double pos) {
+    pos = std::round(pos * 10) / 10;
+    if (!isAvailable() || pos == lastSubPos) {
+        return;
+    }
+    if (!subPosInt && mpv_set_property(handle, "sub-pos", MPV_FORMAT_DOUBLE, &pos) == MPV_ERROR_PROPERTY_FORMAT) {
+        subPosInt = true;
+    }
+    if (subPosInt) {
+        int64_t value = std::lround(pos);
+        if (value == std::lround(lastSubPos)) {
+            lastSubPos = pos;
+            return;
+        }
+        mpv_set_property(handle, "sub-pos", MPV_FORMAT_INT64, &value);
+    }
+    lastSubPos = pos;
+}
+
 void Mpv::setCache(int seconds, int megabytes) {
     if (!isAvailable()) {
         return;
