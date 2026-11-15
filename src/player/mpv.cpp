@@ -24,7 +24,7 @@ extern "C" int ps4_mpv_dump_shaders;
 #include <dirent.h>
 #include <sys/stat.h>
 
-// the shader cache (64 hex digits names) out of the fonts directory (libass tries each file)
+// the shader cache (64 hex digits names) of the older versions: in its own directory
 static void moveShaderCache(const std::string &configPath, const std::string &cacheDir) {
     DIR *dir = opendir(configPath.c_str());
     if (dir == nullptr) {
@@ -65,6 +65,9 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     mpv_set_option_string(handle, "watch-later-directory", (configPath + "/watch_later").c_str());
 #endif
     mpv_set_option_string(handle, "osd-scale", "0.5");
+    // the fonts apart (libass tries each file of the directory, the shader cache too)
+    mpv_set_option_string(handle, "sub-fonts-dir", (configPath + "/fonts").c_str());
+    mpv_set_option_string(handle, "osd-fonts-dir", (configPath + "/fonts").c_str());
 #ifndef NDEBUG
     mpv_set_option_string(handle, "terminal", "yes");
     mpv_set_option_string(handle, "msg-level", "all=v");
@@ -104,8 +107,6 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     mpv_set_option_string(handle, "scale", "bilinear");
     mpv_set_option_string(handle, "dscale", "bilinear");
     mpv_set_option_string(handle, "sws-scaler", "bilinear");
-    mpv_set_option_string(handle, "sub-fonts-dir", "/data/pplay/mpv");
-    mpv_set_option_string(handle, "osd-fonts-dir", "/data/pplay/mpv");
 #endif
 
 #ifdef __ANDROID__
@@ -114,16 +115,8 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     mpv_set_option_string(handle, "osd-font-provider", "none");
     mpv_set_option_string(handle, "sub-font", "subfont.ttf");
     mpv_set_option_string(handle, "osd-font", "subfont.ttf");
-    mpv_set_option_string(handle, "sub-fonts-dir", (configPath + "/").c_str());
-    mpv_set_option_string(handle, "osd-fonts-dir", (configPath + "/").c_str());
     moveShaderCache(configPath, configPath + "/cache");
     mpv_set_option_string(handle, "gpu-shader-cache-dir", (configPath + "/cache").c_str());
-#endif
-
-#ifdef __PS5__
-    // the GPU (Mesa): mpv defaults, the "Video quality" presets lower them
-    mpv_set_option_string(handle, "sub-fonts-dir", "/data/homebrew/pplay/mpv");
-    mpv_set_option_string(handle, "osd-fonts-dir", "/data/homebrew/pplay/mpv");
 #endif
 
 #if MPV_CLIENT_API_VERSION >= MPV_MAKE_VERSION(2, 0)
