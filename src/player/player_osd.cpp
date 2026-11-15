@@ -186,11 +186,14 @@ void PlayerOSD::layout(bool audio) {
     // transport, stop and frame step in a row, settings apart
     float step = 52 * sc;
     std::vector<float> xs(buttons.size());
+    // audio: no frame step
+    buttons[(size_t) ButtonID::FrameStep]->setVisibility(audio ? Visibility::Hidden : Visibility::Visible);
     if (audio) {
-        float width = step * (float) (buttons.size() - 1) + 24 * sc;
+        float width = step * (float) (buttons.size() - 2) + 24 * sc;
         float x = (size.x - width) / 2;
-        for (size_t i = 0; i < buttons.size(); i++) {
-            xs[i] = x + step * (float) i + (i >= (size_t) ButtonID::Settings ? 24 * sc : 0);
+        for (size_t i = 0, n = 0; i < buttons.size(); i++) {
+            xs[i] = x + step * (float) n + (i >= (size_t) ButtonID::Settings ? 24 * sc : 0);
+            n += i == (size_t) ButtonID::FrameStep ? 0 : 1;
         }
     } else {
         float left = 54 * sc + 22 * sc, right = size.x - 54 * sc - 22 * sc;
@@ -212,6 +215,9 @@ void PlayerOSD::layout(bool audio) {
         next->setOrigin(Origin::Right);
         next->setPosition(xs[(size_t) ButtonID::Settings] - 44 * sc, buttonsY);
         next->setSizeMax(xs[(size_t) ButtonID::Settings] - xs[(size_t) ButtonID::FrameStep] - 100 * sc, 0);
+    }
+    if (audio && index == (int) ButtonID::FrameStep) {
+        index = (int) ButtonID::Stop;
     }
     focus->setPosition(focusX = xs[(size_t) index], buttonsY);
     textKey.clear();
@@ -583,8 +589,12 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
         int dir = (keys & Input::Right) ? 1 : -1;
         int count = (int) buttons.size();
         // held: up to the last button
-        if (!pplay::InputMap::isRepeat() || (index + dir >= 0 && index + dir < count)) {
-            index = (index + dir + count) % count;
+        int to = index + dir;
+        if (audioLayout && to == (int) ButtonID::FrameStep) {
+            to += dir;
+        }
+        if (!pplay::InputMap::isRepeat() || (to >= 0 && to < count)) {
+            index = (to + count) % count;
         }
         clock.restart();
     } else if (keys & Input::A) {
