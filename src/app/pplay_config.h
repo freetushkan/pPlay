@@ -49,6 +49,7 @@
 #define OPT_CACHE_MB "CACHE_MB"
 // 0 best (mpv.conf), 1 balanced, 2 fast (see Mpv::setQualityPreset), 3 auto (lighter on drops);
 // the start of a file, the player menu changes the current one
+#define OPT_DITHER "DITHER"
 #define OPT_VIDEO_QUALITY "VIDEO_QUALITY"
 // auto quality: lighter over this share of frames dropped (%) in that time (s), not checked
 // that long (s) after a decoder change

@@ -269,6 +269,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                Submenu::ValueType::Integer);
     addSubmenu("Video quality", "Video quality", OPT_VIDEO_QUALITY,
                makeIntItems({{"Auto", 3}, {"Best", 0}, {"Balanced", 1}, {"Fast", 2}}), Submenu::ValueType::Integer);
+    addSubmenu("Dithering", "Smoother color gradients, a bit more GPU work", OPT_DITHER,
+               makeIntItems({{"Off", 0}, {"Ordered", 1}, {"Fruit", 2}}), Submenu::ValueType::Integer);
     addSubmenu("Drop threshold", "Quality lowered when this share of frames is dropped", OPT_AUTO_DROPS,
                makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 50.0f, 1.0f, "%");
     addSubmenu("Drop check period", "Dropped frames counted over", OPT_AUTO_DROPS_TIME,

@@ -540,6 +540,9 @@ void Player::applyConfig() {
     applyAudioFilter();
     mpv_set_property_string(mpv->getHandle(), "sub-ass-override",
                             main->getConfig()->getOption(OPT_SUB_ASS_PLAIN)->getInteger() != 0 ? "force" : "scale");
+    int dither = main->getConfig()->getOption(OPT_DITHER)->getInteger();
+    mpv_set_property_string(mpv->getHandle(), "dither", dither == 0 ? "no" : dither == 1 ? "ordered" : "fruit");
+    mpv_set_property_string(mpv->getHandle(), "dither-depth", dither == 0 ? "no" : "auto");
     const int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
 #ifdef __SMB2__
     pplay::Smb::configureStream(main->getConfig()->getOption(OPT_SMB_READ_BUFFER_MB)->getInteger(), timeout);

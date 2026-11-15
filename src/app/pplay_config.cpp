@@ -103,6 +103,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_CACHE_SECS, (int) 60});
     addOption({OPT_CACHE_MB, (int) 150});
     addOption({OPT_VIDEO_QUALITY, (int) 1});
+    addOption({OPT_DITHER, (int) 0});
     addOption({OPT_AUTO_DROPS, (int) 10});
     addOption({OPT_AUTO_DROPS_TIME, (int) 10});
     addOption({OPT_AUTO_QUALITY_DELAY, (int) 30});
@@ -251,6 +252,7 @@ void PPLAYConfig::sanitize() {
     clamp(OPT_CACHE_SECS, 10, 600);
     clamp(OPT_CACHE_MB, 50, CACHE_MB_MAX);
     clamp(OPT_VIDEO_QUALITY, 0, 3);
+    clamp(OPT_DITHER, 0, 2);
     clamp(OPT_AUTO_DROPS, 1, 50);
     clamp(OPT_AUTO_DROPS_TIME, 5, 60);
     clamp(OPT_AUTO_QUALITY_DELAY, 0, 120);

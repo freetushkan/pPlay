@@ -75,7 +75,6 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
 
 #ifdef __SWITCH__
     mpv_set_option_string(handle, "vd-lavc-threads", "4");
-    mpv_set_option_string(handle, "dither", "no");
 #else
     mpv_set_option_string(handle, "vd-lavc-threads", "6");
     mpv_set_option_string(handle, "video-sync", "audio");
@@ -102,7 +101,6 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
 #endif
 
 #ifdef __PS4__
-    mpv_set_option_string(handle, "dither", "no");
     mpv_set_option_string(handle, "cscale", "bilinear");
     mpv_set_option_string(handle, "scale", "bilinear");
     mpv_set_option_string(handle, "dscale", "bilinear");
