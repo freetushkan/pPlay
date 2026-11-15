@@ -646,7 +646,10 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
 }
 
 void PlayerOSD::reset() {
-    index = (int) ButtonID::Pause;
+    // the buttons shown: the focus kept (files switched from them)
+    if (state != State::Full) {
+        index = (int) ButtonID::Pause;
+    }
     setPaused(false);
     clock.restart();
 }

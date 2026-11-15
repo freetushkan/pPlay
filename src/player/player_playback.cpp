@@ -58,7 +58,8 @@ void Player::onMpvEvent(mpv_event *event) {
                 mpv_command(mpv->getHandle(), remove);
             }
             appliedAudioFilter = AudioFilterUnknown;
-            loadingOsd = false;
+            // the full panel stays from file to file
+            loadingOsd = osd->isExpanded();
             showLoading();
             startPlaybackPosition = -1;
             frameDrawn = false;
