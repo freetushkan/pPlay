@@ -12,6 +12,7 @@
 #include <curl/curl.h>
 
 #include "net_http.h"
+#include "io.h"
 #include "utility.h"
 
 using namespace pplay;
@@ -122,6 +123,12 @@ Http::Response Http::perform(const Request &request) {
     std::string url = normalizeUrl(request.url);
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    // the network user and password (over the url ones)
+    std::string user, password;
+    if (pplay::Io::get() != nullptr && pplay::Io::get()->credentialsOf(request.url, &user, &password)) {
+        curl_easy_setopt(curl, CURLOPT_USERNAME, user.c_str());
+        curl_easy_setopt(curl, CURLOPT_PASSWORD, password.c_str());
+    }
     if (g_share != nullptr) {
         curl_easy_setopt(curl, CURLOPT_SHARE, g_share);
     }

@@ -214,7 +214,13 @@ Mpv::~Mpv() {
     }
 }
 
-int Mpv::load(const std::string &file, LoadType loadType, const std::string &options) {
+int Mpv::load(const std::string &file, LoadType loadType, const std::string &fileOptions) {
+    // the network user and password (http): a header, the url (the watch later key) kept
+    std::string options = fileOptions;
+    std::string authorization = pplay::Io::get() != nullptr ? pplay::Io::get()->authorizationOf(file) : "";
+    if (!authorization.empty()) {
+        options += std::string(options.empty() ? "" : ",") + "http-header-fields=" + authorization;
+    }
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Mpv::load(" + file + ")");
     if (handle) {
         // loadfile replace already stops the current file; Append/AppendPlay must not stop it.

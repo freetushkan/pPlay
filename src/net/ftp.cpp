@@ -5,6 +5,7 @@
 #include <cstdio>
 #include "ftplib.h"
 #include "ftp.h"
+#include "io.h"
 #include "utility.h"
 
 using namespace pplay;
@@ -48,6 +49,12 @@ std::vector<c2d::Io::File> Ftp::list(const std::string &path, int timeout, std::
         size_t colon = userInfo.find(':');
         user = colon == std::string::npos ? userInfo : userInfo.substr(0, colon);
         password = colon == std::string::npos ? "" : userInfo.substr(colon + 1);
+    }
+    // the network ones win
+    std::string networkUser, networkPassword;
+    if (pplay::Io::get() != nullptr && pplay::Io::get()->credentialsOf(path, &networkUser, &networkPassword)) {
+        user = networkUser;
+        password = networkPassword;
     }
     std::string hostPort = authority;
     if (hostPort.find(':') == std::string::npos) {

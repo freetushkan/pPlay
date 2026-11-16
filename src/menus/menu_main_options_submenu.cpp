@@ -142,7 +142,7 @@ std::string MenuMainOptionsSubmenu::currentText() {
     auto *option = main->getConfig()->getOption(option_name);
     if (menu_type == MenuType::TextInput) {
         std::string value = option->getString();
-        return value.empty() ? pplay::tr("<empty>") : value;
+        return value.empty() ? pplay::tr("<empty>") : Utility::endsWith(option_name, "_PASSWORD") ? "******" : value;
     }
     if (menu_type == MenuType::Adjust) {
         float value = getCurrentValue();

@@ -6,6 +6,7 @@
 
 #include "av_open.h"
 #include "utility.h"
+#include "io.h"
 
 namespace {
     using Clock = std::chrono::steady_clock;
@@ -43,7 +44,9 @@ namespace {
     }
 }
 
-AVFormatContext *pplay::AvOpen::open(const std::string &url, std::string *error) {
+AVFormatContext *pplay::AvOpen::open(const std::string &address, std::string *error) {
+    // the network user and password in it
+    std::string url = Io::get() != nullptr ? Io::get()->withCredentials(address) : address;
     // owned by the context (the callback is called while closing too): see close()
     auto *deadline = new Deadline{Clock::now() + std::chrono::seconds(30)};
 
@@ -84,8 +87,9 @@ static int cancelled(void *stream) {
     return s->cancel != nullptr && s->cancel->load() ? 1 : 0;
 }
 
-pplay::AvOpen::Stream *pplay::AvOpen::openStream(const std::string &url, int64_t offset,
+pplay::AvOpen::Stream *pplay::AvOpen::openStream(const std::string &address, int64_t offset,
                                                  const std::atomic<bool> *cancel, std::string *error) {
+    std::string url = Io::get() != nullptr ? Io::get()->withCredentials(address) : address;
     auto *s = new Stream();
     s->cancel = cancel;
     AVIOInterruptCB callback = {cancelled, s};
@@ -139,7 +143,8 @@ void pplay::AvOpen::close(Stream **stream) {
     *stream = nullptr;
 }
 
-bool pplay::AvOpen::read(const std::string &url, size_t maxSize, std::string *data, std::string *error) {
+bool pplay::AvOpen::read(const std::string &address, size_t maxSize, std::string *data, std::string *error) {
+    std::string url = Io::get() != nullptr ? Io::get()->withCredentials(address) : address;
     Utility::NetworkLock lock;
     Deadline deadline{Clock::now() + std::chrono::seconds(30)};
     AVIOInterruptCB callback = {interrupted, &deadline};

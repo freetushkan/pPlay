@@ -33,6 +33,9 @@ namespace pplay::Smb {
 
     std::vector<c2d::Io::File> list(const std::string &path, int timeout, std::string *error = nullptr);
 
+    // a listing error of a refused access (a user, a password)
+    bool isRefusal(const std::string &error);
+
     // mpv "smb2://" stream protocol
     void configureStream(int bufferMB, int timeout);
 

@@ -15,6 +15,7 @@
 #endif
 
 #include "smb.h"
+#include "io.h"
 #include "utility.h"
 #include "i18n.h"
 #include "libsmb2-dcerpc-srvsvc.h"
@@ -118,6 +119,10 @@ static std::string normalizeSeparators(std::string path) {
     return path;
 }
 
+bool Smb::isRefusal(const std::string &error) {
+    return error == pplay::tr("SMB: access denied") || error == pplay::tr("SMB: wrong user name or password");
+}
+
 Smb::Url Smb::parseUrl(const std::string &input) {
     Url parts;
     std::string smbPath = input;
@@ -187,6 +192,15 @@ Smb::Url Smb::parseUrl(const std::string &input) {
         parts.displayUrl += "@";
     }
     parts.displayUrl += parts.server + parts.path;
+
+    // the network user and password (over the url ones, the paths keep these): "domain\user", "domain;user"
+    std::string user, password;
+    if (pplay::Io::get() != nullptr && pplay::Io::get()->credentialsOf(input, &user, &password)) {
+        size_t separator = user.find_first_of("\\;");
+        parts.domain = separator == std::string::npos ? "" : user.substr(0, separator);
+        parts.user = separator == std::string::npos ? user : user.substr(separator + 1);
+        parts.password = password;
+    }
 
     parts.libsmbUrl = scheme;
     if (!parts.user.empty()) {

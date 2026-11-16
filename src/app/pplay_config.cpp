@@ -6,15 +6,16 @@
 #include <cstring>
 #include "io.h"
 #include "pplay_config.h"
+#include "net_http.h"
 #include "utility.h"
 
 using namespace c2d;
 
 static const char *networkOptionName(int index, const char *suffix) {
-    static std::vector<std::string> names[4];
-    static const char *suffixes[4] = {"", "_LAST", "_NAME", "_TYPE"};
+    static std::vector<std::string> names[6];
+    static const char *suffixes[6] = {"", "_LAST", "_NAME", "_TYPE", "_USER", "_PASSWORD"};
     int s = 0;
-    while (s < 3 && strcmp(suffixes[s], suffix) != 0) {
+    while (s < 5 && strcmp(suffixes[s], suffix) != 0) {
         s++;
     }
     if (names[s].empty()) {
@@ -44,6 +45,42 @@ const char *PPLAYConfig::networkTypeOption(int index) {
     return networkOptionName(index, "_TYPE");
 }
 
+const char *PPLAYConfig::networkUserOption(int index) {
+    return networkOptionName(index, "_USER");
+}
+
+const char *PPLAYConfig::networkPasswordOption(int index) {
+    return networkOptionName(index, "_PASSWORD");
+}
+
+// the user and password of an url (scheme://user[:password]@host...): smb "domain.user" as "domain\user"
+static bool credentialsOfUrl(const std::string &url, std::string *user, std::string *password) {
+    size_t scheme = url.find("://");
+    if (scheme == std::string::npos) {
+        return false;
+    }
+    size_t end = url.find_first_of("/?#", scheme + 3);
+    std::string authority = url.substr(scheme + 3, end == std::string::npos ? std::string::npos : end - scheme - 3);
+    size_t at = authority.rfind('@');
+    if (at == std::string::npos || at == 0) {
+        return false;
+    }
+    std::string info = authority.substr(0, at);
+    size_t colon = info.find(':');
+    *user = info.substr(0, colon);
+    *password = colon == std::string::npos ? "" : info.substr(colon + 1);
+    if (Utility::startWith(url, "smb://")) {
+        size_t dot = user->find('.');
+        if (dot != std::string::npos) {
+            (*user)[dot] = '\\';
+        }
+    } else {
+        *user = pplay::Http::unescape(*user);
+        *password = pplay::Http::unescape(*password);
+    }
+    return !user->empty();
+}
+
 // old ts:// and tss:// TorrServe urls
 static bool migrateTorrServeUrl(std::string &url) {
     if (Utility::startWith(url, "tss://")) {
@@ -70,7 +107,11 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
         addOption({networkLastOption(i), "/"});
         addOption({networkNameOption(i), "Network " + std::to_string(i)});
         addOption({networkTypeOption(i), "Auto"}); // Auto, TorrServe, Samba, FTP, HTTP, WebDAV, DLNA
+        addOption({networkUserOption(i), ""});
+        addOption({networkPasswordOption(i), ""});
     }
+    // 1: the users and passwords of the urls copied to their own options (once)
+    addOption({OPT_NETWORK_CREDENTIALS, (int) 0});
     addOption({OPT_LAST_MODULE, "LOCAL"});
     addOption({OPT_NETWORK_TIMEOUT, (int) 15});
     addOption({OPT_TLS_VERIFY, (int) 1});
@@ -231,6 +272,18 @@ void PPLAYConfig::sanitize() {
                 getOption(networkLastOption(i))->setString(last);
             }
         }
+    }
+    // the urls keep theirs (older versions), the options win
+    if (getOption(OPT_NETWORK_CREDENTIALS)->getInteger() == 0) {
+        for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+            std::string user, password;
+            if (getOption(networkUserOption(i))->getString().empty()
+                && credentialsOfUrl(getOption(networkOption(i))->getString(), &user, &password)) {
+                getOption(networkUserOption(i))->setString(user);
+                getOption(networkPasswordOption(i))->setString(password);
+            }
+        }
+        getOption(OPT_NETWORK_CREDENTIALS)->setInteger(1);
     }
     if (getOption(OPT_LAST_MODULE)->getString().empty()) {
         getOption(OPT_LAST_MODULE)->setString("LOCAL");

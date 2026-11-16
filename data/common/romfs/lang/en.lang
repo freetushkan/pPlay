@@ -55,6 +55,8 @@ Value = Value
 # Networks
 Name = Name
 URL = URL
+User = User
+Password = Password
 Type = Type
 Search servers = Search servers
 Searching... = Searching...

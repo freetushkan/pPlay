@@ -179,17 +179,23 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
         addSubmenu(name, name, "",
                    {MenuItem(name + " name", "", MenuItem::Position::Top),
                     MenuItem(name + " url", "", MenuItem::Position::Top),
+                    MenuItem(name + " user", "", MenuItem::Position::Top),
+                    MenuItem(name + " password", "", MenuItem::Position::Top),
                     MenuItem(name + " type", "", MenuItem::Position::Top),
                     MenuItem(name + " search", "", MenuItem::Position::Top)},
                    Submenu::ValueType::String);
         parents[name + " name"] = name;
         parents[name + " url"] = name;
         parents[name + " type"] = name;
+        parents[name + " user"] = name;
+        parents[name + " password"] = name;
         parents[name + " search"] = name;
         // the servers found (DLNA, TorrServer, Samba): one picked sets the url (the items made when shown)
         addSubmenu(name + " search", name + " search", PPLAYConfig::networkOption(i), {}, Submenu::ValueType::String);
         addTextSubmenu(name + " name", name + " name", PPLAYConfig::networkNameOption(i));
         addTextSubmenu(name + " url", name + " url", PPLAYConfig::networkOption(i));
+        addTextSubmenu(name + " user", name + " user", PPLAYConfig::networkUserOption(i));
+        addTextSubmenu(name + " password", name + " password", PPLAYConfig::networkPasswordOption(i));
         std::vector<MenuItem> typeItems;
         for (auto &typeName: pplay::Io::networkTypeNames()) {
             typeItems.emplace_back(typeName, "", MenuItem::Position::Top);
@@ -377,19 +383,27 @@ void MenuMain::updateNetworkLabels() {
                     button->item.label = pplay::tr("URL") + ": " + (url.empty() ? pplay::tr("<empty>") : url);
                 } else if (button->item.name == key + " type") {
                     button->item.label = pplay::tr("Type") + ": " + pplay::tr(type);
+                } else if (button->item.name == key + " user") {
+                    std::string user = main->getConfig()->getOption(PPLAYConfig::networkUserOption(i))->getString();
+                    button->item.label = pplay::tr("User") + ": " + (user.empty() ? pplay::tr("<empty>") : user);
+                } else if (button->item.name == key + " password") {
+                    bool set = !main->getConfig()->getOption(PPLAYConfig::networkPasswordOption(i))->getString().empty();
+                    button->item.label = pplay::tr("Password") + ": " + (set ? "******" : pplay::tr("<empty>"));
                 } else if (button->item.name == key + " search") {
                     button->item.label = pplay::tr("Search servers");
                 }
                 button->refreshText();
             }
         }
-        for (const char *suffix: {" name", " url", " type", " search"}) {
+        for (const char *suffix: {" name", " url", " user", " password", " type", " search"}) {
             auto sub = menuMainOptionsSubmenus.find(key + suffix);
             if (sub != menuMainOptionsSubmenus.end()) {
-                std::string what = std::string(suffix) == " name"   ? "Name"
-                                   : std::string(suffix) == " url"  ? "URL"
-                                   : std::string(suffix) == " type" ? "Type"
-                                                                    : "Search servers";
+                std::string what = std::string(suffix) == " name"       ? "Name"
+                                   : std::string(suffix) == " url"      ? "URL"
+                                   : std::string(suffix) == " user"     ? "User"
+                                   : std::string(suffix) == " password" ? "Password"
+                                   : std::string(suffix) == " type"     ? "Type"
+                                                                        : "Search servers";
                 sub->second->setTitle(label + ": " + pplay::tr(what));
             }
         }

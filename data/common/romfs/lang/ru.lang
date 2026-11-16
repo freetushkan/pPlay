@@ -55,6 +55,8 @@ Value = Значение
 # Networks
 Name = Имя
 URL = Адрес
+User = Пользователь
+Password = Пароль
 Type = Тип
 Search servers = Поиск серверов
 Searching... = Поиск...

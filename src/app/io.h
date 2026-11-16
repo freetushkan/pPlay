@@ -69,6 +69,15 @@ namespace pplay {
         // root url of the network the path belongs to, or ""
         std::string getNetworkRoot(const std::string &path);
 
+        // the user and password of the network of an url (its options, over the url ones), false if none
+        bool credentialsOf(const std::string &url, std::string *user, std::string *password);
+
+        // http(s) / ftp: the url with them (encoded), else as is
+        std::string withCredentials(const std::string &url);
+
+        // http(s): "Authorization: Basic ..." with them, else ""
+        std::string authorizationOf(const std::string &url);
+
         const std::string &getLastError() const { return lastError; }
 
         // romfs -> data directory (new or changed files)

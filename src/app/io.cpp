@@ -164,10 +164,15 @@ std::vector<c2d::Io::File> Io::list(const DeviceType &type, const std::string &p
         files = Smb::list(path, timeout, &failed);
     }
 #endif
+    // refused (a user or password): the server is there, not the kept listing
+    bool refused = failed.find(" 401") != std::string::npos || failed.find(" 403") != std::string::npos;
+#ifdef __SMB2__
+    refused = refused || Smb::isRefusal(failed);
+#endif
     // the network listing kept; failed: the kept one shown (offline)
     if (failed.empty()) {
         Offline::store(path, files);
-    } else if (!Offline::load(path, &files) && error != nullptr) {
+    } else if ((refused || !Offline::load(path, &files)) && error != nullptr) {
         *error = failed;
     }
     return files;
@@ -253,6 +258,49 @@ std::string Io::getNetworkRoot(const std::string &path) {
         root += "/";
     }
     return root;
+}
+
+bool Io::credentialsOf(const std::string &url, std::string *user, std::string *password) {
+    int index = findNetwork(url, false);
+    if (index < 1) {
+        return false;
+    }
+    *user = config->getOption(PPLAYConfig::networkUserOption(index))->getString();
+    *password = config->getOption(PPLAYConfig::networkPasswordOption(index))->getString();
+    return !user->empty();
+}
+
+std::string Io::withCredentials(const std::string &url) {
+    std::string user, password;
+    bool http = c2d::Utility::startWith(url, "http://") || c2d::Utility::startWith(url, "https://");
+    if ((!http && !c2d::Utility::startWith(url, "ftp://")) || !credentialsOf(url, &user, &password)) {
+        return url;
+    }
+    size_t scheme = url.find("://") + 3;
+    size_t end = url.find_first_of("/?#", scheme);
+    size_t at = url.rfind('@', end == std::string::npos ? std::string::npos : end);
+    size_t host = at != std::string::npos && at >= scheme ? at + 1 : scheme;
+    return url.substr(0, scheme) + Http::escape(user) + ":" + Http::escape(password) + "@" + url.substr(host);
+}
+
+std::string Io::authorizationOf(const std::string &url) {
+    std::string user, password;
+    if ((!c2d::Utility::startWith(url, "http://") && !c2d::Utility::startWith(url, "https://"))
+        || !credentialsOf(url, &user, &password)) {
+        return "";
+    }
+    static const char *digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string in = user + ":" + password, out;
+    for (size_t i = 0; i < in.size(); i += 3) {
+        uint32_t n = (uint32_t) (unsigned char) in[i] << 16;
+        n |= i + 1 < in.size() ? (uint32_t) (unsigned char) in[i + 1] << 8 : 0;
+        n |= i + 2 < in.size() ? (uint32_t) (unsigned char) in[i + 2] : 0;
+        out += digits[(n >> 18) & 63];
+        out += digits[(n >> 12) & 63];
+        out += i + 1 < in.size() ? digits[(n >> 6) & 63] : '=';
+        out += i + 2 < in.size() ? digits[n & 63] : '=';
+    }
+    return "Authorization: Basic " + out;
 }
 
 Io::DeviceType Io::getDeviceType(const std::string &path) {

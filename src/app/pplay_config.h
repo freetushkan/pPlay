@@ -74,6 +74,7 @@
 #define OPT_TEXT_ENCODING "TEXT_ENCODING"
 // playback position kept by TorrServer (its "track timecode" setting) read and sent
 #define OPT_TS_PROGRESS "TS_PROGRESS_SYNC"
+#define OPT_NETWORK_CREDENTIALS "NETWORK_CREDENTIALS"
 // thin progress line under the hidden panel (and on the minimized player)
 #define OPT_PROGRESS_LINE "PROGRESS_LINE"
 // progress kept for files from this length (minutes), saved every n seconds
@@ -143,6 +144,8 @@ public:
     static const char *networkLastOption(int index);
     static const char *networkNameOption(int index);
     static const char *networkTypeOption(int index);
+    static const char *networkUserOption(int index);
+    static const char *networkPasswordOption(int index);
 
 private:
 
