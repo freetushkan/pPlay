@@ -238,18 +238,20 @@ void Main::keepSession() {
         // flags: fullscreen, R: closed for the rest mode
         session = std::string(player->isFullscreen() ? "1" : "0") + (resting ? "R" : "") + "|"
                   + player->getFile().path;
-        // the last location: the playing file (the list may show another one)
+        // the last location: the playing file (the list may show another one), else kept
         std::string path = player->getFile().path;
         int module = moduleOf(path);
-        if (module > 0) {
-            config->getOption(OPT_LAST_MODULE)->setString(networkModuleName(module));
-            config->getOption(PPLAYConfig::networkLastOption(module))->setString(path);
-        } else if (module == MODULE_SAVED) {
-            config->getOption(OPT_LAST_MODULE)->setString("SAVED");
-            config->getOption(OPT_LAST_SAVED_PATH)->setString(path);
-        } else {
-            config->getOption(OPT_LAST_MODULE)->setString("LOCAL");
-            config->getOption(OPT_LAST_LOCAL_PATH)->setString(path);
+        if (config->getOption(OPT_RESTORE_LOCATION)->getInteger() != 0) {
+            if (module > 0) {
+                config->getOption(OPT_LAST_MODULE)->setString(networkModuleName(module));
+                config->getOption(PPLAYConfig::networkLastOption(module))->setString(path);
+            } else if (module == MODULE_SAVED) {
+                config->getOption(OPT_LAST_MODULE)->setString("SAVED");
+                config->getOption(OPT_LAST_SAVED_PATH)->setString(path);
+            } else {
+                config->getOption(OPT_LAST_MODULE)->setString("LOCAL");
+                config->getOption(OPT_LAST_LOCAL_PATH)->setString(path);
+            }
         }
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: session kept: " + path);
     }
@@ -275,10 +277,30 @@ void Main::restoreSession() {
     if (mode == 0 || (mode == 1 && !rest)) {
         return;
     }
+    // the list kept at the last location: the file listed for a while (its neighbors played next)
+    int listModule = currentModuleIndex;
+    std::string listPath = filer->getPath();
+    std::string listSelection = filer->getSelection().path;
+    bool away = filer->getSelection().path != path;
+    if (away) {
+        currentModuleIndex = moduleOf(path);
+        if (filer->getDir(Paths::extractDirPath(path))) {
+            filer->selectByPath(path);
+        }
+    }
     MediaFile file = filer->getSelection();
+    auto back = [&] {
+        if (away) {
+            currentModuleIndex = listModule;
+            filer->getDir(listPath);
+            filer->selectByPath(listSelection);
+            filer->clearHistory();
+        }
+    };
     // gone meanwhile (a removed torrent, an unreachable share): the list only
     if (file.path != path || !pplay::Utility::isMedia(file)) {
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: session not restored: " + path);
+        back();
         return;
     }
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: session restored: " + path);
@@ -286,6 +308,7 @@ void Main::restoreSession() {
     player->setFullscreen(true);
     player->loadPausedOnce();
     player->load(file);
+    back();
     if (!fullscreen) {
         player->setFullscreen(false);
     }

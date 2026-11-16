@@ -29,6 +29,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Playback mode", "pl_mode.png", Pos::Top),
                                   MenuItem("Playback retry", "pl_retry.png", Pos::Top),
                                   MenuItem("Restore last file", "restore.png", Pos::Top),
+                                  MenuItem("Browse position after restore", "restore.png", Pos::Top),
                           }});
     categories.push_back({"Progress",
                           {
@@ -285,6 +286,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Off", 0}, {"Always", 2}}),
 #endif
                Submenu::ValueType::Integer);
+    addSubmenu("Browse position after restore", "Browse position after the last file restored", OPT_RESTORE_LOCATION,
+               makeIntItems({{"At the current file", 1}, {"At the last location", 0}}), Submenu::ValueType::Integer);
     addSubmenu("Saved section", "The Saved section in the menu", OPT_SHOW_SAVED,
                makeIntItems({{"If not empty", 1}, {"Not shown", 0}}), Submenu::ValueType::Integer);
     addSubmenu("Playlists section", "The Playlists section in the menu", OPT_SHOW_PLAYLISTS,

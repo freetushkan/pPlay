@@ -81,6 +81,8 @@
 #define OPT_REST_SESSION "REST_SESSION"
 // the last playing file opened at the start: 0 never, 1 after the rest mode (PS5), 2 always
 #define OPT_RESTORE_SESSION "RESTORE_SESSION"
+// the list after it: 1 at the restored file, 0 at the last location (the module and its path)
+#define OPT_RESTORE_LOCATION "RESTORE_LOCATION"
 // saved copies (<home>/.pplay_save): parallel downloads, kept days (0: forever, by the last
 // access), size limit (GB, 0: none, the oldest access removed first)
 #define OPT_SAVE_THREADS "SAVE_THREADS"
