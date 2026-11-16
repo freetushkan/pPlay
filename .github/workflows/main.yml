@@ -463,7 +463,7 @@ jobs:
 
       - name: Configure pPlay
         run: |
-          git clone -b switch https://github.com/freetushkan/libsmb2.git
+          git clone -b master https://github.com/freetushkan/libsmb2.git
           rm -rf cmake-build
           mkdir -p cmake-build && cd cmake-build
           cmake -G "Unix Makefiles" \

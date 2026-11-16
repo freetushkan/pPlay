@@ -85,7 +85,7 @@ NDK_BIN="$(echo "$NDK"/toolchains/llvm/prebuilt/*/bin)"
 NDK_SYSROOT="$(echo "$NDK"/toolchains/llvm/prebuilt/*/sysroot)"
 
 # SMB (libsmb2 built in the project)
-[ -d "$ROOT/libsmb2" ] || git clone -q -b switch https://github.com/freetushkan/libsmb2.git "$ROOT/libsmb2"
+[ -d "$ROOT/libsmb2" ] || git clone -q -b master https://github.com/freetushkan/libsmb2.git "$ROOT/libsmb2"
 
 # <mpv-android arch>:<abi>:<triple>:<libcross2d toolchain name>
 ARCHS="arm64:arm64-v8a:aarch64-linux-android:aarch64 armv7l:armeabi-v7a:arm-linux-androideabi:armv7a"
