@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include "skin.h"
 #include "cross2d/c2d.h"
 #include "main.h"
 #include "status_box.h"
@@ -33,7 +34,7 @@ StatusBox::StatusBox(Main *m) : Rectangle({0, 0, 64, 64}) {
     chip->setFillColor(Color(10, 12, 16, 170));
     StatusBox::add(chip);
 
-    icon = new C2DTexture(m->getIo()->getDataPath() + "skin/wait.png");
+    icon = new Sprite();
     icon->setOrigin(Origin::Center);
     icon->setFillColor(COLOR_FONT);
     icon->setAlpha(255);
@@ -141,8 +142,12 @@ void StatusBox::onUpdate() {
     float currentX = left + padding;
 
     if (icon->isVisible()) {
-        float iconScale = iconSize / (float) std::max(1, icon->getTextureSize().y);
-        icon->setScale(iconScale, iconScale);
+        // made at its size, filtered (it turns)
+        c2d::Texture *texture = pplay::Skin::icon("wait.png", (int) iconSize, true);
+        if (texture != nullptr && icon->getTexture() != texture) {
+            icon->setTexture(texture, true);
+            icon->setOrigin(Origin::Center);
+        }
         currentX += iconSize + std::round(10 * sc.x);
     }
 

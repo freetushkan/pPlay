@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdio>
 
+#include "skin.h"
 #include "main.h"
 #include "utility.h"
 #include "player_osd.h"
@@ -117,20 +118,19 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     focus->setOrigin(Origin::Center);
     panel->add(focus);
 
-    auto addButton = [this, sc](const char *file) {
-        auto *button = new C2DTexture(main->getIo()->getDataPath() + "skin/" + file);
-        // the icon in the focus circle
-        float scale = 40.0f * sc / (float) std::max(1, button->getTextureSize().x);
-        button->setScale(scale, scale);
+    // the icons in the focus circle, made at their size (sharp); play / pause bigger
+    auto addButton = [this, sc](const char *file, float size = 40.0f) {
+        auto *button = new Sprite();
+        c2d::Texture *texture = pplay::Skin::icon(file, (int) std::round(size * sc));
+        if (texture != nullptr) {
+            button->setTexture(texture, true);
+        }
         button->setOrigin(Origin::Center);
         panel->add(button);
         return button;
     };
-    btn_pause = addButton("btn_pause.png");
-    btn_play = addButton("btn_play.png");
-    // play / pause: bigger
-    btn_pause->setScale(btn_pause->getScale().x * 1.2f, btn_pause->getScale().y * 1.2f);
-    btn_play->setScale(btn_play->getScale().x * 1.2f, btn_play->getScale().y * 1.2f);
+    btn_pause = addButton("btn_pause.png", 48.0f);
+    btn_play = addButton("btn_play.png", 48.0f);
     btn_play->setVisibility(Visibility::Hidden);
     buttons = {addButton("btn_prev.png"), addButton("btn_seek_backward.png"), btn_pause,
                addButton("btn_seek_forward.png"), addButton("btn_next.png"), addButton("btn_stop.png"),
@@ -206,9 +206,9 @@ void PlayerOSD::layout(bool audio) {
         xs[(size_t) ButtonID::Settings] = right;
     }
     for (size_t i = 0; i < buttons.size(); i++) {
-        buttons[i]->setPosition(xs[i], buttonsY);
+        buttons[i]->setPosition(std::round(xs[i]), std::round(buttonsY));
     }
-    btn_play->setPosition(xs[(size_t) ButtonID::Pause], buttonsY);
+    btn_play->setPosition(std::round(xs[(size_t) ButtonID::Pause]), std::round(buttonsY));
     // video: before settings; audio: under the buttons
     if (audio) {
         next->setOrigin(Origin::Center);

@@ -144,10 +144,14 @@ void KeyHints::layout() {
         // the glyph a bit higher than the letters, then the action
         float iconWidth = 0;
         if (icons[i] != nullptr) {
-            float scale = glyphHeight / (float) icons[i]->getTextureRect().height;
-            icons[i]->setScale(scale, scale);
-            iconWidth = (float) icons[i]->getTextureRect().width * scale + 6 * main->getScaling().x;
-            icons[i]->setPosition(pad.x, pad.y);
+            // made at its size (sharp)
+            c2d::Texture *glyph = pplay::Skin::icon(pplay::InputMap::buttonIcon(hints[i].keys), (int) glyphHeight);
+            if (glyph != nullptr) {
+                icons[i]->setTexture(glyph, true);
+                icons[i]->setScale(1, 1);
+            }
+            iconWidth = (float) icons[i]->getTextureRect().width + std::round(6 * main->getScaling().x);
+            icons[i]->setPosition(std::round(pad.x), std::round(pad.y));
         }
         FloatRect bounds = text->getLocalBounds();
         float w = iconWidth + bounds.left + bounds.width + pad.x * 2;

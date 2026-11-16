@@ -369,8 +369,11 @@ std::vector<MenuItem> MenuMain::networkCategoryItems() {
     for (int i = 1; i <= main->getConfig()->getNetworkCount(); i++) {
         items.emplace_back(networkKey(i), networkIcon(main->getConfig(), i), MenuItem::Position::Top);
     }
-    items.emplace_back("Add network", "network.png", MenuItem::Position::Top);
+    items.emplace_back("Add network", "net_add.png", MenuItem::Position::Top);
+    size_t settings = items.size();
     items.insert(items.end(), networkSettings.begin(), networkSettings.end());
+    // the settings apart from the networks
+    items[settings].line = true;
     for (auto &item: items) {
         item.value = "-";
         parents[item.name] = "Networks";
@@ -512,6 +515,18 @@ void MenuMain::reloadModules() {
         button->item.selectable = !url.empty();
         button->refreshText();
         button->setVisibility(!url.empty() && button->isVisible() ? Visibility::Visible : Visibility::Hidden);
+    }
+
+    // the networks apart: a line above the first one shown, another under the last one
+    MenuButton *firstNetwork = nullptr;
+    for (auto &button: buttons) {
+        if (button->item.id >= 1 && button->item.id <= main->getConfig()->getNetworkCount() && button->item.enabled) {
+            firstNetwork = firstNetwork == nullptr ? button : firstNetwork;
+        }
+    }
+    for (auto &button: buttons) {
+        bool network = button->item.id >= 1 && button->item.id <= main->getConfig()->getNetworkCount();
+        button->setLine(firstNetwork != nullptr && (button == firstNetwork || (!network && button->item.name == "Settings")));
     }
 
     // other rows: the height (and the slide) made to them again

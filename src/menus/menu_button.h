@@ -44,6 +44,8 @@ public:
     // the value in the accent color when not the default one
     std::string value;
     bool valueAccent = false;
+    // a thin line above it (a group apart)
+    bool line = false;
     float slider = -1;
     // opens a submenu ("›" without a value)
     bool opens = false;
@@ -64,10 +66,14 @@ public:
     // another skin icon (a network type changed)
     void setIcon(const std::string &name);
 
+    // the line above it shown or not
+    void setLine(bool shown);
+
     void onUpdate() override;
 
     MenuItem item;
-    c2d::Texture *icon = nullptr;
+    c2d::Sprite *icon = nullptr;
+    c2d::RectangleShape *line = nullptr;
 
     c2d::Text *name = nullptr;
     bool selected = false;

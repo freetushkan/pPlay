@@ -10,6 +10,7 @@
 #include "clip_rect.h"
 #include "menu_button.h"
 #include "round_rect.h"
+#include "skin.h"
 #include "text_wrap.h"
 
 using namespace c2d;
@@ -57,14 +58,25 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
     : Rectangle(rect), item(it) {
     MenuButton::setOrigin(Origin::Left);
 
+    // the group line: half transparent, inside the card margins
+    const float inset = std::round(12 * main->getScaling().x);
+    line = new RectangleShape({MenuButton::getSize().x - inset * 2, std::max(1.0f, std::round(main->getScaling().y))});
+    line->setOrigin(Origin::Left);
+    line->setPosition(inset, 0);
+    line->setFillColor(Color(255, 255, 255, 40));
+    line->setVisibility(item.line ? Visibility::Visible : Visibility::Hidden);
+    MenuButton::add(line);
+
     if (!item.icon.empty()) {
-        icon = new C2DTexture(main->getIo()->getDataPath() + "skin/" + item.icon);
+        // any resolution: 30 px at 720p, smaller in compact menus; made at its size (sharp)
+        iconSize = std::round(std::min(30.0f * main->getScaling().y, MenuButton::getSize().y * 0.65f));
+        icon = new Sprite();
+        c2d::Texture *texture = pplay::Skin::icon(item.icon, (int) iconSize);
+        if (texture != nullptr) {
+            icon->setTexture(texture, true);
+        }
         icon->setOrigin(Origin::Left);
-        icon->setPosition(12 * main->getScaling().x, MenuButton::getSize().y / 2);
-        // any resolution: 36 px at 720p, smaller in compact menus
-        iconSize = std::min(30.0f * main->getScaling().y, MenuButton::getSize().y * 0.65f);
-        float scale = iconSize / (float) icon->getTextureSize().x;
-        icon->setScale(scale, scale);
+        icon->setPosition(std::round(12 * main->getScaling().x), std::round(MenuButton::getSize().y / 2));
         icon->setFillColor(COLOR_FONT);
         MenuButton::add(icon);
     }
@@ -168,28 +180,21 @@ void MenuButton::refreshValue() {
     }
 }
 
+void MenuButton::setLine(bool shown) {
+    item.line = shown;
+    line->setVisibility(shown ? Visibility::Visible : Visibility::Hidden);
+}
+
 void MenuButton::setIcon(const std::string &iconName) {
     if (icon == nullptr || iconName == item.icon) {
         return;
     }
-    std::string path = pplay::Io::get()->getDataPath() + "skin/" + iconName;
-    if (!pplay::Io::get()->exist(path)) {
-        return;
-    }
-    auto *texture = new C2DTexture(path);
-    if (texture->getTextureSize().x <= 0) {
-        delete (texture);
+    c2d::Texture *texture = pplay::Skin::icon(iconName, (int) iconSize);
+    if (texture == nullptr) {
         return;
     }
     item.icon = iconName;
-    texture->setOrigin(Origin::Left);
-    texture->setPosition(icon->getPosition());
-    float scale = iconSize / (float) texture->getTextureSize().x;
-    texture->setScale(scale, scale);
-    texture->setFillColor(icon->getFillColor());
-    delete (icon);
-    icon = texture;
-    MenuButton::add(icon);
+    icon->setTexture(texture, true);
 }
 
 void MenuButton::refreshText() {

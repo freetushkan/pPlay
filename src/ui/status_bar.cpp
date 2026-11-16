@@ -8,6 +8,7 @@
 #include <cmath>
 #include <algorithm>
 
+#include "skin.h"
 #include "cross2d/c2d.h"
 #include "main.h"
 #include "status_bar.h"
@@ -131,9 +132,12 @@ StatusBar::StatusBar(Main *m) : Rectangle({0, 0, 64, 64}) {
     StatusBar::add(timeText);
 
     // offline: the kept listings shown
-    offline = new C2DTexture(m->getIo()->getDataPath() + "skin/offline.png");
-    float iconScale = std::round(22 * sc) / (float) std::max(1, offline->getTextureSize().y);
-    offline->setScale(iconScale, iconScale);
+    offline = new Sprite();
+    // made at its size (sharp)
+    c2d::Texture *offlineIcon = pplay::Skin::icon("offline.png", (int) std::round(22 * sc));
+    if (offlineIcon != nullptr) {
+        offline->setTexture(offlineIcon, true);
+    }
     offline->setOrigin(Origin::Right);
     offline->setVisibility(Visibility::Hidden);
     StatusBar::add(offline);
@@ -222,7 +226,7 @@ void StatusBar::onUpdate() {
     offlineText->setVisibility(off ? Visibility::Visible : Visibility::Hidden);
     if (off) {
         float x = std::round(timeText->getPosition().x - text.width - 10 * sc.x);
-        offline->setPosition(x, std::round(centerY));
+        offline->setPosition(std::round(x), std::round(centerY));
         x -= offline->getGlobalBounds().width + 6 * sc.x;
         offlineText->setPosition(x, std::round(centerY));
         left = x - offlineText->getLocalBounds().width - 12 * sc.x;

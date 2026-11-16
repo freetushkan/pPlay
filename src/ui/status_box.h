@@ -41,7 +41,7 @@ private:
     RoundRect *shadows[3] = {};
     bool error = false;
     bool wasPlayer = false;
-    c2d::Texture *icon = nullptr;
+    c2d::Sprite *icon = nullptr;
     c2d::Text *messageText = nullptr;
     c2d::Clock *clock = nullptr;
     SDL_mutex *mutex = nullptr;

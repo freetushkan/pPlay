@@ -3,7 +3,9 @@
 //
 
 #include <algorithm>
+#include <cmath>
 
+#include "skin.h"
 #include "main.h"
 #include "audio_view.h"
 #include "image.h"
@@ -35,9 +37,13 @@ AudioView::AudioView(Main *m) : Rectangle(m->getSize()), main(m) {
     picture->add(new TweenAlpha(0, 255, 0.3f));
     AudioView::add(picture);
 
-    note = new Sprite(new C2DTexture(main->getIo()->getDataPath() + "skin/audio_note.png"));
-    float noteSize = z.height * size.y * 0.4f;
-    note->setScale(noteSize / note->getTextureRect().width, noteSize / note->getTextureRect().height);
+    // made at its size
+    float noteSize = std::round(z.height * size.y * 0.4f);
+    note = new Sprite();
+    c2d::Texture *noteIcon = pplay::Skin::icon("audio_note.png", (int) noteSize, true);
+    if (noteIcon != nullptr) {
+        note->setTexture(noteIcon, true);
+    }
     note->setOrigin(Origin::Center);
     note->setPosition(size.x / 2, (z.top + z.height / 2) * size.y);
     note->setFillColor(Color(140, 140, 140));
