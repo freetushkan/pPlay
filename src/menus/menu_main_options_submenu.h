@@ -6,6 +6,7 @@
 #define PPLAY_MENU_MAIN_OPTIONS_SUBMENU_H
 
 #include "menu.h"
+#include "io.h"
 
 class MenuMainOptionsSubmenu : public Menu {
 
@@ -74,8 +75,10 @@ private:
 
     bool editTextValue();
 
-    // a network "search": the DLNA servers found (a search started when shown)
+    // a network "search": the servers found (a search started when shown)
     bool isSearch() const;
+
+    pplay::Io::NetworkType searchType() const;
 
     void showSearch(bool start);
 

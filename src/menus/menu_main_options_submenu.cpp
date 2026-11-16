@@ -19,7 +19,7 @@
 #include "i18n.h"
 #include "input_map.h"
 #include "io.h"
-#include "dlna.h"
+#include "discovery.h"
 
 using namespace c2d;
 
@@ -224,9 +224,8 @@ void MenuMainOptionsSubmenu::refreshValues() {
             button->item.value = "";
             button->item.opens = true;
             button->refreshValue();
-            shown = pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(
-                            std::atoi(button->item.name.c_str() + strlen("Network "))))->getString())
-                    == pplay::Io::NetworkType::Dlna;
+            shown = pplay::Discovery::supports(pplay::Io::parseNetworkType(config->getOption(
+                    PPLAYConfig::networkTypeOption(std::atoi(button->item.name.c_str() + strlen("Network "))))->getString()));
         } else if (key == OPT_AUTO_DROPS || key == OPT_AUTO_DROPS_TIME || key == OPT_AUTO_QUALITY_DELAY) {
             shown = qualityAuto;
         } else if (key == OPT_AUTO_HW_RETRY || key == OPT_AUTO_HW_RETRIES) {
@@ -411,7 +410,7 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
         url->setString(item->data_str);
         if (name->getString().empty() || name->getString() == "Network " + std::to_string(network)) {
             name->setType(c2d::config::Option::Type::String);
-            name->setString(item->label);
+            name->setString(item->name);
         }
         main->getConfig()->save();
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Options: " + option_name + " set to " + item->data_str);
@@ -441,19 +440,24 @@ bool MenuMainOptionsSubmenu::isSearch() const {
     return key.size() > 7 && key.compare(key.size() - 7, 7, " search") == 0;
 }
 
+pplay::Io::NetworkType MenuMainOptionsSubmenu::searchType() const {
+    int network = std::atoi(key.c_str() + strlen("Network "));
+    return pplay::Io::parseNetworkType(main->getConfig()->getOption(PPLAYConfig::networkTypeOption(network))->getString());
+}
+
 void MenuMainOptionsSubmenu::showSearch(bool start) {
     std::vector<MenuItem> items;
-    std::vector<pplay::Dlna::Server> servers;
+    std::vector<pplay::Discovery::Server> servers;
     if (start) {
-        pplay::Dlna::startSearch();
+        pplay::Discovery::start(searchType());
     }
-    searching = !pplay::Dlna::searchResult(&servers);
+    searching = !pplay::Discovery::result(searchType(), &servers);
     if (searching) {
         items.emplace_back("Searching...", "", MenuItem::Position::Top, 0, false);
     } else {
         for (auto &server: servers) {
-            MenuItem item(server.location, "", MenuItem::Position::Top, 0, true, server.location);
-            item.label = server.name;
+            MenuItem item(server.name, "", MenuItem::Position::Top, 0, true, server.url);
+            item.label = server.label;
             items.push_back(item);
         }
         if (servers.empty()) {
@@ -467,8 +471,8 @@ void MenuMainOptionsSubmenu::showSearch(bool start) {
 
 void MenuMainOptionsSubmenu::onUpdate() {
     if (searching && isVisible()) {
-        std::vector<pplay::Dlna::Server> servers;
-        if (pplay::Dlna::searchResult(&servers)) {
+        std::vector<pplay::Discovery::Server> servers;
+        if (pplay::Discovery::result(searchType(), &servers)) {
             showSearch(false);
         }
     }

@@ -186,7 +186,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
         parents[name + " url"] = name;
         parents[name + " type"] = name;
         parents[name + " search"] = name;
-        // DLNA servers found: one picked sets the url (the items made when shown)
+        // the servers found (DLNA, TorrServer, Samba): one picked sets the url (the items made when shown)
         addSubmenu(name + " search", name + " search", PPLAYConfig::networkOption(i), {}, Submenu::ValueType::String);
         addTextSubmenu(name + " name", name + " name", PPLAYConfig::networkNameOption(i));
         addTextSubmenu(name + " url", name + " url", PPLAYConfig::networkOption(i));

@@ -20,12 +20,6 @@ namespace pplay::Dlna {
     // the media servers answering (SSDP) within these seconds
     std::vector<Server> search(int seconds);
 
-    // a search in a thread (started again if done)
-    void startSearch();
-
-    // false while searching; the servers found
-    bool searchResult(std::vector<Server> *servers);
-
     // a network path: <description url>/<container titles...>/<item title>
     std::vector<c2d::Io::File> list(const std::string &path, int timeout, std::string *error);
 

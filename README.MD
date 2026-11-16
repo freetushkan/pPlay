@@ -96,9 +96,10 @@ Each network has a type (`NETWORKx_TYPE`, also in Settings > Networks > Network 
 
 * `TorrServe` — TorrServer api (`http(s)://host:8090/`, may be behind a reverse proxy sub path);
 * `WebDAV` — `http(s)://[user:password@]host/path/` (Nextcloud, nginx dav, rclone serve webdav...).
-* `DLNA` — a media server, its device description url (`http://host:8200/rootDesc.xml`; Settings > Networks > Network x > Search servers finds them), or just `http://host:port/`;
+* `DLNA` — a media server, its device description url (`http://host:8200/rootDesc.xml`), or just `http://host:port/`;
 * `Auto` (default) — guessed from the url scheme: `http(s)://` directory listing, `ftp://`, `smb://`;
 * `Samba`, `FTP`, `HTTP` — force the protocol;
+* Settings > Networks > Network x > Search servers (types `DLNA`, `TorrServe`, `Samba`): the servers of the local network (TorrServer and Samba: the addresses of its /24 tried, ports 8090 and 445); `smb://host/` lists its shares.
 
 TorrServer support
 ----

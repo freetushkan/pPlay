@@ -4,13 +4,11 @@
 // a path not known yet is found from the root, title by title.
 //
 
-#include <atomic>
 #include <cctype>
 #include <cstring>
 #include <map>
 #include <mutex>
 #include <set>
-#include <thread>
 
 // as ftplib (all the platforms)
 #include <sys/time.h>
@@ -663,11 +661,6 @@ namespace {
     }
 
     // SSDP
-    std::mutex g_searchMutex;
-    std::vector<Dlna::Server> g_found;
-    std::atomic<bool> g_searching{false};
-    std::thread *g_searchThread = nullptr;
-
     std::string headerOf(const std::string &answer, const char *name) {
         std::string low = lower(answer);
         std::string key = std::string("\n") + name + ":";
@@ -743,32 +736,6 @@ namespace pplay::Dlna {
         Utility::log(Utility::LogLevel::Info, "Dlna: search, " + std::to_string(locations.size()) + " answers, "
                                                       + std::to_string(servers.size()) + " media servers");
         return servers;
-    }
-
-    void startSearch() {
-        if (g_searching) {
-            return;
-        }
-        if (g_searchThread != nullptr) {
-            g_searchThread->join();
-            delete g_searchThread;
-        }
-        g_searching = true;
-        g_searchThread = new std::thread([] {
-            std::vector<Server> servers = search(4);
-            std::lock_guard<std::mutex> lock(g_searchMutex);
-            g_found = servers;
-            g_searching = false;
-        });
-    }
-
-    bool searchResult(std::vector<Server> *servers) {
-        if (g_searching) {
-            return false;
-        }
-        std::lock_guard<std::mutex> lock(g_searchMutex);
-        *servers = g_found;
-        return true;
     }
 
     std::vector<c2d::Io::File> list(const std::string &p, int timeout, std::string *error) {

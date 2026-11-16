@@ -6,11 +6,100 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <cstring>
+
+#include <sys/time.h>
+#include <sys/types.h>
+#if __has_include(<poll.h>)
+#include <poll.h>
+#endif
 
 #include "smb.h"
 #include "utility.h"
+#include "libsmb2-dcerpc-srvsvc.h"
+
+// libsmb2 events (the poll ones)
+#ifndef POLLIN
+#define POLLIN 0x0001
+#endif
+#ifndef POLLOUT
+#define POLLOUT 0x0004
+#endif
 
 using namespace pplay;
+
+namespace {
+    struct ShareEnum {
+        bool done = false;
+        int status = 0;
+        std::vector<std::string> names;
+    };
+
+    // the disk shares (not hidden ones)
+    void sharesDone(struct smb2_context *smb2, int status, void *data, void *private_data) {
+        auto *result = (ShareEnum *) private_data;
+        result->done = true;
+        result->status = status;
+        if (status != 0 || data == nullptr) {
+            return;
+        }
+#ifdef LIBSMB2_SHARE_ENUM_V2
+        auto *rep = (struct srvsvc_NetrShareEnum_rep *) data;
+        auto &list = rep->ses.ShareInfo.Level1;
+        for (uint32_t i = 0; list.Buffer != nullptr && i < list.EntriesRead; i++) {
+            auto &share = list.Buffer->share_info_1[i];
+            const char *name = share.netname.utf8;
+#else
+        auto *rep = (struct srvsvc_netshareenumall_rep *) data;
+        for (uint32_t i = 0; rep->ctr != nullptr && i < rep->ctr->ctr1.count; i++) {
+            auto &share = rep->ctr->ctr1.array[i];
+            const char *name = share.name;
+#endif
+            if (name != nullptr && (share.type & 3) == SHARE_TYPE_DISKTREE && !(share.type & SHARE_TYPE_HIDDEN)
+                && name[0] != '\0' && name[strlen(name) - 1] != '$') {
+                result->names.emplace_back(name);
+            }
+        }
+        smb2_free_data(smb2, data);
+    }
+
+    // the shares of a server (connected to IPC$), false on an error
+    bool shareEnum(struct smb2_context *smb2, int timeout, std::vector<std::string> *names) {
+        ShareEnum result;
+#ifdef LIBSMB2_SHARE_ENUM_V2
+        int started = smb2_share_enum_async(smb2, SHARE_INFO_1, sharesDone, &result);
+#else
+        int started = smb2_share_enum_async(smb2, sharesDone, &result);
+#endif
+        if (started != 0) {
+            return false;
+        }
+        c2d::C2DClock clock;
+        while (!result.done && clock.getElapsedTime().asSeconds() < (float) timeout) {
+            int fd = smb2_get_fd(smb2);
+            int events = smb2_which_events(smb2);
+            fd_set readable, writable;
+            FD_ZERO(&readable);
+            FD_ZERO(&writable);
+            if (events & POLLIN) {
+                FD_SET(fd, &readable);
+            }
+            if (events & POLLOUT) {
+                FD_SET(fd, &writable);
+            }
+            struct timeval tv {0, 200 * 1000};
+            if (select(fd + 1, &readable, &writable, nullptr, &tv) <= 0) {
+                continue;
+            }
+            int revents = (FD_ISSET(fd, &readable) ? POLLIN : 0) | (FD_ISSET(fd, &writable) ? POLLOUT : 0);
+            if (smb2_service(smb2, revents) < 0) {
+                return false;
+            }
+        }
+        *names = result.names;
+        return result.done && result.status == 0;
+    }
+}
 
 static size_t findFirstOf(const std::string &str, const std::string &chars, size_t from) {
     size_t pos = std::string::npos;
@@ -153,6 +242,23 @@ std::vector<c2d::Io::File> Smb::list(const std::string &path, int timeout, std::
                          + std::to_string(smbUrl.port) + " share=" + std::string(url->share ? url->share : "")
                          + " path=" + std::string(url->path ? url->path : "")
                          + " user=" + std::string(url->user ? url->user : "") + " domain=" + smbUrl.domain);
+
+    // the server only: its shares
+    if (url->share == nullptr || url->share[0] == '\0') {
+        std::vector<std::string> shares;
+        if (smb2_connect_share(smb2, url->server, "IPC$", url->user) < 0 || !shareEnum(smb2, timeout, &shares)) {
+            setError(std::string("can't list the shares: ") + smb2_get_error(smb2));
+        }
+        std::string prefix = c2d::Utility::endsWith(smb_path, "/") ? smb_path : smb_path + "/";
+        for (auto &share: shares) {
+            files.emplace_back(share, prefix + share, Io::Type::Directory);
+        }
+        Utility::log(Utility::LogLevel::Info, "Smb::list: shares=" + std::to_string(files.size()));
+        smb2_destroy_url(url);
+        smb2_disconnect_share(smb2);
+        smb2_destroy_context(smb2);
+        return files;
+    }
 
     if (smb2_connect_share(smb2, url->server, url->share, url->user) < 0) {
         setError(std::string("connection failed: ") + smb2_get_error(smb2));
