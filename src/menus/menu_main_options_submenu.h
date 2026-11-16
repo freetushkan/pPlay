@@ -31,6 +31,8 @@ public:
 
     bool onInput(c2d::Input::Player *players) override;
 
+    void onUpdate() override;
+
     void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
 
     void setSelection(const std::string &name);
@@ -72,6 +74,11 @@ private:
 
     bool editTextValue();
 
+    // a network "search": the DLNA servers found (a search started when shown)
+    bool isSearch() const;
+
+    void showSearch(bool start);
+
     std::string option_name;
     ValueType value_type;
     MenuType menu_type;
@@ -81,6 +88,7 @@ private:
     std::string value_unit;
     std::string key;
     std::string zeroLabel;
+    bool searching = false;
 };
 
 #endif //PPLAY_MENU_MAIN_OPTIONS_SUBMENU_H

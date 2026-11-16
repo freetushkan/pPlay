@@ -56,6 +56,10 @@ Value = Значение
 Name = Имя
 URL = Адрес
 Type = Тип
+Search servers = Поиск серверов
+Searching... = Поиск...
+No servers found = Серверы не найдены
+Search again = Искать снова
 <empty> = <пусто>
 
 # Accent colors

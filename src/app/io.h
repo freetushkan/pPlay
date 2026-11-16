@@ -34,7 +34,8 @@ namespace pplay {
             Ftp,
             Smb,
             TorrServe,
-            WebDav
+            WebDav,
+            Dlna
         };
 
         // NETWORKx_TYPE
@@ -44,7 +45,8 @@ namespace pplay {
             Smb,
             Ftp,
             Http,
-            WebDav
+            WebDav,
+            Dlna
         };
 
         static NetworkType parseNetworkType(const std::string &name);

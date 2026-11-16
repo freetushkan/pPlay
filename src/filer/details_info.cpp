@@ -14,6 +14,7 @@
 #include "details_info.h"
 #include "text_wrap.h"
 #include "torrserve.h"
+#include "dlna.h"
 #include "saved.h"
 #include "playlists.h"
 #include "utility.h"
@@ -192,6 +193,8 @@ pplay::DetailsInfo pplay::DetailsInfo::of(const MediaFile &file) {
         }
     } else {
         info.title = encoding::fix(file.name);
+        // a media server picture (a saved copy: as listed)
+        info.poster = Dlna::posterOf(Saved::originalOf(file.path));
         if (file.type == c2d::Io::Type::Directory) {
             text += tr("Directory") + "\n";
         } else {

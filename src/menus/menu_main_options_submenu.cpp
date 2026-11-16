@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <iomanip>
 #include <sstream>
 
@@ -17,6 +18,8 @@
 #include "keyboard.h"
 #include "i18n.h"
 #include "input_map.h"
+#include "io.h"
+#include "dlna.h"
 
 using namespace c2d;
 
@@ -127,7 +130,11 @@ void MenuMainOptionsSubmenu::updateSelectionHighlight() {
             }
         }
     } else if (value_type == ValueType::String) {
-        setSelection(main->getConfig()->getOption(option_name)->getString());
+        // an empty value: none of them (the items without a value)
+        std::string value = main->getConfig()->getOption(option_name)->getString();
+        if (!value.empty()) {
+            setSelection(value);
+        }
     }
 }
 
@@ -212,7 +219,15 @@ void MenuMainOptionsSubmenu::refreshValues() {
         button->refreshValue();
         const std::string &key = sub != nullptr ? sub->getOptionName() : "";
         bool shown = true;
-        if (key == OPT_AUTO_DROPS || key == OPT_AUTO_DROPS_TIME || key == OPT_AUTO_QUALITY_DELAY) {
+        if (sub != nullptr && sub->isSearch()) {
+            // DLNA networks only, a list behind (no value)
+            button->item.value = "";
+            button->item.opens = true;
+            button->refreshValue();
+            shown = pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(
+                            std::atoi(button->item.name.c_str() + strlen("Network "))))->getString())
+                    == pplay::Io::NetworkType::Dlna;
+        } else if (key == OPT_AUTO_DROPS || key == OPT_AUTO_DROPS_TIME || key == OPT_AUTO_QUALITY_DELAY) {
             shown = qualityAuto;
         } else if (key == OPT_AUTO_HW_RETRY || key == OPT_AUTO_HW_RETRIES) {
             shown = decoderAuto;
@@ -380,6 +395,32 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
         }
     }
 #endif
+    if (isSearch()) {
+        if (item->name == "Search again") {
+            showSearch(true);
+            return;
+        }
+        if (item->data_str.empty()) {
+            return;
+        }
+        // its url, its name (an unnamed network)
+        int network = std::atoi(key.c_str() + strlen("Network "));
+        auto *url = main->getConfig()->getOption(option_name);
+        auto *name = main->getConfig()->getOption(PPLAYConfig::networkNameOption(network));
+        url->setType(c2d::config::Option::Type::String);
+        url->setString(item->data_str);
+        if (name->getString().empty() || name->getString() == "Network " + std::to_string(network)) {
+            name->setType(c2d::config::Option::Type::String);
+            name->setString(item->label);
+        }
+        main->getConfig()->save();
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "Options: " + option_name + " set to " + item->data_str);
+        main->applyConfig();
+        setVisibility(Visibility::Hidden, true);
+        main->getMenuMain()->showParent(key);
+        return;
+    }
+
     auto *option = main->getConfig()->getOption(option_name);
     const std::string oldValue = option->getString();
     // the item value, if any (accent color, track languages), or its name
@@ -396,7 +437,48 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
     setSelection(item->name);
 }
 
+bool MenuMainOptionsSubmenu::isSearch() const {
+    return key.size() > 7 && key.compare(key.size() - 7, 7, " search") == 0;
+}
+
+void MenuMainOptionsSubmenu::showSearch(bool start) {
+    std::vector<MenuItem> items;
+    std::vector<pplay::Dlna::Server> servers;
+    if (start) {
+        pplay::Dlna::startSearch();
+    }
+    searching = !pplay::Dlna::searchResult(&servers);
+    if (searching) {
+        items.emplace_back("Searching...", "", MenuItem::Position::Top, 0, false);
+    } else {
+        for (auto &server: servers) {
+            MenuItem item(server.location, "", MenuItem::Position::Top, 0, true, server.location);
+            item.label = server.name;
+            items.push_back(item);
+        }
+        if (servers.empty()) {
+            items.emplace_back("No servers found", "", MenuItem::Position::Top, 0, false);
+        }
+        items.emplace_back("Search again", "", MenuItem::Position::Top);
+    }
+    setItems(items);
+    refresh();
+}
+
+void MenuMainOptionsSubmenu::onUpdate() {
+    if (searching && isVisible()) {
+        std::vector<pplay::Dlna::Server> servers;
+        if (pplay::Dlna::searchResult(&servers)) {
+            showSearch(false);
+        }
+    }
+    Menu::onUpdate();
+}
+
 void MenuMainOptionsSubmenu::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
+    if (visibility == Visibility::Visible && isSearch() && !isVisible()) {
+        showSearch(true);
+    }
     // the items shown (and the height made to them) before it slides in
     if (visibility == Visibility::Visible) {
         refresh();

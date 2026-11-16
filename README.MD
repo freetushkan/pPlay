@@ -20,6 +20,7 @@ Supported features:
 
 Supported protocols & networks:
 - HTTP(S), FTP, WebDAV, and SMB/Samba (`smb://`);
+- DLNA / UPnP media servers;
 - TorrServer client integration.
 
 pPlay uses the [MPV](https://mpv.io/) interface to handle FFmpeg interoperability, providing a fast, stable and powerful playback experience.
@@ -95,6 +96,7 @@ Each network has a type (`NETWORKx_TYPE`, also in Settings > Networks > Network 
 
 * `TorrServe` — TorrServer api (`http(s)://host:8090/`, may be behind a reverse proxy sub path);
 * `WebDAV` — `http(s)://[user:password@]host/path/` (Nextcloud, nginx dav, rclone serve webdav...).
+* `DLNA` — a media server, its device description url (`http://host:8200/rootDesc.xml`; Settings > Networks > Network x > Search servers finds them), or just `http://host:port/`;
 * `Auto` (default) — guessed from the url scheme: `http(s)://` directory listing, `ftp://`, `smb://`;
 * `Samba`, `FTP`, `HTTP` — force the protocol;
 
@@ -115,6 +117,14 @@ WebDAV example:
 NETWORK2 = "https://user:password@cloud.example.com/remote.php/dav/files/user/Movies/"
 NETWORK2_NAME = "Cloud"
 NETWORK2_TYPE = "WebDAV"
+```
+
+DLNA example:
+
+```ini
+NETWORK3 = "http://192.168.1.20:8200/rootDesc.xml"
+NETWORK3_NAME = "MiniDLNA"
+NETWORK3_TYPE = "DLNA"
 ```
 
 Important notes:
@@ -150,7 +160,7 @@ Below is the list of currently supported and maintained configuration parameters
 ### Network sources
 
 * `NETWORK1..NETWORK9` — up to 9 network URLs (http/https/ftp/smb).
-* `NETWORK1_TYPE..NETWORK9_TYPE` — `Auto`, `TorrServe`, `Samba`, `FTP`, `HTTP`, `WebDAV`.
+* `NETWORK1_TYPE..NETWORK9_TYPE` — `Auto`, `TorrServe`, `Samba`, `FTP`, `HTTP`, `WebDAV`, `DLNA`.
 * `NETWORK1_NAME..NETWORK9_NAME` — source labels shown in UI.
 * `NETWORK1_LAST..NETWORK9_LAST` — last opened directory for each source.
 

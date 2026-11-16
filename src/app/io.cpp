@@ -13,6 +13,7 @@
 #include "pplay_config.h"
 #include "net_http.h"
 #include "torrserve.h"
+#include "dlna.h"
 #include "ftp.h"
 #ifdef __SWITCH__
 #include "usbfs.h"
@@ -72,7 +73,7 @@ Io *Io::get() {
 }
 
 const std::vector<std::string> &Io::networkTypeNames() {
-    static const std::vector<std::string> names = {"Auto", "TorrServe", "Samba", "FTP", "HTTP", "WebDAV"};
+    static const std::vector<std::string> names = {"Auto", "TorrServe", "Samba", "FTP", "HTTP", "WebDAV", "DLNA"};
     return names;
 }
 
@@ -92,6 +93,9 @@ Io::NetworkType Io::parseNetworkType(const std::string &name) {
     }
     if (n == "webdav" || n == "dav") {
         return NetworkType::WebDav;
+    }
+    if (n == "dlna" || n == "upnp") {
+        return NetworkType::Dlna;
     }
     return NetworkType::Auto;
 }
@@ -152,6 +156,8 @@ std::vector<c2d::Io::File> Io::list(const DeviceType &type, const std::string &p
                             "Io::TorrServe path=" + path + " entries=" + std::to_string(files.size()));
     } else if (type == DeviceType::Ftp) {
         files = Ftp::list(path, timeout, &failed);
+    } else if (type == DeviceType::Dlna) {
+        files = Dlna::list(path, timeout, &failed);
     }
 #ifdef __SMB2__
     else if (type == DeviceType::Smb) {
@@ -263,6 +269,8 @@ Io::DeviceType Io::getDeviceType(const std::string &path) {
                 return DeviceType::Http;
             case NetworkType::WebDav:
                 return DeviceType::WebDav;
+            case NetworkType::Dlna:
+                return DeviceType::Dlna;
             default:
                 break;
         }

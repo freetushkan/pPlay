@@ -56,6 +56,10 @@ Value = Value
 Name = Name
 URL = URL
 Type = Type
+Search servers = Search servers
+Searching... = Searching...
+No servers found = No servers found
+Search again = Search again
 <empty> = <empty>
 
 # Accent colors

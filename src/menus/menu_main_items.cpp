@@ -33,6 +33,9 @@ namespace pplay::MenuMainItems {
         if (type == Io::NetworkType::WebDav) {
             return "net_webdav.png";
         }
+        if (type == Io::NetworkType::Dlna) {
+            return "net_dlna.png";
+        }
         return "net_http.png";
     }
 

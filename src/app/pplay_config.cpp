@@ -69,7 +69,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
         addOption({networkLastOption(i), "/"});
         addOption({networkNameOption(i), "Network " + std::to_string(i)});
-        addOption({networkTypeOption(i), "Auto"}); // Auto, TorrServe, Samba, FTP, HTTP, WebDAV
+        addOption({networkTypeOption(i), "Auto"}); // Auto, TorrServe, Samba, FTP, HTTP, WebDAV, DLNA
     }
     addOption({OPT_LAST_MODULE, "LOCAL"});
     addOption({OPT_NETWORK_TIMEOUT, (int) 15});

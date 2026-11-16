@@ -23,6 +23,7 @@
 #include "io.h"
 #include "net_http.h"
 #include "torrserve.h"
+#include "dlna.h"
 #include "saved.h"
 #include "utility.h"
 #include "worker.h"
@@ -845,6 +846,10 @@ namespace pplay::TorrServe {
             auto type = io != nullptr ? io->getDeviceType(path) : pplay::Io::DeviceType::Local;
             if (type == pplay::Io::DeviceType::Http || type == pplay::Io::DeviceType::WebDav) {
                 return pplay::Http::normalize(path);
+            }
+            if (type == pplay::Io::DeviceType::Dlna) {
+                std::string url = pplay::Dlna::streamUrl(path);
+                return url.empty() ? path : url;
             }
             return path;
         }
