@@ -219,7 +219,13 @@ void MenuMainOptionsSubmenu::refreshValues() {
         button->refreshValue();
         const std::string &key = sub != nullptr ? sub->getOptionName() : "";
         bool shown = true;
-        if (sub != nullptr && sub->isSearch()) {
+        const std::string &name = button->item.name;
+        bool up = Utility::endsWith(name, " up"), down = Utility::endsWith(name, " down");
+        if (sub == nullptr && (up || down) && name.rfind("Network ", 0) == 0) {
+            // not past an end
+            int network = std::atoi(name.c_str() + strlen("Network "));
+            shown = up ? network > 1 : network < config->getNetworkCount();
+        } else if (sub != nullptr && sub->isSearch()) {
             // DLNA networks only, a list behind (no value)
             button->item.value = "";
             button->item.opens = true;
@@ -319,6 +325,48 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
     }
 
     if (option_name.empty()) {
+        if (item->name == "Add network") {
+            int network = main->getConfig()->addNetwork();
+            main->getConfig()->save();
+            main->getMenuMain()->updateNetworks();
+            setVisibility(Visibility::Hidden, true);
+            main->getMenuMain()->showNetwork(network);
+            return;
+        }
+        if (key.rfind("Network ", 0) == 0 && (Utility::endsWith(item->name, " up")
+                                               || Utility::endsWith(item->name, " down"))) {
+            int network = std::atoi(key.c_str() + strlen("Network "));
+            int direction = Utility::endsWith(item->name, " up") ? -1 : 1;
+            int other = network + direction;
+            if (!main->getConfig()->moveNetwork(network, direction)) {
+                return;
+            }
+            main->renumberNetworks([network, other](int i) { return i == network ? other : i == other ? network : i; });
+            main->getConfig()->save();
+            main->getMenuMain()->updateNetworks(true);
+            // the same network, at its new place
+            setVisibility(Visibility::Hidden, true);
+            // (at an end: the other way)
+            bool end = other == 1 || other == main->getConfig()->getNetworkCount();
+            std::string moved = "Network " + std::to_string(other) + ((direction < 0) != end ? " up" : " down");
+            main->getMenuMain()->showNetwork(other, moved);
+            return;
+        }
+        if (key.rfind("Network ", 0) == 0 && Utility::endsWith(item->name, " delete")) {
+            int network = std::atoi(key.c_str() + strlen("Network "));
+            if (main->showMessage(pplay::tr("Delete network"), main->getConfig()->networkName(network),
+                                  pplay::tr("Delete"), pplay::tr("Cancel")) != c2d::MessageBox::LEFT) {
+                return;
+            }
+            main->getConfig()->removeNetwork(network);
+            main->renumberNetworks([network](int i) { return i == network ? 0 : i > network ? i - 1 : i; });
+            main->getConfig()->save();
+            main->getMenuMain()->updateNetworks(true);
+            setVisibility(Visibility::Hidden, true);
+            main->getMenuMain()->showParent(key);
+            main->getMenuMain()->getMenuMainOptionsSubmenu("Networks")->select("Add network");
+            return;
+        }
         if (item->name == "Clear cache") {
             int count = pplay::Utility::clearCache();
             main->getFiler()->clearMediaInfo();

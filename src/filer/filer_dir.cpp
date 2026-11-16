@@ -222,7 +222,7 @@ bool Filer::isTopLevel(const std::string &p) {
     if (!Utility::endsWith(s, "/")) {
         s += "/";
     }
-    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+    for (int i = 1; i <= main->getConfig()->getNetworkCount(); i++) {
         std::string root = main->getConfig()->getOption(PPLAYConfig::networkOption(i))->getString();
         root = pplay::Paths::normalizeSmbPathSeparators(root);
         if (!root.empty() && !Utility::endsWith(root, "/")) {

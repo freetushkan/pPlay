@@ -27,6 +27,9 @@ public:
 
     void reset();
 
+    // the item of that name selected (if shown)
+    void select(const std::string &name);
+
     // language change
     virtual void retranslate();
 

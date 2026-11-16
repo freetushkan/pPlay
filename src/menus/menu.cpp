@@ -468,6 +468,19 @@ void Menu::retranslate() {
     }
 }
 
+void Menu::select(const std::string &name) {
+    for (size_t i = 0; i < buttons.size(); i++) {
+        if (buttons[i]->item.name == name && isButtonSelectable((int) i)) {
+            index = (int) i;
+            updateSelectionState();
+            ensureSelectionVisible();
+            updateScroll();
+            highlight->setPosition(0, buttons[index]->getPosition().y);
+            return;
+        }
+    }
+}
+
 void Menu::reset() {
     index = findFirstSelectableIndex();
     updateSelectionState();

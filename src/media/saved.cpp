@@ -300,11 +300,11 @@ namespace {
             return false;
         }
         *name = "Network";
-        for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+        for (int i = 1; i <= g_config->getNetworkCount(); i++) {
             std::string url = g_config->getOption(PPLAYConfig::networkOption(i))->getString();
             std::replace(url.begin(), url.end(), '\\', '/');
             if (!url.empty() && Paths::ensureTrailingSlash(url) == *root) {
-                *name = g_config->getOption(PPLAYConfig::networkNameOption(i))->getString();
+                *name = g_config->networkName(i);
                 break;
             }
         }

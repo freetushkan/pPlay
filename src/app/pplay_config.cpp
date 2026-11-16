@@ -2,8 +2,16 @@
 // Created by cpasjuste on 22/10/18.
 //
 
+#include <algorithm>
+#include <cctype>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <deque>
+#include <fstream>
+#include <map>
+#include <sstream>
+#include <json.hpp>
 #include "io.h"
 #include "pplay_config.h"
 #include "net_http.h"
@@ -11,46 +19,125 @@
 
 using namespace c2d;
 
-static const char *networkOptionName(int index, const char *suffix) {
-    static std::vector<std::string> names[6];
-    static const char *suffixes[6] = {"", "_LAST", "_NAME", "_TYPE", "_USER", "_PASSWORD"};
-    int s = 0;
-    while (s < 5 && strcmp(suffixes[s], suffix) != 0) {
-        s++;
+namespace {
+    const char *networkSuffixes[] = {"", "_LAST", "_NAME", "_TYPE", "_USER", "_PASSWORD"};
+
+    // the json keys of a network
+    const char *networkKeys[] = {"url", "last", "name", "type", "user", "password"};
+
+    // names kept for the program life: pointers given out (a deque does not move them)
+    const char *networkOptionName(int index, int suffix) {
+        static std::deque<std::string> names[6];
+        index = std::max(1, index);
+        while ((int) names[suffix].size() < index) {
+            names[suffix].push_back("NETWORK" + std::to_string(names[suffix].size() + 1) + networkSuffixes[suffix]);
+        }
+        return names[suffix][(size_t) index - 1].c_str();
     }
-    if (names[s].empty()) {
-        for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
-            names[s].push_back("NETWORK" + std::to_string(i) + suffixes[s]);
+
+    // the file groups, as in the menu; the others in "state"
+    const std::vector<std::pair<const char *, std::vector<const char *>>> &groups() {
+        static const std::vector<std::pair<const char *, std::vector<const char *>>> list = {
+                {"playback", {OPT_AUTOPLAY_MODE, OPT_NETWORK_RETRIES, OPT_RESTORE_SESSION, OPT_SLEEP_TIMER}},
+                {"progress", {OPT_PROGRESS_MIN_LENGTH, OPT_WATCHED_TOLERANCE, OPT_PROGRESS_INTERVAL,
+                              OPT_PROGRESS_LINE, OPT_FOLDER_MARKS, OPT_TS_PROGRESS}},
+                {"audio_and_subtitles", {OPT_AUDIO_LANGUAGE, OPT_SUB_LANGUAGE, OPT_EXTERNAL_TRACKS, OPT_SUB_ASS_PLAIN,
+                                         OPT_AUDIO_CHANNELS, OPT_AUDIO_NORMALIZE, OPT_AUDIO_VISUALIZER}},
+                {"video", {OPT_VIDEO_QUALITY, OPT_AUTO_DROPS, OPT_AUTO_DROPS_TIME, OPT_AUTO_QUALITY_DELAY,
+                           OPT_AUTO_SWITCH_PAUSE, OPT_HW_DECODING, OPT_AUTO_HW_RETRY, OPT_AUTO_HW_RETRIES, OPT_DITHER}},
+                {"interface", {OPT_LANGUAGE, OPT_PS5_UI_4K, OPT_TEXT_ENCODING, OPT_ACCENT_COLOR, OPT_SHOW_HIDDEN,
+                               OPT_SHOW_ALL_FILES, OPT_SHOW_SAVED, OPT_SHOW_PLAYLISTS, OPT_MEDIA_PROBE,
+                               OPT_OSD_HIDE_TIME, OPT_SWAP_CONTROLS}},
+                {"networks", {OPT_NETWORK_TIMEOUT, OPT_TLS_VERIFY, OPT_TS_VIEWED_SYNC, OPT_CACHE_SECS, OPT_CACHE_MB,
+#ifdef __SMB2__
+                              OPT_SMB_READ_BUFFER_MB
+#endif
+                             }},
+                {"saved_files", {OPT_SAVE_THREADS, OPT_SAVE_KEEP_DAYS, OPT_SAVE_MAX_GB}},
+                {"system", {OPT_HOME_PATH, OPT_STANDBY_TIME, OPT_ANDROID_BACKGROUND, OPT_CPU_BOOST,
+                            OPT_PS5_KEEP_IN_REST, OPT_LOG_LEVEL}},
+        };
+        return list;
+    }
+
+    std::string keyOf(const std::string &option) {
+        std::string key = option;
+        std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) { return std::tolower(c); });
+        return key;
+    }
+
+    std::string groupOf(const std::string &option) {
+        static std::map<std::string, std::string> of;
+        if (of.empty()) {
+            for (auto &group: groups()) {
+                for (auto *name: group.second) {
+                    of[name] = group.first;
+                }
+            }
+        }
+        auto it = of.find(option);
+        return it != of.end() ? it->second : "state";
+    }
+
+    bool isNetworkOption(const std::string &name) {
+        return name.rfind("NETWORK", 0) == 0 && name.size() > 7 && std::isdigit((unsigned char) name[7]);
+    }
+
+    nlohmann::ordered_json valueOf(config::Option &option) {
+        switch (option.getType()) {
+            case config::Option::Type::Integer:
+                return option.getInteger();
+            case config::Option::Type::Float:
+                return option.getFloat();
+            default:
+                return option.getString();
         }
     }
-    if (index < 1 || index > PPLAY_MAX_NETWORKS) {
-        index = 1;
+
+    void setValue(config::Option *option, const nlohmann::json &value) {
+        if (option == nullptr) {
+            return;
+        }
+        if (option->getType() == config::Option::Type::Integer) {
+            if (value.is_number()) {
+                option->setInteger(value.get<int>());
+            } else if (value.is_string()) {
+                option->setInteger(std::atoi(value.get<std::string>().c_str()));
+            }
+        } else if (option->getType() == config::Option::Type::Float) {
+            if (value.is_number()) {
+                option->setFloat(value.get<float>());
+            }
+        } else if (value.is_string()) {
+            option->setString(value.get<std::string>());
+        } else if (value.is_number_integer()) {
+            option->setString(std::to_string(value.get<int>()));
+        }
     }
-    return names[s][index - 1].c_str();
 }
 
 const char *PPLAYConfig::networkOption(int index) {
-    return networkOptionName(index, "");
+    return networkOptionName(index, 0);
 }
 
 const char *PPLAYConfig::networkLastOption(int index) {
-    return networkOptionName(index, "_LAST");
+    return networkOptionName(index, 1);
 }
 
 const char *PPLAYConfig::networkNameOption(int index) {
-    return networkOptionName(index, "_NAME");
+    return networkOptionName(index, 2);
 }
 
 const char *PPLAYConfig::networkTypeOption(int index) {
-    return networkOptionName(index, "_TYPE");
+    return networkOptionName(index, 3);
 }
 
 const char *PPLAYConfig::networkUserOption(int index) {
-    return networkOptionName(index, "_USER");
+    return networkOptionName(index, 4);
 }
 
 const char *PPLAYConfig::networkPasswordOption(int index) {
-    return networkOptionName(index, "_PASSWORD");
+    return networkOptionName(index, 5);
 }
 
 // the user and password of an url (scheme://user[:password]@host...): smb "domain.user" as "domain\user"
@@ -95,23 +182,11 @@ static bool migrateTorrServeUrl(std::string &url) {
 }
 
 PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
-    : Config("PPLAY", _io->getDataPath() + "pplay.cfg", version), io(_io) {
+    : Config("PPLAY", _io->getDataPath() + "pplay_config.json", version), io(_io) {
 
-    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
-        addOption({networkOption(i), ""});
-    }
     std::string homePath = defaultHomePath();
     addOption({OPT_HOME_PATH, homePath});
     addOption({OPT_LAST_LOCAL_PATH, homePath});
-    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
-        addOption({networkLastOption(i), "/"});
-        addOption({networkNameOption(i), "Network " + std::to_string(i)});
-        addOption({networkTypeOption(i), "TorrServe"}); // TorrServe, Samba, FTP, HTTP, WebDAV, DLNA
-        addOption({networkUserOption(i), ""});
-        addOption({networkPasswordOption(i), ""});
-    }
-    // 1: the users and passwords of the urls copied to their own options (once)
-    addOption({OPT_NETWORK_CREDENTIALS, (int) 0});
     addOption({OPT_LAST_MODULE, "LOCAL"});
     addOption({OPT_NETWORK_TIMEOUT, (int) 15});
     addOption({OPT_TLS_VERIFY, (int) 1});
@@ -192,14 +267,251 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_LAST_PLAYLIST, ""});
     addOption({OPT_LAST_PLAYLISTS_PATH, ""});
 
-    // load the configuration from file, overwriting default values
-    if (load() && getConfigVersion() < getAppVersion()) {
-        migrate(getConfigVersion());
-    }
+    load();
     sanitize();
-
-    // save configuration, in case new options needs to be added
+    // the new options written
     save();
+}
+
+void PPLAYConfig::allocateNetworks(int count) {
+    while (networkSlots < count) {
+        networkSlots++;
+        addOption({networkOption(networkSlots), ""});
+        addOption({networkLastOption(networkSlots), "/"});
+        // "": "Network n"
+        addOption({networkNameOption(networkSlots), ""});
+        addOption({networkTypeOption(networkSlots), "TorrServe"}); // TorrServe, Samba, FTP, HTTP, WebDAV, DLNA
+        addOption({networkUserOption(networkSlots), ""});
+        addOption({networkPasswordOption(networkSlots), ""});
+    }
+}
+
+void PPLAYConfig::clearNetwork(int index) {
+    getOption(networkOption(index))->setString("");
+    getOption(networkLastOption(index))->setString("/");
+    getOption(networkNameOption(index))->setString("");
+    getOption(networkTypeOption(index))->setString("TorrServe");
+    getOption(networkUserOption(index))->setString("");
+    getOption(networkPasswordOption(index))->setString("");
+}
+
+void PPLAYConfig::copyNetwork(int from, int to) {
+    for (int s = 0; s < 6; s++) {
+        getOption(networkOptionName(to, s))->setString(getOption(networkOptionName(from, s))->getString());
+    }
+}
+
+int PPLAYConfig::addNetwork() {
+    allocateNetworks(networkCount + 1);
+    networkCount++;
+    clearNetwork(networkCount);
+    return networkCount;
+}
+
+void PPLAYConfig::removeNetwork(int index) {
+    if (index < 1 || index > networkCount) {
+        return;
+    }
+    for (int i = index; i < networkCount; i++) {
+        copyNetwork(i + 1, i);
+    }
+    clearNetwork(networkCount);
+    networkCount--;
+}
+
+bool PPLAYConfig::moveNetwork(int index, int direction) {
+    int other = index + direction;
+    if (index < 1 || index > networkCount || other < 1 || other > networkCount) {
+        return false;
+    }
+    // (a free slot to swap through)
+    allocateNetworks(networkCount + 1);
+    copyNetwork(index, networkCount + 1);
+    copyNetwork(other, index);
+    copyNetwork(networkCount + 1, other);
+    clearNetwork(networkCount + 1);
+    return true;
+}
+
+std::string PPLAYConfig::networkName(int index) {
+    std::string name = index >= 1 && index <= networkCount ? getOption(networkNameOption(index))->getString() : "";
+    return name.empty() ? "Network " + std::to_string(index) : name;
+}
+
+bool PPLAYConfig::load(const std::string &overridePath) {
+    std::string path = overridePath.empty() ? getPath() : overridePath;
+    std::ifstream in(path, std::ios::binary);
+    if (!in.is_open()) {
+        return importOld();
+    }
+    std::stringstream text;
+    text << in.rdbuf();
+    nlohmann::json root = nlohmann::json::parse(text.str(), nullptr, false);
+    if (root.is_discarded() || !root.is_object()) {
+        printf("PPLAYConfig::load: %s: not valid json\n", path.c_str());
+        return false;
+    }
+    for (auto &option: *getOptions()) {
+        const std::string &name = option.getName();
+        if (name == "VERSION" || isNetworkOption(name)) {
+            continue;
+        }
+        auto group = root.find(groupOf(name));
+        if (group != root.end() && group->is_object()) {
+            auto value = group->find(keyOf(name));
+            if (value != group->end()) {
+                setValue(&option, *value);
+            }
+        }
+    }
+    networkCount = 0;
+    auto networks = root.find("networks");
+    if (networks != root.end() && networks->is_object()) {
+        auto list = networks->find("list");
+        if (list != networks->end() && list->is_array()) {
+            for (auto &entry: *list) {
+                if (!entry.is_object()) {
+                    continue;
+                }
+                int index = addNetwork();
+                for (int s = 0; s < 6; s++) {
+                    auto value = entry.find(networkKeys[s]);
+                    if (value != entry.end() && value->is_string()) {
+                        getOption(networkOptionName(index, s))->setString(value->get<std::string>());
+                    }
+                }
+            }
+        }
+    }
+    return true;
+}
+
+bool PPLAYConfig::save() {
+    // in the menu order
+    nlohmann::ordered_json root = nlohmann::ordered_json::object();
+    root["version"] = getAppVersion();
+    for (auto &group: groups()) {
+        root[group.first] = nlohmann::ordered_json::object();
+        for (auto *name: group.second) {
+            config::Option *option = getOption(name);
+            if (option != nullptr) {
+                root[group.first][keyOf(name)] = valueOf(*option);
+            }
+        }
+    }
+    root["state"] = nlohmann::ordered_json::object();
+    nlohmann::ordered_json list = nlohmann::ordered_json::array();
+    for (int i = 1; i <= networkCount; i++) {
+        nlohmann::ordered_json entry = nlohmann::ordered_json::object();
+        for (int s: {2, 3, 0, 4, 5, 1}) {
+            entry[networkKeys[s]] = getOption(networkOptionName(i, s))->getString();
+        }
+        list.push_back(entry);
+    }
+    root["networks"]["list"] = list;
+    for (auto &option: *getOptions()) {
+        const std::string &name = option.getName();
+        if (name == "VERSION" || isNetworkOption(name) || groupOf(name) != "state") {
+            continue;
+        }
+        root["state"][keyOf(name)] = valueOf(option);
+    }
+
+    // written aside, then in place (not left half written)
+    std::string path = getPath(), temp = path + ".tmp";
+    {
+        std::ofstream out(temp, std::ios::binary | std::ios::trunc);
+        if (!out.is_open()) {
+            return false;
+        }
+        out << root.dump(2) << "\n";
+        if (!out.good()) {
+            return false;
+        }
+    }
+    if (std::rename(temp.c_str(), path.c_str()) != 0) {
+        std::remove(path.c_str());
+        return std::rename(temp.c_str(), path.c_str()) == 0;
+    }
+    return true;
+}
+
+// pplay.cfg (kept as it is for the older versions): the networks set apart, theirs only (with
+// an url), their users and passwords out of the urls
+bool PPLAYConfig::importOld() {
+    const int oldNetworks = 9;
+    std::string cfg = io->getDataPath() + "pplay.cfg";
+    if (!io->exist(cfg)) {
+        return false;
+    }
+    allocateNetworks(oldNetworks);
+    networkCount = oldNetworks;
+    if (!Config::load(cfg)) {
+        networkCount = 0;
+        for (int i = 1; i <= oldNetworks; i++) {
+            clearNetwork(i);
+        }
+        return false;
+    }
+    printf("PPLAYConfig::importOld: %s\n", cfg.c_str());
+    if (getConfigVersion() < 2) {
+#ifndef __LINUX__
+        std::string home = defaultHomePath();
+        getOption(OPT_HOME_PATH)->setString(home);
+        getOption(OPT_LAST_LOCAL_PATH)->setString(home);
+#endif
+    }
+    std::string lastModule = getOption(OPT_LAST_MODULE)->getString();
+    int lastNetwork = lastModule.rfind("NETWORK", 0) == 0 ? std::atoi(lastModule.c_str() + 7) : 0;
+    int kept = 0;
+    bool lastKept = lastNetwork == 0;
+    for (int i = 1; i <= oldNetworks; i++) {
+        std::string url = getOption(networkOption(i))->getString();
+        if (url.empty()) {
+            continue;
+        }
+        kept++;
+        if (kept != i) {
+            copyNetwork(i, kept);
+        }
+        if (lastNetwork == i) {
+            getOption(OPT_LAST_MODULE)->setString("NETWORK" + std::to_string(kept));
+            lastKept = true;
+        }
+        // the old default names: shown as such
+        if (getOption(networkNameOption(kept))->getString() == "Network " + std::to_string(i)) {
+            getOption(networkNameOption(kept))->setString("");
+        }
+        // no "Auto" type any more: the one its url gave
+        if (pplay::Io::parseNetworkType(getOption(networkTypeOption(kept))->getString()) == pplay::Io::NetworkType::Auto) {
+            std::string type = Utility::startWith(url, "smb://")   ? "Samba"
+                               : Utility::startWith(url, "ftp://") ? "FTP"
+                               : Utility::startWith(url, "http")   ? "HTTP"
+                                                                   : "TorrServe";
+            getOption(networkTypeOption(kept))->setString(type);
+        }
+        if (migrateTorrServeUrl(url)) {
+            getOption(networkOption(kept))->setString(url);
+            getOption(networkTypeOption(kept))->setString("TorrServe");
+            std::string last = getOption(networkLastOption(kept))->getString();
+            if (migrateTorrServeUrl(last)) {
+                getOption(networkLastOption(kept))->setString(last);
+            }
+        }
+        std::string user, password;
+        if (getOption(networkUserOption(kept))->getString().empty() && credentialsOfUrl(url, &user, &password)) {
+            getOption(networkUserOption(kept))->setString(user);
+            getOption(networkPasswordOption(kept))->setString(password);
+        }
+    }
+    for (int i = kept + 1; i <= oldNetworks; i++) {
+        clearNetwork(i);
+    }
+    networkCount = kept;
+    if (!lastKept) {
+        getOption(OPT_LAST_MODULE)->setString("LOCAL");
+    }
+    return true;
 }
 
 std::string PPLAYConfig::defaultHomePath() const {
@@ -226,18 +538,6 @@ std::string PPLAYConfig::defaultHomePath() const {
 #endif
 }
 
-void PPLAYConfig::migrate(int from) {
-    printf("PPLAYConfig::migrate: %i -> %i\n", from, getAppVersion());
-#ifndef __LINUX__
-    if (from < 2) {
-        std::string home = defaultHomePath();
-        getOption(OPT_HOME_PATH)->setString(home);
-        getOption(OPT_LAST_LOCAL_PATH)->setString(home);
-    }
-#endif
-    getOption("VERSION")->setInteger(getAppVersion());
-}
-
 bool PPLAYConfig::reload() {
     bool ok = load();
     sanitize();
@@ -254,42 +554,13 @@ void PPLAYConfig::sanitize() {
     if (!io->exist(getOption(OPT_LAST_LOCAL_PATH)->getString())) {
         getOption(OPT_LAST_LOCAL_PATH)->setString(getOption(OPT_HOME_PATH)->getString());
     }
-    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+    for (int i = 1; i <= networkCount; i++) {
         if (getOption(networkLastOption(i))->getString().empty()) {
             getOption(networkLastOption(i))->setString("/");
         }
-        if (getOption(networkNameOption(i))->getString().empty()) {
-            getOption(networkNameOption(i))->setString("Network " + std::to_string(i));
-        }
-        std::string url = getOption(networkOption(i))->getString();
-        // no "Auto" type any more: the one its url gave
         if (pplay::Io::parseNetworkType(getOption(networkTypeOption(i))->getString()) == pplay::Io::NetworkType::Auto) {
-            std::string type = c2d::Utility::startWith(url, "smb://")   ? "Samba"
-                               : c2d::Utility::startWith(url, "ftp://") ? "FTP"
-                               : c2d::Utility::startWith(url, "http")   ? "HTTP"
-                                                                        : "TorrServe";
-            getOption(networkTypeOption(i))->setString(type);
-        }
-        if (migrateTorrServeUrl(url)) {
-            getOption(networkOption(i))->setString(url);
             getOption(networkTypeOption(i))->setString("TorrServe");
-            std::string last = getOption(networkLastOption(i))->getString();
-            if (migrateTorrServeUrl(last)) {
-                getOption(networkLastOption(i))->setString(last);
-            }
         }
-    }
-    // the urls keep theirs (older versions), the options win
-    if (getOption(OPT_NETWORK_CREDENTIALS)->getInteger() == 0) {
-        for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
-            std::string user, password;
-            if (getOption(networkUserOption(i))->getString().empty()
-                && credentialsOfUrl(getOption(networkOption(i))->getString(), &user, &password)) {
-                getOption(networkUserOption(i))->setString(user);
-                getOption(networkPasswordOption(i))->setString(password);
-            }
-        }
-        getOption(OPT_NETWORK_CREDENTIALS)->setInteger(1);
     }
     if (getOption(OPT_LAST_MODULE)->getString().empty()) {
         getOption(OPT_LAST_MODULE)->setString("LOCAL");
@@ -297,16 +568,16 @@ void PPLAYConfig::sanitize() {
 
 #ifdef __SMB2__
     if (getOption(OPT_SMB_READ_BUFFER_MB)->getInteger() < 1) {
-        getOption(OPT_SMB_READ_BUFFER_MB)->setString("1");
+        getOption(OPT_SMB_READ_BUFFER_MB)->setInteger(1);
     } else if (getOption(OPT_SMB_READ_BUFFER_MB)->getInteger() > 100) {
-        getOption(OPT_SMB_READ_BUFFER_MB)->setString("100");
+        getOption(OPT_SMB_READ_BUFFER_MB)->setInteger(100);
     }
 #endif
 
     auto clamp = [this](const char *name, int min, int max) {
         int value = getOption(name)->getInteger();
         if (value < min || value > max) {
-            getOption(name)->setString(std::to_string(value < min ? min : max));
+            getOption(name)->setInteger(value < min ? min : max);
         }
     };
     clamp(OPT_CACHE_SECS, 10, 600);

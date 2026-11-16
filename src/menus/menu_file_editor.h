@@ -1,5 +1,5 @@
 //
-// Settings > Edit files: pplay.cfg and mpv files, edited with the system keyboard
+// Settings > Edit files: pplay_config.json and mpv files, edited with the system keyboard
 // (line by line).
 //
 

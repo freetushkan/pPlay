@@ -34,7 +34,25 @@ public:
 
     void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
 
+    // the networks changed: their menus, items, labels (force: their items made again, a move)
+    void updateNetworks(bool force = false);
+
+    // a network settings menu shown, that item selected
+    void showNetwork(int index, const std::string &select = "");
+
 private:
+
+    void addSubmenu(const std::string &name, const std::string &title, const std::string &optionName,
+                    const std::vector<MenuItem> &submenuItems,
+                    MenuMainOptionsSubmenu::ValueType valueType = MenuMainOptionsSubmenu::ValueType::String,
+                    MenuMainOptionsSubmenu::MenuType menuType = MenuMainOptionsSubmenu::MenuType::List,
+                    float minValue = 0.0f, float maxValue = 0.0f, float stepValue = 1.0f, const std::string &unit = "");
+
+    // the menus of a network (made once an index exists)
+    void addNetworkMenus(int index);
+
+    // Settings > Networks: the networks, "Add network", the network settings
+    std::vector<MenuItem> networkCategoryItems();
 
     bool onInput(c2d::Input::Player *players) override;
 
@@ -49,6 +67,10 @@ private:
     MenuFileEditor *fileEditor = nullptr;
     std::map<std::string, MenuMainOptionsSubmenu *> menuMainOptionsSubmenus;
     std::map<std::string, std::string> parents;
+    c2d::FloatRect wide;
+    std::vector<MenuItem> networkSettings;
+    int networkMenus = 0;
+    int networkItems = -1;
 };
 
 #endif //PPLAY_MENU_MAIN_H

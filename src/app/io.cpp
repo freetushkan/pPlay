@@ -224,7 +224,7 @@ int Io::findNetwork(const std::string &path, bool typedOnly) {
     const std::string target = comparableUrl(path);
     int best = -1;
     size_t bestLen = 0;
-    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+    for (int i = 1; i <= config->getNetworkCount(); i++) {
         const std::string network = config->getOption(PPLAYConfig::networkOption(i))->getString();
         if (network.empty()) {
             continue;

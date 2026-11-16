@@ -21,7 +21,7 @@ extern char **environ;
 #endif
 
 namespace {
-    const char *g_files[] = {"pplay.cfg", "mpv/mpv.conf", "mpv/input.conf"};
+    const char *g_files[] = {"pplay_config.json", "mpv/mpv.conf", "mpv/input.conf"};
 
     std::vector<std::string> splitLines(const std::string &text) {
         std::vector<std::string> out;
@@ -128,7 +128,7 @@ bool MenuFileEditor::save(const std::vector<std::string> &newLines) {
         return false;
     }
 
-    if (currentFile == "pplay.cfg") {
+    if (currentFile == "pplay_config.json") {
         if (!main->getConfig()->reload()) {
             // invalid: restore the previous file
             if (existed) {
@@ -246,7 +246,7 @@ void MenuFileEditor::onUpdate() {
     }
     // saved in the text editor
     externalTime = time;
-    if (externalFile == "pplay.cfg") {
+    if (externalFile == "pplay_config.json") {
         if (main->getConfig()->reload()) {
             main->applyConfig();
             main->getStatus()->show("Info", pplay::tr("Configuration applied"));

@@ -118,7 +118,7 @@ void Main::createFont() {
     font->setOffset({0, -4.0f});
 }
 
-void Main::createMenus() {
+std::vector<MenuItem> Main::moduleItems() {
     std::vector<MenuItem> items;
     items.emplace_back("Local", "home.png", MenuItem::Position::Top, -1);
 #ifdef __SWITCH__
@@ -126,16 +126,40 @@ void Main::createMenus() {
 #endif
     items.emplace_back("Saved", "saved.png", MenuItem::Position::Top, MODULE_SAVED);
     items.emplace_back("Playlists", "playlist.png", MenuItem::Position::Top, MODULE_PLAYLISTS);
-    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+    for (int i = 1; i <= config->getNetworkCount(); i++) {
         const bool active = !config->getOption(PPLAYConfig::networkOption(i))->getString().empty();
         // name: menu key, label: network name
         MenuItem item("Network " + std::to_string(i), pplay::MenuMainItems::networkIcon(config, i),
                       MenuItem::Position::Top, i, active, "", active);
-        item.label = config->getOption(PPLAYConfig::networkNameOption(i))->getString();
+        item.label = config->networkName(i);
         items.push_back(item);
     }
     items.emplace_back("Settings", "options.png", MenuItem::Position::Top);
     items.emplace_back("Exit", "exit.png", MenuItem::Position::Bottom);
+    return items;
+}
+
+void Main::renumberNetworks(const std::function<int(int)> &to) {
+    std::string last = config->getOption(OPT_LAST_MODULE)->getString();
+    if (last.rfind("NETWORK", 0) == 0) {
+        int index = to(std::atoi(last.c_str() + 7));
+        config->getOption(OPT_LAST_MODULE)->setString(index > 0 ? "NETWORK" + std::to_string(index) : "LOCAL");
+    }
+    if (currentModuleIndex > 0) {
+        int index = to(currentModuleIndex);
+        if (index > 0) {
+            currentModuleIndex = index;
+            // its number in the path bar
+            filer->refresh();
+        } else {
+            // its listing gone
+            show(MenuType::Local);
+        }
+    }
+}
+
+void Main::createMenus() {
+    std::vector<MenuItem> items = moduleItems();
     // the menus float off the screen edges, the same on both sides
     const float inset = 28 * scaling.y;
     menu_main = new MenuMain(this, {-300 * scaling.x, inset, 300 * scaling.x, Main::getSize().y - 2 * inset}, items);
@@ -215,7 +239,7 @@ void Main::applyConfig() {
     pplay::TorrServe::setSyncInterval(config->getOption(OPT_TS_VIEWED_SYNC)->getInteger());
     // a user, a password or the certificates check changed: the networks asked again now
     std::string access = std::to_string(config->getOption(OPT_TLS_VERIFY)->getInteger());
-    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+    for (int i = 1; i <= config->getNetworkCount(); i++) {
         access += "\n" + config->getOption(PPLAYConfig::networkUserOption(i))->getString() + "\n"
                   + config->getOption(PPLAYConfig::networkPasswordOption(i))->getString();
     }
@@ -227,6 +251,10 @@ void Main::applyConfig() {
         }
     }
     appliedAccess = access;
+    // (a file edited: added, removed)
+    if (menu_main != nullptr) {
+        menu_main->updateNetworks();
+    }
     static int hidden = -1;
     int showHidden = config->getOption(OPT_SHOW_HIDDEN)->getInteger()
                      + 2 * config->getOption(OPT_SHOW_ALL_FILES)->getInteger();

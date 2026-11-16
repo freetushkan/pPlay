@@ -10,15 +10,10 @@
 #include "cross2d/c2d.h"
 #include "cross2d/skeleton/config.h"
 
-// NETWORKx, NETWORKx_LAST, NETWORKx_NAME, NETWORKx_TYPE
-#define PPLAY_MAX_NETWORKS 9
-// 2: home moved to sdmc:/media/ (Switch), /data/media/ (PS4, PS5)
-#define PPLAY_CONFIG_VERSION 2
-#define OPT_NETWORK "NETWORK1"
-#define OPT_NETWORK1 "NETWORK1"
+// 2: home moved to sdmc:/media/ (Switch), /data/media/ (PS4, PS5); 3: pplay_config.json
+#define PPLAY_CONFIG_VERSION 3
 #define OPT_HOME_PATH "HOME_PATH"
 #define OPT_LAST_LOCAL_PATH "LAST_LOCAL_PATH"
-#define OPT_LAST_NETWORK_PATH "NETWORK1_LAST"
 #define OPT_LAST_MODULE "LAST_MODULE"
 #define OPT_NETWORK_TIMEOUT "NETWORK_TIMEOUT"
 // TLS verification (mpv, curl, probes)
@@ -74,7 +69,6 @@
 #define OPT_TEXT_ENCODING "TEXT_ENCODING"
 // playback position kept by TorrServer (its "track timecode" setting) read and sent
 #define OPT_TS_PROGRESS "TS_PROGRESS_SYNC"
-#define OPT_NETWORK_CREDENTIALS "NETWORK_CREDENTIALS"
 // thin progress line under the hidden panel (and on the minimized player)
 #define OPT_PROGRESS_LINE "PROGRESS_LINE"
 #define OPT_OSD_HIDE_TIME "OSD_HIDE_TIME"
@@ -132,11 +126,18 @@ namespace pplay {
     class Io;
 }
 
+// the settings in pplay_config.json, grouped as in the menu; the networks a list (their last
+// location in them). The options keep their names (NETWORKn_* for the networks, n from 1).
 class PPLAYConfig : public c2d::config::Config {
 
 public:
 
     explicit PPLAYConfig(pplay::Io *io, int version = PPLAY_CONFIG_VERSION);
+
+    // the file (pplay.cfg of an older version imported if none)
+    bool load(const std::string &overridePath = {}) override;
+
+    bool save() override;
 
     // re-read the file, false on a parse error
     bool reload();
@@ -148,17 +149,39 @@ public:
     static const char *networkUserOption(int index);
     static const char *networkPasswordOption(int index);
 
+    int getNetworkCount() const { return networkCount; }
+
+    // a new one at the end: its index
+    int addNetwork();
+
+    void removeNetwork(int index);
+
+    // with the next one (1) or the previous one (-1), false at an end
+    bool moveNetwork(int index, int direction);
+
+    // its name, "Network n" if none
+    std::string networkName(int index);
+
 private:
 
     // fix invalid values, apply the accent color
     void sanitize();
 
-    // one-time changes for a config saved by an older version
-    void migrate(int from);
+    // pplay.cfg of an older version: its options, its networks set
+    bool importOld();
+
+    // the options of the networks up to this one
+    void allocateNetworks(int count);
+
+    void clearNetwork(int index);
+
+    void copyNetwork(int from, int to);
 
     std::string defaultHomePath() const;
 
     pplay::Io *io;
+    int networkCount = 0;
+    int networkSlots = 0;
 };
 
 #endif //PPLAY_CONFIG_H

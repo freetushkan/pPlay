@@ -15,12 +15,12 @@
 using namespace c2d;
 using namespace pplay;
 
-static int parseNetworkModule(const std::string &module) {
+static int parseNetworkModule(const std::string &module, int networks) {
     if (module.rfind("NETWORK", 0) != 0) {
         return -1;
     }
     int index = std::atoi(module.substr(7).c_str());
-    return index >= 1 && index <= PPLAY_MAX_NETWORKS ? index : 1;
+    return index >= 1 && index <= networks ? index : -1;
 }
 
 static std::string networkModuleName(int index) {
@@ -28,7 +28,7 @@ static std::string networkModuleName(int index) {
 }
 
 void Main::showLast() {
-    setCurrentModuleIndex(parseNetworkModule(config->getOption(OPT_LAST_MODULE)->getString()));
+    setCurrentModuleIndex(parseNetworkModule(config->getOption(OPT_LAST_MODULE)->getString(), config->getNetworkCount()));
 #ifdef __SWITCH__
     if (config->getOption(OPT_LAST_MODULE)->getString() == "USB") {
         show(MenuType::Usb);
@@ -154,7 +154,7 @@ void Main::openLink(const std::string &url, const std::string &name) {
     if (currentModuleIndex > 0) {
         order.push_back(currentModuleIndex);
     }
-    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+    for (int i = 1; i <= config->getNetworkCount(); i++) {
         if (i != currentModuleIndex) {
             order.push_back(i);
         }
@@ -198,7 +198,7 @@ int Main::moduleOf(const std::string &path) {
     if (pplayIo->getDeviceType(path) == pplay::Io::DeviceType::Local) {
         return pplay::Saved::isInside(path) ? MODULE_SAVED : -1;
     }
-    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+    for (int i = 1; i <= config->getNetworkCount(); i++) {
         std::string network = config->getOption(PPLAYConfig::networkOption(i))->getString();
         if (!network.empty() && c2d::Utility::startWith(path, Paths::ensureTrailingSlash(network))) {
             return i;

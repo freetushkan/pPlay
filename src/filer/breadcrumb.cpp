@@ -60,7 +60,7 @@ std::vector<std::string> Breadcrumb::split(const std::string &path) const {
     std::string rest = path;
     std::string root = pplay::tr("Local");
     size_t best = 0;
-    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+    for (int i = 1; i <= main->getConfig()->getNetworkCount(); i++) {
         std::string url = main->getConfig()->getOption(PPLAYConfig::networkOption(i))->getString();
         while (!url.empty() && url.back() == '/') {
             url.pop_back();

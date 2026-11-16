@@ -81,19 +81,15 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Bumpers and triggers", "swap.png", Pos::Top),
 #endif
                           }});
-    std::vector<MenuItem> networks;
-    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
-        networks.emplace_back(networkKey(i), networkIcon(main->getConfig(), i), Pos::Top);
-    }
-    networks.emplace_back("Connection timeout", "timeout.png", Pos::Top);
-    networks.emplace_back("Certificate check", "tls.png", Pos::Top);
-    networks.emplace_back("TorrServer sync", "sync.png", Pos::Top);
-    networks.emplace_back("Buffer length", "buffer.png", Pos::Top);
-    networks.emplace_back("Buffer memory", "memory.png", Pos::Top);
+    networkSettings.emplace_back("Connection timeout", "timeout.png", Pos::Top);
+    networkSettings.emplace_back("Certificate check", "tls.png", Pos::Top);
+    networkSettings.emplace_back("TorrServer sync", "sync.png", Pos::Top);
+    networkSettings.emplace_back("Buffer length", "buffer.png", Pos::Top);
+    networkSettings.emplace_back("Buffer memory", "memory.png", Pos::Top);
 #ifdef __SMB2__
-    networks.emplace_back("SMB buffer", "net_smb.png", Pos::Top);
+    networkSettings.emplace_back("SMB buffer", "net_smb.png", Pos::Top);
 #endif
-    categories.push_back({"Networks", networks});
+    categories.push_back({"Networks", networkCategoryItems()});
     categories.push_back({"Saved files",
                           {
                                   MenuItem("Saving threads", "save_threads.png", Pos::Top),
@@ -136,28 +132,13 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
             item.value = "-";
         }
     }
-    const FloatRect wide = {-420 * main->getScaling().x, rect.top, 420 * main->getScaling().x, rect.height};
+    wide = {-420 * main->getScaling().x, rect.top, 420 * main->getScaling().x, rect.height};
 
     menuMainOptions = new MenuMainOptions(main, wide, it);
     // over the shade under the menus (see Main)
     menuMainOptions->setLayer(3);
     menuMainOptions->setVisibility(Visibility::Hidden, false);
     main->add(menuMainOptions);
-
-    auto addSubmenu = [&](const std::string &name, const std::string &title, const std::string &optionName,
-                          const std::vector<MenuItem> &submenuItems,
-                          Submenu::ValueType valueType = Submenu::ValueType::String,
-                          Submenu::MenuType menuType = Submenu::MenuType::List, float minValue = 0.0f,
-                          float maxValue = 0.0f, float stepValue = 1.0f, const std::string &unit = "") {
-        auto *submenu = new MenuMainOptionsSubmenu(main, wide, title, submenuItems, optionName, valueType, menuType,
-                                                   minValue, maxValue, stepValue, unit);
-        submenu->setLayer(3);
-        submenu->setVisibility(Visibility::Hidden, false);
-        submenu->setKey(name);
-        submenu->refresh();
-        main->add(submenu);
-        menuMainOptionsSubmenus[name] = submenu;
-    };
 
     // no submenus behind these items: A does nothing, the selection scrolls long texts
     addSubmenu("About", "About", "", makeAboutItems(main));
@@ -175,34 +156,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                    Submenu::MenuType::TextInput);
     };
 
-    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
-        const std::string name = networkKey(i);
-        addSubmenu(name, name, "",
-                   {MenuItem(name + " type", "", MenuItem::Position::Top),
-                    MenuItem(name + " name", "", MenuItem::Position::Top),
-                    MenuItem(name + " url", "", MenuItem::Position::Top),
-                    MenuItem(name + " user", "", MenuItem::Position::Top),
-                    MenuItem(name + " password", "", MenuItem::Position::Top),
-                    MenuItem(name + " search", "", MenuItem::Position::Top)},
-                   Submenu::ValueType::String);
-        parents[name + " name"] = name;
-        parents[name + " url"] = name;
-        parents[name + " type"] = name;
-        parents[name + " user"] = name;
-        parents[name + " password"] = name;
-        parents[name + " search"] = name;
-        // the servers found (DLNA, TorrServer, Samba): one picked sets the url (the items made when shown)
-        addSubmenu(name + " search", name + " search", PPLAYConfig::networkOption(i), {}, Submenu::ValueType::String);
-        addTextSubmenu(name + " name", name + " name", PPLAYConfig::networkNameOption(i));
-        addTextSubmenu(name + " url", name + " url", PPLAYConfig::networkOption(i));
-        addTextSubmenu(name + " user", name + " user", PPLAYConfig::networkUserOption(i));
-        addTextSubmenu(name + " password", name + " password", PPLAYConfig::networkPasswordOption(i));
-        std::vector<MenuItem> typeItems;
-        for (auto &typeName: pplay::Io::networkTypeNames()) {
-            typeItems.emplace_back(typeName, "", MenuItem::Position::Top);
-        }
-        addSubmenu(name + " type", name + " type", PPLAYConfig::networkTypeOption(i), typeItems,
-                   Submenu::ValueType::String);
+    for (int i = 1; i <= main->getConfig()->getNetworkCount(); i++) {
+        addNetworkMenus(i);
     }
     std::vector<MenuItem> languageItems;
     for (const auto &language: pplay::I18n::list()) {
@@ -356,11 +311,103 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     fileEditor->setVisibility(Visibility::Hidden, false);
     main->add(fileEditor);
 
+    networkItems = main->getConfig()->getNetworkCount();
     updateNetworkLabels();
 }
 
+void MenuMain::addSubmenu(const std::string &name, const std::string &title, const std::string &optionName,
+                          const std::vector<MenuItem> &submenuItems, Submenu::ValueType valueType,
+                          Submenu::MenuType menuType, float minValue, float maxValue, float stepValue,
+                          const std::string &unit) {
+    auto *submenu = new MenuMainOptionsSubmenu(main, wide, title, submenuItems, optionName, valueType, menuType,
+                                               minValue, maxValue, stepValue, unit);
+    submenu->setLayer(3);
+    submenu->setVisibility(Visibility::Hidden, false);
+    submenu->setKey(name);
+    submenu->refresh();
+    main->add(submenu);
+    menuMainOptionsSubmenus[name] = submenu;
+}
+
+void MenuMain::addNetworkMenus(int i) {
+    using Pos = MenuItem::Position;
+    if (i <= networkMenus) {
+        return;
+    }
+    networkMenus = i;
+    const std::string name = networkKey(i);
+    parents[name] = "Networks";
+    std::vector<MenuItem> items;
+    for (const char *suffix: {" type", " name", " url", " user", " password", " search", " up", " down", " delete"}) {
+        items.emplace_back(name + suffix, "", Pos::Top);
+        parents[name + suffix] = name;
+    }
+    addSubmenu(name, name, "", items, Submenu::ValueType::String);
+    // the servers found (DLNA, TorrServer, Samba): one picked sets the url (the items made when shown)
+    addSubmenu(name + " search", name + " search", PPLAYConfig::networkOption(i), {}, Submenu::ValueType::String);
+    auto addText = [&](const std::string &key, const char *option) {
+        addSubmenu(key, key, option, {MenuItem("", "", Pos::Top)}, Submenu::ValueType::String,
+                   Submenu::MenuType::TextInput);
+    };
+    addText(name + " name", PPLAYConfig::networkNameOption(i));
+    addText(name + " url", PPLAYConfig::networkOption(i));
+    addText(name + " user", PPLAYConfig::networkUserOption(i));
+    addText(name + " password", PPLAYConfig::networkPasswordOption(i));
+    std::vector<MenuItem> typeItems;
+    for (auto &typeName: pplay::Io::networkTypeNames()) {
+        typeItems.emplace_back(typeName, "", Pos::Top);
+    }
+    addSubmenu(name + " type", name + " type", PPLAYConfig::networkTypeOption(i), typeItems,
+               Submenu::ValueType::String);
+}
+
+std::vector<MenuItem> MenuMain::networkCategoryItems() {
+    std::vector<MenuItem> items;
+    for (int i = 1; i <= main->getConfig()->getNetworkCount(); i++) {
+        items.emplace_back(networkKey(i), networkIcon(main->getConfig(), i), MenuItem::Position::Top);
+    }
+    items.emplace_back("Add network", "network.png", MenuItem::Position::Top);
+    items.insert(items.end(), networkSettings.begin(), networkSettings.end());
+    for (auto &item: items) {
+        item.value = "-";
+        parents[item.name] = "Networks";
+    }
+    return items;
+}
+
+void MenuMain::updateNetworks(bool force) {
+    int count = main->getConfig()->getNetworkCount();
+    for (int i = networkMenus + 1; i <= count; i++) {
+        addNetworkMenus(i);
+    }
+    if (force || count != networkItems) {
+        networkItems = count;
+        auto category = menuMainOptionsSubmenus.find("Networks");
+        if (category != menuMainOptionsSubmenus.end()) {
+            MenuItem *selected = category->second->getSelection();
+            std::string name = selected != nullptr ? selected->name : "";
+            category->second->setItems(networkCategoryItems());
+            category->second->select(name);
+        }
+        setItems(main->moduleItems());
+    }
+    updateNetworkLabels();
+    reloadModules();
+}
+
+void MenuMain::showNetwork(int index, const std::string &select) {
+    MenuMainOptionsSubmenu *submenu = getMenuMainOptionsSubmenu(networkKey(index));
+    if (submenu == nullptr) {
+        return;
+    }
+    submenu->setVisibility(Visibility::Visible, true);
+    if (!select.empty()) {
+        submenu->select(select);
+    }
+}
+
 void MenuMain::updateNetworkLabels() {
-    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+    for (int i = 1; i <= main->getConfig()->getNetworkCount(); i++) {
         const std::string key = networkKey(i);
         const std::string name = main->getConfig()->getOption(PPLAYConfig::networkNameOption(i))->getString();
         const std::string url = main->getConfig()->getOption(PPLAYConfig::networkOption(i))->getString();
@@ -382,7 +429,7 @@ void MenuMain::updateNetworkLabels() {
             submenu->second->setTitle(label);
             for (auto *button: submenu->second->getButtons()) {
                 if (button->item.name == key + " name") {
-                    button->item.label = pplay::tr("Name") + ": " + name;
+                    button->item.label = pplay::tr("Name") + ": " + (name.empty() ? pplay::tr("<empty>") : name);
                 } else if (button->item.name == key + " url") {
                     button->item.label = pplay::tr("URL") + ": " + (url.empty() ? pplay::tr("<empty>") : url);
                 } else if (button->item.name == key + " type") {
@@ -395,6 +442,12 @@ void MenuMain::updateNetworkLabels() {
                     button->item.label = pplay::tr("Password") + ": " + (set ? "******" : pplay::tr("<empty>"));
                 } else if (button->item.name == key + " search") {
                     button->item.label = pplay::tr("Search servers");
+                } else if (button->item.name == key + " up") {
+                    button->item.label = pplay::tr("Move up");
+                } else if (button->item.name == key + " down") {
+                    button->item.label = pplay::tr("Move down");
+                } else if (button->item.name == key + " delete") {
+                    button->item.label = pplay::tr("Delete network");
                 }
                 button->refreshText();
             }
@@ -438,7 +491,7 @@ void MenuMain::reloadModules() {
         }
     }
     for (auto &button: buttons) {
-        if (button->item.id < 1 || button->item.id > PPLAY_MAX_NETWORKS) {
+        if (button->item.id < 1 || button->item.id > main->getConfig()->getNetworkCount()) {
             continue;
         }
 

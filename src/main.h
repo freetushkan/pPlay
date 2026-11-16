@@ -5,6 +5,7 @@
 #ifndef PPLAY_MAIN_H
 #define PPLAY_MAIN_H
 
+#include <functional>
 #include "cross2d/c2d.h"
 #include "filer.h"
 #include "player.h"
@@ -91,6 +92,12 @@ public:
     void showLast();
 
     void setCurrentModuleIndex(int index);
+
+    // the main menu items: the modules, the networks, the settings
+    std::vector<MenuItem> moduleItems();
+
+    // the networks numbered again (old index -> new one, 0: removed): the current one, the last one
+    void renumberNetworks(const std::function<int(int)> &to);
 
     int getcurrentModuleIndex();
 
