@@ -195,8 +195,6 @@ public:
     // a file loading (nothing shown yet); the OSD shown meanwhile on a key
     bool isLoading() { return !playbackStarted && !mpv->isStopped(); }
 
-    bool isLoadingOsd() const { return loadingOsd; }
-
     // the OSD layout before the playback tells: by the extension
     bool guessesAudio() const { return pplay::ExternalTracks::isAudio(file.name); }
 
@@ -464,7 +462,6 @@ private:
     std::string externalJobName;
     std::vector<pplay::ExternalTracks::Track> externalFound;
     bool endSleep = false;
-    bool loadingOsd = false;
     void updateScrub();
     bool scrubbing = false;
     bool scrubPending = false;

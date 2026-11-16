@@ -501,8 +501,8 @@ void PlayerOSD::onUpdate() {
 
     bool loading = player->isLoading();
     bool audio = player->getAudioScreen() != Player::AudioScreen::None || (loading && player->guessesAudio());
-    // shown once the file shows something, or on a key while loading
-    bool ready = !mpv->isStopped() && (audio || player->isPlaybackStarted() || (loading && player->isLoadingOsd()));
+    // shown from the file opening (its kind by the extension until it plays)
+    bool ready = !mpv->isStopped() && (audio || loading || player->isPlaybackStarted());
     bool active = player->isFullscreen() && ready;
     lineShown = ready && main->getConfig()->getOption(OPT_PROGRESS_LINE)->getInteger() != 0;
     if (!laidOut || audio != audioLayout) {

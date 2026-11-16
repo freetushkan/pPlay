@@ -45,13 +45,11 @@ bool Player::onInput(c2d::Input::Player *players) {
         return true;
     }
 
-    // loading: Back minimizes, other keys show the OSD
-    if (isFullscreen() && isLoading() && !menu && !mainMenu && !main->getFiler()->isVisible()) {
-        if ((keys & Input::B) && !osd->isExpanded()) {
-            setFullscreen(false);
-            return true;
-        }
-        loadingOsd = true;
+    // loading: Back minimizes
+    if (isFullscreen() && isLoading() && !menu && !mainMenu && !main->getFiler()->isVisible()
+        && (keys & Input::B) && !osd->isExpanded()) {
+        setFullscreen(false);
+        return true;
     }
 
     // minimized: the OSD keeps nothing
