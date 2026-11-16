@@ -84,6 +84,9 @@ NDK_TC="$NDK/build/cmake/android.toolchain.cmake"
 NDK_BIN="$(echo "$NDK"/toolchains/llvm/prebuilt/*/bin)"
 NDK_SYSROOT="$(echo "$NDK"/toolchains/llvm/prebuilt/*/sysroot)"
 
+# SMB (libsmb2 built in the project)
+[ -d "$ROOT/libsmb2" ] || git clone -q -b switch https://github.com/freetushkan/libsmb2.git "$ROOT/libsmb2"
+
 # <mpv-android arch>:<abi>:<triple>:<libcross2d toolchain name>
 ARCHS="arm64:arm64-v8a:aarch64-linux-android:aarch64 armv7l:armeabi-v7a:arm-linux-androideabi:armv7a"
 
@@ -157,7 +160,7 @@ TOOLCHAIN
 		cmake -S "$ROOT" -B "$build" -G "Unix Makefiles" \
 		-DCMAKE_TOOLCHAIN_FILE="/opt/pacbrew/android/cmake/android-$tc.cmake" \
 		-DPLATFORM_ANDROID=ON -DANDROID_ABI="$abi" \
-		-DOPTION_BUILTIN_LIBCONFIG=ON -DOPTION_SMB2=OFF \
+		-DOPTION_BUILTIN_LIBCONFIG=ON -DOPTION_SMB2=ON \
 		-DANDROID_ASSETS_PATH="$ROOT/android/app/src/main/assets" \
 		-DCMAKE_C_FLAGS="-isystem $prefix/include" -DCMAKE_CXX_FLAGS="-isystem $prefix/include" \
 		-DCMAKE_BUILD_TYPE=Release

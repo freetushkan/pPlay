@@ -463,13 +463,14 @@ jobs:
 
       - name: Configure pPlay
         run: |
+          git clone -b switch https://github.com/freetushkan/libsmb2.git
           rm -rf cmake-build
           mkdir -p cmake-build && cd cmake-build
           cmake -G "Unix Makefiles" \
             -DPLATFORM_LINUX=ON \
             -DOPTION_LINUX_STATIC=ON \
             -DLINUX_STATIC_PREFIX="$PPLAY_STATIC" \
-            -DOPTION_SMB2=OFF \
+            -DOPTION_SMB2=ON \
             -DCMAKE_BUILD_TYPE=Release ..
 
       - name: Build pPlay
