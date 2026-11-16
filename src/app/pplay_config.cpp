@@ -158,6 +158,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_TEXT_ENCODING, (int) 0});
     addOption({OPT_TS_PROGRESS, (int) 2});
     addOption({OPT_PROGRESS_LINE, (int) 1});
+    addOption({OPT_OSD_HIDE_TIME, (int) 4});
     addOption({OPT_FOLDER_MARKS, (int) 1});
     addOption({OPT_SHOW_SAVED, (int) 1});
     addOption({OPT_ANDROID_BACKGROUND, (int) 0});
@@ -321,6 +322,7 @@ void PPLAYConfig::sanitize() {
     clamp(OPT_PROGRESS_INTERVAL, 5, 120);
     clamp(OPT_SAVE_THREADS, 1, 4);
     clamp(OPT_STANDBY_TIME, -1, 1440);
+    clamp(OPT_OSD_HIDE_TIME, 0, 30);
     clamp(OPT_SLEEP_TIMER, -1, 1440);
     clamp(OPT_SAVE_KEEP_DAYS, 0, 3650);
     clamp(OPT_SAVE_MAX_GB, 0, 100000);

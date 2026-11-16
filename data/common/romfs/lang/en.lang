@@ -309,6 +309,8 @@ TorrServer first = TorrServer first
 # Progress
 Progress line = Progress line
 Progress line always on screen = Progress line always on screen
+Player panel = Player panel
+Player panel hidden after = Player panel hidden after
 Keep progress from = Keep progress from
 Keep progress of files from = Keep progress of files from duration
 Progress save interval = Progress save interval

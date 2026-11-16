@@ -309,6 +309,8 @@ TorrServer first = TorrServer
 # Progress
 Progress line = Линия прогресса
 Progress line always on screen = Линия прогресса всегда на экране
+Player panel = Панель плеера
+Player panel hidden after = Скрывать панель плеера через
 Keep progress from = Сохранять прогресс от
 Keep progress of files from = Сохранять прогресс файлов длительностью от
 Progress save interval = Интервал сохранения прогресса

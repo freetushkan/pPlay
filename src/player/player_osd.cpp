@@ -18,7 +18,7 @@
 
 using namespace c2d;
 
-// seconds without a key: full -> short look -> hidden (video)
+// seconds without a key: full (the setting) -> short look -> hidden (video)
 #define OSD_FULL_TIME 4.0f
 #define OSD_PEEK_TIME 3.0f
 
@@ -509,12 +509,14 @@ void PlayerOSD::onUpdate() {
         layout(audio);
     }
 
-    if (!ready) {
-        // (re)loading: keep the state and its timer
+    // 0: hidden by Back only
+    int fullTime = main->getConfig()->getOption(OPT_OSD_HIDE_TIME)->getInteger();
+    if (!ready || loading) {
+        // (re)loading: keep the state, its timer counted from the file start
         clock.restart();
     } else if (!mpv->isPaused()) {
         float elapsedTime = clock.getElapsedTime().asSeconds();
-        if (state == State::Full && elapsedTime >= OSD_FULL_TIME) {
+        if (state == State::Full && fullTime > 0 && elapsedTime >= (float) fullTime) {
             state = State::Peek;
             clock.restart();
         } else if (state == State::Peek && !audio && elapsedTime >= OSD_PEEK_TIME) {

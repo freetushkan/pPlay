@@ -77,6 +77,7 @@
 #define OPT_NETWORK_CREDENTIALS "NETWORK_CREDENTIALS"
 // thin progress line under the hidden panel (and on the minimized player)
 #define OPT_PROGRESS_LINE "PROGRESS_LINE"
+#define OPT_OSD_HIDE_TIME "OSD_HIDE_TIME"
 // progress kept for files from this length (minutes), saved every n seconds
 #define OPT_PROGRESS_MIN_LENGTH "PROGRESS_MIN_LENGTH"
 #define OPT_PROGRESS_INTERVAL "PROGRESS_INTERVAL"

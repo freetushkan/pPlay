@@ -76,6 +76,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Saved section", "saved.png", Pos::Top),
                                   MenuItem("Playlists section", "playlist.png", Pos::Top),
                                   MenuItem("Media information", "media_info.png", Pos::Top),
+                                  MenuItem("Player panel", "time.png", Pos::Top),
 #if !defined(__ANDROID__) && !defined(__LINUX__)
                                   MenuItem("Bumpers and triggers", "swap.png", Pos::Top),
 #endif
@@ -262,6 +263,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     getMenuMainOptionsSubmenu("End margin")->setZeroLabel("Off");
     addSubmenu("Progress line", "Progress line always on screen", OPT_PROGRESS_LINE,
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
+    addSubmenu("Player panel", "Player panel hidden after", OPT_OSD_HIDE_TIME, makeAdjustItems(),
+               Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 0.0f, 30.0f, 1.0f, "s");
+    getMenuMainOptionsSubmenu("Player panel")->setZeroLabel("Never");
     addSubmenu("Folder marks", "Folders watched in the list", OPT_FOLDER_MARKS,
                makeIntItems({{"Off", 0}, {"By marks", 1}, {"By progress", 2}}), Submenu::ValueType::Integer);
     addSubmenu("Audio language", "Audio language", OPT_AUDIO_LANGUAGE, makeTrackLanguageItems("Auto"),
