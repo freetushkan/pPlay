@@ -131,9 +131,8 @@ static bool unreachable(const std::string &path) {
 }
 
 void MediaProbe::request(const MediaFile &file) {
-    std::string url = pplay::Saved::openUrl(file.path);
-    // smb:// is opened by mpv only, playlists are text
-    if (!pplay::Utility::isMedia(file) || file.mediaInfo.known || c2d::Utility::startWith(url, "smb")
+    // playlists are text
+    if (!pplay::Utility::isMedia(file) || file.mediaInfo.known
         || c2d::Utility::endsWith(file.name, ".m3u", false) || c2d::Utility::endsWith(file.name, ".m3u8", false)
         || tried.count(file.path) > 0 || unreachable(file.path)) {
         pending = false;
@@ -147,8 +146,7 @@ void MediaProbe::request(const MediaFile &file) {
 }
 
 void MediaProbe::requestBackground(const MediaFile &file) {
-    std::string url = pplay::Saved::openUrl(file.path);
-    if (!pplay::Utility::isMedia(file) || file.mediaInfo.known || c2d::Utility::startWith(url, "smb")
+    if (!pplay::Utility::isMedia(file) || file.mediaInfo.known
         || c2d::Utility::endsWith(file.name, ".m3u", false) || c2d::Utility::endsWith(file.name, ".m3u8", false)
         || tried.count(file.path) > 0 || unreachable(file.path)) {
         return;

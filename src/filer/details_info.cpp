@@ -130,10 +130,9 @@ namespace {
         return out;
     }
 
-    // smb:// is opened by mpv only
     std::string coverOf(const MediaFile &file) {
         std::string url = pplay::Saved::openUrl(file.path);
-        if (!file.mediaInfo.hasCover() || c2d::Utility::startWith(url, "smb")) {
+        if (!file.mediaInfo.hasCover()) {
             return "";
         }
         return "embedded:" + url;

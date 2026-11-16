@@ -52,7 +52,7 @@ std::vector<std::string> Player::pictureUrlsOf(const MediaFile &f) {
     for (auto &video: f.mediaInfo.videos) {
         embedded |= video.albumart && !video.external;
     }
-    if (embedded && !Utility::startWith(url, "smb")) {
+    if (embedded) {
         urls.push_back(pplay::Cover::cacheUrl(url));
     }
     std::string folder = main->getFiler()->folderCoverOf(f.path);

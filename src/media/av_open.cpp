@@ -7,12 +7,18 @@
 #include "av_open.h"
 #include "utility.h"
 #include "io.h"
+#ifdef __SMB2__
+#include "smb.h"
+#endif
 
 namespace {
     using Clock = std::chrono::steady_clock;
 
     struct Deadline {
         Clock::time_point at;
+        // smb:// read by libsmb2 (no libavformat protocol)
+        void *smb = nullptr;
+        AVIOContext *io = nullptr;
     };
 
     // the whole open, whatever the server does
@@ -37,6 +43,83 @@ namespace {
         return options;
     }
 
+#ifdef __SMB2__
+    const int SMB_IO_SIZE = 256 * 1024;
+
+    struct SmbFile {
+        void *file;
+        int64_t size;
+        int64_t pos;
+    };
+
+    int smbRead(void *opaque, uint8_t *buffer, int size) {
+        auto *f = (SmbFile *) opaque;
+        int64_t res = pplay::Smb::readFile(f->file, (char *) buffer, (uint64_t) size);
+        if (res < 0) {
+            return AVERROR(EIO);
+        }
+        if (res == 0) {
+            return AVERROR_EOF;
+        }
+        f->pos += res;
+        return (int) res;
+    }
+
+    int64_t smbSeek(void *opaque, int64_t offset, int whence) {
+        auto *f = (SmbFile *) opaque;
+        whence &= ~AVSEEK_FORCE;
+        if (whence == AVSEEK_SIZE) {
+            return f->size;
+        }
+        int64_t to = whence == SEEK_CUR ? f->pos + offset : whence == SEEK_END ? f->size + offset : offset;
+        if (to < 0 || (whence == SEEK_END && f->size < 0) || !pplay::Smb::seekFile(f->file, to)) {
+            return AVERROR(EINVAL);
+        }
+        f->pos = to;
+        return to;
+    }
+
+    AVIOContext *smbOpen(const std::string &url, std::string *error) {
+        int64_t size = -1;
+        void *file = pplay::Smb::openFile(url, &size);
+        if (file == nullptr) {
+            *error = "SMB: can't open";
+            return nullptr;
+        }
+        auto *f = new SmbFile{file, size, 0};
+        auto *buffer = (unsigned char *) av_malloc(SMB_IO_SIZE);
+        AVIOContext *io = buffer != nullptr
+                                  ? avio_alloc_context(buffer, SMB_IO_SIZE, 0, f, smbRead, nullptr, smbSeek)
+                                  : nullptr;
+        if (io == nullptr) {
+            av_free(buffer);
+            pplay::Smb::closeFile(file);
+            delete f;
+            *error = "out of memory";
+        }
+        return io;
+    }
+
+    void smbClose(AVIOContext **io) {
+        if (*io == nullptr) {
+            return;
+        }
+        auto *f = (SmbFile *) (*io)->opaque;
+        pplay::Smb::closeFile(f->file);
+        delete f;
+        av_freep(&(*io)->buffer);
+        avio_context_free(io);
+    }
+#endif
+
+    bool isSmb(const std::string &url) {
+#ifdef __SMB2__
+        return url.compare(0, 6, "smb://") == 0;
+#else
+        return false;
+#endif
+    }
+
     std::string errorText(int res) {
         char text[128];
         av_strerror(res, text, sizeof(text));
@@ -52,6 +135,18 @@ AVFormatContext *pplay::AvOpen::open(const std::string &address, std::string *er
 
     AVFormatContext *ctx = avformat_alloc_context();
     ctx->interrupt_callback = {interrupted, deadline};
+#ifdef __SMB2__
+    if (isSmb(url)) {
+        deadline->io = smbOpen(url, error);
+        if (deadline->io == nullptr) {
+            avformat_free_context(ctx);
+            delete (deadline);
+            return nullptr;
+        }
+        ctx->pb = deadline->io;
+        ctx->flags |= AVFMT_FLAG_CUSTOM_IO;
+    }
+#endif
     AVDictionary *options = networkOptions(url);
     // the headers only (a few MB at most through the network)
     av_dict_set(&options, "probesize", "2000000", 0);
@@ -60,6 +155,9 @@ AVFormatContext *pplay::AvOpen::open(const std::string &address, std::string *er
     av_dict_free(&options);
     if (res < 0) {
         // the context freed by avformat_open_input()
+#ifdef __SMB2__
+        smbClose(&deadline->io);
+#endif
         delete (deadline);
         *error = errorText(res);
         return nullptr;
@@ -73,6 +171,9 @@ void pplay::AvOpen::close(AVFormatContext **ctx) {
     }
     auto *deadline = (Deadline *) (*ctx)->interrupt_callback.opaque;
     avformat_close_input(ctx);
+#ifdef __SMB2__
+    smbClose(&deadline->io);
+#endif
     delete (deadline);
 }
 
@@ -150,12 +251,23 @@ bool pplay::AvOpen::read(const std::string &address, size_t maxSize, std::string
     AVIOInterruptCB callback = {interrupted, &deadline};
 
     AVIOContext *io = nullptr;
-    AVDictionary *options = networkOptions(url);
-    int res = avio_open2(&io, url.c_str(), AVIO_FLAG_READ, &callback, &options);
-    av_dict_free(&options);
-    if (res < 0) {
-        *error = errorText(res);
-        return false;
+    int res = 0;
+#ifdef __SMB2__
+    if (isSmb(url)) {
+        io = smbOpen(url, error);
+        if (io == nullptr) {
+            return false;
+        }
+    }
+#endif
+    if (io == nullptr) {
+        AVDictionary *options = networkOptions(url);
+        res = avio_open2(&io, url.c_str(), AVIO_FLAG_READ, &callback, &options);
+        av_dict_free(&options);
+        if (res < 0) {
+            *error = errorText(res);
+            return false;
+        }
     }
     data->clear();
     unsigned char buffer[16384];
@@ -166,7 +278,14 @@ bool pplay::AvOpen::read(const std::string &address, size_t maxSize, std::string
             break;
         }
     }
-    avio_closep(&io);
+#ifdef __SMB2__
+    if (isSmb(url)) {
+        smbClose(&io);
+    }
+#endif
+    if (io != nullptr) {
+        avio_closep(&io);
+    }
     if (res < 0 && res != AVERROR_EOF) {
         *error = errorText(res);
         return false;
