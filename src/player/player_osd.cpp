@@ -619,6 +619,7 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
             case ButtonID::FrameStep:
                 // one frame on, paused there
                 mpv_command_string(mpv->getHandle(), "frame-step");
+                mpv->refresh();
                 setPaused(true);
                 break;
             case ButtonID::SeekForward:

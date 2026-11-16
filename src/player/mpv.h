@@ -5,9 +5,11 @@
 #ifndef PPLAY_MPV_H
 #define PPLAY_MPV_H
 
+#include <chrono>
 #include <cstdio>
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <mpv/client.h>
@@ -125,7 +127,11 @@ public:
 
     bool isAvailable();
 
+    // the next event (the watched properties kept, not returned)
     mpv_event *getEvent();
+
+    // the watched properties read again (after a command changing them)
+    void refresh();
 
     mpv_handle *getHandle();
 
@@ -161,6 +167,23 @@ public:
     void setSubPos(double pos);
 
 private:
+
+    // last values: watched ones updated by mpv events, the others while a save runs (the core
+    // busy: a read would wait for it)
+    struct Prop {
+        double value = 0;
+        bool ok = false;
+        bool known = false;
+        bool watched = false;
+        // (a stale one not used)
+        std::chrono::steady_clock::time_point read;
+    };
+    std::unordered_map<std::string, Prop> props;
+    bool saving = false;
+
+    void watchProperties();
+
+    bool read(const char *name, mpv_format format, double *value);
 
     static const std::vector<const char *> &qualityOptions();
 

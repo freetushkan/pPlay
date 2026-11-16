@@ -8,11 +8,85 @@
 #include "mpv.h"
 #include "utility.h"
 
+namespace {
+    const uint64_t WatchReply = 0x5741544348000000ULL;
+    const uint64_t SaveReply = 0x5341564500000000ULL;
+
+    // read every frame: sent by mpv on changes
+    const std::pair<const char *, mpv_format> watched[] = {
+            {"playback-abort", MPV_FORMAT_FLAG},
+            {"pause", MPV_FORMAT_FLAG},
+            {"paused-for-cache", MPV_FORMAT_FLAG},
+            {"seeking", MPV_FORMAT_FLAG},
+            {"playback-time", MPV_FORMAT_DOUBLE},
+            {"duration", MPV_FORMAT_DOUBLE},
+            {"speed", MPV_FORMAT_DOUBLE},
+            {"demuxer-cache-duration", MPV_FORMAT_DOUBLE},
+            {"cache-speed", MPV_FORMAT_INT64},
+            {"current-tracks/video/id", MPV_FORMAT_INT64},
+            {"current-tracks/video/albumart", MPV_FORMAT_FLAG},
+            {"frame-drop-count", MPV_FORMAT_INT64},
+            {"decoder-frame-drop-count", MPV_FORMAT_INT64},
+    };
+
+    double valueOf(mpv_format format, void *data) {
+        switch (format) {
+            case MPV_FORMAT_FLAG:
+                return *(int *) data;
+            case MPV_FORMAT_INT64:
+                return (double) *(int64_t *) data;
+            case MPV_FORMAT_DOUBLE:
+                return *(double *) data;
+            default:
+                return 0;
+        }
+    }
+}
+
+void Mpv::watchProperties() {
+    for (auto &p: watched) {
+        if (mpv_observe_property(handle, WatchReply, p.first, p.second) >= 0) {
+            props[p.first].watched = true;
+        }
+    }
+}
+
+void Mpv::refresh() {
+    for (auto &p: props) {
+        if (p.second.watched) {
+            p.second.known = false;
+        }
+    }
+}
+
+bool Mpv::read(const char *name, mpv_format format, double *value) {
+    Prop &p = props[name];
+    auto now = std::chrono::steady_clock::now();
+    if (p.known && (p.watched || (saving && now - p.read < std::chrono::seconds(1)))) {
+        *value = p.value;
+        return p.ok;
+    }
+    union {
+        int flag;
+        int64_t i;
+        double d;
+    } data {};
+    p.ok = isAvailable() && mpv_get_property(handle, name, format, &data) >= 0;
+    if (p.ok) {
+        p.value = valueOf(format, &data);
+    }
+    p.known = true;
+    p.read = now;
+    *value = p.value;
+    return p.ok;
+}
+
 int Mpv::save(bool wait) {
     int res;
     if (!wait) {
         const char *cmd[] = {"write-watch-later-config", nullptr};
-        res = mpv_command_async(handle, 0, cmd);
+        res = mpv_command_async(handle, SaveReply, cmd);
+        saving = res >= 0;
     } else {
         res = mpv_command_string(handle, "write-watch-later-config");
     }
@@ -22,15 +96,21 @@ int Mpv::save(bool wait) {
 }
 
 int Mpv::pause() {
-    return mpv_command_string(handle, "set pause yes");
+    int res = mpv_command_string(handle, "set pause yes");
+    refresh();
+    return res;
 }
 
 int Mpv::resume() {
-    return mpv_command_string(handle, "set pause no");
+    int res = mpv_command_string(handle, "set pause no");
+    refresh();
+    return res;
 }
 
 int Mpv::stop() {
-    return mpv_command_string(handle, "stop");
+    int res = mpv_command_string(handle, "stop");
+    refresh();
+    return res;
 }
 
 std::string Mpv::changeBrightness(double delta) {
@@ -66,20 +146,17 @@ int Mpv::restoreVolume() {
 }
 
 int Mpv::getOsdWidth() {
-    int64_t res = -1;
-    mpv_get_property(handle, "osd-width", MPV_FORMAT_INT64, &res);
-    return static_cast<int>(res);
+    return (int) getInt("osd-width", -1);
 }
 
 int Mpv::getOsdHeight() {
-    int64_t res = -1;
-    mpv_get_property(handle, "osd-height", MPV_FORMAT_INT64, &res);
-    return static_cast<int>(res);
+    return (int) getInt("osd-height", -1);
 }
 
 int Mpv::seek(double position) {
     std::string cmd = "no-osd seek " + std::to_string(position);
     int res = mpv_command_string(handle, cmd.c_str());
+    refresh();
     // paused: a hardware decoder gives the new frame only with more input (MediaCodec...), one
     // frame stepped to show it
     std::string hwdec = getString("hwdec-current");
@@ -92,15 +169,14 @@ int Mpv::seek(double position) {
 std::string Mpv::setSpeed(double speed) {
     std::string cmd = "no-osd set speed " + std::to_string(speed);
     mpv_command_string(handle, cmd.c_str());
+    refresh();
     double currentSpeed = getSpeed();
     lastSpeed = currentSpeed;
     return std::to_string((int) (currentSpeed * 100.0)) + "%";
 }
 
 double Mpv::getSpeed() {
-    double res = -1;
-    mpv_get_property(handle, "speed", MPV_FORMAT_DOUBLE, &res);
-    return res;
+    return getDouble("speed", -1);
 }
 
 int Mpv::restoreSpeed() {
@@ -143,30 +219,22 @@ int Mpv::setPlaylistPos(int id) {
 }
 
 int Mpv::getVid() {
-    int64_t vid = -1;
-    mpv_get_property(handle, "vid", MPV_FORMAT_INT64, &vid);
-    return (int) vid;
+    return (int) getInt("vid", -1);
 }
 
 int Mpv::getAid() {
     if (hasVisualizer()) {
         return visualAid;
     }
-    int64_t aid = -1;
-    mpv_get_property(handle, "aid", MPV_FORMAT_INT64, &aid);
-    return (int) aid;
+    return (int) getInt("aid", -1);
 }
 
 int Mpv::getSid() {
-    int64_t sid = -1;
-    mpv_get_property(handle, "sid", MPV_FORMAT_INT64, &sid);
-    return (int) sid;
+    return (int) getInt("sid", -1);
 }
 
 int Mpv::getPlaylistPos() {
-    int64_t pos = -1;
-    mpv_get_property(handle, "playlist-pos", MPV_FORMAT_INT64, &pos);
-    return (int) pos;
+    return (int) getInt("playlist-pos", -1);
 }
 
 std::string Mpv::getPlaylistCurrentTitle() {
@@ -207,30 +275,25 @@ std::vector<std::pair<int, std::string>> Mpv::getPlaylistItems() {
     return items;
 }
 
+// whole seconds as mpv gives them (truncated)
 long Mpv::getDuration() {
-    // int64_t: a long is 32 bits on armv7 (the stack overwritten)
-    int64_t duration = 0;
-    mpv_get_property(handle, "duration", MPV_FORMAT_INT64, &duration);
-    return (long) duration;
+    double duration = 0;
+    return read("duration", MPV_FORMAT_DOUBLE, &duration) ? (long) (int64_t) duration : 0;
 }
 
 long Mpv::getPosition() {
-    int64_t position = 0;
-    mpv_get_property(handle, "playback-time", MPV_FORMAT_INT64, &position);
-    return (long) position;
+    double position = 0;
+    return read("playback-time", MPV_FORMAT_DOUBLE, &position) ? (long) (int64_t) position : 0;
 }
 
 double Mpv::getTime() {
-    double time = -1;
-    if (mpv_get_property(handle, "playback-time", MPV_FORMAT_DOUBLE, &time) < 0) {
-        return -1;
-    }
-    return time;
+    return getDouble("playback-time", -1);
 }
 
 int Mpv::seekTo(double time, bool exact) {
     std::string cmd = "no-osd seek " + std::to_string(time) + (exact ? " absolute+exact" : " absolute+keyframes");
     int res = mpv_command_string(handle, cmd.c_str());
+    refresh();
     // paused: a hardware decoder gives the new frame only with more input, one frame stepped
     std::string hwdec = getString("hwdec-current");
     if (res >= 0 && isPaused() && !hwdec.empty() && hwdec != "no") {
@@ -240,47 +303,33 @@ int Mpv::seekTo(double time, bool exact) {
 }
 
 bool Mpv::isSeeking() {
-    int res = 0;
-    mpv_get_property(handle, "seeking", MPV_FORMAT_FLAG, &res);
-    return res == 1;
+    double res = 0;
+    return read("seeking", MPV_FORMAT_FLAG, &res) && res != 0;
 }
 
 bool Mpv::isPausedForCache() {
-    int res = 0;
-    mpv_get_property(handle, "paused-for-cache", MPV_FORMAT_FLAG, &res);
-    return res == 1;
+    double res = 0;
+    return read("paused-for-cache", MPV_FORMAT_FLAG, &res) && res != 0;
 }
 
 long Mpv::getCacheSpeed() {
-    int64_t speed = 0;
-    mpv_get_property(handle, "cache-speed", MPV_FORMAT_INT64, &speed);
-    return (long) speed;
+    return getInt("cache-speed", 0);
 }
 
 double Mpv::getCacheDuration() {
-    double duration = -1;
-    if (mpv_get_property(handle, "demuxer-cache-duration", MPV_FORMAT_DOUBLE, &duration) < 0) {
-        return -1;
-    }
-    return duration;
+    return getDouble("demuxer-cache-duration", -1);
 }
 
 long Mpv::getFrameNumber() {
-    int64_t frame = -1;
-    if (mpv_get_property(handle, "estimated-frame-number", MPV_FORMAT_INT64, &frame) < 0) {
-        return -1;
-    }
-    return (long) frame;
+    return getInt("estimated-frame-number", -1);
 }
 
 bool Mpv::hasMovingVideo() {
-    int64_t id = -1;
-    if (mpv_get_property(handle, "current-tracks/video/id", MPV_FORMAT_INT64, &id) < 0) {
+    double id = -1, albumArt = 0;
+    if (!read("current-tracks/video/id", MPV_FORMAT_INT64, &id)) {
         return false;
     }
-    int albumArt = 0;
-    mpv_get_property(handle, "current-tracks/video/albumart", MPV_FORMAT_FLAG, &albumArt);
-    return albumArt == 0;
+    return !read("current-tracks/video/albumart", MPV_FORMAT_FLAG, &albumArt) || albumArt == 0;
 }
 
 bool Mpv::isAvailable() {
@@ -288,19 +337,50 @@ bool Mpv::isAvailable() {
 }
 
 bool Mpv::isStopped() {
-    int res = 1;
-    mpv_get_property(handle, "playback-abort", MPV_FORMAT_FLAG, &res);
-    return res == 1;
+    double res = 1;
+    return !read("playback-abort", MPV_FORMAT_FLAG, &res) || res != 0;
 }
 
 bool Mpv::isPaused() {
-    int res = -1;
-    mpv_get_property(handle, "pause", MPV_FORMAT_FLAG, &res);
-    return res == 1;
+    double res = 0;
+    return read("pause", MPV_FORMAT_FLAG, &res) && res != 0;
 }
 
 mpv_event *Mpv::getEvent() {
-    return mpv_wait_event(handle, 0);
+    while (true) {
+        mpv_event *event = mpv_wait_event(handle, 0);
+        if (event->event_id == MPV_EVENT_PROPERTY_CHANGE && event->reply_userdata == WatchReply) {
+            auto *change = (mpv_event_property *) event->data;
+            Prop &p = props[change->name];
+            p.ok = change->format != MPV_FORMAT_NONE && change->data != nullptr;
+            if (p.ok) {
+                p.value = valueOf(change->format, change->data);
+            }
+            p.known = true;
+            continue;
+        }
+        switch (event->event_id) {
+            case MPV_EVENT_COMMAND_REPLY:
+                if (event->reply_userdata == SaveReply) {
+                    saving = false;
+                }
+                break;
+            // a new state: read once (the changes may come after it)
+            case MPV_EVENT_START_FILE:
+            case MPV_EVENT_FILE_LOADED:
+            case MPV_EVENT_END_FILE:
+            case MPV_EVENT_IDLE:
+            case MPV_EVENT_SEEK:
+            case MPV_EVENT_PLAYBACK_RESTART:
+            case MPV_EVENT_VIDEO_RECONFIG:
+            case MPV_EVENT_AUDIO_RECONFIG:
+                refresh();
+                break;
+            default:
+                break;
+        }
+        return event;
+    }
 }
 
 mpv_handle *Mpv::getHandle() {
@@ -323,18 +403,13 @@ std::string Mpv::getString(const char *name) {
 
 double Mpv::getDouble(const char *name, double fallback) {
     double value = fallback;
-    if (!isAvailable() || mpv_get_property(handle, name, MPV_FORMAT_DOUBLE, &value) < 0) {
-        return fallback;
-    }
-    return value;
+    return read(name, MPV_FORMAT_DOUBLE, &value) ? value : fallback;
 }
 
 long Mpv::getInt(const char *name, long fallback) {
-    int64_t value = fallback;
-    if (!isAvailable() || mpv_get_property(handle, name, MPV_FORMAT_INT64, &value) < 0) {
-        return fallback;
-    }
-    return (long) value;
+    double value = (double) fallback;
+    // int64_t: a long is 32 bits on armv7
+    return read(name, MPV_FORMAT_INT64, &value) ? (long) (int64_t) value : fallback;
 }
 
 std::vector<Mpv::TrackEntry> Mpv::getTrackList() {

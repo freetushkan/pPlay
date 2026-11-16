@@ -143,6 +143,8 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     // a saved copy opened in place of its network file (see Player::onMpvEvent)
     mpv_hook_add(handle, 0, "on_load", 0);
 
+    watchProperties();
+
     // pPlay sets these itself (audio filter, volume, speed): not per file
     for (const char *name: {"af", "volume", "speed"}) {
         const char *cmd[] = {"change-list", "watch-later-options", "remove", name, nullptr};
@@ -235,7 +237,9 @@ int Mpv::load(const std::string &file, LoadType loadType, const std::string &fil
 #else
         const char *cmd[] = {"loadfile", file.c_str(), type.c_str(), "-1", options.c_str(), nullptr};
 #endif
-        return mpv_command(handle, cmd);
+        int res = mpv_command(handle, cmd);
+        refresh();
+        return res;
     }
 
     return -1;
