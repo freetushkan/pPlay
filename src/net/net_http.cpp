@@ -11,6 +11,13 @@
 
 #include <curl/curl.h>
 
+// curl with mbedTLS: its certificates parsed once (see setCertificates)
+#if defined(__ANDROID__) && __has_include(<mbedtls/ssl.h>)
+#define PPLAY_CERTIFICATES_ONCE
+#include <mbedtls/ssl.h>
+#include <mbedtls/x509_crt.h>
+#endif
+
 #include "net_http.h"
 #include "io.h"
 #include "utility.h"
@@ -90,6 +97,39 @@ namespace {
     void shareUnlock(CURL *, curl_lock_data data, void *) {
         g_shareLocks[data].unlock();
     }
+
+#ifdef PPLAY_CERTIFICATES_ONCE
+    // curl (mbedTLS) parses the certificates file on each new connection: 200 KB, a long
+    // while on a weak CPU. Parsed once here, given to each connection.
+    mbedtls_x509_crt g_certificates;
+    bool g_certificatesLoaded = false;
+
+    bool certificatesLoaded() {
+        static std::once_flag once;
+        std::call_once(once, [] {
+            const curl_version_info_data *info = curl_version_info(CURLVERSION_NOW);
+            if (info == nullptr || info->ssl_version == nullptr || strncmp(info->ssl_version, "mbedTLS", 7) != 0) {
+                return;
+            }
+            std::string path = Utility::getCertificatesPath();
+            mbedtls_x509_crt_init(&g_certificates);
+            int res = path.empty() ? -1 : mbedtls_x509_crt_parse_file(&g_certificates, path.c_str());
+            // >= 0: some parsed (the count of the others)
+            g_certificatesLoaded = res >= 0;
+            if (!g_certificatesLoaded) {
+                mbedtls_x509_crt_free(&g_certificates);
+            }
+            Utility::log(Utility::LogLevel::Info, std::string("Http: certificates ")
+                                                          + (g_certificatesLoaded ? "parsed once" : "not parsed"));
+        });
+        return g_certificatesLoaded;
+    }
+
+    CURLcode setCertificates(CURL *, void *config, void *) {
+        mbedtls_ssl_conf_ca_chain((mbedtls_ssl_config *) config, &g_certificates, nullptr);
+        return CURLE_OK;
+    }
+#endif
 }
 
 void Http::init() {
@@ -150,14 +190,26 @@ Http::Response Http::perform(const Request &request) {
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
     }
+    bool parsed = false;
+#ifdef PPLAY_CERTIFICATES_ONCE
+    parsed = certificatesLoaded() && curl_easy_setopt(curl, CURLOPT_SSL_CTX_FUNCTION, setCertificates) == CURLE_OK;
+    if (parsed) {
+        // (no file read by curl)
+        curl_easy_setopt(curl, CURLOPT_CAINFO, nullptr);
+        curl_easy_setopt(curl, CURLOPT_CAPATH, nullptr);
+    }
+#endif
 #if defined(__PS4__) || defined(__PS5__) || defined(__ANDROID__)
-    curl_easy_setopt(curl, CURLOPT_CAINFO, Utility::getCertificatesPath().c_str());
+    if (!parsed) {
+        curl_easy_setopt(curl, CURLOPT_CAINFO, Utility::getCertificatesPath().c_str());
+    }
 #elif defined(__LINUX__)
     std::string certificates = Utility::getCertificatesPath();
-    if (!certificates.empty()) {
+    if (!parsed && !certificates.empty()) {
         curl_easy_setopt(curl, CURLOPT_CAINFO, certificates.c_str());
     }
 #endif
+    (void) parsed;
 
     struct curl_slist *headers = nullptr;
     for (auto &h: request.headers) {
