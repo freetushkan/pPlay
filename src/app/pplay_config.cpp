@@ -20,14 +20,19 @@
 using namespace c2d;
 
 namespace {
-    const char *networkSuffixes[] = {"", "_LAST", "_NAME", "_TYPE", "_USER", "_PASSWORD"};
+    const char *networkSuffixes[] = {"",         "_LAST",       "_NAME", "_TYPE",      "_USER",
+                                     "_PASSWORD", "_TIMEOUT", "_TLS_VERIFY", "_SYNC", "_SMB_BUFFER"};
+    const int NETWORK_FIELDS = 10;
+    // integers from this one
+    const int NETWORK_INTS = 6;
 
     // the json keys of a network
-    const char *networkKeys[] = {"url", "last", "name", "type", "user", "password"};
+    const char *networkKeys[] = {"url",      "last",    "name",       "type", "user",
+                                 "password", "timeout", "tls_verify", "sync", "smb_buffer"};
 
     // names kept for the program life: pointers given out (a deque does not move them)
     const char *networkOptionName(int index, int suffix) {
-        static std::deque<std::string> names[6];
+        static std::deque<std::string> names[NETWORK_FIELDS];
         index = std::max(1, index);
         while ((int) names[suffix].size() < index) {
             names[suffix].push_back("NETWORK" + std::to_string(names[suffix].size() + 1) + networkSuffixes[suffix]);
@@ -139,6 +144,22 @@ const char *PPLAYConfig::networkUserOption(int index) {
 
 const char *PPLAYConfig::networkPasswordOption(int index) {
     return networkOptionName(index, 5);
+}
+
+const char *PPLAYConfig::networkTimeoutOption(int index) {
+    return networkOptionName(index, 6);
+}
+
+const char *PPLAYConfig::networkTlsOption(int index) {
+    return networkOptionName(index, 7);
+}
+
+const char *PPLAYConfig::networkSyncOption(int index) {
+    return networkOptionName(index, 8);
+}
+
+const char *PPLAYConfig::networkSmbBufferOption(int index) {
+    return networkOptionName(index, 9);
 }
 
 // the user and password of an url (scheme://user[:password]@host...): smb "domain.user" as "domain\user"
@@ -278,6 +299,8 @@ static bool migrateTorrServeUrl(std::string &url) {
 
 PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     : Config("PPLAY", _io->getDataPath() + "pplay_config.json", version), io(_io) {
+    // the options not moved (read by other threads) while networks are added
+    getOptions()->reserve(2048);
 
     std::string homePath = defaultHomePath();
     addOption({OPT_HOME_PATH, homePath});
@@ -379,7 +402,20 @@ void PPLAYConfig::allocateNetworks(int count) {
         addOption({networkTypeOption(networkSlots), "TorrServe"}); // TorrServe, Samba, FTP, HTTP, WebDAV, DLNA
         addOption({networkUserOption(networkSlots), ""});
         addOption({networkPasswordOption(networkSlots), ""});
+        for (int s = NETWORK_INTS; s < NETWORK_FIELDS; s++) {
+            addOption({networkOptionName(networkSlots, s), (int) 0});
+        }
     }
+}
+
+// new networks: the settings of the older versions (one for all), else their defaults
+int PPLAYConfig::networkDefault(int field) {
+    const char *global = field == 6   ? OPT_NETWORK_TIMEOUT
+                         : field == 7 ? OPT_TLS_VERIFY
+                         : field == 8 ? OPT_TS_VIEWED_SYNC
+                                      : "SMB_READ_BUFFER_MB";
+    config::Option *option = getOption(global);
+    return option != nullptr ? option->getInteger() : field == 6 ? 15 : field == 7 ? 1 : field == 8 ? 30 : 10;
 }
 
 void PPLAYConfig::clearNetwork(int index) {
@@ -389,11 +425,19 @@ void PPLAYConfig::clearNetwork(int index) {
     getOption(networkTypeOption(index))->setString("TorrServe");
     getOption(networkUserOption(index))->setString("");
     getOption(networkPasswordOption(index))->setString("");
+    for (int s = NETWORK_INTS; s < NETWORK_FIELDS; s++) {
+        getOption(networkOptionName(index, s))->setInteger(networkDefault(s));
+    }
 }
 
 void PPLAYConfig::copyNetwork(int from, int to) {
-    for (int s = 0; s < 6; s++) {
-        getOption(networkOptionName(to, s))->setString(getOption(networkOptionName(from, s))->getString());
+    for (int s = 0; s < NETWORK_FIELDS; s++) {
+        config::Option *source = getOption(networkOptionName(from, s)), *target = getOption(networkOptionName(to, s));
+        if (s < NETWORK_INTS) {
+            target->setString(source->getString());
+        } else {
+            target->setInteger(source->getInteger());
+        }
     }
 }
 
@@ -470,10 +514,10 @@ bool PPLAYConfig::load(const std::string &overridePath) {
                     continue;
                 }
                 int index = addNetwork();
-                for (int s = 0; s < 6; s++) {
+                for (int s = 0; s < NETWORK_FIELDS; s++) {
                     auto value = entry.find(networkKeys[s]);
-                    if (value != entry.end() && value->is_string()) {
-                        getOption(networkOptionName(index, s))->setString(value->get<std::string>());
+                    if (value != entry.end()) {
+                        setValue(getOption(networkOptionName(index, s)), *value);
                     }
                 }
                 // typed in the file: theirs over the options
@@ -492,7 +536,11 @@ bool PPLAYConfig::save() {
         root[group.first] = nlohmann::ordered_json::object();
         for (auto *name: group.second) {
             config::Option *option = getOption(name);
-            if (option != nullptr) {
+            // (now per network: read from an older file only)
+            bool perNetwork = std::strcmp(name, OPT_NETWORK_TIMEOUT) == 0 || std::strcmp(name, OPT_TLS_VERIFY) == 0
+                              || std::strcmp(name, OPT_TS_VIEWED_SYNC) == 0
+                              || std::strcmp(name, "SMB_READ_BUFFER_MB") == 0;
+            if (option != nullptr && !perNetwork) {
                 root[group.first][keyOf(name)] = valueOf(*option);
             }
         }
@@ -501,10 +549,14 @@ bool PPLAYConfig::save() {
     nlohmann::ordered_json list = nlohmann::ordered_json::array();
     for (int i = 1; i <= networkCount; i++) {
         nlohmann::ordered_json entry = nlohmann::ordered_json::object();
-        for (int s: {2, 3, 0, 4, 5, 1}) {
-            std::string value = getOption(networkOptionName(i, s))->getString();
-            // (the user and password apart)
-            entry[networkKeys[s]] = s <= 1 ? withoutCredentials(value) : value;
+        for (int s: {2, 3, 0, 4, 5, 6, 7, 8, 9, 1}) {
+            config::Option *option = getOption(networkOptionName(i, s));
+            if (s >= NETWORK_INTS) {
+                entry[networkKeys[s]] = option->getInteger();
+            } else {
+                // (the user and password apart)
+                entry[networkKeys[s]] = s <= 1 ? withoutCredentials(option->getString()) : option->getString();
+            }
         }
         list.push_back(entry);
     }
@@ -606,6 +658,9 @@ bool PPLAYConfig::importOld() {
     }
     for (int i = 1; i <= kept; i++) {
         updateNetworkCredentials(i);
+        for (int s = NETWORK_INTS; s < NETWORK_FIELDS; s++) {
+            getOption(networkOptionName(i, s))->setInteger(networkDefault(s));
+        }
     }
     for (int i = kept + 1; i <= oldNetworks; i++) {
         clearNetwork(i);
@@ -664,6 +719,14 @@ void PPLAYConfig::sanitize() {
         if (pplay::Io::parseNetworkType(getOption(networkTypeOption(i))->getString()) == pplay::Io::NetworkType::Auto) {
             getOption(networkTypeOption(i))->setString("TorrServe");
         }
+        auto clampNetwork = [this](const char *name, int min, int max) {
+            int value = getOption(name)->getInteger();
+            getOption(name)->setInteger(std::max(min, std::min(max, value)));
+        };
+        clampNetwork(networkTimeoutOption(i), 1, 300);
+        clampNetwork(networkTlsOption(i), 0, 1);
+        clampNetwork(networkSyncOption(i), 10, 600);
+        clampNetwork(networkSmbBufferOption(i), 1, 100);
     }
     if (getOption(OPT_LAST_MODULE)->getString().empty()) {
         getOption(OPT_LAST_MODULE)->setString("LOCAL");

@@ -149,7 +149,9 @@ namespace {
 
     // ok: answered (an empty list too)
     // the torrents list and the viewed marks asked again after (s, the setting)
-    std::atomic<int> g_syncSecs{30};
+    int syncSecs(const std::string &root) {
+        return pplay::Io::get() != nullptr ? std::max(10, pplay::Io::get()->networkSync(root)) : 30;
+    }
 
     void storeTorrentsList(const std::string &root, const std::string &response);
 
@@ -287,10 +289,10 @@ namespace {
         std::lock_guard<std::mutex> lock(g_cacheMutex);
         auto failure = g_torrentsFailedAt.find(root);
         // unreachable: asked again in a sync interval (its kept list used meanwhile)
-        int retry = g_unreachable.count(root) > 0 ? g_syncSecs.load() : FailedRetrySecs;
+        int retry = g_unreachable.count(root) > 0 ? syncSecs(root) : FailedRetrySecs;
         *failed = failure != g_torrentsFailedAt.end() && now - failure->second < std::chrono::seconds(retry);
         auto at = g_torrentsAt.find(root);
-        if (at == g_torrentsAt.end() || now - at->second >= std::chrono::seconds(g_syncSecs.load())) {
+        if (at == g_torrentsAt.end() || now - at->second >= std::chrono::seconds(syncSecs(root))) {
             return false;
         }
         *torrents = g_torrentsCache[root];
@@ -613,7 +615,7 @@ namespace {
             std::lock_guard<std::mutex> lock(g_cacheMutex);
             auto failed = g_viewedFailedAt.find(root);
             skip = g_unreachable.count(root) > 0 && failed != g_viewedFailedAt.end()
-                   && std::chrono::steady_clock::now() - failed->second < std::chrono::seconds(g_syncSecs.load());
+                   && std::chrono::steady_clock::now() - failed->second < std::chrono::seconds(syncSecs(root));
         }
         nlohmann::json response;
         if (!skip) {
@@ -706,7 +708,7 @@ namespace {
                 {
                     std::lock_guard<std::mutex> lock(g_viewedMutex);
                     auto it = g_viewed.find(job.root + "|" + job.hash);
-                    fresh = it != g_viewed.end() && difftime(time(nullptr), it->second.updated) < g_syncSecs;
+                    fresh = it != g_viewed.end() && difftime(time(nullptr), it->second.updated) < syncSecs(job.root);
                     if (fresh) {
                         g_viewedPending.erase(job.root + "|" + job.hash);
                     }
@@ -759,7 +761,7 @@ namespace {
                 return it != g_viewed.end() ? it->second.files : files;
             }
             bool found = it != g_viewed.end();
-            if (found && difftime(time(nullptr), it->second.updated) < g_syncSecs) {
+            if (found && difftime(time(nullptr), it->second.updated) < syncSecs(root)) {
                 return it->second.files;
             }
             if (found) {
@@ -993,10 +995,6 @@ namespace pplay::TorrServe {
 
     void saveViewedCache() {
         saveViewed();
-    }
-
-    void setSyncInterval(int seconds) {
-        g_syncSecs = std::max(10, seconds);
     }
 
     void forgetFailures() {

@@ -538,16 +538,6 @@ bool Utility::isNearEnd(double position, double duration) {
     return tolerance > 0 && duration > 0 && position > 0 && duration - position <= tolerance;
 }
 
-static std::atomic<bool> g_tlsVerify{true};
-
-bool Utility::isTlsVerify() {
-    return g_tlsVerify;
-}
-
-void Utility::setTlsVerify(bool verify) {
-    g_tlsVerify = verify;
-}
-
 #if defined(__SWITCH__)
 // the system store exported as PEM once per run
 std::string Utility::getCertificatesPath() {

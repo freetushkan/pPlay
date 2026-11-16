@@ -82,14 +82,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Bumpers and triggers", "swap.png", Pos::Top),
 #endif
                           }});
-    networkSettings.emplace_back("Connection timeout", "timeout.png", Pos::Top);
-    networkSettings.emplace_back("Certificate check", "tls.png", Pos::Top);
-    networkSettings.emplace_back("TorrServer sync", "sync.png", Pos::Top);
     networkSettings.emplace_back("Buffer length", "buffer.png", Pos::Top);
     networkSettings.emplace_back("Buffer memory", "memory.png", Pos::Top);
-#ifdef __SMB2__
-    networkSettings.emplace_back("SMB buffer", "net_smb.png", Pos::Top);
-#endif
     categories.push_back({"Networks", networkCategoryItems()});
     categories.push_back({"Saved files",
                           {
@@ -189,20 +183,10 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                {MenuItem("Disabled", "", MenuItem::Position::Top), MenuItem("Enabled", "", MenuItem::Position::Top)});
 #endif
 
-    addSubmenu("Connection timeout", "Connection timeout", OPT_NETWORK_TIMEOUT, makeAdjustItems(),
-               Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 300.0f, 5.0f, "s");
-    addSubmenu("Certificate check", "TLS certificates checked (HTTPS)", OPT_TLS_VERIFY,
-               makeIntItems({{"On", 1}, {"Off", 0}}), Submenu::ValueType::Integer);
-    addSubmenu("TorrServer sync", "Torrents and watched marks refreshed every", OPT_TS_VIEWED_SYNC,
-               makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 10.0f, 600.0f, 10.0f, "s");
     addSubmenu("Progress source", "Preferred progress source", OPT_TS_PROGRESS,
                makeIntItems({{"Off", 0}, {"Local first", 1}, {"TorrServer first", 2}}), Submenu::ValueType::Integer);
     addSubmenu("Playback retry", "Playback retry", OPT_NETWORK_RETRIES, makeAdjustItems(), Submenu::ValueType::Integer,
                Submenu::MenuType::Adjust, 0.0f, 10.0f, 1.0f);
-#ifdef __SMB2__
-    addSubmenu("SMB buffer", "SMB preload buffer", OPT_SMB_READ_BUFFER_MB, makeAdjustItems(),
-               Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 100.0f, 1.0f, "MB");
-#endif
     addSubmenu("Playback mode", "At file end..", OPT_AUTOPLAY_MODE,
                makeIntItems({{"Stop playback", 0}, {"Play next", 1}, {"Loop file", 2}, {"Loop directory", 3}}),
                Submenu::ValueType::Integer);
@@ -341,9 +325,23 @@ void MenuMain::addNetworkMenus(int i) {
     const std::string name = networkKey(i);
     parents[name] = "Networks";
     std::vector<MenuItem> items;
-    for (const char *suffix: {" type", " name", " url", " user", " password", " search", " up", " down", " delete"}) {
+    for (const char *suffix: {" type", " name", " url", " user", " password", " timeout", " tls", " sync", " smb",
+                              " search", " up", " down", " delete"}) {
+#ifndef __SMB2__
+        if (std::string(suffix) == " smb") {
+            continue;
+        }
+#endif
         items.emplace_back(name + suffix, "", Pos::Top);
         parents[name + suffix] = name;
+    }
+    // its settings: a value on the right
+    for (auto &item: items) {
+        for (const char *suffix: {" timeout", " tls", " sync", " smb"}) {
+            if (item.name == name + suffix) {
+                item.value = "-";
+            }
+        }
     }
     addSubmenu(name, name, "", items, Submenu::ValueType::String);
     // the servers found (DLNA, TorrServer, Samba): one picked sets the url (the items made when shown)
@@ -362,6 +360,16 @@ void MenuMain::addNetworkMenus(int i) {
     }
     addSubmenu(name + " type", name + " type", PPLAYConfig::networkTypeOption(i), typeItems,
                Submenu::ValueType::String);
+    addSubmenu(name + " timeout", "Connection timeout", PPLAYConfig::networkTimeoutOption(i), makeAdjustItems(),
+               Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 300.0f, 5.0f, "s");
+    addSubmenu(name + " tls", "TLS certificates checked (HTTPS)", PPLAYConfig::networkTlsOption(i),
+               makeIntItems({{"On", 1}, {"Off", 0}}), Submenu::ValueType::Integer);
+    addSubmenu(name + " sync", "Torrents and watched marks refreshed every", PPLAYConfig::networkSyncOption(i),
+               makeAdjustItems(), Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 10.0f, 600.0f, 10.0f, "s");
+#ifdef __SMB2__
+    addSubmenu(name + " smb", "SMB preload buffer", PPLAYConfig::networkSmbBufferOption(i), makeAdjustItems(),
+               Submenu::ValueType::Integer, Submenu::MenuType::Adjust, 1.0f, 100.0f, 1.0f, "MB");
+#endif
 }
 
 std::vector<MenuItem> MenuMain::networkCategoryItems() {
@@ -449,6 +457,14 @@ void MenuMain::updateNetworkLabels() {
                     button->item.label = pplay::tr("Password") + ": " + (set ? "******" : pplay::tr("<empty>"));
                 } else if (button->item.name == key + " search") {
                     button->item.label = pplay::tr("Search servers");
+                } else if (button->item.name == key + " timeout") {
+                    button->item.label = pplay::tr("Connection timeout");
+                } else if (button->item.name == key + " tls") {
+                    button->item.label = pplay::tr("Certificate check");
+                } else if (button->item.name == key + " sync") {
+                    button->item.label = pplay::tr("Synchronization");
+                } else if (button->item.name == key + " smb") {
+                    button->item.label = pplay::tr("SMB buffer");
                 } else if (button->item.name == key + " up") {
                     button->item.label = pplay::tr("Move up");
                 } else if (button->item.name == key + " down") {
@@ -459,7 +475,7 @@ void MenuMain::updateNetworkLabels() {
                 button->refreshText();
             }
         }
-        for (const char *suffix: {" name", " url", " user", " password", " type", " search"}) {
+        for (const char *suffix: {" name", " url", " user", " password", " type", " tls", " search"}) {
             auto sub = menuMainOptionsSubmenus.find(key + suffix);
             if (sub != menuMainOptionsSubmenus.end()) {
                 std::string what = std::string(suffix) == " name"       ? "Name"
@@ -467,6 +483,7 @@ void MenuMain::updateNetworkLabels() {
                                    : std::string(suffix) == " user"     ? "User"
                                    : std::string(suffix) == " password" ? "Password"
                                    : std::string(suffix) == " type"     ? "Type"
+                                   : std::string(suffix) == " tls"      ? "Certificate check"
                                                                         : "Search servers";
                 sub->second->setTitle(label + ": " + pplay::tr(what));
             }

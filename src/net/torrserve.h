@@ -48,8 +48,6 @@ namespace pplay::TorrServe {
     bool isSyncing();
     // the viewed files on disk (if changed): done by the background requests, else here
     void saveViewedCache();
-    // the torrents list and the viewed marks asked again after (s, the setting)
-    void setSyncInterval(int seconds);
 
     // the failed requests asked again now (a user or password changed)
     void forgetFailures();

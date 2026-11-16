@@ -72,6 +72,18 @@ namespace pplay {
         // the user and password of the network of an url (its options, over the url ones), false if none
         bool credentialsOf(const std::string &url, std::string *user, std::string *password);
 
+        // the settings of the network of a path or url (its defaults if none)
+        int networkTimeout(const std::string &path);
+
+        // TLS certificates checked (https)
+        bool tlsVerify(const std::string &url);
+
+        // TorrServer: its lists asked again after (s)
+        int networkSync(const std::string &root);
+
+        // Samba: the read ahead (MB)
+        int smbBuffer(const std::string &url);
+
         // http(s) / ftp: the url with them (encoded), else as is
         std::string withCredentials(const std::string &url);
 

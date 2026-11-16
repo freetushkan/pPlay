@@ -52,7 +52,7 @@ namespace {
 std::string MenuMainOptionsSubmenu::formatValue(float value) const {
     std::ostringstream oss;
 
-    if (option_name == OPT_NETWORK_TIMEOUT) {
+    if (PPLAYConfig::networkOf(option_name, "_TIMEOUT") > 0) {
         return formatTimeMMSS(value);
     }
 
@@ -227,10 +227,18 @@ void MenuMainOptionsSubmenu::refreshValues() {
         bool shown = true;
         const std::string &name = button->item.name;
         bool up = Utility::endsWith(name, " up"), down = Utility::endsWith(name, " down");
-        if (sub == nullptr && (up || down) && name.rfind("Network ", 0) == 0) {
+        int network = name.rfind("Network ", 0) == 0 ? std::atoi(name.c_str() + strlen("Network ")) : 0;
+        if (sub == nullptr && (up || down) && network > 0) {
             // not past an end
-            int network = std::atoi(name.c_str() + strlen("Network "));
             shown = up ? network > 1 : network < config->getNetworkCount();
+        } else if (network > 0 && Utility::endsWith(name, " tls")) {
+            // https only
+            shown = Utility::startWith(config->getOption(PPLAYConfig::networkOption(network))->getString(), "https://");
+        } else if (network > 0 && (Utility::endsWith(name, " sync") || Utility::endsWith(name, " smb"))) {
+            pplay::Io::NetworkType type =
+                    pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(network))->getString());
+            shown = type == (Utility::endsWith(name, " sync") ? pplay::Io::NetworkType::TorrServe
+                                                              : pplay::Io::NetworkType::Smb);
         } else if (sub != nullptr && sub->isSearch()) {
             // DLNA networks only, a list behind (no value)
             button->item.value = "";

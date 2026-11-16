@@ -14,6 +14,7 @@
 #include <mpv/client.h>
 #include <mpv/stream_cb.h>
 
+#include "io.h"
 #include "smb.h"
 #include "utility.h"
 
@@ -26,10 +27,11 @@ using pplay::Utility;
 namespace {
     struct Settings {
         uint32_t bufferSize;
-        int timeout;
+        // mpv streams: the ones of its network
+        bool network;
     };
 
-    Settings g_settings = {1024 * 1024, 60};
+    Settings g_settings = {0, true};
 
     struct Stream {
         smb2_context *smb2 = nullptr;
@@ -194,6 +196,12 @@ namespace {
         } else if (!c2d::Utility::startWith(url, "smb://")) {
             return MPV_ERROR_UNSUPPORTED;
         }
+        // its network settings
+        int timeout = pplay::Io::get() != nullptr ? pplay::Io::get()->networkTimeout(url) : 15;
+        if (settings.network) {
+            int mb = pplay::Io::get() != nullptr ? pplay::Io::get()->smbBuffer(url) : 10;
+            settings.bufferSize = (uint32_t) std::max(1, std::min(mb, MAX_BUFFER_MB)) * 1024 * 1024;
+        }
         pplay::Smb::Url parts = pplay::Smb::parseUrl(url);
 
         auto *s = new (std::nothrow) Stream();
@@ -206,7 +214,7 @@ namespace {
             return MPV_ERROR_NOMEM;
         }
         smb2_set_security_mode(s->smb2, SMB2_NEGOTIATE_SIGNING_ENABLED);
-        smb2_set_timeout(s->smb2, settings.timeout);
+        smb2_set_timeout(s->smb2, timeout);
         if (!parts.domain.empty()) {
             smb2_set_domain(s->smb2, parts.domain.c_str());
         }
@@ -264,13 +272,6 @@ namespace {
     }
 }
 
-void pplay::Smb::configureStream(int bufferMB, int timeout) {
-    g_settings.bufferSize = bufferMB > 0 ? (uint32_t) std::min(bufferMB, MAX_BUFFER_MB) * 1024 * 1024 : 0;
-    g_settings.timeout = timeout > 0 ? timeout : 60;
-    Utility::log(Utility::LogLevel::Info, "smb2: buffer=" + std::to_string(g_settings.bufferSize)
-                                                  + " timeout=" + std::to_string(g_settings.timeout));
-}
-
 int pplay::Smb::registerStream(void *mpv) {
     if (mpv == nullptr) {
         return -1;
@@ -284,7 +285,7 @@ int pplay::Smb::registerStream(void *mpv) {
 
 void *pplay::Smb::openFile(const std::string &url, int64_t *size) {
     // direct reads, the caller asks big chunks
-    Settings settings = {0, g_settings.timeout};
+    Settings settings = {0, false};
     mpv_stream_cb_info info {};
     std::string uri = url;
     if (onOpen(&settings, &uri[0], &info) != 0) {

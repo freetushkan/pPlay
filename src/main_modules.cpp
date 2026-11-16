@@ -159,8 +159,8 @@ void Main::openLink(const std::string &url, const std::string &name) {
             order.push_back(i);
         }
     }
-    int timeout = config->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
     for (int i: order) {
+        int timeout = config->getOption(PPLAYConfig::networkTimeoutOption(i))->getInteger();
         std::string network = Paths::ensureTrailingSlash(config->getOption(PPLAYConfig::networkOption(i))->getString());
         if (network == "/" || pplayIo->getDeviceType(network) != pplay::Io::DeviceType::TorrServe
             || !TorrServe::isLinkOf(network, url)) {

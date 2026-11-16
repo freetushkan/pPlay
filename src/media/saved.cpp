@@ -679,7 +679,7 @@ namespace {
     // a directory listed: its files queued (a thread); false on a listing error
     bool expand(const c2d::Io::File &dir, int depth) {
         Io *io = Io::get();
-        int timeout = g_config->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
+        int timeout = io->networkTimeout(dir.path);
         std::string error;
         std::vector<c2d::Io::File> files = io->list(io->getDeviceType(dir.path), dir.path, timeout, &error);
         if (files.empty() && !error.empty()) {
@@ -930,7 +930,7 @@ namespace {
         std::vector<ExternalTracks::Track> subtitles;
         if (result == Outcome::Done && g_config->getOption(OPT_EXTERNAL_TRACKS)->getInteger() != 0
             && !ExternalTracks::isSubtitle(job.file.name) && !ExternalTracks::isAudio(job.file.name)) {
-            int timeout = g_config->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
+            int timeout = Io::get()->networkTimeout(job.file.path);
             for (auto &track: ExternalTracks::find(Io::get(), job.file.path, job.file.name, timeout)) {
                 if (!track.audio) {
                     subtitles.push_back(track);

@@ -66,7 +66,7 @@ void Player::startExternalTracks() {
 
 int Player::externalFindThread(void *data) {
     auto *self = (Player *) data;
-    int timeout = self->main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
+    int timeout = pplay::Io::get()->networkTimeout(self->externalJobPath);
     self->externalFound =
             pplay::ExternalTracks::find(pplay::Io::get(), self->externalJobPath, self->externalJobName, timeout);
     self->externalDone = true;

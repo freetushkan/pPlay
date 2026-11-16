@@ -36,9 +36,7 @@ namespace pplay::Smb {
     // a listing error of a refused access (a user, a password)
     bool isRefusal(const std::string &error);
 
-    // mpv "smb2://" stream protocol
-    void configureStream(int bufferMB, int timeout);
-
+    // mpv "smb2://" stream protocol (the read ahead and timeout of its network)
     int registerStream(void *mpv);
 
     // a file read outside mpv (saving a copy), nullptr on errors

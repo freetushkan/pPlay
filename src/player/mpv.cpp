@@ -212,9 +212,14 @@ Mpv::~Mpv() {
 
 int Mpv::load(const std::string &file, LoadType loadType, const std::string &fileOptions) {
     std::string options = fileOptions;
+    // the settings of its network
+    pplay::Io *io = pplay::Io::get();
+    bool verify = io == nullptr || io->tlsVerify(file);
+    options += std::string(options.empty() ? "" : ",") + "tls-verify=" + (verify ? "yes" : "no")
+               + ",network-timeout=" + std::to_string(io != nullptr ? io->networkTimeout(file) : 15);
     // ffmpeg's TLS has no default CA store on some platforms: the certificates, when checked (the
     // file not read otherwise)
-    if (pplay::Utility::isTlsVerify()) {
+    if (verify) {
         std::string certificates = pplay::Utility::getCertificatesPath();
         if (!certificates.empty()) {
             options += std::string(options.empty() ? "" : ",") + "tls-ca-file=%"

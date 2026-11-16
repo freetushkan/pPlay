@@ -122,7 +122,7 @@ bool Filer::getDir(const std::string &p) {
     std::vector<std::string> listed = ext;
     listed.insert(listed.end(), std::begin(COVER_EXTENSIONS), std::end(COVER_EXTENSIONS));
     pplay::Io::DeviceType type = ((pplay::Io *) main->getIo())->getDeviceType(p);
-    int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
+    int timeout = ((pplay::Io *) main->getIo())->networkTimeout(p);
     bool hidden = main->getConfig()->getOption(OPT_SHOW_HIDDEN)->getInteger() != 0;
     bool all = !picking && main->getConfig()->getOption(OPT_SHOW_ALL_FILES)->getInteger() != 0;
     if (all) {

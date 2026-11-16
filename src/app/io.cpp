@@ -270,6 +270,26 @@ bool Io::credentialsOf(const std::string &url, std::string *user, std::string *p
     return !user->empty();
 }
 
+int Io::networkTimeout(const std::string &path) {
+    int index = findNetwork(path, false);
+    return index > 0 ? config->getOption(PPLAYConfig::networkTimeoutOption(index))->getInteger() : 15;
+}
+
+bool Io::tlsVerify(const std::string &url) {
+    int index = findNetwork(url, false);
+    return index < 1 || config->getOption(PPLAYConfig::networkTlsOption(index))->getInteger() != 0;
+}
+
+int Io::networkSync(const std::string &root) {
+    int index = findNetwork(root, false);
+    return index > 0 ? config->getOption(PPLAYConfig::networkSyncOption(index))->getInteger() : 30;
+}
+
+int Io::smbBuffer(const std::string &url) {
+    int index = findNetwork(url, false);
+    return index > 0 ? config->getOption(PPLAYConfig::networkSmbBufferOption(index))->getInteger() : 10;
+}
+
 std::string Io::withCredentials(const std::string &url) {
     std::string user, password;
     bool http = c2d::Utility::startWith(url, "http://") || c2d::Utility::startWith(url, "https://");

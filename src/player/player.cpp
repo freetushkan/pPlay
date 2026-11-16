@@ -534,8 +534,6 @@ Mpv *Player::getMpv() {
 
 void Player::applyConfig() {
     pplay::Utility::setWatchedTolerance(main->getConfig()->getOption(OPT_WATCHED_TOLERANCE)->getInteger());
-    pplay::Utility::setTlsVerify(main->getConfig()->getOption(OPT_TLS_VERIFY)->getInteger() != 0);
-    mpv_set_property_string(mpv->getHandle(), "tls-verify", pplay::Utility::isTlsVerify() ? "yes" : "no");
     applyLanguages();
     applyAudioFilter();
     mpv_set_property_string(mpv->getHandle(), "sub-ass-override",
@@ -551,11 +549,6 @@ void Player::applyConfig() {
     int dither = main->getConfig()->getOption(OPT_DITHER)->getInteger();
     mpv_set_property_string(mpv->getHandle(), "dither", dither == 0 ? "no" : dither == 1 ? "ordered" : "fruit");
     mpv_set_property_string(mpv->getHandle(), "dither-depth", dither == 0 ? "no" : "auto");
-    const int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
-#ifdef __SMB2__
-    pplay::Smb::configureStream(main->getConfig()->getOption(OPT_SMB_READ_BUFFER_MB)->getInteger(), timeout);
-#endif
-    mpv_command_string(mpv->getHandle(), ("set network-timeout " + std::to_string(timeout)).c_str());
     mpv->setCache(main->getConfig()->getOption(OPT_CACHE_SECS)->getInteger(),
                   main->getConfig()->getOption(OPT_CACHE_MB)->getInteger());
     // takes effect from the next file

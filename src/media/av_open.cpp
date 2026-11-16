@@ -28,20 +28,22 @@ namespace {
 
     AVDictionary *networkOptions(const std::string &url) {
         AVDictionary *options = nullptr;
-        av_dict_set(&options, "rw_timeout", "15000000", 0);
+        int timeout = pplay::Io::get() != nullptr ? pplay::Io::get()->networkTimeout(url) : 15;
+        av_dict_set(&options, "rw_timeout", std::to_string(timeout * 1000000LL).c_str(), 0);
+        bool verify = pplay::Io::get() == nullptr || pplay::Io::get()->tlsVerify(url);
         size_t scheme = url.find("://");
         size_t at = url.find('@');
         if (scheme != std::string::npos && at != std::string::npos && at < url.find('/', scheme + 3)) {
             av_dict_set(&options, "auth_type", "basic", 0);
         }
         // the bundled certificates, checked unless turned off (the setting: the file not read)
-        if (pplay::Utility::isTlsVerify()) {
+        if (verify) {
             std::string certificates = pplay::Utility::getCertificatesPath();
             if (!certificates.empty()) {
                 av_dict_set(&options, "ca_file", certificates.c_str(), 0);
             }
         }
-        av_dict_set(&options, "tls_verify", pplay::Utility::isTlsVerify() ? "1" : "0", 0);
+        av_dict_set(&options, "tls_verify", verify ? "1" : "0", 0);
         return options;
     }
 

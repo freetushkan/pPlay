@@ -82,7 +82,7 @@ namespace {
 
     void collect(const c2d::Io::File &dir, int depth, std::vector<c2d::Io::File> &out) {
         Io *io = Io::get();
-        int timeout = g_config->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
+        int timeout = io->networkTimeout(dir.path);
         bool hidden = g_config->getOption(OPT_SHOW_HIDDEN)->getInteger() != 0;
         std::string error;
         // the Saved section: from its index

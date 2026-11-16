@@ -14,11 +14,6 @@ namespace pplay {
 
     class Utility {
     public:
-        // TLS verification for mpv, curl and probes
-        static bool isTlsVerify();
-
-        static void setTlsVerify(bool verify);
-
         // watched if this close to the end (seconds, 0: off)
         static void setWatchedTolerance(int seconds);
 

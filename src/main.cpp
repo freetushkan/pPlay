@@ -68,7 +68,6 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
     pplay::Saved::start(config);
     pplay::Playlists::start(config);
     pplay::FolderMarks::start(config);
-    pplay::TorrServe::setSyncInterval(config->getOption(OPT_TS_VIEWED_SYNC)->getInteger());
 
     filer = new Filer(this, "/", {0, 0, Main::getSize().x, Main::getSize().y});
     filer->setLayer(1);
@@ -236,21 +235,23 @@ void Main::applyConfig() {
     pplay::Utility::setAccentColor(config->getOption(OPT_ACCENT_COLOR)->getString());
     player->applyConfig();
     pplay::Saved::configChanged();
-    pplay::TorrServe::setSyncInterval(config->getOption(OPT_TS_VIEWED_SYNC)->getInteger());
     // a user, a password or the certificates check changed: the networks asked again now
-    std::string access = std::to_string(config->getOption(OPT_TLS_VERIFY)->getInteger());
+    std::string access;
     for (int i = 1; i <= config->getNetworkCount(); i++) {
         access += "\n" + config->getOption(PPLAYConfig::networkUserOption(i))->getString() + "\n"
-                  + config->getOption(PPLAYConfig::networkPasswordOption(i))->getString();
+                  + config->getOption(PPLAYConfig::networkPasswordOption(i))->getString() + "\n"
+                  + config->getOption(PPLAYConfig::networkTlsOption(i))->getString();
     }
     static std::string appliedAccess;
-    if (!appliedAccess.empty() && access != appliedAccess) {
+    static bool accessApplied = false;
+    if (accessApplied && access != appliedAccess) {
         pplay::TorrServe::forgetFailures();
         if (filer != nullptr) {
             filer->refresh();
         }
     }
     appliedAccess = access;
+    accessApplied = true;
     // (a file edited: added, removed)
     if (menu_main != nullptr) {
         menu_main->updateNetworks();

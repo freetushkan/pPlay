@@ -350,7 +350,7 @@ void Player::updateWatchdog() {
     }
     // not started yet: the first position can take long (a mkv without index (cues)
     // is read up to the resume position, through the network), a reload starts it again
-    int timeout = main->getConfig()->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
+    int timeout = pplay::Io::get()->networkTimeout(file.path);
     float stallSec = playbackStarted ? (float) std::max(timeout * 2, 20) : (float) std::max(timeout * 10, 300);
     if (stallClock.getElapsedTime().asSeconds() >= stallSec) {
         stallClock.restart();

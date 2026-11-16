@@ -150,6 +150,11 @@ public:
     static const char *networkTypeOption(int index);
     static const char *networkUserOption(int index);
     static const char *networkPasswordOption(int index);
+    static const char *networkTimeoutOption(int index);
+    static const char *networkTlsOption(int index);
+    // TorrServer: the torrents list and the viewed marks asked again after (s)
+    static const char *networkSyncOption(int index);
+    static const char *networkSmbBufferOption(int index);
 
     int getNetworkCount() const { return networkCount; }
 
@@ -193,6 +198,9 @@ private:
     void clearNetwork(int index);
 
     void copyNetwork(int from, int to);
+
+    // a setting of a new network (from the old global one)
+    int networkDefault(int field);
 
     // an url of a network with its user and password
     std::string withNetworkCredentials(int index, const std::string &url);

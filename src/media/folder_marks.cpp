@@ -171,7 +171,7 @@ namespace {
             return Saved::list(dir.path);
         }
         Io *io = Io::get();
-        int timeout = g_config->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
+        int timeout = io->networkTimeout(dir.path);
         bool hidden = g_config->getOption(OPT_SHOW_HIDDEN)->getInteger() != 0;
         std::string error;
         return io->list(io->getDeviceType(dir.path), dir.path, timeout, &error, false, hidden);
@@ -204,7 +204,7 @@ namespace {
         }
         // TorrServer: all the files of its torrents at once (one request)
         if (depth == 0 && Io::get()->getDeviceType(dir.path) == Io::DeviceType::TorrServe) {
-            int timeout = g_config->getOption(OPT_NETWORK_TIMEOUT)->getInteger();
+            int timeout = Io::get()->networkTimeout(dir.path);
             std::vector<c2d::Io::File> tree;
             if (TorrServe::getTree(dir.path, timeout, &tree)) {
                 for (auto &file: tree) {
