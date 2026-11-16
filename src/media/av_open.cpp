@@ -34,10 +34,12 @@ namespace {
         if (scheme != std::string::npos && at != std::string::npos && at < url.find('/', scheme + 3)) {
             av_dict_set(&options, "auth_type", "basic", 0);
         }
-        // the bundled certificates, checked unless turned off (the setting)
-        std::string certificates = pplay::Utility::getCertificatesPath();
-        if (!certificates.empty()) {
-            av_dict_set(&options, "ca_file", certificates.c_str(), 0);
+        // the bundled certificates, checked unless turned off (the setting: the file not read)
+        if (pplay::Utility::isTlsVerify()) {
+            std::string certificates = pplay::Utility::getCertificatesPath();
+            if (!certificates.empty()) {
+                av_dict_set(&options, "ca_file", certificates.c_str(), 0);
+            }
         }
         av_dict_set(&options, "tls_verify", pplay::Utility::isTlsVerify() ? "1" : "0", 0);
         return options;

@@ -84,12 +84,6 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     mpv_set_option_string(handle, "cache-pause", "yes");
     mpv_set_option_string(handle, "cache-secs", "60");
     mpv_set_option_string(handle, "stream-lavf-o", "reconnect_on_network_error=1");
-    // ffmpeg's TLS has no default CA store on these platforms
-    std::string certificates = pplay::Utility::getCertificatesPath();
-    if (!certificates.empty()) {
-        mpv_set_option_string(handle, "tls-ca-file", certificates.c_str());
-    }
-
 #if defined(__PS4__) || defined(__PS5__)
     mpv_set_option_string(handle, "ignore-path-in-watch-later-config", "yes");
     mpv_set_option_string(handle, "osd-rendering-mode", "normal");
@@ -217,7 +211,16 @@ Mpv::~Mpv() {
 }
 
 int Mpv::load(const std::string &file, LoadType loadType, const std::string &fileOptions) {
-    const std::string &options = fileOptions;
+    std::string options = fileOptions;
+    // ffmpeg's TLS has no default CA store on some platforms: the certificates, when checked (the
+    // file not read otherwise)
+    if (pplay::Utility::isTlsVerify()) {
+        std::string certificates = pplay::Utility::getCertificatesPath();
+        if (!certificates.empty()) {
+            options += std::string(options.empty() ? "" : ",") + "tls-ca-file=%"
+                       + std::to_string(certificates.size()) + "%" + certificates;
+        }
+    }
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Mpv::load(" + file + ")");
     if (handle) {
         // loadfile replace already stops the current file; Append/AppendPlay must not stop it.

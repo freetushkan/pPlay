@@ -188,29 +188,33 @@ Http::Response Http::perform(const Request &request) {
     curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "pPlay/" APP_VERSION);
     if (!Utility::isTlsVerify()) {
+        // not checked: no certificates read
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-    }
-    bool parsed = false;
-#ifdef PPLAY_CERTIFICATES_ONCE
-    parsed = certificatesLoaded() && curl_easy_setopt(curl, CURLOPT_SSL_CTX_FUNCTION, setCertificates) == CURLE_OK;
-    if (parsed) {
-        // (no file read by curl)
         curl_easy_setopt(curl, CURLOPT_CAINFO, nullptr);
         curl_easy_setopt(curl, CURLOPT_CAPATH, nullptr);
-    }
+    } else {
+        bool parsed = false;
+#ifdef PPLAY_CERTIFICATES_ONCE
+        parsed = certificatesLoaded() && curl_easy_setopt(curl, CURLOPT_SSL_CTX_FUNCTION, setCertificates) == CURLE_OK;
+        if (parsed) {
+            // (no file read by curl)
+            curl_easy_setopt(curl, CURLOPT_CAINFO, nullptr);
+            curl_easy_setopt(curl, CURLOPT_CAPATH, nullptr);
+        }
 #endif
 #if defined(__PS4__) || defined(__PS5__) || defined(__ANDROID__)
-    if (!parsed) {
-        curl_easy_setopt(curl, CURLOPT_CAINFO, Utility::getCertificatesPath().c_str());
-    }
+        if (!parsed) {
+            curl_easy_setopt(curl, CURLOPT_CAINFO, Utility::getCertificatesPath().c_str());
+        }
 #elif defined(__LINUX__)
-    std::string certificates = Utility::getCertificatesPath();
-    if (!parsed && !certificates.empty()) {
-        curl_easy_setopt(curl, CURLOPT_CAINFO, certificates.c_str());
-    }
+        std::string certificates = Utility::getCertificatesPath();
+        if (!parsed && !certificates.empty()) {
+            curl_easy_setopt(curl, CURLOPT_CAINFO, certificates.c_str());
+        }
 #endif
-    (void) parsed;
+        (void) parsed;
+    }
 
     struct curl_slist *headers = nullptr;
     for (auto &h: request.headers) {
