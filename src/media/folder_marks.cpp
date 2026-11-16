@@ -221,13 +221,16 @@ namespace {
                 return;
             }
         }
+        // local folders: their own files only (a home folder walked whole, its links to / too)
+        bool local = Io::get()->getDeviceType(dir.path) == Io::DeviceType::Local && !Saved::isInside(dir.path)
+                     && !Playlists::isPlaylist(dir.path);
         std::vector<c2d::Io::File> list = listOf(dir);
         for (auto &file: list) {
             if (g_cancel || file.name == "." || file.name == "..") {
                 continue;
             }
             if (file.type == c2d::Io::Type::Directory) {
-                if (depth < MAX_DEPTH) {
+                if (!local && depth < MAX_DEPTH) {
                     collect(file, depth + 1, out, all);
                 }
                 continue;
