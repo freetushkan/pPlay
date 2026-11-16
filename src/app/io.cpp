@@ -73,7 +73,7 @@ Io *Io::get() {
 }
 
 const std::vector<std::string> &Io::networkTypeNames() {
-    static const std::vector<std::string> names = {"Auto", "TorrServe", "Samba", "FTP", "HTTP", "WebDAV", "DLNA"};
+    static const std::vector<std::string> names = {"TorrServe", "Samba", "FTP", "HTTP", "WebDAV", "DLNA"};
     return names;
 }
 

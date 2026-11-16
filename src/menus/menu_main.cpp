@@ -178,11 +178,11 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
         const std::string name = networkKey(i);
         addSubmenu(name, name, "",
-                   {MenuItem(name + " name", "", MenuItem::Position::Top),
+                   {MenuItem(name + " type", "", MenuItem::Position::Top),
+                    MenuItem(name + " name", "", MenuItem::Position::Top),
                     MenuItem(name + " url", "", MenuItem::Position::Top),
                     MenuItem(name + " user", "", MenuItem::Position::Top),
                     MenuItem(name + " password", "", MenuItem::Position::Top),
-                    MenuItem(name + " type", "", MenuItem::Position::Top),
                     MenuItem(name + " search", "", MenuItem::Position::Top)},
                    Submenu::ValueType::String);
         parents[name + " name"] = name;

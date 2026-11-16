@@ -106,7 +106,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
         addOption({networkLastOption(i), "/"});
         addOption({networkNameOption(i), "Network " + std::to_string(i)});
-        addOption({networkTypeOption(i), "Auto"}); // Auto, TorrServe, Samba, FTP, HTTP, WebDAV, DLNA
+        addOption({networkTypeOption(i), "TorrServe"}); // TorrServe, Samba, FTP, HTTP, WebDAV, DLNA
         addOption({networkUserOption(i), ""});
         addOption({networkPasswordOption(i), ""});
     }
@@ -261,10 +261,15 @@ void PPLAYConfig::sanitize() {
         if (getOption(networkNameOption(i))->getString().empty()) {
             getOption(networkNameOption(i))->setString("Network " + std::to_string(i));
         }
-        if (getOption(networkTypeOption(i))->getString().empty()) {
-            getOption(networkTypeOption(i))->setString("Auto");
-        }
         std::string url = getOption(networkOption(i))->getString();
+        // no "Auto" type any more: the one its url gave
+        if (pplay::Io::parseNetworkType(getOption(networkTypeOption(i))->getString()) == pplay::Io::NetworkType::Auto) {
+            std::string type = c2d::Utility::startWith(url, "smb://")   ? "Samba"
+                               : c2d::Utility::startWith(url, "ftp://") ? "FTP"
+                               : c2d::Utility::startWith(url, "http")   ? "HTTP"
+                                                                        : "TorrServe";
+            getOption(networkTypeOption(i))->setString(type);
+        }
         if (migrateTorrServeUrl(url)) {
             getOption(networkOption(i))->setString(url);
             getOption(networkTypeOption(i))->setString("TorrServe");
