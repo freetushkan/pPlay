@@ -16,6 +16,7 @@
 
 #include "smb.h"
 #include "utility.h"
+#include "i18n.h"
 #include "libsmb2-dcerpc-srvsvc.h"
 
 // libsmb2 events (the poll ones)
@@ -208,7 +209,10 @@ std::vector<c2d::Io::File> Smb::list(const std::string &path, int timeout, std::
     auto setError = [error](const std::string &message) {
         Utility::log(Utility::LogLevel::Error, "Smb::list: " + message);
         if (error) {
-            *error = "SMB: " + message;
+            // the usual ones as words
+            *error = message.find("ACCESS_DENIED") != std::string::npos   ? pplay::tr("SMB: access denied")
+                     : message.find("LOGON_FAILURE") != std::string::npos ? pplay::tr("SMB: wrong user name or password")
+                                                                          : "SMB: " + message;
         }
     };
 

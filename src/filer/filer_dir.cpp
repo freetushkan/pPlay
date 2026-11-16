@@ -138,6 +138,11 @@ bool Filer::getDir(const std::string &p) {
     if (pplay::Playlists::isRoot(path)) {
         pplay::Playlists::filter(_files);
     }
+    // a network one not listed (no kept listing either): why
+    std::string failed = ((pplay::Io *) main->getIo())->getLastError();
+    if (!playlist && !saved && type != pplay::Io::DeviceType::Local && !failed.empty()) {
+        main->getStatus()->show("Error", failed);
+    }
     if (!hidden) {
         _files.erase(std::remove_if(_files.begin(), _files.end(),
                                     [](const Io::File &f) { return f.name.size() > 1 && f.name[0] == '.' && f.name != ".."; }),

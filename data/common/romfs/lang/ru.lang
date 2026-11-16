@@ -60,6 +60,8 @@ Search servers = Поиск серверов
 Searching... = Поиск...
 No servers found = Серверы не найдены
 Search again = Искать снова
+SMB: access denied = SMB: нет доступа
+SMB: wrong user name or password = SMB: неверное имя пользователя или пароль
 <empty> = <пусто>
 
 # Accent colors

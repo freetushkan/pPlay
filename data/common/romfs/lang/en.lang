@@ -60,6 +60,8 @@ Search servers = Search servers
 Searching... = Searching...
 No servers found = No servers found
 Search again = Search again
+SMB: access denied = SMB: access denied
+SMB: wrong user name or password = SMB: wrong user name or password
 <empty> = <empty>
 
 # Accent colors
