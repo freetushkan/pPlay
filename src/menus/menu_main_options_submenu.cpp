@@ -109,6 +109,9 @@ void MenuMainOptionsSubmenu::updateSelectionHighlight() {
 
     if (menu_type == MenuType::TextInput && !buttons.empty()) {
         buttons[0]->item.name = main->getConfig()->getOption(option_name)->getString();
+        if (PPLAYConfig::networkOf(option_name, "") > 0) {
+            buttons[0]->item.name = PPLAYConfig::withoutCredentials(buttons[0]->item.name);
+        }
         if (buttons[0]->item.name.empty()) {
             buttons[0]->item.name = "<empty>";
         }
@@ -142,6 +145,9 @@ std::string MenuMainOptionsSubmenu::currentText() {
     auto *option = main->getConfig()->getOption(option_name);
     if (menu_type == MenuType::TextInput) {
         std::string value = option->getString();
+        if (PPLAYConfig::networkOf(option_name, "") > 0) {
+            value = PPLAYConfig::withoutCredentials(value);
+        }
         return value.empty() ? pplay::tr("<empty>") : Utility::endsWith(option_name, "_PASSWORD") ? "******" : value;
     }
     if (menu_type == MenuType::Adjust) {
@@ -300,8 +306,11 @@ void MenuMainOptionsSubmenu::setSelection(const std::string &name) {
 }
 
 bool MenuMainOptionsSubmenu::editTextValue() {
-    auto *option = main->getConfig()->getOption(option_name);
-    const std::string oldValue = option->getString();
+    PPLAYConfig *config = main->getConfig();
+    auto *option = config->getOption(option_name);
+    // a network url: shown without its user and password (their own options)
+    int url = PPLAYConfig::networkOf(option_name, "");
+    const std::string oldValue = url > 0 ? PPLAYConfig::withoutCredentials(option->getString()) : option->getString();
     std::string newValue = oldValue;
 
     if (!pplay::Keyboard::edit(title->getString(), newValue) || newValue == oldValue) {
@@ -309,8 +318,17 @@ bool MenuMainOptionsSubmenu::editTextValue() {
     }
 
     option->setType(c2d::config::Option::Type::String);
-    option->setString(newValue);
-    main->getConfig()->save();
+    if (url > 0) {
+        config->setNetworkUrl(url, newValue);
+    } else {
+        option->setString(newValue);
+        int network = std::max(PPLAYConfig::networkOf(option_name, "_USER"),
+                               PPLAYConfig::networkOf(option_name, "_PASSWORD"));
+        if (network > 0) {
+            config->updateNetworkCredentials(network);
+        }
+    }
+    config->save();
     pplay::Utility::log(pplay::Utility::LogLevel::Info,
                         "Options: " + option_name + " changed from " + oldValue + " to " + newValue);
     main->applyConfig();
@@ -455,7 +473,7 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
         auto *url = main->getConfig()->getOption(option_name);
         auto *name = main->getConfig()->getOption(PPLAYConfig::networkNameOption(network));
         url->setType(c2d::config::Option::Type::String);
-        url->setString(item->data_str);
+        main->getConfig()->setNetworkUrl(network, item->data_str);
         if (name->getString().empty() || name->getString() == "Network " + std::to_string(network)) {
             name->setType(c2d::config::Option::Type::String);
             name->setString(item->name);

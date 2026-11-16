@@ -413,7 +413,8 @@ void MenuMain::updateNetworkLabels() {
     for (int i = 1; i <= main->getConfig()->getNetworkCount(); i++) {
         const std::string key = networkKey(i);
         const std::string name = main->getConfig()->getOption(PPLAYConfig::networkNameOption(i))->getString();
-        const std::string url = main->getConfig()->getOption(PPLAYConfig::networkOption(i))->getString();
+        const std::string url =
+                PPLAYConfig::withoutCredentials(main->getConfig()->getOption(PPLAYConfig::networkOption(i))->getString());
         const std::string type = main->getConfig()->getOption(PPLAYConfig::networkTypeOption(i))->getString();
         // the item name stays the menu key
         std::string label = pplay::tr("Network") + " " + std::to_string(i);

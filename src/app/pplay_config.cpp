@@ -169,6 +169,100 @@ static bool credentialsOfUrl(const std::string &url, std::string *user, std::str
     return !user->empty();
 }
 
+// the user info part of an url: [start, end) of "user[:password]@", false if none
+static bool userInfoOf(const std::string &url, size_t *start, size_t *end) {
+    size_t scheme = url.find("://");
+    if (scheme == std::string::npos) {
+        return false;
+    }
+    *start = scheme + 3;
+    size_t host = url.find_first_of("/?#", *start);
+    size_t at = url.rfind('@', host == std::string::npos ? std::string::npos : host);
+    if (at == std::string::npos || at < *start) {
+        *end = *start;
+        return false;
+    }
+    *end = at + 1;
+    return true;
+}
+
+// as typed in the older urls: only what would break the url escaped
+static std::string escapeUserInfo(const std::string &value) {
+    static const char *hex = "0123456789ABCDEF";
+    std::string out;
+    for (unsigned char c: value) {
+        if (c <= ' ' || c >= 0x7F || std::strchr("@:/?#%", c) != nullptr) {
+            out += '%';
+            out += hex[c >> 4];
+            out += hex[c & 15];
+        } else {
+            out += (char) c;
+        }
+    }
+    return out;
+}
+
+std::string PPLAYConfig::withoutCredentials(const std::string &url) {
+    size_t start, end;
+    return userInfoOf(url, &start, &end) ? url.substr(0, start) + url.substr(end) : url;
+}
+
+std::string PPLAYConfig::withNetworkCredentials(int index, const std::string &url) {
+    std::string plain = withoutCredentials(url);
+    std::string user = getOption(networkUserOption(index))->getString();
+    std::string password = getOption(networkPasswordOption(index))->getString();
+    size_t start, end;
+    userInfoOf(plain, &start, &end);
+    if (user.empty() || plain.find("://") == std::string::npos) {
+        return plain;
+    }
+    std::string info;
+    if (Utility::startWith(plain, "smb://")) {
+        // "domain\user" as "domain.user"
+        size_t slash = user.find('\\');
+        if (slash != std::string::npos) {
+            user[slash] = '.';
+        }
+        info = user + (password.empty() ? "" : ":" + password);
+    } else {
+        info = escapeUserInfo(user) + (password.empty() ? "" : ":" + escapeUserInfo(password));
+    }
+    return plain.substr(0, start) + info + "@" + plain.substr(start);
+}
+
+int PPLAYConfig::networkOf(const std::string &option, const char *suffix) {
+    if (option.rfind("NETWORK", 0) != 0) {
+        return 0;
+    }
+    char *end = nullptr;
+    long index = std::strtol(option.c_str() + 7, &end, 10);
+    return index > 0 && end != nullptr && std::strcmp(end, suffix) == 0 ? (int) index : 0;
+}
+
+void PPLAYConfig::setNetworkUrl(int index, const std::string &url) {
+    std::string user, password;
+    if (credentialsOfUrl(url, &user, &password)) {
+        getOption(networkUserOption(index))->setString(user);
+        getOption(networkPasswordOption(index))->setString(password);
+    }
+    getOption(networkOption(index))->setString(withoutCredentials(url));
+    updateNetworkCredentials(index);
+}
+
+void PPLAYConfig::updateNetworkCredentials(int index) {
+    if (index < 1 || index > networkCount) {
+        return;
+    }
+    config::Option *url = getOption(networkOption(index));
+    url->setString(withNetworkCredentials(index, url->getString()));
+    // the last location: on that network only
+    config::Option *last = getOption(networkLastOption(index));
+    std::string plain = withoutCredentials(last->getString());
+    if (Utility::startWith(plain, withoutCredentials(url->getString()))) {
+        last->setString(withNetworkCredentials(index, plain));
+    }
+}
+
 // old ts:// and tss:// TorrServe urls
 static bool migrateTorrServeUrl(std::string &url) {
     if (Utility::startWith(url, "tss://")) {
@@ -382,6 +476,8 @@ bool PPLAYConfig::load(const std::string &overridePath) {
                         getOption(networkOptionName(index, s))->setString(value->get<std::string>());
                     }
                 }
+                // typed in the file: theirs over the options
+                setNetworkUrl(index, getOption(networkOption(index))->getString());
             }
         }
     }
@@ -406,7 +502,9 @@ bool PPLAYConfig::save() {
     for (int i = 1; i <= networkCount; i++) {
         nlohmann::ordered_json entry = nlohmann::ordered_json::object();
         for (int s: {2, 3, 0, 4, 5, 1}) {
-            entry[networkKeys[s]] = getOption(networkOptionName(i, s))->getString();
+            std::string value = getOption(networkOptionName(i, s))->getString();
+            // (the user and password apart)
+            entry[networkKeys[s]] = s <= 1 ? withoutCredentials(value) : value;
         }
         list.push_back(entry);
     }
@@ -505,6 +603,9 @@ bool PPLAYConfig::importOld() {
             getOption(networkUserOption(kept))->setString(user);
             getOption(networkPasswordOption(kept))->setString(password);
         }
+    }
+    for (int i = 1; i <= kept; i++) {
+        updateNetworkCredentials(i);
     }
     for (int i = kept + 1; i <= oldNetworks; i++) {
         clearNetwork(i);

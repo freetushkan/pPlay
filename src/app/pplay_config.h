@@ -164,6 +164,21 @@ public:
     // its name, "Network n" if none
     std::string networkName(int index);
 
+    // the urls in use (paths, progress keys) keep the user and password of a network in them, as
+    // in the older versions; the file and the menu have them apart
+
+    // an url without them
+    static std::string withoutCredentials(const std::string &url);
+
+    // its url as typed (its user and password, if any, taken to their options)
+    void setNetworkUrl(int index, const std::string &url);
+
+    // its user or password changed: its urls with the new ones
+    void updateNetworkCredentials(int index);
+
+    // the index of a NETWORKn / NETWORKn_USER / NETWORKn_PASSWORD option, else 0
+    static int networkOf(const std::string &option, const char *suffix);
+
 private:
 
     // fix invalid values, apply the accent color
@@ -178,6 +193,9 @@ private:
     void clearNetwork(int index);
 
     void copyNetwork(int from, int to);
+
+    // an url of a network with its user and password
+    std::string withNetworkCredentials(int index, const std::string &url);
 
     std::string defaultHomePath() const;
 
