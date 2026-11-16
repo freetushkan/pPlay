@@ -26,15 +26,11 @@ jobs:
           sudo apt -yq update || true
           sudo apt -yq install git build-essential cmake curl git file
 
+          git clone -b switch https://github.com/freetushkan/libsmb2.git
           git clone --depth 1 https://github.com/freetushkan/pacman-packages /tmp/pacman-packages
           useradd -m builder
           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
           chown -R builder:builder /tmp/pacman-packages
-
-          git clone https://github.com/freetushkan/libsmb2.git
-          cd libsmb2
-          git checkout switch
-          cd ..
 
           # Install system and devkitPro dependencies
           sudo apt -yq update || true
@@ -154,12 +150,8 @@ jobs:
           Server = https://pacman.mydedibox.fr/pacbrew/packages/
           TEXT
 
+          git clone -b ps4-new https://github.com/freetushkan/libsmb2.git
           git clone --depth 1 https://github.com/freetushkan/ps4-openorbis-portlibs.git /tmp/portlibs
-
-          git clone https://github.com/freetushkan/libsmb2.git
-          cd libsmb2
-          git checkout ps4-new
-          cd ..
 
           # Setup pacman packages
           sudo pacman --noconfirm -Sy
@@ -262,12 +254,8 @@ jobs:
             makepkg libarchive-tools zstd
           pip3 install meson --break-system-packages
 
+          git clone -b ps5 https://github.com/freetushkan/libsmb2.git
           git clone --depth 1 https://github.com/freetushkan/pacbrew-repo.git /tmp/portlibs
-
-          git clone https://github.com/freetushkan/libsmb2.git
-          cd libsmb2
-          git checkout ps5
-          cd ..
 
           # Install PS5 Toolchain & Portlibs
           sudo mkdir -p /opt/ps5-payload-sdk
