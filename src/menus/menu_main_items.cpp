@@ -122,8 +122,9 @@ namespace pplay::MenuMainItems {
     // the people and projects pPlay is built with
     static std::vector<std::string> credits() {
         std::vector<std::string> list = {
-                "Cpasjuste — pPlay, libcross2d", "freetushkan — pPlay fork",     "mpv contributors — mpv",
-                "FFmpeg developers — FFmpeg",    "libass contributors — libass",
+                "Cpasjuste — original pPlay, libcross2d", "freetushkan — this pPlay fork",
+                "mpv contributors — mpv", "FFmpeg developers — FFmpeg",
+                "libass contributors — libass",
         };
 #if defined(__SWITCH__) || defined(__PS5__)
         list.emplace_back("Niklas Haas — libplacebo");
