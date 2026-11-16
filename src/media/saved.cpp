@@ -658,6 +658,7 @@ namespace {
         if (cached.empty() || !Io::get()->readText(cached, data)) {
             Http::Request request;
             request.url = poster;
+            request.context = remote;
             request.timeout = 15;
             request.maxSize = 8 * 1024 * 1024;
             Http::Response response = Http::perform(request);

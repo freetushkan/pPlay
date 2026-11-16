@@ -44,9 +44,10 @@ namespace {
         return nullptr;
     }
 
-    bool httpGet(const std::string &url, std::string *body, std::string *error) {
+    bool httpGet(const std::string &url, const std::string &context, std::string *body, std::string *error) {
         pplay::Http::Request request;
         request.url = url;
+        request.context = context;
         request.timeout = 15;
         request.maxSize = MAX_SIZE;
         request.headers = {"Accept: image/jpeg,image/png;q=0.9,image/*;q=0.5,*/*;q=0.1",
@@ -67,7 +68,7 @@ namespace {
                        && pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::TorrServe;
         // streaming marks it viewed
         bool viewed = torrent && pplay::TorrServe::isFileViewed(path, true);
-        bool ok = c2d::Utility::startWith(url, "http") ? httpGet(url, body, error)
+        bool ok = c2d::Utility::startWith(url, "http") ? httpGet(url, path, body, error)
                                                        : pplay::AvOpen::read(url, MAX_SIZE, body, error);
         if (torrent && !viewed) {
             pplay::TorrServe::remFileViewed(path);
@@ -85,7 +86,8 @@ PosterLoader::~PosterLoader() {
     }
 }
 
-void PosterLoader::request(const std::string &url) {
+void PosterLoader::request(const std::string &url, const std::string &context) {
+    wantedContext = context;
     if (url != wanted) {
         wanted = url;
         done.clear();
@@ -145,6 +147,7 @@ bool PosterLoader::poll(const c2d::Vector2i &maxSize, c2d::Texture **texture, st
     }
 
     downloadUrl = wanted;
+    downloadContext = wantedContext;
     downloadDone = false;
     downloadOk = false;
     thread = new pplay::Worker(downloadThread, this);
@@ -164,7 +167,8 @@ int PosterLoader::downloadThread(void *data) {
     }
     std::string body, error;
     bool dir = c2d::Utility::startWith(self->downloadUrl, "dir:");
-    bool ok = dir ? dirGet(self->downloadUrl.substr(4), &body, &error) : httpGet(self->downloadUrl, &body, &error);
+    bool ok = dir ? dirGet(self->downloadUrl.substr(4), &body, &error)
+                  : httpGet(self->downloadUrl, self->downloadContext, &body, &error);
     if (ok && imageFormat(body) == nullptr) {
         ok = false;
         error = "not an image";

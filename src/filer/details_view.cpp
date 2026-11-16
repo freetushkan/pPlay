@@ -129,7 +129,7 @@ void DetailsView::setFile(const MediaFile &f) {
         hidePoster();
     }
     posterUrl = wanted;
-    loader->request(posterUrl == shownPoster ? "" : posterUrl);
+    loader->request(posterUrl == shownPoster ? "" : posterUrl, file.path);
     updateHints();
     layout();
 }
@@ -478,7 +478,7 @@ void DetailsView::onUpdate() {
             std::string next = nextPoster();
             if (!next.empty()) {
                 posterUrl = next;
-                loader->request(posterUrl);
+                loader->request(posterUrl, file.path);
             } else {
                 posterError = error;
                 layout();

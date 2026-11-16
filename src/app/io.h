@@ -75,8 +75,9 @@ namespace pplay {
         // the settings of the network of a path or url (its defaults if none)
         int networkTimeout(const std::string &path);
 
-        // TLS certificates checked (https)
-        bool tlsVerify(const std::string &url);
+        // TLS certificates checked (https): the setting of its network, else of the network of
+        // the context (a path there: a poster of a torrent elsewhere), else checked
+        bool tlsVerify(const std::string &url, const std::string &context = "");
 
         // TorrServer: its lists asked again after (s)
         int networkSync(const std::string &root);

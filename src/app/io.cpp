@@ -275,8 +275,11 @@ int Io::networkTimeout(const std::string &path) {
     return index > 0 ? config->getOption(PPLAYConfig::networkTimeoutOption(index))->getInteger() : 15;
 }
 
-bool Io::tlsVerify(const std::string &url) {
+bool Io::tlsVerify(const std::string &url, const std::string &context) {
     int index = findNetwork(url, false);
+    if (index < 1 && !context.empty()) {
+        index = findNetwork(context, false);
+    }
     return index < 1 || config->getOption(PPLAYConfig::networkTlsOption(index))->getInteger() != 0;
 }
 

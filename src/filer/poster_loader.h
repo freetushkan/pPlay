@@ -22,8 +22,8 @@ public:
     ~PosterLoader();
 
     // http(s) url, "embedded:<media url>" for the file cover, "dir:<path>" for a directory
-    // picture, "" for none
-    void request(const std::string &url);
+    // picture, "" for none; context: a path of its network (its certificate check)
+    void request(const std::string &url, const std::string &context = "");
 
     // each frame: true once the requested poster is done, with a texture (owned by
     // the caller) or an error
@@ -41,6 +41,8 @@ private:
 
     pplay::Worker *thread = nullptr;
     std::string downloadUrl;
+    std::string wantedContext;
+    std::string downloadContext;
     std::string downloadError;
     std::atomic<bool> downloadDone{false};
     std::atomic<bool> downloadOk{false};

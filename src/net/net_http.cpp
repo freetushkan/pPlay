@@ -187,7 +187,7 @@ Http::Response Http::perform(const Request &request) {
     curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
     curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "pPlay/" APP_VERSION);
-    if (pplay::Io::get() != nullptr && !pplay::Io::get()->tlsVerify(request.url)) {
+    if (pplay::Io::get() != nullptr && !pplay::Io::get()->tlsVerify(request.url, request.context)) {
         // not checked: no certificates read
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);

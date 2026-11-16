@@ -29,6 +29,8 @@ namespace pplay::Http {
         std::string body;
         int timeout = 15;
         size_t maxSize = 16 * 1024 * 1024;
+        // a path of the network it comes from (a poster elsewhere): its certificate check
+        std::string context;
     };
 
     // call once (not thread safe)

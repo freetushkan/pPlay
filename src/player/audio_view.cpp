@@ -101,7 +101,7 @@ void AudioView::updatePicture() {
         pictureUrls = urls;
         pictureIndex = 0;
         hidePicture();
-        loader->request(pictureUrls.empty() ? "" : pictureUrls[0]);
+        loader->request(pictureUrls.empty() ? "" : pictureUrls[0], player->getFile().path);
     }
     Texture *texture = nullptr;
     std::string error;
@@ -111,7 +111,7 @@ void AudioView::updatePicture() {
     if (texture != nullptr) {
         showPicture(texture);
     } else if (++pictureIndex < pictureUrls.size()) {
-        loader->request(pictureUrls[pictureIndex]);
+        loader->request(pictureUrls[pictureIndex], player->getFile().path);
     } else {
         player->onPicturesFailed();
     }
