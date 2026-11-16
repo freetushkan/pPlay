@@ -50,6 +50,9 @@ namespace pplay::TorrServe {
     void saveViewedCache();
     // the torrents list and the viewed marks asked again after (s, the setting)
     void setSyncInterval(int seconds);
+
+    // the failed requests asked again now (a user or password changed)
+    void forgetFailures();
     // changes with each server answer about viewed files: the marks to show again
     unsigned int viewedGeneration();
 

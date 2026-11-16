@@ -283,26 +283,6 @@ std::string Io::withCredentials(const std::string &url) {
     return url.substr(0, scheme) + Http::escape(user) + ":" + Http::escape(password) + "@" + url.substr(host);
 }
 
-std::string Io::authorizationOf(const std::string &url) {
-    std::string user, password;
-    if ((!c2d::Utility::startWith(url, "http://") && !c2d::Utility::startWith(url, "https://"))
-        || !credentialsOf(url, &user, &password)) {
-        return "";
-    }
-    static const char *digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    std::string in = user + ":" + password, out;
-    for (size_t i = 0; i < in.size(); i += 3) {
-        uint32_t n = (uint32_t) (unsigned char) in[i] << 16;
-        n |= i + 1 < in.size() ? (uint32_t) (unsigned char) in[i + 1] << 8 : 0;
-        n |= i + 2 < in.size() ? (uint32_t) (unsigned char) in[i + 2] : 0;
-        out += digits[(n >> 18) & 63];
-        out += digits[(n >> 12) & 63];
-        out += i + 1 < in.size() ? digits[(n >> 6) & 63] : '=';
-        out += i + 2 < in.size() ? digits[n & 63] : '=';
-    }
-    return "Authorization: Basic " + out;
-}
-
 Io::DeviceType Io::getDeviceType(const std::string &path) {
     int index = findNetwork(path, true);
     if (index > 0) {

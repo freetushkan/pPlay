@@ -213,6 +213,20 @@ void Main::applyConfig() {
     player->applyConfig();
     pplay::Saved::configChanged();
     pplay::TorrServe::setSyncInterval(config->getOption(OPT_TS_VIEWED_SYNC)->getInteger());
+    // a user, a password or the certificates check changed: the networks asked again now
+    std::string access = std::to_string(config->getOption(OPT_TLS_VERIFY)->getInteger());
+    for (int i = 1; i <= PPLAY_MAX_NETWORKS; i++) {
+        access += "\n" + config->getOption(PPLAYConfig::networkUserOption(i))->getString() + "\n"
+                  + config->getOption(PPLAYConfig::networkPasswordOption(i))->getString();
+    }
+    static std::string appliedAccess;
+    if (!appliedAccess.empty() && access != appliedAccess) {
+        pplay::TorrServe::forgetFailures();
+        if (filer != nullptr) {
+            filer->refresh();
+        }
+    }
+    appliedAccess = access;
     static int hidden = -1;
     int showHidden = config->getOption(OPT_SHOW_HIDDEN)->getInteger()
                      + 2 * config->getOption(OPT_SHOW_ALL_FILES)->getInteger();

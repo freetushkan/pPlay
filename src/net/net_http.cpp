@@ -160,12 +160,13 @@ Http::Response Http::perform(const Request &request) {
     char errbuf[CURL_ERROR_SIZE];
     errbuf[0] = 0;
     WriteContext ctx{&response.body, request.maxSize};
-    std::string url = normalizeUrl(request.url);
+    // the network user and password in place of the url ones
+    std::string user, password;
+    bool credentials = pplay::Io::get() != nullptr && pplay::Io::get()->credentialsOf(request.url, &user, &password);
+    std::string url = normalizeUrl(credentials ? pplay::Io::get()->withCredentials(request.url) : request.url);
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    // the network user and password (over the url ones)
-    std::string user, password;
-    if (pplay::Io::get() != nullptr && pplay::Io::get()->credentialsOf(request.url, &user, &password)) {
+    if (credentials) {
         curl_easy_setopt(curl, CURLOPT_USERNAME, user.c_str());
         curl_easy_setopt(curl, CURLOPT_PASSWORD, password.c_str());
     }

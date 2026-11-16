@@ -155,17 +155,24 @@ namespace {
 
     bool parseTorrents(const std::string &response, std::vector<Torrent> *out);
 
-    std::vector<Torrent> getTorrents(const std::string &root, int timeout, bool *ok = nullptr) {
+    std::vector<Torrent> getTorrents(const std::string &root, int timeout, bool *ok = nullptr, long *status = nullptr) {
         std::vector<Torrent> torrents;
         if (ok != nullptr) {
             *ok = false;
         }
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
                             "TorrServe::getTorrents url=" + root + "torrents, timeout=" + std::to_string(timeout));
-        std::string response = httpRequest(root + "torrents", timeout, "{\"action\":\"list\"}");
-        if (response.empty()) {
+        pplay::Http::Response answer = pplay::Http::postJson(root + "torrents", "{\"action\":\"list\"}", timeout);
+        if (status != nullptr) {
+            *status = answer.status;
+        }
+        if (!answer.ok()) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Error,
+                                "TorrServe::request " + root + "torrents failed: "
+                                        + (answer.error.empty() ? "HTTP " + std::to_string(answer.status) : answer.error));
             return torrents;
         }
+        const std::string &response = answer.body;
 
         pplay::Utility::log(pplay::Utility::LogLevel::Trace, "TorrServe::getTorrents response=" + response);
         if (!parseTorrents(response, &torrents)) {
@@ -253,6 +260,8 @@ namespace {
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> g_torrentsFailedAt;
     // the servers not answering their last list request
     std::unordered_set<std::string> g_unreachable;
+    // the servers refusing it (a user or password): their kept list not shown
+    std::unordered_set<std::string> g_refused;
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> g_viewedFailedAt;
     // one request at a time (the others wait for its answer)
     std::mutex g_fetchMutex;
@@ -308,9 +317,14 @@ namespace {
 
     std::vector<Torrent> fetchTorrents(const std::string &root, int timeout, bool *ok);
 
+    bool refused(const std::string &root) {
+        std::lock_guard<std::mutex> lock(g_cacheMutex);
+        return g_refused.count(root) > 0;
+    }
+
     std::vector<Torrent> torrentsOf(const std::string &root, int timeout, bool *ok) {
         std::vector<Torrent> torrents = fetchTorrents(root, timeout, ok);
-        if (!*ok) {
+        if (!*ok && !refused(root)) {
             torrents = staleTorrents(root);
             *ok = !torrents.empty();
         }
@@ -337,8 +351,16 @@ namespace {
         if (failed) {
             return torrents;
         }
-        torrents = getTorrents(root, timeout, ok);
+        long status = 0;
+        torrents = getTorrents(root, timeout, ok, &status);
         std::lock_guard<std::mutex> lock(g_cacheMutex);
+        // refused: there (not offline), its kept list not shown
+        bool refusedNow = status == 401 || status == 403;
+        if (refusedNow) {
+            g_refused.insert(root);
+        } else {
+            g_refused.erase(root);
+        }
         if (*ok) {
             auto known = g_torrentsCache.find(root);
             if (known != g_torrentsCache.end() && !sameTorrents(known->second, torrents)) {
@@ -353,7 +375,9 @@ namespace {
             }
         } else {
             g_torrentsFailedAt[root] = std::chrono::steady_clock::now();
-            g_unreachable.insert(root);
+            if (!refusedNow) {
+                g_unreachable.insert(root);
+            }
         }
         return torrents;
     }
@@ -762,7 +786,7 @@ namespace pplay::TorrServe {
         bool ok = false;
         std::vector<Torrent> torrents = torrentsOf(httpRoot, timeout, &ok);
         if (!ok && error) {
-            *error = "TorrServer: not reachable";
+            *error = refused(httpRoot) ? "TorrServer: HTTP 401" : "TorrServer: not reachable";
         }
 
         if (parts.empty()) {
@@ -973,6 +997,13 @@ namespace pplay::TorrServe {
 
     void setSyncInterval(int seconds) {
         g_syncSecs = std::max(10, seconds);
+    }
+
+    void forgetFailures() {
+        std::lock_guard<std::mutex> lock(g_cacheMutex);
+        g_torrentsFailedAt.clear();
+        g_viewedFailedAt.clear();
+        g_refused.clear();
     }
 
     double fileProgress(const std::string &p, bool wait) {

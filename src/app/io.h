@@ -75,9 +75,6 @@ namespace pplay {
         // http(s) / ftp: the url with them (encoded), else as is
         std::string withCredentials(const std::string &url);
 
-        // http(s): "Authorization: Basic ..." with them, else ""
-        std::string authorizationOf(const std::string &url);
-
         const std::string &getLastError() const { return lastError; }
 
         // romfs -> data directory (new or changed files)

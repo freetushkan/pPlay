@@ -37,13 +37,21 @@ void Player::onMpvEvent(mpv_event *event) {
         }
         case MPV_EVENT_HOOK: {
             auto *hook = (mpv_event_hook *) event->data;
-            if (std::string(hook->name) == "on_load" && !copyPath.empty()) {
+            if (std::string(hook->name) == "on_load") {
                 char *url = mpv_get_property_string(mpv->getHandle(), "path");
-                if (url != nullptr && copyUrl == url) {
+                std::string path = url != nullptr ? url : "";
+                mpv_free(url);
+                if (!copyPath.empty() && copyUrl == path) {
                     mpv_set_property_string(mpv->getHandle(), "stream-open-filename", copyPath.c_str());
                     pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: saved copy " + copyPath);
+                } else if (!path.empty()) {
+                    // the network user and password in place of the url ones (the url: the watch
+                    // later key, kept)
+                    std::string open = pplay::Io::get()->withCredentials(path);
+                    if (open != path) {
+                        mpv_set_property_string(mpv->getHandle(), "stream-open-filename", open.c_str());
+                    }
                 }
-                mpv_free(url);
             }
             mpv_hook_continue(mpv->getHandle(), hook->id);
             break;
