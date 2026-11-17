@@ -3,8 +3,8 @@ pPlay
 
 **English** | [Русский](README_RU.MD)
 
-> This repository is a fork of the long-unmaintained original **pPlay** project by **cpasjuste**.
-> The project continues to evolve in this fork, while the original architecture and core remain the work of the original author.
+> This repository is a fork of the long-unmaintained original [pPlay](https://github.com/Cpasjuste/pplay) by **cpasjuste**,
+> built on his [libcross2d](https://github.com/Cpasjuste/libcross2d) library.
 
 | Filer view | Player view |
 |:-----------------------------------------------------------------:|:------------------------------------------------------------------:|
@@ -61,16 +61,16 @@ Fork additions
 
 Below are the main practical improvements and modernizations included in this fork:
 
-1. **Multi-network profiles**: up to 9 independent network sources (`NETWORK1..NETWORK9`)
-   with custom labels (`NETWORKx_NAME`) and remembered last directories (`NETWORKx_LAST`).
+1. **Networks**: any number of network sources, each with its own type, name, credentials, timeout,
+   certificate check and remembered last directory; added, moved and deleted in Settings > Networks.
 2. **TorrServer integration**: torrent browsing, files playback and watched-state support.
 3. **Samba/SMB support**: custom `smb://` mpv handler, configurable SMB read buffer.
-4. **Flexible network retry/timeouts**: separate playback retry count and connection timeout settings.
+4. **Flexible network retry/timeouts**: playback retry count, connection timeout per network.
 5. **UX/player options**: settings menu with configurable seek intervals, autoplay-after-finish behavior,
    swapped controls mode, UI accent color, logging and more.
 6. **Interface languages**: Settings > Language (see below).
-7. **Configuration editor**: Settings > Edit files: `pplay.cfg`, `mpv/mpv.conf`, `mpv/input.conf`,
-   the whole file in the system keyboard (multiline, up to 2048 characters) or line by line. `pplay.cfg` is applied right away (an invalid file is rejected), mpv files on the next start.
+7. **Configuration editor**: Settings > Edit files: `pplay_config.json`, `mpv/mpv.conf`, `mpv/input.conf`,
+   the whole file in the system keyboard (multiline, up to 2048 characters) or line by line. `pplay_config.json` is applied right away (an invalid file is rejected), mpv files on the next start.
 8. **Playback**: preferred audio/subtitles languages, external audio and subtitles files, volume control
    and normalization (incl. night mode), network buffer settings, video quality presets, fast seeking in `.mkv` files without index, visualization for audiofiles.
 9. **Distribution**: single file installation on all platfoms.
@@ -89,161 +89,124 @@ Settings = Настройки     # english text = translation
 
 `lang/en.lang` lists every key: copy it to start a new language.
 
-Network types
+Networks
 ----
 
-Each network has a type (`NETWORKx_TYPE`, also in Settings > Networks > Network x > Type):
+Settings > Networks > Add network creates a network, Settings > Networks > Network x sets it up:
 
-* `TorrServe` — TorrServer api (`http(s)://host:8090/`, may be behind a reverse proxy sub path);
-* `WebDAV` — `http(s)://[user:password@]host/path/` (Nextcloud, nginx dav, rclone serve webdav...).
-* `DLNA` — a media server, its device description url (`http://host:8200/rootDesc.xml`), or just `http://host:port/`;
-* `Auto` (default) — guessed from the url scheme: `http(s)://` directory listing, `ftp://`, `smb://`;
-* `Samba`, `FTP`, `HTTP` — force the protocol;
-* Settings > Networks > Network x > Search servers (types `DLNA`, `TorrServe`, `Samba`): the servers of the local network (TorrServer and Samba: the addresses of its /24 tried, ports 8090 and 445); `smb://host/` lists its shares.
+* **Type** (`type`):
+  * `TorrServe` — TorrServer api (`http(s)://host:8090/`, may be behind a reverse proxy sub path);
+  * `WebDAV` — `http(s)://host/path/` (Nextcloud, nginx dav, rclone serve webdav...);
+  * `DLNA` — a media server, its device description url (`http://host:8200/rootDesc.xml`), or just `http://host:port/`;
+  * `Samba` (`smb://host/share/`), `FTP` (`ftp://`), `HTTP` (`http(s)://` directory listing).
+* **Name**, **URL**, **User**, **Password** (not for `DLNA`). The user and the password are kept apart from the url
+  and added to it for the connections; a url typed with `user:password@` gets them moved to these fields.
+* **Connection timeout**, **Certificate check** (`https://` only), **Synchronization** (`TorrServe` only:
+  the watched marks refresh period), **SMB buffer** (`Samba` only).
+* **Search servers** (`DLNA`, `TorrServe`, `Samba`): the servers of the local network (TorrServer and Samba:
+  the addresses of its /24 tried, ports 8090 and 445); `smb://host/` lists its shares.
+* **Move up**, **Move down**, **Delete network**.
 
-TorrServer support
-----
-
-Example source:
-
-```ini
-NETWORK1 = "http://192.168.1.10:8090/"
-NETWORK1_NAME = "TorrServer LAN"
-NETWORK1_TYPE = "TorrServe"
-```
-
-WebDAV example:
-
-```ini
-NETWORK2 = "https://user:password@cloud.example.com/remote.php/dav/files/user/Movies/"
-NETWORK2_NAME = "Cloud"
-NETWORK2_TYPE = "WebDAV"
-```
-
-DLNA example:
-
-```ini
-NETWORK3 = "http://192.168.1.20:8200/rootDesc.xml"
-NETWORK3_NAME = "MiniDLNA"
-NETWORK3_TYPE = "DLNA"
-```
-
-Important notes:
+TorrServer:
 
 * pPlay retrieves torrent lists using the TorrServer API;
 * displays torrent file structures as directories;
 * streams selected files directly;
 * uses/resets watched marks on the TorrServer side.
 
-## Samba (SMB) support
+Samba (SMB):
 
-Connection example:
-
-```ini
-NETWORK3 = "smb://user:password@192.168.1.50/media/"
-NETWORK3_NAME = "NAS Samba"
-```
-
-Recommendations:
-
-* Start with `SMB_READ_BUFFER_MB = 10` (default).
-* For unstable networks, increase the buffer size (`1..100` valid range).
-* Increase `NETWORK_TIMEOUT` and `NETWORK_RETRIES` if playback interruptions occur.
+* Start with an SMB buffer of 10 MB (default), increase it (`1..100`) on unstable networks.
+* Increase the connection timeout and Settings > Playback > Playback retry if playback interruptions occur.
 
 ## Known issues
 
 * Nothing found yet, but the future is full of surprises.
 
-## Current `pplay.cfg` parameters
+## Configuration file
 
-Below is the list of currently supported and maintained configuration parameters.
+The settings are in `pplay_config.json`, in the pPlay data directory (`/data/pplay/` on PS4/PS5,
+`~/.config/pplay/` on Linux). Groups follow Settings menu sections, `state` keeps what pPlay remembers by itself
+(last paths, volume, session). Everything is set from the menu, the file is only needed for a manual edit
+(Settings > Edit files, or by hand while pPlay is not running).
 
-### Network sources
+On the first start of this version the settings and networks are imported from `pplay.cfg`,
+the old file itself is left as it is (for the older versions).
 
-* `NETWORK1..NETWORK9` — up to 9 network URLs (http/https/ftp/smb).
-* `NETWORK1_TYPE..NETWORK9_TYPE` — `Auto`, `TorrServe`, `Samba`, `FTP`, `HTTP`, `WebDAV`, `DLNA`.
-* `NETWORK1_NAME..NETWORK9_NAME` — source labels shown in UI.
-* `NETWORK1_LAST..NETWORK9_LAST` — last opened directory for each source.
+### Groups
 
-### Local paths and state
+* `playback` — `autoplay_mode` (`0` stop, `1` next file, `2` loop file, `3` loop directory), `network_retries`,
+  `restore_session`, `restore_location` (`1` list at the restored file, `0` at the last location), `sleep_timer` (minutes, `-1` end of file).
+* `progress` — `progress_min_length`, `watched_tolerance`, `progress_interval`, `progress_line`, `folder_marks`,
+  `ts_progress_sync` (`0` off, `1` local first, `2` TorrServer first).
+* `audio_and_subtitles` — `audio_language` (`Auto`), `sub_language` (`Off`): mpv `alang` / `slang` lists like `rus,ru`,
+  `Auto` / `Off` keep `mpv.conf` ones; `external_tracks`, `sub_ass_plain`, `audio_channels`,
+  `audio_normalize` (`0` off, `1` normalize, `2` night mode), `audio_visualizer`.
+* `video` — `video_quality` (`3` auto, `0` best, `1` balanced (default), `2` fast, see below),
+  `auto_drops`, `auto_drops_time`, `auto_quality_delay`, `auto_switch_pause`, `hw_decoding` (`2` auto, `1` on, `0` off),
+  `auto_hw_retry`, `auto_hw_retries`, `dither`.
+* `interface` — `language` (`lang/<code>.lang`), `text_encoding`, `accent_color` (`#1078C8`), `show_hidden`, `show_all_files`,
+  `show_saved`, `show_playlists`, `media_probe` (media information read on selection, cached in `cache/`),
+  `osd_hide_time` (seconds, `0` never), `swap_controls`; `ps5_ui_4k` on PS5.
+* `networks` — `cache_secs` (`10..600`), `cache_mb` (`50..1000`, `50..500` on Switch) and `list`, the networks in the menu order:
 
-* `HOME_PATH` — default home directory.
-* `LAST_LOCAL_PATH` — last opened local directory.
-* `LAST_MODULE` — last active module (`LOCAL`, `NETWORK1..NETWORK9`, `USB`, etc.).
+  | Key | Meaning |
+  | :--- | :--- |
+  | `name` | label shown in UI (empty: "Network x") |
+  | `type` | `TorrServe`, `Samba`, `FTP`, `HTTP`, `WebDAV`, `DLNA` |
+  | `url` | address, without user and password |
+  | `user`, `password` | credentials (`DOMAIN\user` for Samba) |
+  | `timeout` | connection timeout, seconds (default `15`) |
+  | `tls_verify` | `1` check the https certificate (default), `0` not |
+  | `sync` | TorrServer marks refresh period, seconds (default `30`) |
+  | `smb_buffer` | Samba read buffer, MB, `1..100` (default `10`) |
+  | `last` | last opened directory |
+* `saved_files` — `save_threads`, `save_keep_days`, `save_max_gb` (`0`: no limit).
+* `system` — `home_path`, `standby_time`, `log_level` (`0..4`: off, error, info, debug, trace; on PS4 fatal crashes
+  are also written to `/data/pplay/crash.log`); `android_background`, `cpu_boost` (Switch), `ps5_keep_in_rest` on their platforms.
 
-### Network and playback
+### Example
 
-* `NETWORK_TIMEOUT` (int, seconds, default `15`) — network operation timeout.
-* `NETWORK_RETRIES` (int, default `3`) — playback retry attempts.
-* `SMB_READ_BUFFER_MB` (int, `1..100`, default `10`) — SMB pre-buffer size.
-* `AUTOPLAY_MODE` (int, default `1`) — behavior after playback ends.
-* `CACHE_SECS` (int, `10..600`, default `60`) — network buffer length, seconds.
-* `CACHE_MB` (int, `50..1000`, `50..500` on Switch, default `150`) — network buffer memory, MB.
-* `VIDEO_QUALITY` (`0..2`, default `0`) — video quality preset: best, balanced, fast (see below).
-* `AUDIO_LANGUAGE` (default `Auto`) / `SUB_LANGUAGE` (default `Off`) — preferred tracks languages
-  (mpv `alang` / `slang` list, like `rus,ru`), `Auto` / `Off` keep `mpv.conf` ones.
-* `EXTERNAL_TRACKS` (`0/1`, default `1`) — audio and subtitles files found next to the video.
-* `MEDIA_PROBE` (`0/1`, default `1`) — media information (tracks, cover) read on selection, not only for the played files.
-  Cached in `cache/`, Settings > System > Clear cache removes it with the posters.
-* `AUDIO_NORMALIZE` (`0..2`, default `0`) — volume normalization: off, normalize, night mode.
-* `VOLUME` (int, default `-1`: `mpv.conf` one) — last volume, saved by the player.
-
-### Controls and UI
-
-* `SEEK_SHORT_SEC` (float, default `30`) — short seek interval.
-* `SEEK_LONG_SEC` (float, default `300`) — long seek interval.
-* `SWAP_CONTROLS` (`0/1`, default `0`) — swap seek/control button mapping.
-* `ACCENT_COLOR` (HEX string, default `#1078C8`) — UI accent color.
-* `LANGUAGE` (default `en`) — interface language (`lang/<code>.lang` file).
-* `LOG_LEVEL` (`0..4`, default `0`) — log verbosity: OFF/ERROR/INFO/DEBUG/TRACE.
-  On PS4, fatal crashes are also written to `/data/pplay/crash.log`.
-
-### Switch-specific
-
-* `CPU_BOOST` — `Disabled` / `Enabled` for heavy media playback.
-
-## Example `pplay.cfg`
-
-```ini
-# Network slots
-NETWORK1 = "http://samples.ffmpeg.org/"
-NETWORK1_NAME = "HTTP Samples"
-
-NETWORK2 = "ftp://user:password@192.168.1.20:21/"
-NETWORK2_NAME = "FTP Server"
-
-NETWORK3 = "smb://DOMAIN.user:password@192.168.1.50/media/"
-NETWORK3_NAME = "NAS Samba"
-
-NETWORK4 = "http://192.168.1.10:8090/"
-NETWORK4_NAME = "TorrServer"
-NETWORK4_TYPE = "TorrServe"
-
-NETWORK5 = "https://user:password@192.168.1.10:8091/"
-NETWORK5_NAME = "TorrServer HTTPS Auth"
-NETWORK5_TYPE = "TorrServe"
-
-# Paths/state
-HOME_PATH = "/data/pplay/"
-LAST_LOCAL_PATH = "/data/pplay/"
-LAST_MODULE = "LOCAL"
-
-# Network/player
-NETWORK_TIMEOUT = 20
-NETWORK_RETRIES = 5
-SMB_READ_BUFFER_MB = 16
-AUTOPLAY_MODE = 1
-
-# Controls/UI
-SEEK_SHORT_SEC = 15
-SEEK_LONG_SEC = 120
-SWAP_CONTROLS = 0
-ACCENT_COLOR = "#1078C8"
-LOG_LEVEL = 2
-
-# Switch-specific
-CPU_BOOST = "Enabled"
+```json
+{
+  "interface": {
+    "language": "en",
+    "accent_color": "#1078C8"
+  },
+  "networks": {
+    "cache_secs": 60,
+    "cache_mb": 150,
+    "list": [
+      {
+        "name": "TorrServer",
+        "type": "TorrServe",
+        "url": "http://192.168.1.10:8090/",
+        "user": "",
+        "password": "",
+        "timeout": 15,
+        "tls_verify": 1,
+        "sync": 30,
+        "smb_buffer": 10,
+        "last": "/"
+      },
+      {
+        "name": "NAS",
+        "type": "Samba",
+        "url": "smb://192.168.1.50/media/",
+        "user": "DOMAIN\\user",
+        "password": "password",
+        "timeout": 20,
+        "tls_verify": 1,
+        "sync": 30,
+        "smb_buffer": 16,
+        "last": "/"
+      }
+    ]
+  }
+}
 ```
+
+Missing keys get their defaults.
 
 ## MPV configuration
 
@@ -256,10 +219,10 @@ See:
 
 ### Video quality presets
 
-Settings > Playback > Video quality (`VIDEO_QUALITY`) overrides a few mpv options only, the rest of `mpv.conf`
+Settings > Video > Video quality (`video_quality`) overrides a few mpv options only, the rest of `mpv.conf`
 always applies:
 
-| Option | Best (default) | Balanced | Fast |
+| Option | Best | Balanced (default) | Fast |
 | :--- | :--- | :--- | :--- |
 | `scale`, `dscale`, `cscale` | `mpv.conf` | `bilinear` | `bilinear` |
 | `correct-downscaling`, `linear-downscaling`, `sigmoid-upscaling`, `deband`, `hdr-compute-peak` | `mpv.conf` | `no` | `no` |
