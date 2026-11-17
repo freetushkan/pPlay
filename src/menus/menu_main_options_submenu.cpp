@@ -239,6 +239,10 @@ void MenuMainOptionsSubmenu::refreshValues() {
                     pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(network))->getString());
             shown = type == (Utility::endsWith(name, " sync") ? pplay::Io::NetworkType::TorrServe
                                                               : pplay::Io::NetworkType::Smb);
+        } else if (network > 0 && (Utility::endsWith(name, " user") || Utility::endsWith(name, " password"))) {
+            // DLNA has no login
+            shown = pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(network))->getString()) !=
+                    pplay::Io::NetworkType::Dlna;
         } else if (sub != nullptr && sub->isSearch()) {
             // DLNA networks only, a list behind (no value)
             button->item.value = "";
@@ -503,6 +507,11 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
         pplay::Utility::setAccentColor(item->data_str);
     }
     option->setString(newValue);
+    int network = PPLAYConfig::networkOf(option_name, "_TYPE");
+    if (network > 0) {
+        // DLNA: no login in its urls
+        main->getConfig()->updateNetworkCredentials(network);
+    }
     main->getConfig()->save();
     pplay::Utility::log(pplay::Utility::LogLevel::Info,
                         "Options: " + option_name + " changed from " + oldValue + " to " + newValue);

@@ -234,7 +234,8 @@ std::string PPLAYConfig::withNetworkCredentials(int index, const std::string &ur
     std::string password = getOption(networkPasswordOption(index))->getString();
     size_t start, end;
     userInfoOf(plain, &start, &end);
-    if (user.empty() || plain.find("://") == std::string::npos) {
+    if (user.empty() || plain.find("://") == std::string::npos ||
+        pplay::Io::parseNetworkType(getOption(networkTypeOption(index))->getString()) == pplay::Io::NetworkType::Dlna) {
         return plain;
     }
     std::string info;

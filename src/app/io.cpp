@@ -262,7 +262,7 @@ std::string Io::getNetworkRoot(const std::string &path) {
 
 bool Io::credentialsOf(const std::string &url, std::string *user, std::string *password) {
     int index = findNetwork(url, false);
-    if (index < 1) {
+    if (index < 1 || parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString()) == NetworkType::Dlna) {
         return false;
     }
     *user = config->getOption(PPLAYConfig::networkUserOption(index))->getString();
