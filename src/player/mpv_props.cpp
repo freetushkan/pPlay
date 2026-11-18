@@ -52,9 +52,10 @@ void Mpv::watchProperties() {
 }
 
 void Mpv::refresh() {
+    auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
     for (auto &p: props) {
         if (p.second.watched) {
-            p.second.known = false;
+            p.second.polled = until;
         }
     }
 }
@@ -62,7 +63,7 @@ void Mpv::refresh() {
 bool Mpv::read(const char *name, mpv_format format, double *value) {
     Prop &p = props[name];
     auto now = std::chrono::steady_clock::now();
-    if (p.known && (p.watched || (saving && now - p.read < std::chrono::seconds(1)))) {
+    if (p.known && (p.watched ? now >= p.polled : saving && now - p.read < std::chrono::seconds(1))) {
         *value = p.value;
         return p.ok;
     }
@@ -71,14 +72,19 @@ bool Mpv::read(const char *name, mpv_format format, double *value) {
         int64_t i;
         double d;
     } data {};
-    p.ok = isAvailable() && mpv_get_property(handle, name, format, &data) >= 0;
-    if (p.ok) {
-        p.value = valueOf(format, &data);
+    bool ok = isAvailable() && mpv_get_property(handle, name, format, &data) >= 0;
+    double read = ok ? valueOf(format, &data) : 0;
+    // watched: the value only from the changes (mpv sends one against its last sent value, not this one)
+    if (!p.watched) {
+        p.ok = ok;
+        if (ok) {
+            p.value = read;
+        }
+        p.known = true;
+        p.read = now;
     }
-    p.known = true;
-    p.read = now;
-    *value = p.value;
-    return p.ok;
+    *value = ok ? read : p.value;
+    return ok;
 }
 
 int Mpv::save(bool wait) {
