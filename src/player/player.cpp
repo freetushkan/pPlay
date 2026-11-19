@@ -160,6 +160,7 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
         }
         if (!existsInAutoplay) {
             autoplayFiles = main->getFiler()->getFilesSnapshot();
+            shuffleOrder.clear();
         }
     }
 
@@ -317,6 +318,7 @@ void Player::updateFrame() {
 }
 
 void Player::onUpdate() {
+    updateShuffle();
     updateScrub();
     updateExternalTracks();
     updateDecoding();

@@ -188,7 +188,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     addSubmenu("Playback retry", "Playback retry", OPT_NETWORK_RETRIES, makeAdjustItems(), Submenu::ValueType::Integer,
                Submenu::MenuType::Adjust, 0.0f, 10.0f, 1.0f);
     addSubmenu("Playback mode", "At file end..", OPT_AUTOPLAY_MODE,
-               makeIntItems({{"Stop playback", 0}, {"Play next", 1}, {"Loop file", 2}, {"Loop directory", 3}}),
+               makeIntItems({{"Stop playback", 0}, {"Play next", 1}, {"Loop file", 2}, {"Loop directory", 3},
+                             {"Shuffle", 4}}),
                Submenu::ValueType::Integer);
 #if !defined(__ANDROID__) && !defined(__LINUX__)
     addSubmenu("Bumpers and triggers", "Bumpers and triggers", OPT_SWAP_CONTROLS,

@@ -390,8 +390,8 @@ void PlayerOSD::updateChips() {
         labels.push_back(pplay::tr("Volume") + " " + std::to_string(volume) + "%");
     }
     int mode = config->getOption(OPT_AUTOPLAY_MODE)->getInteger();
-    if (mode == 2 || mode == 3) {
-        labels.push_back(pplay::tr(mode == 2 ? "Loop file" : "Loop directory"));
+    if (mode >= 2 && mode <= 4) {
+        labels.push_back(pplay::tr(mode == 2 ? "Loop file" : mode == 3 ? "Loop directory" : "Shuffle"));
     }
     int normalize = config->getOption(OPT_AUDIO_NORMALIZE)->getInteger();
     if (normalize == 1 || normalize == 2) {

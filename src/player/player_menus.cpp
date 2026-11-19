@@ -35,30 +35,8 @@ void Player::buildMenus() {
     }
 
     buildTrackMenus();
+    buildPlaylistMenu();
 
-    std::vector<MenuItem> playlistItems;
-    if (isPlaylistFile()) {
-        for (auto &entry: mpv->getPlaylistItems()) {
-            std::string name = std::to_string(entry.first + 1) + ". " + entry.second;
-            playlistItems.emplace_back(name, "", MenuItem::Position::Top, entry.first);
-        }
-    } else {
-        for (size_t i = 0; i < autoplayFiles.size(); i++) {
-            auto &item = autoplayFiles[i];
-            if (!pplay::Utility::isMedia(item)) {
-                continue;
-            }
-            std::string name = std::to_string(i + 1) + ". " + encoding::fix(item.label.empty() ? item.name : item.label);
-            playlistItems.emplace_back(name, "", MenuItem::Position::Top, (int) i, true, item.name);
-        }
-    }
-    if (!playlistItems.empty()) {
-        menuPlaylist = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Playlist", playlistItems,
-                                            MENU_VIDEO_TYPE_PLAYLIST);
-        menuPlaylist->setVisibility(Visibility::Hidden, false);
-        menuPlaylist->setLayer(3);
-        main->add(menuPlaylist);
-    }
 
     if (menuNormalize == nullptr) {
         menuNormalize = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Volume normalization",
@@ -102,7 +80,8 @@ void Player::buildMenus() {
                                                 {MenuItem("Stop playback", "", MenuItem::Position::Top, 0),
                                                  MenuItem("Play next", "", MenuItem::Position::Top, 1),
                                                  MenuItem("Loop file", "", MenuItem::Position::Top, 2),
-                                                 MenuItem("Loop directory", "", MenuItem::Position::Top, 3)},
+                                                 MenuItem("Loop directory", "", MenuItem::Position::Top, 3),
+                                                 MenuItem("Shuffle", "", MenuItem::Position::Top, 4)},
                                                 MENU_VIDEO_TYPE_PL_MODE);
         menuPlaybackMode->setLayer(3);
         menuPlaybackMode->setVisibility(Visibility::Hidden, false);
@@ -149,6 +128,50 @@ void Player::buildTrackMenus() {
         menuSubtitlesStreams->setVisibility(subtitlesVisible ? Visibility::Visible : Visibility::Hidden, false);
         menuSubtitlesStreams->setLayer(3);
         main->add(menuSubtitlesStreams);
+    }
+}
+
+void Player::buildPlaylistMenu() {
+    delete (menuPlaylist);
+    menuPlaylist = nullptr;
+    std::vector<MenuItem> playlistItems;
+    if (isPlaylistFile()) {
+        for (auto &entry: mpv->getPlaylistItems()) {
+            std::string name = std::to_string(entry.first + 1) + ". " + entry.second;
+            playlistItems.emplace_back(name, "", MenuItem::Position::Top, entry.first);
+        }
+    } else {
+        // shuffled: in its order
+        std::vector<size_t> order;
+        for (auto &path: shuffleOrder) {
+            for (size_t i = 0; i < autoplayFiles.size(); i++) {
+                if (autoplayFiles[i].path == path) {
+                    order.push_back(i);
+                    break;
+                }
+            }
+        }
+        if (order.empty()) {
+            for (size_t i = 0; i < autoplayFiles.size(); i++) {
+                order.push_back(i);
+            }
+        }
+        for (size_t n = 0; n < order.size(); n++) {
+            auto &item = autoplayFiles[order[n]];
+            if (!pplay::Utility::isMedia(item)) {
+                continue;
+            }
+            size_t number = shuffleOrder.empty() ? order[n] + 1 : n + 1;
+            std::string name = std::to_string(number) + ". " + encoding::fix(item.label.empty() ? item.name : item.label);
+            playlistItems.emplace_back(name, "", MenuItem::Position::Top, (int) order[n], true, item.name);
+        }
+    }
+    if (!playlistItems.empty()) {
+        menuPlaylist = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Playlist", playlistItems,
+                                            MENU_VIDEO_TYPE_PLAYLIST);
+        menuPlaylist->setVisibility(Visibility::Hidden, false);
+        menuPlaylist->setLayer(3);
+        main->add(menuPlaylist);
     }
 }
 
@@ -200,11 +223,13 @@ void Player::processDeferredMenus() {
     const bool deleteAll = menusDeleteAllPending;
     const bool buildPending = menusBuildPending;
     const bool trackBuildPending = menusTrackBuildPending;
+    const bool playlistBuildPending = menusPlaylistBuildPending;
 
     menusDeletePending = false;
     menusDeleteAllPending = false;
     menusBuildPending = false;
     menusTrackBuildPending = false;
+    menusPlaylistBuildPending = false;
 
     // These menus are children of Main, not Player. Mutating Main's child vector
     // from Player::onUpdate() invalidates C2DObject::onUpdate()'s active iterators.
@@ -213,8 +238,14 @@ void Player::processDeferredMenus() {
     }
     if (buildPending && !main->isExiting()) {
         buildMenus();
-    } else if (trackBuildPending && !main->isExiting() && !deleteAll && !mpv->isStopped()) {
-        buildTrackMenus();
+    } else {
+        if (trackBuildPending && !main->isExiting() && !deleteAll && !mpv->isStopped()) {
+            buildTrackMenus();
+        }
+        // another shuffled order
+        if (playlistBuildPending && !main->isExiting() && !deleteAll && menuPlaylist != nullptr) {
+            buildPlaylistMenu();
+        }
     }
 }
 

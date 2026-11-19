@@ -344,6 +344,7 @@ private:
     // Main's child vector must not be mutated from Player::onUpdate().
     bool menusBuildPending = false;
     bool menusTrackBuildPending = false;
+    bool menusPlaylistBuildPending = false;
     bool menusDeletePending = false;
     bool menusDeleteAllPending = false;
 
@@ -351,6 +352,16 @@ private:
     MediaFile file;
     std::string playingKey;
     std::vector<MediaFile> autoplayFiles;
+    // shuffle: the media paths of autoplayFiles mixed once (when turned on, with a new list),
+    // the file playing then first
+    std::vector<std::string> shuffleOrder;
+
+    void updateShuffle();
+
+    void buildPlaylistMenu();
+
+    // the one before (-1) or after (1) the current one in the shuffled order, null if none
+    const MediaFile *shuffleSibling(int direction) const;
     mutable std::string displayTitle;
     bool decoderHardware = false;
     bool decoderAuto = false;

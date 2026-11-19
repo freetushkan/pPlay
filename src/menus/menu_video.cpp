@@ -35,7 +35,7 @@ namespace {
         return items;
     }
 
-    const char *modeNames[] = {"Stop playback", "Play next", "Loop file", "Loop directory"};
+    const char *modeNames[] = {"Stop playback", "Play next", "Loop file", "Loop directory", "Shuffle"};
     const char *normalizeNames[] = {"Off", "Normalize", "Night mode"};
     const char *screenNames[] = {"Cover > visualizer", "Visualizer", "Icon only"};
     const char *qualityNames[] = {"Best", "Balanced", "Fast"};
@@ -134,7 +134,7 @@ void MenuVideo::refreshValues() {
         MenuItem &item = button->item;
         const std::string &n = item.name;
         if (n == "Playback mode") {
-            int mode = std::max(0, std::min(3, config->getOption(OPT_AUTOPLAY_MODE)->getInteger()));
+            int mode = std::max(0, std::min(4, config->getOption(OPT_AUTOPLAY_MODE)->getInteger()));
             item.value = pplay::tr(modeNames[mode]);
             item.valueAccent = mode >= 2;
         } else if (n == "Audio" || n == "Video") {
@@ -222,7 +222,7 @@ bool MenuVideo::onOptionChange(MenuItem *item, int direction) {
     if (n == "Playback mode") {
         auto *option = config->getOption(OPT_AUTOPLAY_MODE);
         option->setType(c2d::config::Option::Type::Integer);
-        option->setInteger(cycle(option->getInteger(), direction, 4));
+        option->setInteger(cycle(option->getInteger(), direction, 5));
         config->save();
     } else if (n == "Volume normalization") {
         player->setAudioNormalize(cycle(config->getOption(OPT_AUDIO_NORMALIZE)->getInteger(), direction, 3));

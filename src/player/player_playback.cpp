@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <random>
 #include <cstdio>
 
 #include "main.h"
@@ -185,6 +186,17 @@ void Player::onStopEvent(int reason) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent loopFile current=" + file.path);
             load(file, true, "pause=yes,start=0");
             return;
+        }
+        if (autoplayMode == 4) {
+            const MediaFile *next = shuffleSibling(1);
+            if (next != nullptr) {
+                texture->clearFrame();
+                pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                                    "Player::onStopEvent shuffleNext current=" + file.path + " next=" + next->path);
+                MediaFile f = *next;
+                load(f, true, "pause=yes,start=0");
+                return;
+            }
         }
         if ((autoplayMode == 1 || autoplayMode == 3) && !autoplayFiles.empty()) {
             texture->clearFrame();
@@ -388,8 +400,49 @@ void Player::onMpvLog(const mpv_event_log_message *message) {
                                        + (message->level ? message->level : "") + ": " + text);
 }
 
+void Player::updateShuffle() {
+    if (main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger() != 4 || isPlaylistFile()) {
+        if (!shuffleOrder.empty()) {
+            shuffleOrder.clear();
+            menusPlaylistBuildPending = true;
+        }
+        return;
+    }
+    if (!shuffleOrder.empty() || autoplayFiles.empty() || mpv->isStopped()) {
+        return;
+    }
+    for (auto &f: autoplayFiles) {
+        if (pplay::Utility::isMedia(f) && f.path != file.path) {
+            shuffleOrder.push_back(f.path);
+        }
+    }
+    std::shuffle(shuffleOrder.begin(), shuffleOrder.end(), std::mt19937(std::random_device()()));
+    shuffleOrder.insert(shuffleOrder.begin(), file.path);
+    menusPlaylistBuildPending = true;
+}
+
+const MediaFile *Player::shuffleSibling(int direction) const {
+    auto it = std::find(shuffleOrder.begin(), shuffleOrder.end(), file.path);
+    if (it == shuffleOrder.end()) {
+        return nullptr;
+    }
+    // looped
+    long count = (long) shuffleOrder.size();
+    long index = ((it - shuffleOrder.begin()) + direction + count) % count;
+    for (auto &f: autoplayFiles) {
+        if (f.path == shuffleOrder[index]) {
+            return &f;
+        }
+    }
+    return nullptr;
+}
+
 std::string Player::nextTitle() const {
     int mode = main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger();
+    if (!isPlaylistFile() && mode == 4) {
+        const MediaFile *next = shuffleSibling(1);
+        return next != nullptr && next->path != file.path ? next->name : "";
+    }
     if (isPlaylistFile() || (mode != 1 && mode != 3)) {
         return "";
     }
@@ -427,6 +480,18 @@ bool Player::playSibling(int direction) {
     if (isPlaylistFile()) {
         const char *cmd[] = {direction > 0 ? "playlist-next" : "playlist-prev", nullptr};
         return mpv_command(mpv->getHandle(), cmd) >= 0;
+    }
+    // shuffled: its order
+    if (main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger() == 4 && !shuffleOrder.empty()) {
+        const MediaFile *sibling = shuffleSibling(direction);
+        if (sibling != nullptr) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                                "Player: " + std::string(direction > 0 ? "next" : "previous") + " " + sibling->path);
+            MediaFile next = *sibling;
+            return load(next);
+        }
+        main->getStatus()->show("Info", pplay::tr(direction > 0 ? "Next" : "Previous") + ": -");
+        return false;
     }
     int current = -1;
     for (size_t i = 0; i < autoplayFiles.size(); i++) {

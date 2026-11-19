@@ -28,6 +28,7 @@ At file end.. = At the end of a file
 Play next = Play next file
 Loop file = Loop file
 Loop directory = Loop directory
+Shuffle = Shuffle
 
 # Settings
 Normal = Normal

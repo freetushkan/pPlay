@@ -28,6 +28,7 @@ At file end.. = По окончании файла
 Play next = Включить следующий файл
 Loop file = Повторять файл
 Loop directory = Повторять папку
+Shuffle = Перемешать
 
 # Settings
 Normal = Обычно
