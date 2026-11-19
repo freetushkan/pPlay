@@ -5,6 +5,7 @@
 #ifndef PPLAY_IO_H
 #define PPLAY_IO_H
 
+#include <atomic>
 #include "cross2d/c2d.h"
 
 #ifdef __SMB2__
@@ -27,6 +28,12 @@ namespace pplay {
 
         // the application io
         static Io *get();
+
+        // the network open in the filer (main menu), 0 if none: the one taken among the same
+        // address and user (the filer requests)
+        void setCurrentNetwork(int index) {
+            currentNetwork = index;
+        }
 
         enum class DeviceType {
             Local,
@@ -116,6 +123,8 @@ namespace pplay {
 #endif
 
     private:
+
+        std::atomic<int> currentNetwork {0};
 
         // network index of a path, -1 if none
         int findNetwork(const std::string &path, bool typedOnly);

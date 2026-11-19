@@ -56,7 +56,7 @@ void Main::show(MenuType type) {
 #ifdef __SWITCH__
         usbExit();
 #endif
-        currentModuleIndex = -1;
+        setCurrentModuleIndex(-1);
         std::string path = Paths::normalizePath(config->getOption(OPT_LAST_LOCAL_PATH)->getString());
         if (path.empty()) {
             path = config->getOption(OPT_HOME_PATH)->getString();
@@ -73,7 +73,7 @@ void Main::show(MenuType type) {
 #ifdef __SWITCH__
         usbExit();
 #endif
-        currentModuleIndex = MODULE_SAVED;
+        setCurrentModuleIndex(MODULE_SAVED);
         std::string root = c2d::Utility::removeLastSlash(pplay::Saved::root());
         if (!pplayIo->exist(root)) {
             pplayIo->create(root);
@@ -93,7 +93,7 @@ void Main::show(MenuType type) {
 #ifdef __SWITCH__
         usbExit();
 #endif
-        currentModuleIndex = MODULE_PLAYLISTS;
+        setCurrentModuleIndex(MODULE_PLAYLISTS);
         std::string root = pplay::Playlists::root();
         if (!pplayIo->exist(root)) {
             pplayIo->create(root);
@@ -111,7 +111,7 @@ void Main::show(MenuType type) {
         filer->clearHistory();
 #ifdef __SWITCH__
     } else if (type == MenuType::Usb) {
-        currentModuleIndex = -2;
+        setCurrentModuleIndex(-2);
         usbInit();
         usbWaitForDevice();
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main::usb path=ums_list");
@@ -170,7 +170,7 @@ void Main::openLink(const std::string &url, const std::string &name) {
         if (!TorrServe::findLinkFile(network, url, timeout, &found)) {
             continue;
         }
-        currentModuleIndex = i;
+        setCurrentModuleIndex(i);
         // not over a fullscreen player (its keys would go to the filer)
         if (!player->isFullscreen()) {
             filer->setVisibility(Visibility::Visible, true);
@@ -283,7 +283,7 @@ void Main::restoreSession() {
     std::string listSelection = filer->getSelection().path;
     bool away = filer->getSelection().path != path;
     if (away) {
-        currentModuleIndex = moduleOf(path);
+        setCurrentModuleIndex(moduleOf(path));
         if (filer->getDir(Paths::extractDirPath(path))) {
             filer->selectByPath(path);
         }
@@ -291,7 +291,7 @@ void Main::restoreSession() {
     MediaFile file = filer->getSelection();
     auto back = [&] {
         if (away) {
-            currentModuleIndex = listModule;
+            setCurrentModuleIndex(listModule);
             filer->getDir(listPath);
             filer->selectByPath(listSelection);
             filer->clearHistory();

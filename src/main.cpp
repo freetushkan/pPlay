@@ -148,6 +148,7 @@ void Main::renumberNetworks(const std::function<int(int)> &to) {
         int index = to(currentModuleIndex);
         if (index > 0) {
             currentModuleIndex = index;
+            pplayIo->setCurrentNetwork(index);
             // its number in the path bar
             filer->refresh();
         } else {
@@ -529,6 +530,7 @@ void Main::quit() {
 
 void Main::setCurrentModuleIndex(int index) {
     currentModuleIndex = index;
+    pplayIo->setCurrentNetwork(index > 0 ? index : 0);
 }
 
 int Main::getcurrentModuleIndex() {

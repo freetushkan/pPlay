@@ -255,9 +255,10 @@ int Io::findNetwork(const std::string &path, bool typedOnly) {
         const std::string root = comparableUrl(network);
         if (target == root
             || (c2d::Utility::startWith(target, root) && (target[root.size()] == '/' || target[root.size()] == '?'))) {
-            // longest match wins, then the same user
+            // longest match wins, then the same user, then the filer one
             bool sameUser = userOf(network) == user;
-            if (root.size() > bestLen || (root.size() == bestLen && sameUser && !bestUser)) {
+            if (root.size() > bestLen || (root.size() == bestLen && sameUser && !bestUser)
+                || (root.size() == bestLen && sameUser == bestUser && i == currentNetwork)) {
                 best = i;
                 bestLen = root.size();
                 bestUser = sameUser;
