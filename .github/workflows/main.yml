@@ -140,10 +140,6 @@ jobs:
             alien rpm debhelper
           pip3 install meson glad2 --break-system-packages
 
-          wget -q https://rpmfind.net/linux/mageia/distrib/9/x86_64/media/core/release/waf-2.0.25-1.mga9.noarch.rpm -O /tmp/waf.rpm
-          sudo alien --to-deb --scripts /tmp/waf.rpm
-          sudo dpkg -i waf_*.deb
-
           sudo tee -a /etc/pacman.conf > /dev/null <<TEXT
           [pacbrew]
           SigLevel = Optional TrustAll
@@ -186,6 +182,16 @@ jobs:
         run: |
           set -eux
           mkdir -p /opt/compiled_libs/libmpv
+
+          if wget -q https://waf.io/waf-2.0.25 -O /tmp/waf && python3 /tmp/waf --version; then
+            sudo install -m 755 /tmp/waf /usr/local/bin/waf
+          else
+            for mirror in https://rpmfind.net/linux/mageia https://mirrors.kernel.org/mageia; do
+              wget -q "$mirror/distrib/9/x86_64/media/core/release/waf-2.0.25-1.mga9.noarch.rpm" -O /tmp/waf.rpm && break
+            done
+            (cd /tmp && sudo alien --to-deb --scripts /tmp/waf.rpm && sudo dpkg -i waf_*.deb) || echo "waf: not installed"
+          fi
+
           cd /tmp/portlibs/libmpv
           makepkg --noconfirm --syncdeps --cleanbuild
           ls -l ./
