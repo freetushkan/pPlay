@@ -185,7 +185,10 @@ pplay::DetailsInfo pplay::DetailsInfo::of(const MediaFile &file) {
         }
         text += noBreak(files) + "\n";
         if (ts.fileIndex >= 0) {
-            text += "\n" + pplay::TextWrap::flat(encoding::fix(ts.fileName)) + "\n\n";
+            // and its directory inside the torrent
+            std::string dir = TorrServe::dirOf(Saved::originalOf(file.path));
+            std::string name = ts.fileName + (dir.empty() ? "" : " (" + dir + ")");
+            text += "\n" + pplay::TextWrap::flat(encoding::fix(name)) + "\n\n";
             std::string tags = tagLines(file.mediaInfo);
             text += tags.empty() ? "" : tags + "\n";
             text += mediaLines(file.mediaInfo, ts.fileSize > 0 ? (uint64_t) ts.fileSize : 0);
