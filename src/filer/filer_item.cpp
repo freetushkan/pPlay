@@ -153,7 +153,7 @@ void FilerItem::setFile(const MediaFile &f) {
     } else {
         const bool playing =
                 file.type == Io::Type::File && main->getPlayer() != nullptr && main->getPlayer()->isPlaying(file.path);
-        textTitle->setString(encoding::fix(file.name));
+        textTitle->setString(encoding::fix(file.label.empty() ? file.name : file.label));
         setIcon(playing ? "file_playing.png" : iconName(file));
     }
     setColor(color());

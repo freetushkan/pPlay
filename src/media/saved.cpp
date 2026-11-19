@@ -33,6 +33,7 @@
 #include "poster_cache.h"
 #include "pplay_config.h"
 #include "saved.h"
+#include "torrserve.h"
 #include "utility.h"
 #include "worker.h"
 
@@ -1216,7 +1217,9 @@ namespace pplay::Saved {
             || (file.type != c2d::Io::Type::File && file.type != c2d::Io::Type::Directory)) {
             return false;
         }
-        return Io::get() != nullptr && !Io::get()->getNetworkRoot(file.path).empty();
+        // all the torrent files: the torrent itself is saved
+        return Io::get() != nullptr && !Io::get()->getNetworkRoot(file.path).empty()
+               && !pplay::TorrServe::isAllFiles(file.path);
     }
 
     void save(const c2d::Io::File &file) {

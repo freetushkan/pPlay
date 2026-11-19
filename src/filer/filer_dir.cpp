@@ -3,12 +3,14 @@
 //
 
 #include <algorithm>
+#include <map>
 #include "main.h"
 #include "paths.h"
 #include "filer.h"
 #include "utility.h"
 #include "saved.h"
 #include "playlists.h"
+#include "torrserve.h"
 
 #define EMPTY_NAME "<Empty>"
 
@@ -169,8 +171,23 @@ bool Filer::getDir(const std::string &p) {
     folderCovers[path] = cover.empty() || smb ? "" : "dir:" + cover;
     details->setFolderCover(folderCovers[path]);
 
-    if (!playlist) {
+    // all the torrent files: by index, a name met twice with its directory
+    if (pplay::TorrServe::isAllFiles(path)) {
+        std::map<std::string, int> names;
+        for (auto &file: files) {
+            names[file.name]++;
+        }
+        for (auto &file: files) {
+            if (names[file.name] > 1) {
+                std::string dir = pplay::TorrServe::dirOf(file.path);
+                file.label = file.name + " (" + (dir.empty() ? "/" : dir) + ")";
+            }
+        }
+    } else if (!playlist) {
         std::sort(files.begin(), files.end(), compare);
+        // a torrent root: its all files first
+        std::stable_partition(files.begin(), files.end(),
+                              [](const MediaFile &f) { return pplay::TorrServe::isAllFiles(f.path); });
     }
 
     files.erase(std::remove_if(files.begin(), files.end(),

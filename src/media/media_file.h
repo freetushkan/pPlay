@@ -25,6 +25,8 @@ public:
     }
 
     MediaInfo mediaInfo;
+    // shown instead of the name (a name met twice in a list: its directory too)
+    std::string label;
 };
 
 #endif //PPLAY_MEDIAFILE_H

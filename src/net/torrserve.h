@@ -24,6 +24,12 @@ namespace pplay::TorrServe {
         int64_t fileSize = 0;
     };
 
+    // a torrent with directories: all its files in one list, by index (<server>/<torrent title>/[all files])
+    const char *const ALL_FILES = "[all files]";
+    bool isAllFiles(const std::string &path);
+    // the directory of a file inside its torrent ("" at its root)
+    std::string dirOf(const std::string &path);
+
     // TorrServer virtual file system: <server>/<torrent title>/<torrent dirs...>/<file>?link=..&index=..
     std::vector<c2d::Io::File> getDirList(const std::string &path, int timeout, std::string *error = nullptr);
     // torrent information of a path, from the last listing (no network access)

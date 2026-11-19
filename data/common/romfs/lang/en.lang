@@ -107,6 +107,7 @@ BACK = BACK
 <Empty> = <Empty>
 Parent directory = Parent directory
 Directory = Directory
+[all files] = [all files]
 
 # Information panel
 Category = Category

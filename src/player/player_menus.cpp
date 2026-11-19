@@ -48,7 +48,7 @@ void Player::buildMenus() {
             if (!pplay::Utility::isMedia(item)) {
                 continue;
             }
-            std::string name = std::to_string(i + 1) + ". " + encoding::fix(item.name);
+            std::string name = std::to_string(i + 1) + ". " + encoding::fix(item.label.empty() ? item.name : item.label);
             playlistItems.emplace_back(name, "", MenuItem::Position::Top, (int) i, true, item.name);
         }
     }

@@ -17,6 +17,7 @@
 #include "saved.h"
 #include "paths.h"
 #include "playlists.h"
+#include "torrserve.h"
 
 using namespace c2d;
 
@@ -90,7 +91,8 @@ std::vector<std::string> Breadcrumb::split(const std::string &path) const {
         size_t end = rest.find('/', start);
         std::string part = rest.substr(start, end == std::string::npos ? std::string::npos : end - start);
         if (!part.empty() && part != ".") {
-            parts.push_back(encoding::fix(decode(part)));
+            std::string name = decode(part);
+            parts.push_back(name == pplay::TorrServe::ALL_FILES ? pplay::tr(name) : encoding::fix(name));
         }
         if (end == std::string::npos) {
             break;

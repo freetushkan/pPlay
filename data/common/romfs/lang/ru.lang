@@ -107,6 +107,7 @@ BACK = НАЗАД
 <Empty> = <Пусто>
 Parent directory = Родительская папка
 Directory = Папка
+[all files] = [все файлы]
 
 # Information panel
 Category = Категория

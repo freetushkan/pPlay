@@ -24,6 +24,7 @@
 #include "net_http.h"
 #include "torrserve.h"
 #include "dlna.h"
+#include "i18n.h"
 #include "saved.h"
 #include "utility.h"
 #include "worker.h"
@@ -780,6 +781,27 @@ namespace {
 
 namespace pplay::TorrServe {
 
+    bool isAllFiles(const std::string &path) {
+        if (!isTorrServe(path)) {
+            return false;
+        }
+        std::vector<std::string> parts = splitPath(relativeOf(path));
+        return parts.size() == 2 && parts[1] == ALL_FILES;
+    }
+
+    std::string dirOf(const std::string &path) {
+        if (!isTorrServe(path)) {
+            return "";
+        }
+        // <torrent title>/<dirs...>/<file>
+        std::vector<std::string> parts = splitPath(relativeOf(path));
+        std::string dir;
+        for (size_t i = 1; i + 1 < parts.size(); i++) {
+            dir += (dir.empty() ? "" : "/") + parts[i];
+        }
+        return dir;
+    }
+
     std::vector<c2d::Io::File> getDirList(const std::string &path, int timeout, std::string *error) {
         std::vector<c2d::Io::File> files;
         std::string root = rootOf(path);
@@ -802,6 +824,25 @@ namespace pplay::TorrServe {
                                       [&parts](const Torrent &torrent) { return torrent.title == parts[0]; });
         if (torrentIt == torrents.end()) {
             return getDirList(root, timeout, error);
+        }
+
+        // all the files at once, by index
+        if (parts.size() == 2 && parts[1] == ALL_FILES) {
+            std::vector<TorrentFile> sorted = torrentIt->files;
+            std::stable_sort(sorted.begin(), sorted.end(),
+                             [](const TorrentFile &a, const TorrentFile &b) { return a.id < b.id; });
+            for (const auto &torrentFile: sorted) {
+                std::vector<std::string> virtualParts = {torrentIt->title};
+                for (auto &part: splitPath(torrentFile.path)) {
+                    virtualParts.push_back(part);
+                }
+                std::string virtualPath = joinVirtual(root, virtualParts) + "?link=" + escapeSegment(torrentIt->hash)
+                                          + "&index=" + std::to_string(torrentFile.id)
+                                          + "&dummy=" + escapeSegment(basename(torrentFile.path));
+                files.emplace_back(virtualParts.back(), virtualPath, c2d::Io::Type::File,
+                                   (uint64_t) torrentFile.length);
+            }
+            return files;
         }
 
         std::vector<std::string> prefix(parts.begin() + 1, parts.end());
@@ -827,6 +868,11 @@ namespace pplay::TorrServe {
                 files.emplace_back(name, virtualPath, c2d::Io::Type::File, (uint64_t) torrentFile.length);
             }
         }
+        // the torrent root with directories: all the files too
+        if (parts.size() == 1 && !dirs.empty()) {
+            files.emplace_back(pplay::tr(ALL_FILES), joinVirtual(root, {parts[0], ALL_FILES}),
+                               c2d::Io::Type::Directory);
+        }
         return files;
     }
 
@@ -838,6 +884,10 @@ namespace pplay::TorrServe {
         std::vector<Torrent> torrents = torrentsOf(httpRoot, timeout, &ok);
         if (!ok) {
             return false;
+        }
+        // all the files: the torrent itself
+        if (parts.size() == 2 && parts[1] == ALL_FILES) {
+            parts.pop_back();
         }
         files->clear();
         for (const auto &torrent: torrents) {
