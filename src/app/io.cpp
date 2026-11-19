@@ -214,6 +214,21 @@ static std::string comparableUrl(const std::string &url) {
     return u;
 }
 
+// the user of an url ("" if none)
+static std::string userOf(const std::string &url) {
+    size_t scheme = url.find("://");
+    if (scheme == std::string::npos) {
+        return "";
+    }
+    size_t end = url.find_first_of("/?#", scheme + 3);
+    size_t at = url.rfind('@', end == std::string::npos ? std::string::npos : end);
+    if (at == std::string::npos || at < scheme + 3) {
+        return "";
+    }
+    std::string info = url.substr(scheme + 3, at - scheme - 3);
+    return info.substr(0, info.find(':'));
+}
+
 int Io::findNetwork(const std::string &path, bool typedOnly) {
     if (path.find("://") == std::string::npos) {
         return -1;
@@ -222,8 +237,11 @@ int Io::findNetwork(const std::string &path, bool typedOnly) {
         return -1;
     }
     const std::string target = comparableUrl(path);
+    // the same address in several networks: the one of the path user
+    const std::string user = userOf(path);
     int best = -1;
     size_t bestLen = 0;
+    bool bestUser = false;
     for (int i = 1; i <= config->getNetworkCount(); i++) {
         const std::string network = config->getOption(PPLAYConfig::networkOption(i))->getString();
         if (network.empty()) {
@@ -237,10 +255,12 @@ int Io::findNetwork(const std::string &path, bool typedOnly) {
         const std::string root = comparableUrl(network);
         if (target == root
             || (c2d::Utility::startWith(target, root) && (target[root.size()] == '/' || target[root.size()] == '?'))) {
-            // longest match wins
-            if (root.size() > bestLen) {
+            // longest match wins, then the same user
+            bool sameUser = userOf(network) == user;
+            if (root.size() > bestLen || (root.size() == bestLen && sameUser && !bestUser)) {
                 best = i;
                 bestLen = root.size();
+                bestUser = sameUser;
             }
         }
     }
