@@ -541,6 +541,8 @@ namespace {
     // the worker requests, in order: a body (set / rem) or a list (empty body)
     struct ViewedJob {
         std::string root, hash, body;
+        // a list after a body: its result asked
+        bool after = false;
     };
     std::deque<ViewedJob> g_viewedJobs;
     // root|hash with a list queued or running
@@ -702,6 +704,19 @@ namespace {
                 }
                 job = g_viewedJobs.front();
                 g_viewedJobs.pop_front();
+                // more changes of this server queued: listed after them (not the ones not sent yet
+                // undone meanwhile)
+                bool later = false, again = false;
+                for (const auto &next: g_viewedJobs) {
+                    later |= !next.body.empty() && next.root == job.root;
+                    again |= next.body.empty() && next.root == job.root && next.hash == job.hash;
+                }
+                if (job.body.empty() && later) {
+                    if (!again) {
+                        g_viewedPending.erase(job.root + "|" + job.hash);
+                    }
+                    continue;
+                }
             }
             if (job.body.empty()) {
                 // answered meanwhile (all of a server at once)
@@ -709,7 +724,8 @@ namespace {
                 {
                     std::lock_guard<std::mutex> lock(g_viewedMutex);
                     auto it = g_viewed.find(job.root + "|" + job.hash);
-                    fresh = it != g_viewed.end() && difftime(time(nullptr), it->second.updated) < syncSecs(job.root);
+                    fresh = !job.after && it != g_viewed.end()
+                            && difftime(time(nullptr), it->second.updated) < syncSecs(job.root);
                     if (fresh) {
                         g_viewedPending.erase(job.root + "|" + job.hash);
                     }
@@ -735,7 +751,7 @@ namespace {
             } else if (queued) {
                 return;
             }
-            g_viewedJobs.push_back({root, hash, {}});
+            g_viewedJobs.push_back({root, hash, {}, !body.empty()});
             if (g_viewedBusy) {
                 return; // the running worker takes it
             }
