@@ -134,7 +134,7 @@ void Player::onStopEvent(int reason) {
     if (!reloading) {
         main->getStatus()->hide();
     }
-    main->getMenuVideo()->reset();
+    // the player menu: its position kept (another file)
     osd->reset();
 
     menusDeletePending = true;

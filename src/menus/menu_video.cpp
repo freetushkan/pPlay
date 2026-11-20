@@ -199,7 +199,10 @@ void MenuVideo::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
                     items.push_back(item);
                 }
             }
+            // its position kept
+            std::string selected = buttons.empty() ? "" : getSelection()->name;
             setItems(items);
+            select(selected);
         }
     }
     Menu::setVisibility(visibility, tweenPlay);
