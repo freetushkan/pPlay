@@ -231,6 +231,7 @@ void Player::showOsd() {
 
 void Player::hideMenus() {
     main->getMenuVideo()->setVisibility(Visibility::Hidden, true);
+    main->getMenuMain()->closePlayerSettings();
     for (auto *menu: menus()) {
         menu->setVisibility(Visibility::Hidden, true);
     }

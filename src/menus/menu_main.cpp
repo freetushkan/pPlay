@@ -515,6 +515,19 @@ void MenuMain::openSettings(bool fromPlayer) {
     menuMainOptions->setVisibility(Visibility::Visible);
 }
 
+void MenuMain::closePlayerSettings() {
+    if (!menuMainOptions->fromPlayer) {
+        return;
+    }
+    menuMainOptions->setVisibility(Visibility::Hidden, true);
+    for (auto &submenu: menuMainOptionsSubmenus) {
+        submenu.second->setVisibility(Visibility::Hidden, true);
+    }
+    if (fileEditor != nullptr) {
+        fileEditor->setVisibility(Visibility::Hidden, true);
+    }
+}
+
 MenuFileEditor *MenuMain::getFileEditor() {
     return fileEditor;
 }
