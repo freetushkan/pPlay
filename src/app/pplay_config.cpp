@@ -415,7 +415,8 @@ void PPLAYConfig::allocateNetworks(int count) {
         addOption({networkLastOption(networkSlots), "/"});
         // "": "Network n"
         addOption({networkNameOption(networkSlots), ""});
-        addOption({networkTypeOption(networkSlots), "TorrServe"}); // TorrServe, TS_Silo, Samba, FTP, HTTP, WebDAV, DLNA
+        // TorrServer.MatriX, TorrServer.Silo, Samba, FTP, HTTP, WebDAV, DLNA
+        addOption({networkTypeOption(networkSlots), "TorrServer.MatriX"});
         addOption({networkUserOption(networkSlots), ""});
         addOption({networkPasswordOption(networkSlots), ""});
         addOption({networkTokenOption(networkSlots), ""});
@@ -439,7 +440,7 @@ void PPLAYConfig::clearNetwork(int index) {
     getOption(networkOption(index))->setString("");
     getOption(networkLastOption(index))->setString("/");
     getOption(networkNameOption(index))->setString("");
-    getOption(networkTypeOption(index))->setString("TorrServe");
+    getOption(networkTypeOption(index))->setString("TorrServer.MatriX");
     getOption(networkUserOption(index))->setString("");
     getOption(networkPasswordOption(index))->setString("");
     getOption(networkTokenOption(index))->setString("");
@@ -657,12 +658,12 @@ bool PPLAYConfig::importOld() {
             std::string type = Utility::startWith(url, "smb://")   ? "Samba"
                                : Utility::startWith(url, "ftp://") ? "FTP"
                                : Utility::startWith(url, "http")   ? "HTTP"
-                                                                   : "TorrServe";
+                                                                   : "TorrServer.MatriX";
             getOption(networkTypeOption(kept))->setString(type);
         }
         if (migrateTorrServeUrl(url)) {
             getOption(networkOption(kept))->setString(url);
-            getOption(networkTypeOption(kept))->setString("TorrServe");
+            getOption(networkTypeOption(kept))->setString("TorrServer.MatriX");
             std::string last = getOption(networkLastOption(kept))->getString();
             if (migrateTorrServeUrl(last)) {
                 getOption(networkLastOption(kept))->setString(last);
@@ -734,9 +735,11 @@ void PPLAYConfig::sanitize() {
         if (getOption(networkLastOption(i))->getString().empty()) {
             getOption(networkLastOption(i))->setString("/");
         }
-        if (pplay::Io::parseNetworkType(getOption(networkTypeOption(i))->getString()) == pplay::Io::NetworkType::Auto) {
-            getOption(networkTypeOption(i))->setString("TorrServe");
-        }
+        // its name as shown ("TorrServe", "silo"... as their new names), none: TorrServer.MatriX
+        pplay::Io::NetworkType type = pplay::Io::parseNetworkType(getOption(networkTypeOption(i))->getString());
+        getOption(networkTypeOption(i))->setString(type == pplay::Io::NetworkType::Auto
+                                                           ? "TorrServer.MatriX"
+                                                           : pplay::Io::networkTypeName(type));
         auto clampNetwork = [this](const char *name, int min, int max) {
             int value = getOption(name)->getInteger();
             getOption(name)->setInteger(std::max(min, std::min(max, value)));

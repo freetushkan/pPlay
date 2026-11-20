@@ -142,7 +142,7 @@ namespace {
                 nlohmann::json json = nlohmann::json::parse(response.body, nullptr, false);
                 if (response.ok() && !json.is_discarded() && json.is_object() && json.contains("status")
                     && json["status"] == "ok") {
-                    servers.push_back({"TS Silo", "TS Silo (" + text(ip) + ")", url});
+                    servers.push_back({"TorrServer.Silo", "TorrServer.Silo (" + text(ip) + ")", url});
                 }
                 continue;
             }
@@ -150,7 +150,7 @@ namespace {
             std::string version = response.body.substr(0, 40);
             if (response.ok() && !version.empty() && version.find('<') == std::string::npos
                 && version.find('{') == std::string::npos) {
-                servers.push_back({"TorrServer", "TorrServer " + version + " (" + text(ip) + ")", url});
+                servers.push_back({"TorrServer.MatriX", "TorrServer.MatriX " + version + " (" + text(ip) + ")", url});
             }
         }
         return servers;

@@ -73,16 +73,38 @@ Io *Io::get() {
 }
 
 const std::vector<std::string> &Io::networkTypeNames() {
-    static const std::vector<std::string> names = {"TorrServe", "Samba", "FTP", "HTTP", "WebDAV", "DLNA", "TS_Silo"};
+    static const std::vector<std::string> names = {"TorrServer.MatriX", "Samba", "FTP", "HTTP", "WebDAV", "DLNA",
+                                                   "TorrServer.Silo"};
     return names;
+}
+
+std::string Io::networkTypeName(NetworkType type) {
+    switch (type) {
+        case NetworkType::TorrServe:
+            return "TorrServer.MatriX";
+        case NetworkType::TorrServeSilo:
+            return "TorrServer.Silo";
+        case NetworkType::Smb:
+            return "Samba";
+        case NetworkType::Ftp:
+            return "FTP";
+        case NetworkType::Http:
+            return "HTTP";
+        case NetworkType::WebDav:
+            return "WebDAV";
+        case NetworkType::Dlna:
+            return "DLNA";
+        default:
+            return "";
+    }
 }
 
 Io::NetworkType Io::parseNetworkType(const std::string &name) {
     const std::string n = c2d::Utility::toLower(name);
-    if (n == "torrserve" || n == "torrserver") {
+    if (n == "torrserver.matrix" || n == "torrserver" || n == "torrserve" || n == "ts_matrix") {
         return NetworkType::TorrServe;
     }
-    if (n == "silo" || n == "ts_silo") {
+    if (n == "torrserver.silo" || n == "ts_silo" || n == "silo") {
         return NetworkType::TorrServeSilo;
     }
     if (n == "samba" || n == "smb") {
@@ -156,7 +178,8 @@ std::vector<c2d::Io::File> Io::list(const DeviceType &type, const std::string &p
     } else if (type == DeviceType::TorrServe) {
         files = pplay::TorrServe::getDirList(path, timeout, &failed);
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                            "Io::TorrServe path=" + path + " entries=" + std::to_string(files.size()));
+                            "Io::" + networkTypeName(getNetworkType(path)) + " path=" + path
+                                    + " entries=" + std::to_string(files.size()));
     } else if (type == DeviceType::Ftp) {
         files = Ftp::list(path, timeout, &failed);
     } else if (type == DeviceType::Dlna) {

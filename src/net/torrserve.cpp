@@ -57,6 +57,11 @@ namespace {
         return io != nullptr && io->getNetworkType(path) == pplay::Io::NetworkType::TorrServeSilo;
     }
 
+    // in the log and the errors
+    std::string nameOf(const std::string &path) {
+        return isSilo(path) ? "TorrServer.Silo" : "TorrServer.MatriX";
+    }
+
     std::string replaceScheme(const std::string &path) {
         if (c2d::Utility::startWith(path, "tss://")) {
             return "https://" + path.substr(6);
@@ -147,7 +152,7 @@ namespace {
         if (!response.ok()) {
             pplay::Utility::log(
                     pplay::Utility::LogLevel::Error,
-                    "TorrServe::request " + url + " failed: "
+                    nameOf(url) + ": request " + url + " failed: "
                             + (response.error.empty() ? "HTTP " + std::to_string(response.status) : response.error));
             return {};
         }
@@ -212,13 +217,13 @@ namespace {
         if (!answer.ok() || json.is_discarded() || !json.contains("token") || !json["token"].is_string()
             || json["token"].get<std::string>().empty()) {
             pplay::Utility::log(pplay::Utility::LogLevel::Error,
-                                "TorrServe: Silo login failed: "
+                                "TorrServer.Silo: login failed: "
                                         + (answer.error.empty() ? "HTTP " + std::to_string(answer.status) : answer.error));
             *status = answer.error.empty() && answer.status != 0 ? 401 : 0;
             return false;
         }
         std::string token = json["token"].get<std::string>();
-        pplay::Utility::log(pplay::Utility::LogLevel::Info, "TorrServe: Silo token got for " + root);
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "TorrServer.Silo: token got for " + root);
         std::lock_guard<std::mutex> lock(g_tokenMutex);
         // (the settings changed with it: known by its token)
         g_tokens[root] = {user + "\n" + password + "\n" + token, token};
@@ -254,7 +259,7 @@ namespace {
         bool silo = isSilo(root);
         std::string url = root + (silo ? "api/torrents" : "torrents");
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                            "TorrServe::getTorrents url=" + url + ", timeout=" + std::to_string(timeout));
+                            nameOf(root) + ": torrents url=" + url + ", timeout=" + std::to_string(timeout));
         pplay::Http::Response answer = silo ? siloTorrents(root, timeout)
                                             : pplay::Http::postJson(url, "{\"action\":\"list\"}", timeout);
         if (status != nullptr) {
@@ -262,13 +267,13 @@ namespace {
         }
         if (!answer.ok()) {
             pplay::Utility::log(pplay::Utility::LogLevel::Error,
-                                "TorrServe::request " + url + " failed: "
+                                nameOf(root) + ": request " + url + " failed: "
                                         + (answer.error.empty() ? "HTTP " + std::to_string(answer.status) : answer.error));
             return torrents;
         }
         const std::string &response = answer.body;
 
-        pplay::Utility::log(pplay::Utility::LogLevel::Trace, "TorrServe::getTorrents response=" + response);
+        pplay::Utility::log(pplay::Utility::LogLevel::Trace, nameOf(root) + ": torrents response=" + response);
         // Silo: the viewed files in the same answer
         ViewedByHash viewed;
         if (!parseTorrents(response, &torrents, silo ? &viewed : nullptr)) {
@@ -363,7 +368,7 @@ namespace {
                 torrent.size = item["torrent_size"].get<int64_t>();
             }
             pplay::Utility::log(pplay::Utility::LogLevel::Trace,
-                                "TorrServe::getTorrents item=" + torrent.title + ", hash=" + torrent.hash);
+                                "TorrServer: torrent " + torrent.title + ", hash=" + torrent.hash);
 
             if (item.contains("data") && item["data"].is_string()) {
                 nlohmann::json data = nlohmann::json::parse(item["data"].get<std::string>(), nullptr, false);
@@ -659,7 +664,7 @@ namespace {
         }
         fclose(f);
         pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-                            "TorrServe: " + std::to_string(count) + " viewed lists from the last run");
+                            "TorrServer: " + std::to_string(count) + " viewed lists from the last run");
     }
 
     void saveViewed() {
@@ -760,7 +765,7 @@ namespace {
             std::lock_guard<std::mutex> lock(g_progressMutex);
             g_timecodes[job.root] = kept;
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                                std::string("TorrServe: positions ") + (kept ? "kept" : "not kept") + " by " + job.root);
+                                std::string("TorrServer.MatriX: positions ") + (kept ? "kept" : "not kept") + " by " + job.root);
         }
     }
 
@@ -1040,7 +1045,7 @@ namespace pplay::TorrServe {
         bool ok = false;
         std::vector<Torrent> torrents = torrentsOf(httpRoot, timeout, &ok);
         if (!ok && error) {
-            *error = refused(httpRoot) ? "TorrServer: HTTP 401" : "TorrServer: not reachable";
+            *error = nameOf(httpRoot) + (refused(httpRoot) ? ": HTTP 401" : ": not reachable");
         }
 
         if (parts.empty()) {

@@ -246,7 +246,9 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
         long duration = file.mediaInfo.duration;
         if (position > 10 && (duration <= 0 || position < (double) duration - 30)) {
             opts += std::string(opts.empty() ? "" : ",") + "start=" + std::to_string((int) position);
-            pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: TorrServer position " + std::to_string((int) position));
+            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                                "Player: " + pplay::Io::networkTypeName(pplay::Io::get()->getNetworkType(pplay::Saved::originalOf(file.path)))
+                                        + " position " + std::to_string((int) position));
         }
     }
     clearAudioScreen();

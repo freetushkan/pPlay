@@ -62,6 +62,9 @@ namespace pplay {
 
         static const std::vector<std::string> &networkTypeNames();
 
+        // as shown and saved ("" for Auto)
+        static std::string networkTypeName(NetworkType type);
+
         void setConfig(PPLAYConfig *cfg) { config = cfg; }
 
         std::vector<Io::File> getDirList(const DeviceType &type, const std::vector<std::string> &extensions,

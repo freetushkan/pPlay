@@ -96,8 +96,8 @@ Networks
 Settings > Networks > Add network creates a network, Settings > Networks > Network x sets it up:
 
 * **Type** (`type`):
-  * `TorrServe` — TorrServer api (`http(s)://host:8090/`, may be behind a reverse proxy sub path);
-  * `TS_Silo` — the new TorrServer (its `silo` branch), the same address; it works with a **Token** (`token`):
+  * `TorrServer.MatriX` — TorrServer api (`http(s)://host:8090/`, may be behind a reverse proxy sub path);
+  * `TorrServer.Silo` — the new TorrServer (its `silo` branch), the same address; it works with a **Token** (`token`):
     got with the user and password once (an empty user = `owner`) and written next to them, or typed. The user
     and password may be cleared then; kept, they get a new token when it is refused. Its links
     (`.../api/stream/<hash>/<n>?token=...`) open in the network of that token;
@@ -106,9 +106,9 @@ Settings > Networks > Add network creates a network, Settings > Networks > Netwo
   * `Samba` (`smb://host/share/`), `FTP` (`ftp://`), `HTTP` (`http(s)://` directory listing).
 * **Name**, **URL**, **User**, **Password** (not for `DLNA`). The user and the password are kept apart from the url
   and added to it for the connections; a url typed with `user:password@` gets them moved to these fields.
-* **Connection timeout**, **Certificate check** (`https://` only), **Synchronization** (`TorrServe`, `TS_Silo` only:
+* **Connection timeout**, **Certificate check** (`https://` only), **Synchronization** (`TorrServer.MatriX`, `TorrServer.Silo` only:
   the watched marks refresh period), **SMB buffer** (`Samba` only).
-* **Search servers** (`DLNA`, `TorrServe`, `TS_Silo`, `Samba`): the servers of the local network (TorrServer and Samba:
+* **Search servers** (`DLNA`, `TorrServer.MatriX`, `TorrServer.Silo`, `Samba`): the servers of the local network (TorrServer and Samba:
   the addresses of its /24 tried, ports 8090 and 445); `smb://host/` lists its shares.
 * **Move up**, **Move down**, **Delete network**.
 
@@ -118,7 +118,7 @@ TorrServer:
 * displays torrent file structures as directories;
 * streams selected files directly;
 * uses/resets watched marks on the TorrServer side;
-* TS_Silo: early test support.
+* TorrServer.Silo: early test support.
 
 Samba (SMB):
 
@@ -160,10 +160,10 @@ the old file itself is left as it is (for the older versions).
   | Key | Meaning |
   | :--- | :--- |
   | `name` | label shown in UI (empty: "Network x") |
-  | `type` | `TorrServe`, `TS_Silo`, `Samba`, `FTP`, `HTTP`, `WebDAV`, `DLNA` |
+  | `type` | `TorrServer.MatriX`, `TorrServer.Silo`, `Samba`, `FTP`, `HTTP`, `WebDAV`, `DLNA` |
   | `url` | address, without user and password |
   | `user`, `password` | credentials (`DOMAIN\user` for Samba) |
-  | `token` | `TS_Silo` api token |
+  | `token` | `TorrServer.Silo` api token |
   | `timeout` | connection timeout, seconds (default `15`) |
   | `tls_verify` | `1` check the https certificate (default), `0` not |
   | `sync` | TorrServer marks refresh period, seconds (default `30`) |
@@ -187,7 +187,7 @@ the old file itself is left as it is (for the older versions).
     "list": [
       {
         "name": "TorrServer",
-        "type": "TorrServe",
+        "type": "TorrServer.MatriX",
         "url": "http://192.168.1.10:8090/",
         "user": "",
         "password": "",
