@@ -310,6 +310,8 @@ Main::~Main() {
 }
 
 bool Main::onInput(c2d::Input::Player *players) {
+    // (a press handled: not given again as missed)
+    pplay::InputMap::noteSeen(players[0].buttons);
     // the black screen: any key brings the interface back, nothing else
     if (blackout->isVisible()) {
         unsigned int pressed = players[0].buttons;
@@ -509,7 +511,7 @@ void Main::onUpdate() {
 
     // media keys and other devices
     unsigned int other = pplay::InputMap::update();
-    unsigned int pending = pplay::InputMap::takePending() | other;
+    unsigned int pending = pplay::InputMap::takePending() | other | pplay::InputMap::takeMissed();
     if (pending != 0) {
         Input::Player *players = getInput()->getPlayers();
         unsigned int saved = players[0].buttons;
@@ -663,6 +665,8 @@ int Main::showMessage(const std::string &title, const std::string &message, cons
             keys = 0;
         }
         keys |= pplay::InputMap::update() | pplay::InputMap::takePending();
+        pplay::InputMap::noteSeen(keys);
+        keys |= pplay::InputMap::takeMissed();
         if (!(keys & Input::Touch)) {
             touchReleased = true;
         }

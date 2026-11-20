@@ -29,6 +29,11 @@ namespace pplay::InputMap {
     // keys pressed since the last call (media keys...)
     unsigned int takePending();
 
+    // the keys the app got (onInput); the pressed ones it did not get since the last call (a
+    // tap during a long frame)
+    void noteSeen(unsigned int buttons);
+    unsigned int takeMissed();
+
     // every frame: buttons of the other devices to handle now
     unsigned int update();
 
