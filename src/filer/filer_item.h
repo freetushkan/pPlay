@@ -69,6 +69,10 @@ private:
     bool lastFullscreen = false;
     // the playing file icon shows the pause
     bool shownPaused = false;
+    // its stream url and player key (from its path, made once)
+    std::string streamUrl, playKey;
+
+    bool isPlaying() const;
     // the TorrServer marks shown: from this answer
     unsigned int viewedGeneration = 0;
     unsigned int savedGeneration = 0;

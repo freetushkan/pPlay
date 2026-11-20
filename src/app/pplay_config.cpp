@@ -20,6 +20,15 @@
 using namespace c2d;
 
 namespace {
+    // the networks changed: the paths of the io looked for again (when done)
+    struct NetworksChanged {
+        ~NetworksChanged() {
+            if (pplay::Io::get() != nullptr) {
+                pplay::Io::get()->forgetNetworks();
+            }
+        }
+    };
+
     const char *networkSuffixes[] = {"",         "_LAST",       "_NAME", "_TYPE",      "_USER",
                                      "_PASSWORD", "_TIMEOUT", "_TLS_VERIFY", "_SYNC", "_SMB_BUFFER", "_TOKEN"};
     const int NETWORK_FIELDS = 11;
@@ -276,6 +285,7 @@ int PPLAYConfig::networkOf(const std::string &option, const char *suffix) {
 }
 
 void PPLAYConfig::setNetworkUrl(int index, const std::string &url) {
+    NetworksChanged changed;
     std::string user, password;
     if (credentialsOfUrl(url, &user, &password)) {
         getOption(networkUserOption(index))->setString(user);
@@ -286,6 +296,7 @@ void PPLAYConfig::setNetworkUrl(int index, const std::string &url) {
 }
 
 void PPLAYConfig::updateNetworkCredentials(int index) {
+    NetworksChanged changed;
     if (index < 1 || index > networkCount) {
         return;
     }
@@ -437,6 +448,7 @@ int PPLAYConfig::networkDefault(int field) {
 }
 
 void PPLAYConfig::clearNetwork(int index) {
+    NetworksChanged changed;
     getOption(networkOption(index))->setString("");
     getOption(networkLastOption(index))->setString("/");
     getOption(networkNameOption(index))->setString("");
@@ -450,6 +462,7 @@ void PPLAYConfig::clearNetwork(int index) {
 }
 
 void PPLAYConfig::copyNetwork(int from, int to) {
+    NetworksChanged changed;
     for (int s = 0; s < NETWORK_FIELDS; s++) {
         config::Option *source = getOption(networkOptionName(from, s)), *target = getOption(networkOptionName(to, s));
         if (!isIntField(s)) {
@@ -461,6 +474,7 @@ void PPLAYConfig::copyNetwork(int from, int to) {
 }
 
 int PPLAYConfig::addNetwork() {
+    NetworksChanged changed;
     allocateNetworks(networkCount + 1);
     networkCount++;
     clearNetwork(networkCount);
@@ -468,6 +482,7 @@ int PPLAYConfig::addNetwork() {
 }
 
 void PPLAYConfig::removeNetwork(int index) {
+    NetworksChanged changed;
     if (index < 1 || index > networkCount) {
         return;
     }
@@ -479,6 +494,7 @@ void PPLAYConfig::removeNetwork(int index) {
 }
 
 bool PPLAYConfig::moveNetwork(int index, int direction) {
+    NetworksChanged changed;
     int other = index + direction;
     if (index < 1 || index > networkCount || other < 1 || other > networkCount) {
         return false;
@@ -498,6 +514,7 @@ std::string PPLAYConfig::networkName(int index) {
 }
 
 bool PPLAYConfig::load(const std::string &overridePath) {
+    NetworksChanged changed;
     std::string path = overridePath.empty() ? getPath() : overridePath;
     std::ifstream in(path, std::ios::binary);
     if (!in.is_open()) {
@@ -548,6 +565,7 @@ bool PPLAYConfig::load(const std::string &overridePath) {
 }
 
 bool PPLAYConfig::save() {
+    NetworksChanged changed;
     // in the menu order
     nlohmann::ordered_json root = nlohmann::ordered_json::object();
     root["version"] = getAppVersion();
@@ -610,6 +628,7 @@ bool PPLAYConfig::save() {
 // pplay.cfg (kept as it is for the older versions): the networks set apart, theirs only (with
 // an url), their users and passwords out of the urls
 bool PPLAYConfig::importOld() {
+    NetworksChanged changed;
     const int oldNetworks = 9;
     std::string cfg = io->getDataPath() + "pplay.cfg";
     if (!io->exist(cfg)) {
@@ -716,12 +735,14 @@ std::string PPLAYConfig::defaultHomePath() const {
 }
 
 bool PPLAYConfig::reload() {
+    NetworksChanged changed;
     bool ok = load();
     sanitize();
     return ok;
 }
 
 void PPLAYConfig::sanitize() {
+    NetworksChanged changed;
 
     // a missing home is kept (an unplugged drive), only an empty one is reset
     if (getOption(OPT_HOME_PATH)->getString().empty()) {

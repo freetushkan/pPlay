@@ -117,7 +117,7 @@ void FilerItem::setColor(const c2d::Color &color) {
     textTitle->setFillColor(color);
     textTitle->setAlpha(alpha);
     // the icons quieter than the names, the accent for the playing file only
-    bool playing = file.type == Io::Type::File && main->getPlayer() != nullptr && main->getPlayer()->isPlaying(file.path);
+    bool playing = isPlaying();
     Color iconColor = playing ? COLOR_ACCENT : color == COLOR_FONT ? Color(140, 148, 158, 255) : color;
     icon->setFillColor(iconColor);
     icon->setAlpha(alpha);
@@ -126,6 +126,9 @@ void FilerItem::setColor(const c2d::Color &color) {
 void FilerItem::setFile(const MediaFile &f) {
 
     this->file = f;
+    // asked for each frame: made once
+    streamUrl = file.type == Io::Type::File ? pplay::TorrServe::toStreamUrl(file.path) : std::string();
+    playKey = file.type == Io::Type::File && !file.path.empty() ? Player::keyOf(file.path) : std::string();
     viewedGeneration = pplay::TorrServe::viewedGeneration();
     savedGeneration = pplay::Saved::generation();
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "FilerItem::setFile name=" + file.name + " path=" + file.path
@@ -147,8 +150,7 @@ void FilerItem::setFile(const MediaFile &f) {
         textTitle->setString(pplay::tr("BACK"));
         setIcon("file_back.png");
     } else {
-        const bool playing =
-                file.type == Io::Type::File && main->getPlayer() != nullptr && main->getPlayer()->isPlaying(file.path);
+        const bool playing = isPlaying();
         textTitle->setString(encoding::fix(file.label.empty() ? file.name : file.label));
         // the playing one: its pause too
         shownPaused = playing && main->getPlayer()->getMpv()->isPaused();
@@ -168,7 +170,7 @@ void FilerItem::setFile(const MediaFile &f) {
     std::string marks;
     bool both = false;
     if (file.type == Io::Type::File) {
-        bool local = pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path));
+        bool local = pplay::Utility::isWatchLaterExist(streamUrl);
         bool server = pplay::TorrServe::isFileViewed(file.path);
         marks = local || server ? "✓" : "";
         both = local && server;
@@ -251,12 +253,15 @@ void FilerItem::updateWatched() {
     watchedTrack->setVisibility(Visibility::Visible);
 }
 
+bool FilerItem::isPlaying() const {
+    return !playKey.empty() && main->getPlayer() != nullptr && main->getPlayer()->isPlayingKey(playKey);
+}
+
 c2d::Color FilerItem::color() {
     if (file.type == Io::Type::Directory) {
         return COLOR_FONT;
     }
     if (file.type == Io::Type::File) {
-        const std::string streamUrl = pplay::TorrServe::toStreamUrl(file.path);
         bool watched = pplay::Utility::isWatchLaterExist(streamUrl) || pplay::TorrServe::isFileViewed(file.path);
         return watched ? COLOR_VIEWED : COLOR_FONT;
     }
@@ -288,8 +293,7 @@ void FilerItem::onDraw(Transform &transform, bool draw) {
 void FilerItem::onUpdate() {
     const bool isFullscreen = main->getPlayer() && main->getPlayer()->isFullscreen();
     // the playing one paused or resumed: its icon
-    if (!isFullscreen && file.type == Io::Type::File && main->getPlayer() != nullptr
-        && main->getPlayer()->isPlaying(file.path) && main->getPlayer()->getMpv()->isPaused() != shownPaused) {
+    if (!isFullscreen && isPlaying() && main->getPlayer()->getMpv()->isPaused() != shownPaused) {
         shownPaused = !shownPaused;
         setIcon(shownPaused ? "file_paused.png" : "file_playing.png");
     }

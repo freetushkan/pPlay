@@ -255,6 +255,12 @@ static std::string userOf(const std::string &url) {
     return info.substr(0, info.find(':'));
 }
 
+void Io::forgetNetworks() {
+    std::lock_guard<std::mutex> lock(networkCacheMutex);
+    networkCache[0].clear();
+    networkCache[1].clear();
+}
+
 int Io::findNetwork(const std::string &path, bool typedOnly) {
     if (path.find("://") == std::string::npos) {
         return -1;
@@ -262,6 +268,24 @@ int Io::findNetwork(const std::string &path, bool typedOnly) {
     if (config == nullptr) {
         return -1;
     }
+    auto &cache = networkCache[typedOnly ? 0 : 1];
+    {
+        std::lock_guard<std::mutex> lock(networkCacheMutex);
+        auto known = cache.find(path);
+        if (known != cache.end()) {
+            return known->second;
+        }
+    }
+    int index = searchNetwork(path, typedOnly);
+    std::lock_guard<std::mutex> lock(networkCacheMutex);
+    if (cache.size() > 4096) {
+        cache.clear();
+    }
+    cache[path] = index;
+    return index;
+}
+
+int Io::searchNetwork(const std::string &path, bool typedOnly) {
     const std::string target = comparableUrl(path);
     // the same address in several networks: the one of the path user
     const std::string user = userOf(path);

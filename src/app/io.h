@@ -6,6 +6,8 @@
 #define PPLAY_IO_H
 
 #include <atomic>
+#include <mutex>
+#include <unordered_map>
 #include "cross2d/c2d.h"
 
 #ifdef __SMB2__
@@ -32,8 +34,14 @@ namespace pplay {
         // the network open in the filer (main menu), 0 if none: the one taken among the same
         // address and user (the filer requests)
         void setCurrentNetwork(int index) {
-            currentNetwork = index;
+            if (currentNetwork != index) {
+                currentNetwork = index;
+                forgetNetworks();
+            }
         }
+
+        // the networks settings changed: the paths found again
+        void forgetNetworks();
 
         enum class DeviceType {
             Local,
@@ -140,8 +148,15 @@ namespace pplay {
 
         std::atomic<int> currentNetwork {0};
 
+        // path -> network index (the filer items ask for each of them, often): the typed ones, all
+        std::mutex networkCacheMutex;
+        std::unordered_map<std::string, int> networkCache[2];
+
         // network index of a path, -1 if none
         int findNetwork(const std::string &path, bool typedOnly);
+
+        // (not cached)
+        int searchNetwork(const std::string &path, bool typedOnly);
 
         // false if a file failed
         bool syncRomFsDir(const std::string &relativePath, bool full);

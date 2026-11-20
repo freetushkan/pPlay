@@ -126,6 +126,10 @@ bool Player::isPlaying(const std::string &path) {
     return !playingKey.empty() && !path.empty() && keyOf(path) == playingKey;
 }
 
+bool Player::isPlayingKey(const std::string &key) const {
+    return !playingKey.empty() && key == playingKey;
+}
+
 void Player::forgetProgress() {
     progressForgotten = true;
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::forgetProgress: " + playingKey);

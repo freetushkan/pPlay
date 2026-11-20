@@ -32,6 +32,9 @@ public:
     // file opened in the player? (paths may be spelled differently)
     bool isPlaying(const std::string &path);
 
+    // the same, by its key (keyOf)
+    bool isPlayingKey(const std::string &key) const;
+
     // progress reset by the user: don't write it back for the current playback
     void forgetProgress();
 
