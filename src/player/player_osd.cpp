@@ -481,9 +481,17 @@ void PlayerOSD::updateProgress() {
     }
     float width = track->getSize().x;
     float done = duration > 0 ? (float) std::min(1.0, position / duration) : 0;
+    // the read ahead end: asked a few times a second (its own time, not the position plus a
+    // length: the two changed apart, the line shook)
+    if (cacheClock.getElapsedTime().asSeconds() >= 0.25f) {
+        cacheClock.restart();
+        double end = 0;
+        bool eof = false;
+        cacheEnd = mpv->getCacheEnd(&end, &eof) ? (eof ? duration : end) : -1;
+    }
     float cache = 0;
-    if (duration > 0) {
-        cache = (float) std::min(1.0, (position + std::max(0.0, mpv->getCacheDuration())) / duration);
+    if (duration > 0 && cacheEnd > 0) {
+        cache = (float) std::min(1.0, std::max(position, cacheEnd) / duration);
     }
     played->setSize(std::round(done * width), played->getSize().y);
     buffered->setSize(std::round(cache * width), buffered->getSize().y);

@@ -105,6 +105,9 @@ private:
     // the progress line: its room (the times aside) and the times format it was placed for
     float trackX = 0, trackY = 0, trackW = 0;
     std::string timePattern;
+    // the read ahead end (s), -1: none
+    double cacheEnd = -1;
+    c2d::C2DClock cacheClock;
 
     void placeTrack();
     c2d::C2DClock titleClock;

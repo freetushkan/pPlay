@@ -106,6 +106,9 @@ public:
     // buffered ahead (seconds), -1 if none
     double getCacheDuration();
 
+    // the time the read ahead ends at (not moving with the position), eof: the file end read
+    bool getCacheEnd(double *end, bool *eof);
+
     // displayed video frame, -1 if none
     long getFrameNumber();
 
@@ -181,7 +184,18 @@ private:
         std::chrono::steady_clock::time_point polled;
     };
     std::unordered_map<std::string, Prop> props;
+
+    void setKnown(const char *name, double value);
     bool saving = false;
+    // a seek sent, till mpv plays again: its core busy, the known values used (a read would
+    // wait for it: frames and key presses lost)
+    bool seekBusy = false;
+    std::chrono::steady_clock::time_point seekAt;
+    bool isSeekBusy();
+    void startSeek();
+    std::unordered_map<std::string, std::string> strings;
+    double cacheEnd = 0;
+    bool cacheEof = false, cacheOk = false;
 
     void watchProperties();
 
