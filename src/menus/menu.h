@@ -45,6 +45,9 @@ public:
     // smaller texts and items (long lists)
     void setCompact(bool compact);
 
+    // on the left or the right of the screen
+    void setSide(bool left);
+
     void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
 
     void onUpdate() override;

@@ -6,6 +6,7 @@
 #include "cross2d/c2d.h"
 #include "main.h"
 #include "menu_video.h"
+#include "menu_main.h"
 #include "player_osd.h"
 #include "platform.h"
 #include "pplay_config.h"
@@ -22,13 +23,13 @@ namespace {
     std::vector<MenuItem> withValues(std::vector<MenuItem> items) {
         for (auto &item: items) {
             const std::string &n = item.name;
-            if (n == "Current playlist" || n == "Audio" || n == "Video" || n == "Subtitles") {
+            if (n == "Current playlist" || n == "Audio" || n == "Video" || n == "Subtitles" || n == "Settings") {
                 item.opens = true;
             }
             if (n == "Speed" || n == "Brightness" || n == "Screen brightness" || n == "Sleep timer") {
                 item.slider = 0;
             }
-            if (n != "Stop" && n != "Current playlist") {
+            if (n != "Stop" && n != "Current playlist" && n != "Settings") {
                 item.value = "-";
             }
         }
@@ -320,6 +321,9 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
     } else if (item->name == "Sleep timer") {
         stepChoice(main->getConfig(), g_sleep, 1);
         refreshValues();
+    } else if (item->name == "Settings") {
+        setVisibility(Visibility::Hidden, true);
+        main->getMenuMain()->openSettings(true);
     } else if (item->name == "Stop") {
         main->getPlayer()->stop();
         setVisibility(Visibility::Hidden, true);

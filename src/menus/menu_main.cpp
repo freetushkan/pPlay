@@ -492,6 +492,18 @@ void MenuMain::updateNetworkLabels() {
     }
 }
 
+void MenuMain::openSettings(bool fromPlayer) {
+    menuMainOptions->fromPlayer = fromPlayer;
+    menuMainOptions->setSide(!fromPlayer);
+    for (auto &submenu: menuMainOptionsSubmenus) {
+        submenu.second->setSide(!fromPlayer);
+    }
+    if (fileEditor != nullptr) {
+        fileEditor->setSide(!fromPlayer);
+    }
+    menuMainOptions->setVisibility(Visibility::Visible);
+}
+
 MenuFileEditor *MenuMain::getFileEditor() {
     return fileEditor;
 }
@@ -602,7 +614,7 @@ void MenuMain::onOptionSelection(MenuItem *item) {
         main->show(Main::MenuType::Local);
     } else if (item->name == "Settings") {
         setVisibility(Visibility::Hidden, true);
-        menuMainOptions->setVisibility(Visibility::Visible);
+        openSettings(false);
     } else if (item->name == "Playlists") {
         setVisibility(Visibility::Hidden, true);
         main->setCurrentModuleIndex(item->id);

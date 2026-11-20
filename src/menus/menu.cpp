@@ -420,6 +420,14 @@ void Menu::fit() {
     }
 }
 
+void Menu::setSide(bool left) {
+    if (leftSide == left) {
+        return;
+    }
+    leftSide = left;
+    fit();
+}
+
 void Menu::setCompact(bool value) {
     if (compact == value) {
         return;

@@ -187,6 +187,7 @@ void Main::createMenus() {
     items.emplace_back("Progress line", "progress_line.png", MenuItem::Position::Top);
     items.emplace_back("Sleep timer", "awake.png", MenuItem::Position::Top);
     items.emplace_back("Information", "info.png", MenuItem::Position::Top);
+    items.emplace_back("Settings", "options.png", MenuItem::Position::Top);
     items.emplace_back("Stop", "stop.png", MenuItem::Position::Bottom);
     menu_video = new MenuVideo(this, {Main::getSize().x, inset, 420 * scaling.x, Main::getSize().y - 2 * inset},
                                items);
