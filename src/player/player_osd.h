@@ -102,6 +102,11 @@ private:
     c2d::Text *title = nullptr;
     std::string titleShown;
     float titleMax = 0, titleY = 0, metaY = 0;
+    // the progress line: its room (the times aside) and the times format it was placed for
+    float trackX = 0, trackY = 0, trackW = 0;
+    std::string timePattern;
+
+    void placeTrack();
     c2d::C2DClock titleClock;
     c2d::Text *meta = nullptr;
     c2d::RectangleShape *track = nullptr;

@@ -24,10 +24,11 @@ using namespace c2d;
 #define OSD_PEEK_TIME 3.0f
 
 namespace {
-    std::string clockText(double seconds) {
+    // hours: always (a long file, the same width all along)
+    std::string clockText(double seconds, bool hours = false) {
         int s = std::max(0, (int) seconds);
         char text[32];
-        if (s >= 3600) {
+        if (s >= 3600 || hours) {
             snprintf(text, sizeof(text), "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60);
         } else {
             snprintf(text, sizeof(text), "%d:%02d", s / 60, s % 60);
@@ -150,7 +151,7 @@ void PlayerOSD::layout(bool audio) {
     audioLayout = audio;
     laidOut = true;
 
-    float trackY, trackX, trackW, buttonsY;
+    float buttonsY;
     if (audio) {
         // under the cover / visualizer zone, centered
         FloatRect zone = AudioView::zone();
@@ -164,6 +165,8 @@ void PlayerOSD::layout(bool audio) {
         meta->setOrigin(Origin::Center);
         meta->setPosition(size.x / 2, titleY + 28 * sc);
         peekOffset = 0;
+        elapsed->setOrigin(Origin::Right);
+        remaining->setOrigin(Origin::Left);
     } else {
         float margin = 54 * sc;
         buttonsY = size.y - 40 * sc;
@@ -171,17 +174,18 @@ void PlayerOSD::layout(bool audio) {
         // the title alone on its line, the media info under it, the chips right of that
         metaY = trackY - 26 * sc;
         titleY = metaY - 30 * sc;
-        trackX = margin + 80 * sc;
-        trackW = size.x - 2 * trackX;
+        trackX = margin;
+        trackW = size.x - 2 * margin;
         titleMax = size.x - 2 * margin;
         meta->setOrigin(Origin::Left);
         meta->setPosition(margin, metaY);
         peekOffset = 50 * sc;
+        // the times at the panel edges (the title, the buttons)
+        elapsed->setOrigin(Origin::Left);
+        remaining->setOrigin(Origin::Right);
     }
-    track->setPosition(trackX, trackY - track->getSize().y / 2);
-    track->setSize(trackW, track->getSize().y);
-    elapsed->setPosition(trackX - 14 * sc, trackY);
-    remaining->setPosition(trackX + trackW + 14 * sc, trackY);
+    timePattern.clear();
+    placeTrack();
 
     // transport, stop and frame step in a row, the playlist and settings apart
     float step = 52 * sc;
@@ -222,6 +226,35 @@ void PlayerOSD::layout(bool audio) {
     }
     focus->setPosition(focusX = xs[(size_t) index], buttonsY);
     textKey.clear();
+}
+
+// the bar between the times, their room from the duration (its digits): the same all along
+void PlayerOSD::placeTrack() {
+    const float sc = main->getScaling().y;
+    const float gap = std::round(14 * sc);
+    auto widthOf = [this](const std::string &text) {
+        std::string kept = elapsed->getString();
+        elapsed->setString(text);
+        float width = std::ceil(elapsed->getLocalBounds().width);
+        elapsed->setString(kept);
+        return width;
+    };
+    float left = widthOf(timePattern.empty() ? "0:00" : timePattern);
+    float right = widthOf("-" + (timePattern.empty() ? "0:00" : timePattern));
+    float x = trackX, w = trackW;
+    if (audioLayout) {
+        // the whole line centered: the bar moved by the difference of the times
+        x = std::round(trackX + (left - right) / 2);
+        elapsed->setPosition(x - gap, trackY);
+        remaining->setPosition(x + w + gap, trackY);
+    } else {
+        x = trackX + left + gap;
+        w = trackX + trackW - right - gap - x;
+        elapsed->setPosition(trackX, trackY);
+        remaining->setPosition(trackX + trackW, trackY);
+    }
+    track->setPosition(x, std::round(trackY - track->getSize().y / 2));
+    track->setSize(std::round(w), track->getSize().y);
 }
 
 void PlayerOSD::expand(bool keepFocus) {
@@ -436,6 +469,16 @@ void PlayerOSD::updateProgress() {
     // seeking: where it goes (the stream may lag behind)
     double position = player->isScrubbing() ? player->getScrubTarget() : std::max(0.0, mpv->getTime());
     double duration = (double) mpv->getDuration();
+    // the times room: from the duration digits
+    bool hours = duration >= 3600;
+    std::string pattern = clockText(duration > 0 ? duration : 0, hours);
+    for (auto &c: pattern) {
+        c = c >= '0' && c <= '9' ? '0' : c;
+    }
+    if (pattern != timePattern) {
+        timePattern = pattern;
+        placeTrack();
+    }
     float width = track->getSize().x;
     float done = duration > 0 ? (float) std::min(1.0, position / duration) : 0;
     float cache = 0;
@@ -445,9 +488,9 @@ void PlayerOSD::updateProgress() {
     played->setSize(std::round(done * width), played->getSize().y);
     buffered->setSize(std::round(cache * width), buffered->getSize().y);
     knob->setPosition(std::round(done * width), track->getSize().y / 2);
-    elapsed->setString(clockText(position));
+    elapsed->setString(clockText(position, hours));
     double speed = std::max(0.01, mpv->getSpeed());
-    remaining->setString("-" + clockText(std::max(0.0, (duration - position) / speed)));
+    remaining->setString("-" + clockText(std::max(0.0, (duration - position) / speed), hours));
     // full screen: 3 px; minimized (a quarter): taller here, 2 px on the screen
     float sc = main->getScaling().y;
     float minimized = std::max(0.0f, std::min(1.0f, (1 - main->getPlayer()->getScale().x) / 0.75f));
