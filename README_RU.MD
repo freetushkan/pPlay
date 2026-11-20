@@ -10,7 +10,8 @@ pPlay
 |:-----------------------------------------------------------------:|:------------------------------------------------------------------:|
 | ![](https://github.com/freetushkan/pPlay/raw/master/screenshot.jpg) | ![](https://github.com/freetushkan/pPlay/raw/master/screenshot2.jpg) |
 
-pPlay — видеоплеер на основе **MPV/FFmpeg** с поддержкой большинства популярных форматов видео, субтитров, сетевого воспроизведения и не только.
+pPlay — кроссплатформенный видеоплеер на основе **MPV/FFmpeg** с поддержкой большинства популярных форматов видео,
+субтитров, сетевого воспроизведения и не только.
 
 Возможности:
 - Воспроизведение локальных и сетевых файлов;
@@ -29,7 +30,7 @@ pPlay работает с FFmpeg через интерфейс [MPV](https://mpv
 - **PS4:** установите `.pkg` из последнего `pPlay-<version>-PS4.zip`.
 - **PS5:** один из способов:
   - **PKG:** установите `.pkg` из последнего `pPlay-<version>-PS5.zip` (PS4 fpkg, требуется `elfldr` на порту 9021).
-    Он копирует/обновляет pPlay (с библиотеками Mesa) в `/data/homebrew/pplay`, а также библиотеки в `/user/homebrew/lib`, если их нет, и запускает приложение.
+    Он копирует/обновляет pPlay и библиотеки в `/data/homebrew/pplay`, если их нет, и запускает приложение.
   - **Вручную:** распакуйте `pPlay-<version>-PS5_websrv.zip` в `/data/homebrew/pplay` и запустите `pplay.elf` из Homebrew Launcher (websrv).
 - **Switch:** положите `.nro` из последнего `pPlay-<version>-Switch.zip` в корень лаунчера.
 - **Linux (x86_64):** запустите последний `pPlay-<version>-Linux-x86_64.AppImage` (нужна glibc 2.35+: Ubuntu 22.04, Debian 12, Fedora 36 и новее).

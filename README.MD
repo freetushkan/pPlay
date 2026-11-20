@@ -10,7 +10,8 @@ pPlay
 |:-----------------------------------------------------------------:|:------------------------------------------------------------------:|
 | ![](https://github.com/freetushkan/pPlay/raw/master/screenshot.jpg) | ![](https://github.com/freetushkan/pPlay/raw/master/screenshot2.jpg) |
 
-pPlay is a video player, built around **MPV/FFmpeg**, that supports most popular video format, subtitles, network streaming and more
+pPlay is a cross-pltform video player, built around **MPV/FFmpeg**, that supports most popular video format,
+subtitles, network streaming and more.
 
 Supported features:
 - Local and network media playback;
@@ -30,7 +31,7 @@ Installation
 - **PS4:** just install the `.pkg` file from latest `pPlay-<version>-PS4.zip`.
 - **PS5:** choose one of the following methods:
   - **PKG:** install the `.pkg` from latest `pPlay-<version>-PS5.zip` (a PS4 fpkg, needs `elfldr` on port 9021).
-    It copies pPlay to `/data/homebrew/pplay` and libraries to `/user/homebrew/lib`, then starts application.
+    It copies pPlay and libraries to `/data/homebrew/pplay`, then starts application.
   - **Manual:** extract `pPlay-<version>-PS5_websrv.zip` to `/data/homebrew/pplay` and start `pplay.elf` from the Homebrew Launcher (websrv).
 - **Switch:** put the `.nro` file from latest `pPlay-<version>-Switch.zip` to your launcher root.
 - **Linux (x86_64):** run the latest `pPlay-<version>-Linux-x86_64.AppImage` (glibc 2.35+: Ubuntu 22.04, Debian 12, Fedora 36 and newer).
