@@ -329,8 +329,8 @@ void MenuMain::addNetworkMenus(int i) {
     const std::string name = networkKey(i);
     parents[name] = "Networks";
     std::vector<MenuItem> items;
-    for (const char *suffix: {" type", " name", " url", " user", " password", " timeout", " tls", " sync", " smb",
-                              " search", " up", " down", " delete"}) {
+    for (const char *suffix: {" type", " name", " url", " user", " password", " token", " timeout", " tls", " sync",
+                              " smb", " search", " up", " down", " delete"}) {
 #ifndef __SMB2__
         if (std::string(suffix) == " smb") {
             continue;
@@ -358,6 +358,7 @@ void MenuMain::addNetworkMenus(int i) {
     addText(name + " url", PPLAYConfig::networkOption(i));
     addText(name + " user", PPLAYConfig::networkUserOption(i));
     addText(name + " password", PPLAYConfig::networkPasswordOption(i));
+    addText(name + " token", PPLAYConfig::networkTokenOption(i));
     std::vector<MenuItem> typeItems;
     for (auto &typeName: pplay::Io::networkTypeNames()) {
         typeItems.emplace_back(typeName, "", Pos::Top);
@@ -459,6 +460,12 @@ void MenuMain::updateNetworkLabels() {
                 } else if (button->item.name == key + " password") {
                     bool set = !main->getConfig()->getOption(PPLAYConfig::networkPasswordOption(i))->getString().empty();
                     button->item.label = pplay::tr("Password") + ": " + (set ? "******" : pplay::tr("<empty>"));
+                } else if (button->item.name == key + " token") {
+                    // its start only
+                    std::string token = main->getConfig()->getOption(PPLAYConfig::networkTokenOption(i))->getString();
+                    button->item.label = pplay::tr("Token") + ": "
+                                         + (token.empty() ? pplay::tr("<empty>")
+                                                          : token.size() > 9 ? token.substr(0, 9) + "..." : token);
                 } else if (button->item.name == key + " search") {
                     button->item.label = pplay::tr("Search servers");
                 } else if (button->item.name == key + " timeout") {
@@ -479,13 +486,14 @@ void MenuMain::updateNetworkLabels() {
                 button->refreshText();
             }
         }
-        for (const char *suffix: {" name", " url", " user", " password", " type", " tls", " search"}) {
+        for (const char *suffix: {" name", " url", " user", " password", " token", " type", " tls", " search"}) {
             auto sub = menuMainOptionsSubmenus.find(key + suffix);
             if (sub != menuMainOptionsSubmenus.end()) {
                 std::string what = std::string(suffix) == " name"       ? "Name"
                                    : std::string(suffix) == " url"      ? "URL"
                                    : std::string(suffix) == " user"     ? "User"
                                    : std::string(suffix) == " password" ? "Password"
+                                   : std::string(suffix) == " token"    ? "Token"
                                    : std::string(suffix) == " type"     ? "Type"
                                    : std::string(suffix) == " tls"      ? "Certificate check"
                                                                         : "Search servers";

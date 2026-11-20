@@ -53,7 +53,9 @@ namespace pplay {
             Ftp,
             Http,
             WebDav,
-            Dlna
+            Dlna,
+            // the new TorrServer (its silo branch): its own api, a token for the login
+            TorrServeSilo
         };
 
         static NetworkType parseNetworkType(const std::string &name);
@@ -73,11 +75,20 @@ namespace pplay {
         // type of the network the path belongs to, or from the url scheme
         DeviceType getDeviceType(const std::string &path);
 
+        // type of the network (its setting) the path belongs to, Auto if none
+        NetworkType getNetworkType(const std::string &path);
+
         // root url of the network the path belongs to, or ""
         std::string getNetworkRoot(const std::string &path);
 
         // the user and password of the network of an url (its options, over the url ones), false if none
         bool credentialsOf(const std::string &url, std::string *user, std::string *password);
+
+        // TS Silo: the token kept for the network of an url ("" if none)
+        std::string siloToken(const std::string &url);
+
+        // the user and password set for the network of an url, whatever its type
+        bool loginOf(const std::string &url, std::string *user, std::string *password);
 
         // the settings of the network of a path or url (its defaults if none)
         int networkTimeout(const std::string &path);
@@ -92,7 +103,7 @@ namespace pplay {
         // Samba: the read ahead (MB)
         int smbBuffer(const std::string &url);
 
-        // http(s) / ftp: the url with them (encoded), else as is
+        // http(s) / ftp: the url with them (encoded), TS Silo: with its token, else as is
         std::string withCredentials(const std::string &url);
 
         const std::string &getLastError() const { return lastError; }

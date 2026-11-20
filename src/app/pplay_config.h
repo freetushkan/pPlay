@@ -158,6 +158,8 @@ public:
     // TorrServer: the torrents list and the viewed marks asked again after (s)
     static const char *networkSyncOption(int index);
     static const char *networkSmbBufferOption(int index);
+    // TS Silo: its api token (got with the user and password, or typed)
+    static const char *networkTokenOption(int index);
 
     int getNetworkCount() const { return networkCount; }
 

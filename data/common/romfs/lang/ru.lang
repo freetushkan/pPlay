@@ -59,6 +59,7 @@ Name = Имя
 URL = Адрес
 User = Пользователь
 Password = Пароль
+Token = Токен
 Type = Тип
 Search servers = Поиск серверов
 Add network = Добавить сеть

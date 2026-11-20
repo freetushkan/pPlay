@@ -51,6 +51,12 @@ namespace {
         return io != nullptr && io->getDeviceType(path) == pplay::Io::DeviceType::TorrServe;
     }
 
+    // TS Silo: /api/torrents (the viewed files in it), /api/stream/<hash>/<index>, a token
+    bool isSilo(const std::string &path) {
+        auto *io = pplay::Io::get();
+        return io != nullptr && io->getNetworkType(path) == pplay::Io::NetworkType::TorrServeSilo;
+    }
+
     std::string replaceScheme(const std::string &path) {
         if (c2d::Utility::startWith(path, "tss://")) {
             return "https://" + path.substr(6);
@@ -156,33 +162,123 @@ namespace {
 
     void storeTorrentsList(const std::string &root, const std::string &response);
 
-    bool parseTorrents(const std::string &response, std::vector<Torrent> *out);
+    // hash -> viewed file index -> position (seconds, 0 if none)
+    typedef std::map<std::string, std::map<int, double>> ViewedByHash;
+
+    bool parseTorrents(const std::string &response, std::vector<Torrent> *out, ViewedByHash *viewed = nullptr);
+
+    void applyViewed(const std::string &root, const std::vector<Torrent> &torrents, const ViewedByHash &viewed);
+
+    // TS Silo tokens in use: root (its user in it) -> the settings it came from and the token
+    struct SiloToken {
+        std::string login, token;
+    };
+    std::mutex g_tokenMutex;
+    std::unordered_map<std::string, SiloToken> g_tokens;
+    // the ones got with a user and password: written in the settings (TorrServe::takeTokens)
+    std::vector<pplay::TorrServe::Token> g_newTokens;
+
+    // the token of a server: the kept one, else got with the user and password ("owner" without a
+    // user); none: none needed. force: the kept one refused, a new one got with them if set
+    bool siloLogin(const std::string &root, int timeout, bool force, long *status) {
+        auto *io = pplay::Io::get();
+        std::string user, password;
+        if (io == nullptr || !io->loginOf(root, &user, &password)) {
+            return true;
+        }
+        const std::string kept = io->siloToken(root);
+        const std::string login = user + "\n" + password + "\n" + kept;
+        {
+            std::lock_guard<std::mutex> lock(g_tokenMutex);
+            auto known = g_tokens.find(root);
+            if (!force && known != g_tokens.end() && known->second.login == login) {
+                return true;
+            }
+            g_tokens.erase(root);
+        }
+        if (!force && !kept.empty()) {
+            std::lock_guard<std::mutex> lock(g_tokenMutex);
+            g_tokens[root] = {login, kept};
+            return true;
+        }
+        if (password.empty() && user.empty()) {
+            // refused, nothing to get another one with
+            *status = force ? 401 : 0;
+            return !force;
+        }
+        nlohmann::json request = {{"username", user.empty() ? "owner" : user}, {"password", password}};
+        pplay::Http::Response answer = pplay::Http::postJson(root + "api/auth/login", request.dump(), timeout);
+        nlohmann::json json = nlohmann::json::parse(answer.body, nullptr, false);
+        if (!answer.ok() || json.is_discarded() || !json.contains("token") || !json["token"].is_string()
+            || json["token"].get<std::string>().empty()) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Error,
+                                "TorrServe: Silo login failed: "
+                                        + (answer.error.empty() ? "HTTP " + std::to_string(answer.status) : answer.error));
+            *status = answer.error.empty() && answer.status != 0 ? 401 : 0;
+            return false;
+        }
+        std::string token = json["token"].get<std::string>();
+        pplay::Utility::log(pplay::Utility::LogLevel::Info, "TorrServe: Silo token got for " + root);
+        std::lock_guard<std::mutex> lock(g_tokenMutex);
+        // (the settings changed with it: known by its token)
+        g_tokens[root] = {user + "\n" + password + "\n" + token, token};
+        g_newTokens.push_back({root, user, password, token});
+        return true;
+    }
+
+    pplay::Http::Response siloTorrents(const std::string &root, int timeout) {
+        long status = 0;
+        pplay::Http::Response answer;
+        if (!siloLogin(root, timeout, false, &status)) {
+            answer.status = status;
+            answer.error = status == 0 ? "login failed" : "";
+            return answer;
+        }
+        answer = pplay::Http::get(root + "api/torrents", timeout);
+        // the token refused (regenerated, typed wrong): a new one with the user and password
+        if (answer.status == 401) {
+            if (!siloLogin(root, timeout, true, &status)) {
+                answer.status = status != 0 ? status : 401;
+                return answer;
+            }
+            answer = pplay::Http::get(root + "api/torrents", timeout);
+        }
+        return answer;
+    }
 
     std::vector<Torrent> getTorrents(const std::string &root, int timeout, bool *ok = nullptr, long *status = nullptr) {
         std::vector<Torrent> torrents;
         if (ok != nullptr) {
             *ok = false;
         }
+        bool silo = isSilo(root);
+        std::string url = root + (silo ? "api/torrents" : "torrents");
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                            "TorrServe::getTorrents url=" + root + "torrents, timeout=" + std::to_string(timeout));
-        pplay::Http::Response answer = pplay::Http::postJson(root + "torrents", "{\"action\":\"list\"}", timeout);
+                            "TorrServe::getTorrents url=" + url + ", timeout=" + std::to_string(timeout));
+        pplay::Http::Response answer = silo ? siloTorrents(root, timeout)
+                                            : pplay::Http::postJson(url, "{\"action\":\"list\"}", timeout);
         if (status != nullptr) {
             *status = answer.status;
         }
         if (!answer.ok()) {
             pplay::Utility::log(pplay::Utility::LogLevel::Error,
-                                "TorrServe::request " + root + "torrents failed: "
+                                "TorrServe::request " + url + " failed: "
                                         + (answer.error.empty() ? "HTTP " + std::to_string(answer.status) : answer.error));
             return torrents;
         }
         const std::string &response = answer.body;
 
         pplay::Utility::log(pplay::Utility::LogLevel::Trace, "TorrServe::getTorrents response=" + response);
-        if (!parseTorrents(response, &torrents)) {
+        // Silo: the viewed files in the same answer
+        ViewedByHash viewed;
+        if (!parseTorrents(response, &torrents, silo ? &viewed : nullptr)) {
             return torrents;
         }
         if (ok != nullptr) {
             *ok = true;
+        }
+        if (silo) {
+            applyViewed(root, torrents, viewed);
         }
         storeTorrentsList(root, response);
         return torrents;
@@ -204,21 +300,58 @@ namespace {
         pplay::Io::get()->writeText(path, response);
     }
 
-    bool parseTorrents(const std::string &response, std::vector<Torrent> *out) {
+    // a TS Silo viewed file: its index, or (to come) an object with its position too
+    bool siloViewed(const nlohmann::json &item, int *index, double *seconds) {
+        *seconds = 0;
+        if (item.is_number_integer()) {
+            *index = item.get<int>();
+            return true;
+        }
+        if (!item.is_object()) {
+            return false;
+        }
+        for (const char *key: {"id", "file_index", "index"}) {
+            if (item.contains(key) && item[key].is_number_integer()) {
+                *index = item[key].get<int>();
+                for (const char *time: {"timecode", "position"}) {
+                    if (item.contains(time) && item[time].is_number()) {
+                        *seconds = item[time].get<double>();
+                    }
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // TorrServer: an array, its files in "data"; TS Silo: {"torrents": [...]}, "file_stats" and
+    // "viewed_files"
+    bool parseTorrents(const std::string &response, std::vector<Torrent> *out, ViewedByHash *viewed) {
         std::vector<Torrent> &torrents = *out;
         nlohmann::json json = nlohmann::json::parse(response, nullptr, false);
+        if (!json.is_discarded() && json.is_object() && json.contains("torrents")) {
+            nlohmann::json list = json["torrents"];
+            // none: null
+            json = list.is_array() ? list : nlohmann::json::array();
+        }
         if (json.is_discarded() || !json.is_array()) {
             return false;
         }
 
         for (const auto &item: json) {
-            if (!item.contains("title") || !item["title"].is_string() || !item.contains("hash")
-                || !item["hash"].is_string()) {
+            if (!item.contains("hash") || !item["hash"].is_string()) {
+                continue;
+            }
+            std::string title = item.contains("title") && item["title"].is_string() ? item["title"].get<std::string>() : "";
+            if (title.empty() && item.contains("name") && item["name"].is_string()) {
+                title = item["name"].get<std::string>();
+            }
+            if (title.empty()) {
                 continue;
             }
 
             Torrent torrent;
-            torrent.title = item["title"].get<std::string>();
+            torrent.title = title;
             torrent.hash = item["hash"].get<std::string>();
             if (item.contains("poster") && item["poster"].is_string()) {
                 torrent.poster = item["poster"].get<std::string>();
@@ -247,6 +380,31 @@ namespace {
                             tf.length = file["length"].get<int64_t>();
                         }
                         torrent.files.push_back(tf);
+                    }
+                }
+            }
+            if (item.contains("file_stats") && item["file_stats"].is_array()) {
+                for (const auto &file: item["file_stats"]) {
+                    if (!file.contains("id") || !file["id"].is_number_integer() || !file.contains("path")
+                        || !file["path"].is_string()) {
+                        continue;
+                    }
+                    TorrentFile tf;
+                    tf.id = file["id"].get<int>();
+                    tf.path = file["path"].get<std::string>();
+                    if (file.contains("length") && file["length"].is_number()) {
+                        tf.length = file["length"].get<int64_t>();
+                    }
+                    torrent.files.push_back(tf);
+                }
+            }
+            if (viewed != nullptr && item.contains("viewed_files") && item["viewed_files"].is_array()) {
+                auto &files = (*viewed)[torrent.hash];
+                for (const auto &file: item["viewed_files"]) {
+                    int index;
+                    double seconds;
+                    if (siloViewed(file, &index, &seconds)) {
+                        files[index] = seconds;
                     }
                 }
             }
@@ -538,9 +696,9 @@ namespace {
         }
     }
 
-    // the worker requests, in order: a body (set / rem) or a list (empty body)
+    // the worker requests, in order: a body (set / rem, to url: TS Silo) or a list (empty body)
     struct ViewedJob {
-        std::string root, hash, body;
+        std::string root, hash, body, url;
         // a list after a body: its result asked
         bool after = false;
     };
@@ -606,9 +764,55 @@ namespace {
         }
     }
 
+    // TS Silo: the viewed files of its torrents list (all of them listed: the others none)
+    void applyViewed(const std::string &root, const std::vector<Torrent> &torrents, const ViewedByHash &viewed) {
+        std::lock_guard<std::mutex> lock(g_viewedMutex);
+        loadViewed();
+        time_t now = time(nullptr);
+        for (const auto &torrent: torrents) {
+            Viewed &entry = g_viewed[root + "|" + torrent.hash];
+            auto found = viewed.find(torrent.hash);
+            entry.files = found != viewed.end() ? found->second : std::map<int, double>();
+            entry.updated = now;
+            g_viewedPending.erase(root + "|" + torrent.hash);
+        }
+        g_viewedDirty = true;
+        g_viewedGeneration++;
+    }
+
+    std::vector<Torrent> fetchTorrents(const std::string &root, int timeout, bool *ok);
+
+    // TS Silo: from the torrents list (asked again when stale)
+    std::map<int, double> fetchSiloViewed(const std::string &root, const std::string &hash) {
+        bool shown;
+        {
+            std::lock_guard<std::mutex> lock(g_cacheMutex);
+            shown = g_unreachable.count(root) == 0;
+        }
+        if (shown) {
+            g_viewedFetching++;
+        }
+        bool ok = false;
+        fetchTorrents(root, 5, &ok);
+        if (shown) {
+            g_viewedFetching--;
+        }
+        std::lock_guard<std::mutex> lock(g_viewedMutex);
+        const std::string key = root + "|" + hash;
+        g_viewedPending.erase(key);
+        // not listed (or no answer): the marks kept, asked again later
+        Viewed &viewed = g_viewed[key];
+        viewed.updated = std::max(viewed.updated, time(nullptr));
+        g_viewedGeneration++;
+        return viewed.files;
+    }
+
     // all the viewed files of a server at once (one request a sync interval, not one a torrent):
     // the torrents without any kept empty, fresh too
     std::map<int, double> fetchViewed(const std::string &root, const std::string &hash) {
+        if (isSilo(root)) {
+            return fetchSiloViewed(root, hash);
+        }
         const std::string key = root + "|" + hash;
         nlohmann::json request;
         request["action"] = "list";
@@ -693,6 +897,10 @@ namespace {
         return g_viewed[key].files;
     }
 
+    std::string siloViewedUrl(const std::string &root, const std::string &hash, int index) {
+        return root + "api/torrents/" + hash + "/files/" + std::to_string(index) + "/viewed";
+    }
+
     int viewedThread(void *) {
         while (true) {
             ViewedJob job;
@@ -734,7 +942,12 @@ namespace {
                     fetchViewed(job.root, job.hash);
                 }
             } else {
-                httpRequest(job.root + "viewed", 5, job.body);
+                httpRequest(job.url.empty() ? job.root + "viewed" : job.url, 5, job.body);
+                if (!job.url.empty()) {
+                    // its list after: asked again
+                    std::lock_guard<std::mutex> lock(g_cacheMutex);
+                    g_torrentsAt.erase(job.root);
+                }
             }
         }
         saveViewed();
@@ -742,16 +955,17 @@ namespace {
     }
 
     // to the worker: a body and a list after it (its result), or a list only (once at a time)
-    void queueViewed(const std::string &root, const std::string &hash, const std::string &body = {}) {
+    void queueViewed(const std::string &root, const std::string &hash, const std::string &body = {},
+                     const std::string &url = {}) {
         {
             std::lock_guard<std::mutex> lock(g_viewedMutex);
             bool queued = !g_viewedPending.insert(root + "|" + hash).second;
             if (!body.empty()) {
-                g_viewedJobs.push_back({root, hash, body});
+                g_viewedJobs.push_back({root, hash, body, url});
             } else if (queued) {
                 return;
             }
-            g_viewedJobs.push_back({root, hash, {}, !body.empty()});
+            g_viewedJobs.push_back({root, hash, {}, {}, !body.empty()});
             if (g_viewedBusy) {
                 return; // the running worker takes it
             }
@@ -951,16 +1165,22 @@ namespace pplay::TorrServe {
         if (!fileLink(path, hash, index)) {
             return path;
         }
-        return replaceScheme(rootOf(path)) + "stream/?link=" + hash + "&index=" + std::to_string(index) + "&play";
+        std::string root = replaceScheme(rootOf(path));
+        if (isSilo(root)) {
+            return root + "api/stream/" + hash + "/" + std::to_string(index);
+        }
+        return root + "stream/?link=" + hash + "&index=" + std::to_string(index) + "&play";
     }
 
     namespace {
         struct LinkParts {
             std::string user, host, base, hash;
             int index = -1;
+            // TS Silo: api/stream/<hash>/<index> (from 0)
+            bool silo = false;
         };
 
-        // scheme://[user[:password]@]host[:port]/<base>[stream...|play/...]
+        // scheme://[user[:password]@]host[:port]/<base>[stream...|play/...|api/stream/...]
         LinkParts linkParts(const std::string &u, bool link) {
             LinkParts parts;
             std::string url = replaceScheme(u);
@@ -985,7 +1205,19 @@ namespace pplay::TorrServe {
             std::string route = path.substr(0, query);
             size_t play = route.find("/play/");
             size_t stream = route.find("/stream");
-            if (play != std::string::npos) {
+            size_t api = route.find("/api/stream/");
+            if (api != std::string::npos) {
+                parts.base = route.substr(0, api + 1);
+                std::string rest = route.substr(api + 12);
+                size_t sep = rest.find('/');
+                char *end = nullptr;
+                long value = sep == std::string::npos ? -1 : std::strtol(rest.c_str() + sep + 1, &end, 10);
+                if (value >= 0 && end != nullptr && (*end == '\0' || *end == '/')) {
+                    parts.hash = rest.substr(0, sep);
+                    parts.index = (int) value;
+                    parts.silo = true;
+                }
+            } else if (play != std::string::npos) {
                 parts.base = route.substr(0, play + 1);
                 std::string rest = route.substr(play + 6);
                 size_t sep = rest.find('/');
@@ -1001,8 +1233,9 @@ namespace pplay::TorrServe {
 
     bool isLinkOf(const std::string &network, const std::string &url) {
         LinkParts link = linkParts(url, true), net = linkParts(network, false);
+        // the indexes of the other api differ
         return !link.hash.empty() && !link.host.empty() && link.host == net.host && link.base == net.base
-               && (link.user.empty() || link.user == net.user);
+               && (link.user.empty() || link.user == net.user) && link.silo == isSilo(apiRoot(network));
     }
 
     bool findLinkFile(const std::string &network, const std::string &url, int timeout, c2d::Io::File *file) {
@@ -1068,6 +1301,51 @@ namespace pplay::TorrServe {
         g_torrentsFailedAt.clear();
         g_viewedFailedAt.clear();
         g_refused.clear();
+        std::lock_guard<std::mutex> tokens(g_tokenMutex);
+        g_tokens.clear();
+    }
+
+    std::string tokenOf(const std::string &url) {
+        std::string root = apiRoot(url);
+        {
+            std::lock_guard<std::mutex> lock(g_tokenMutex);
+            auto known = g_tokens.find(root);
+            if (known != g_tokens.end()) {
+                return known->second.token;
+            }
+        }
+        return pplay::Io::get() != nullptr ? pplay::Io::get()->siloToken(url) : std::string();
+    }
+
+    std::string siloToken(const std::string &network, int timeout) {
+        std::string root = apiRoot(network);
+        long status = 0;
+        if (!isSilo(root) || !siloLogin(root, timeout, false, &status)) {
+            return {};
+        }
+        return tokenOf(network);
+    }
+
+    std::vector<Token> takeTokens() {
+        std::lock_guard<std::mutex> lock(g_tokenMutex);
+        std::vector<Token> tokens;
+        tokens.swap(g_newTokens);
+        return tokens;
+    }
+
+    std::string linkToken(const std::string &url) {
+        size_t query = url.find('?');
+        if (query == std::string::npos) {
+            return {};
+        }
+        std::stringstream ss(url.substr(query + 1));
+        std::string param;
+        while (std::getline(ss, param, '&')) {
+            if (param.rfind("token=", 0) == 0) {
+                return unescapeSegment(param.substr(6));
+            }
+        }
+        return {};
     }
 
     double fileProgress(const std::string &p, bool wait) {
@@ -1095,6 +1373,10 @@ namespace pplay::TorrServe {
             return;
         }
         std::string root = apiRoot(path);
+        // TS Silo keeps no positions yet (read from its viewed files once it does): sent here then
+        if (isSilo(root)) {
+            return;
+        }
         {
             std::lock_guard<std::mutex> lock(g_progressMutex);
             auto support = g_timecodes.find(root);
@@ -1170,6 +1452,10 @@ namespace pplay::TorrServe {
             g_viewedGeneration++;
             g_viewedDirty = true;
         }
+        if (isSilo(root)) {
+            queueViewed(root, hash, "{\"viewed\":true}", siloViewedUrl(root, hash, index));
+            return true;
+        }
         queueViewed(root, hash, request.dump());
         return true;
     }
@@ -1192,6 +1478,10 @@ namespace pplay::TorrServe {
             g_viewed[root + "|" + hash].files.erase(index);
             g_viewedGeneration++;
             g_viewedDirty = true;
+        }
+        if (isSilo(root)) {
+            queueViewed(root, hash, "{\"viewed\":false}", siloViewedUrl(root, hash, index));
+            return true;
         }
         queueViewed(root, hash, request.dump());
         return true;

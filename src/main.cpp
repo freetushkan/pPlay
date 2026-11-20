@@ -22,6 +22,7 @@
 #if defined(__LINUX__) || defined(__PS5__) || defined(__SWITCH__) || defined(__ANDROID__)
 #include "crashlog.h"
 #endif
+#include "paths.h"
 #include "pplay_config.h"
 #include "utility.h"
 
@@ -227,6 +228,33 @@ void Main::setLanguage(const std::string &code) {
     retranslate();
 }
 
+// TS Silo: a token got with the user and password written next to them
+void Main::keepSiloTokens() {
+    bool changed = false;
+    for (auto &token: pplay::TorrServe::takeTokens()) {
+        for (int i = 1; i <= config->getNetworkCount(); i++) {
+            std::string url =
+                    pplay::Paths::ensureTrailingSlash(config->getOption(PPLAYConfig::networkOption(i))->getString());
+            if (pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(i))->getString())
+                        == pplay::Io::NetworkType::TorrServeSilo
+                && c2d::Utility::toLower(url) == c2d::Utility::toLower(token.root)
+                && config->getOption(PPLAYConfig::networkUserOption(i))->getString() == token.user
+                && config->getOption(PPLAYConfig::networkPasswordOption(i))->getString() == token.password) {
+                config->getOption(PPLAYConfig::networkTokenOption(i))->setString(token.token);
+                changed = true;
+                pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                                    "Main: network " + std::to_string(i) + ": Silo token kept");
+            }
+        }
+    }
+    if (changed) {
+        config->save();
+        if (menu_main != nullptr) {
+            menu_main->updateNetworks();
+        }
+    }
+}
+
 void Main::applyConfig() {
     pplay::Utility::setLogLevel((pplay::Utility::LogLevel) config->getOption(OPT_LOG_LEVEL)->getInteger());
     int codePage = config->getOption(OPT_TEXT_ENCODING)->getInteger();
@@ -242,6 +270,7 @@ void Main::applyConfig() {
     for (int i = 1; i <= config->getNetworkCount(); i++) {
         access += "\n" + config->getOption(PPLAYConfig::networkUserOption(i))->getString() + "\n"
                   + config->getOption(PPLAYConfig::networkPasswordOption(i))->getString() + "\n"
+                  + config->getOption(PPLAYConfig::networkTokenOption(i))->getString() + "\n"
                   + config->getOption(PPLAYConfig::networkTlsOption(i))->getString();
     }
     static std::string appliedAccess;
@@ -374,6 +403,7 @@ void Main::onUpdate() {
     }
 
     pplay::Saved::update();
+    keepSiloTokens();
 #ifdef __ANDROID__
     static C2DClock viewClock;
     if (viewClock.getElapsedTime().asMilliseconds() > 500) {

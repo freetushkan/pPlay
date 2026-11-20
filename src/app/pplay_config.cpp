@@ -21,14 +21,19 @@ using namespace c2d;
 
 namespace {
     const char *networkSuffixes[] = {"",         "_LAST",       "_NAME", "_TYPE",      "_USER",
-                                     "_PASSWORD", "_TIMEOUT", "_TLS_VERIFY", "_SYNC", "_SMB_BUFFER"};
-    const int NETWORK_FIELDS = 10;
-    // integers from this one
+                                     "_PASSWORD", "_TIMEOUT", "_TLS_VERIFY", "_SYNC", "_SMB_BUFFER", "_TOKEN"};
+    const int NETWORK_FIELDS = 11;
+    // integers from this one, up to this one
     const int NETWORK_INTS = 6;
+    const int NETWORK_INTS_END = 10;
+
+    bool isIntField(int field) {
+        return field >= NETWORK_INTS && field < NETWORK_INTS_END;
+    }
 
     // the json keys of a network
     const char *networkKeys[] = {"url",      "last",    "name",       "type", "user",
-                                 "password", "timeout", "tls_verify", "sync", "smb_buffer"};
+                                 "password", "timeout", "tls_verify", "sync", "smb_buffer", "token"};
 
     // names kept for the program life: pointers given out (a deque does not move them)
     const char *networkOptionName(int index, int suffix) {
@@ -162,6 +167,10 @@ const char *PPLAYConfig::networkSmbBufferOption(int index) {
     return networkOptionName(index, 9);
 }
 
+const char *PPLAYConfig::networkTokenOption(int index) {
+    return networkOptionName(index, 10);
+}
+
 // the user and password of an url (scheme://user[:password]@host...): smb "domain.user" as "domain\user"
 static bool credentialsOfUrl(const std::string &url, std::string *user, std::string *password) {
     size_t scheme = url.find("://");
@@ -234,12 +243,17 @@ std::string PPLAYConfig::withNetworkCredentials(int index, const std::string &ur
     std::string password = getOption(networkPasswordOption(index))->getString();
     size_t start, end;
     userInfoOf(plain, &start, &end);
-    if (user.empty() || plain.find("://") == std::string::npos ||
-        pplay::Io::parseNetworkType(getOption(networkTypeOption(index))->getString()) == pplay::Io::NetworkType::Dlna) {
+    pplay::Io::NetworkType type = pplay::Io::parseNetworkType(getOption(networkTypeOption(index))->getString());
+    // DLNA: no login
+    if (user.empty() || plain.find("://") == std::string::npos || type == pplay::Io::NetworkType::Dlna) {
         return plain;
     }
     std::string info;
-    if (Utility::startWith(plain, "smb://")) {
+    if (type == pplay::Io::NetworkType::TorrServeSilo) {
+        // the user only: its paths told apart from another user of the server (a token in its
+        // requests, never sent)
+        info = escapeUserInfo(user);
+    } else if (Utility::startWith(plain, "smb://")) {
         // "domain\user" as "domain.user"
         size_t slash = user.find('\\');
         if (slash != std::string::npos) {
@@ -401,10 +415,11 @@ void PPLAYConfig::allocateNetworks(int count) {
         addOption({networkLastOption(networkSlots), "/"});
         // "": "Network n"
         addOption({networkNameOption(networkSlots), ""});
-        addOption({networkTypeOption(networkSlots), "TorrServe"}); // TorrServe, Samba, FTP, HTTP, WebDAV, DLNA
+        addOption({networkTypeOption(networkSlots), "TorrServe"}); // TorrServe, TS_Silo, Samba, FTP, HTTP, WebDAV, DLNA
         addOption({networkUserOption(networkSlots), ""});
         addOption({networkPasswordOption(networkSlots), ""});
-        for (int s = NETWORK_INTS; s < NETWORK_FIELDS; s++) {
+        addOption({networkTokenOption(networkSlots), ""});
+        for (int s = NETWORK_INTS; s < NETWORK_INTS_END; s++) {
             addOption({networkOptionName(networkSlots, s), (int) 0});
         }
     }
@@ -427,7 +442,8 @@ void PPLAYConfig::clearNetwork(int index) {
     getOption(networkTypeOption(index))->setString("TorrServe");
     getOption(networkUserOption(index))->setString("");
     getOption(networkPasswordOption(index))->setString("");
-    for (int s = NETWORK_INTS; s < NETWORK_FIELDS; s++) {
+    getOption(networkTokenOption(index))->setString("");
+    for (int s = NETWORK_INTS; s < NETWORK_INTS_END; s++) {
         getOption(networkOptionName(index, s))->setInteger(networkDefault(s));
     }
 }
@@ -435,7 +451,7 @@ void PPLAYConfig::clearNetwork(int index) {
 void PPLAYConfig::copyNetwork(int from, int to) {
     for (int s = 0; s < NETWORK_FIELDS; s++) {
         config::Option *source = getOption(networkOptionName(from, s)), *target = getOption(networkOptionName(to, s));
-        if (s < NETWORK_INTS) {
+        if (!isIntField(s)) {
             target->setString(source->getString());
         } else {
             target->setInteger(source->getInteger());
@@ -551,9 +567,9 @@ bool PPLAYConfig::save() {
     nlohmann::ordered_json list = nlohmann::ordered_json::array();
     for (int i = 1; i <= networkCount; i++) {
         nlohmann::ordered_json entry = nlohmann::ordered_json::object();
-        for (int s: {2, 3, 0, 4, 5, 6, 7, 8, 9, 1}) {
+        for (int s: {2, 3, 0, 4, 5, 10, 6, 7, 8, 9, 1}) {
             config::Option *option = getOption(networkOptionName(i, s));
-            if (s >= NETWORK_INTS) {
+            if (isIntField(s)) {
                 entry[networkKeys[s]] = option->getInteger();
             } else {
                 // (the user and password apart)
@@ -660,7 +676,7 @@ bool PPLAYConfig::importOld() {
     }
     for (int i = 1; i <= kept; i++) {
         updateNetworkCredentials(i);
-        for (int s = NETWORK_INTS; s < NETWORK_FIELDS; s++) {
+        for (int s = NETWORK_INTS; s < NETWORK_INTS_END; s++) {
             getOption(networkOptionName(i, s))->setInteger(networkDefault(s));
         }
     }

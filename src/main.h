@@ -144,6 +144,9 @@ public:
     // configuration changed (settings, file editor)
     void applyConfig();
 
+    // TS Silo: a token got with the user and password kept in the settings
+    void keepSiloTokens();
+
     void setLanguage(const std::string &code);
 
     void quit();

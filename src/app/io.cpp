@@ -73,7 +73,7 @@ Io *Io::get() {
 }
 
 const std::vector<std::string> &Io::networkTypeNames() {
-    static const std::vector<std::string> names = {"TorrServe", "Samba", "FTP", "HTTP", "WebDAV", "DLNA"};
+    static const std::vector<std::string> names = {"TorrServe", "Samba", "FTP", "HTTP", "WebDAV", "DLNA", "TS_Silo"};
     return names;
 }
 
@@ -81,6 +81,9 @@ Io::NetworkType Io::parseNetworkType(const std::string &name) {
     const std::string n = c2d::Utility::toLower(name);
     if (n == "torrserve" || n == "torrserver") {
         return NetworkType::TorrServe;
+    }
+    if (n == "silo" || n == "ts_silo") {
+        return NetworkType::TorrServeSilo;
     }
     if (n == "samba" || n == "smb") {
         return NetworkType::Smb;
@@ -281,9 +284,35 @@ std::string Io::getNetworkRoot(const std::string &path) {
     return root;
 }
 
+Io::NetworkType Io::getNetworkType(const std::string &path) {
+    int index = findNetwork(path, true);
+    return index > 0 ? parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString())
+                     : NetworkType::Auto;
+}
+
+std::string Io::siloToken(const std::string &url) {
+    int index = findNetwork(url, true);
+    return index > 0 ? config->getOption(PPLAYConfig::networkTokenOption(index))->getString() : std::string();
+}
+
+bool Io::loginOf(const std::string &url, std::string *user, std::string *password) {
+    int index = findNetwork(url, false);
+    if (index < 1) {
+        return false;
+    }
+    *user = config->getOption(PPLAYConfig::networkUserOption(index))->getString();
+    *password = config->getOption(PPLAYConfig::networkPasswordOption(index))->getString();
+    return true;
+}
+
 bool Io::credentialsOf(const std::string &url, std::string *user, std::string *password) {
     int index = findNetwork(url, false);
-    if (index < 1 || parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString()) == NetworkType::Dlna) {
+    if (index < 1) {
+        return false;
+    }
+    // DLNA has no login, TS Silo a token instead
+    NetworkType type = parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString());
+    if (type == NetworkType::Dlna || type == NetworkType::TorrServeSilo) {
         return false;
     }
     *user = config->getOption(PPLAYConfig::networkUserOption(index))->getString();
@@ -317,6 +346,21 @@ int Io::smbBuffer(const std::string &url) {
 std::string Io::withCredentials(const std::string &url) {
     std::string user, password;
     bool http = c2d::Utility::startWith(url, "http://") || c2d::Utility::startWith(url, "https://");
+    if (http && getNetworkType(url) == NetworkType::TorrServeSilo) {
+        // its user (in its paths) not sent, its token instead
+        std::string token = TorrServe::tokenOf(url);
+        std::string plain = url;
+        size_t scheme = plain.find("://") + 3;
+        size_t end = plain.find_first_of("/?#", scheme);
+        size_t at = plain.rfind('@', end == std::string::npos ? std::string::npos : end);
+        if (at != std::string::npos && at >= scheme) {
+            plain.erase(scheme, at + 1 - scheme);
+        }
+        if (token.empty() || plain.find("token=") != std::string::npos) {
+            return plain;
+        }
+        return plain + (plain.find('?') == std::string::npos ? "?" : "&") + "token=" + Http::escape(token);
+    }
     if ((!http && !c2d::Utility::startWith(url, "ftp://")) || !credentialsOf(url, &user, &password)) {
         return url;
     }
@@ -332,6 +376,7 @@ Io::DeviceType Io::getDeviceType(const std::string &path) {
     if (index > 0) {
         switch (parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString())) {
             case NetworkType::TorrServe:
+            case NetworkType::TorrServeSilo:
                 return DeviceType::TorrServe;
             case NetworkType::Smb:
                 return DeviceType::Smb;

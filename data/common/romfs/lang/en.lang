@@ -59,6 +59,7 @@ Name = Name
 URL = URL
 User = User
 Password = Password
+Token = Token
 Type = Type
 Search servers = Search servers
 Add network = Add network
