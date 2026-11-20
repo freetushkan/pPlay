@@ -44,7 +44,7 @@ namespace {
     const std::vector<std::pair<const char *, std::vector<const char *>>> &groups() {
         static const std::vector<std::pair<const char *, std::vector<const char *>>> list = {
                 {"playback", {OPT_AUTOPLAY_MODE, OPT_NETWORK_RETRIES, OPT_RESTORE_SESSION, OPT_RESTORE_LOCATION,
-                              OPT_SLEEP_TIMER}},
+                              OPT_SEEK_PREVIEW, OPT_SLEEP_TIMER}},
                 {"progress", {OPT_PROGRESS_MIN_LENGTH, OPT_WATCHED_TOLERANCE, OPT_PROGRESS_INTERVAL,
                               OPT_PROGRESS_LINE, OPT_FOLDER_MARKS, OPT_TS_PROGRESS}},
                 {"audio_and_subtitles", {OPT_AUDIO_LANGUAGE, OPT_SUB_LANGUAGE, OPT_EXTERNAL_TRACKS, OPT_SUB_ASS_PLAIN,
@@ -363,6 +363,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_REST_SESSION, ""});
     addOption({OPT_RESTORE_SESSION, (int) 2});
     addOption({OPT_RESTORE_LOCATION, (int) 1});
+    addOption({OPT_SEEK_PREVIEW, (int) 2});
 #ifdef __SWITCH__
     addOption({OPT_SAVE_THREADS, (int) 1});
 #else

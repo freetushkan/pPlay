@@ -132,21 +132,31 @@ void Player::scrub(int direction) {
     float since = scrubLast.getElapsedTime().asSeconds();
     bool fresh = !scrubbing || direction != scrubDirection || since > 0.6f;
     if (fresh) {
+        // a new direction of the same seek: its start kept
+        if (!scrubbing) {
+            scrubTarget = std::max(0.0, time);
+        }
         scrubbing = true;
         scrubDirection = direction;
-        scrubTarget = std::max(0.0, time);
         scrubHeld.restart();
+        // no preview: paused till the seek (no sound running away meanwhile)
+        if (!scrubPaused && !seekPreview() && !mpv->isPaused()) {
+            mpv->pause();
+            scrubPaused = true;
+        }
     }
     // a tap: about 0.5 % of the file (5..15 s); held: a speed (seconds of the file a second)
-    // growing to the whole file in 20 s over 4 s of holding, slower where little is left
+    // from twice a tap, growing evenly over 4 s of holding to the whole file in 20 s (4 times
+    // the start at least: short files too), slower where little is left
     double base = duration > 0 ? std::max(5.0, std::min(15.0, duration * 0.005)) : 10.0;
     double step = base;
     if (!fresh) {
         float held = std::min(1.0f, scrubHeld.getElapsedTime().asSeconds() / 4);
-        double top = duration > 0 ? duration / 20 : 120.0;
-        double speed = std::max(base * 2, top * (0.05 + 0.95 * held * held));
+        double start = base * 2;
+        double top = std::max(start * 4, duration > 0 ? duration / 20 : 120.0);
+        double speed = start + (top - start) * held;
         double left = direction > 0 ? (duration > 0 ? duration - scrubTarget : 600.0) : scrubTarget;
-        speed = std::min(speed, std::max(base * 2, left));
+        speed = std::min(speed, std::max(start, left));
         step = speed * std::min(0.5f, since);
     }
     scrubTarget += direction * step;
@@ -157,19 +167,45 @@ void Player::scrub(int direction) {
     main->getStatus()->show("Info", pplay::Utility::formatTime(scrubTarget) + " / " + pplay::Utility::formatTime(duration));
 }
 
+bool Player::seekPreview() {
+    // the visualizer made again by each seek (jerky): never
+    if (mpv->hasVisualizer()) {
+        return false;
+    }
+    int mode = main->getConfig()->getOption(OPT_SEEK_PREVIEW)->getInteger();
+    // local: the saved copies too
+    return mode == 2 || (mode == 1 && ((pplay::Io *) main->getIo())->getDeviceType(file.path)
+                                              == pplay::Io::DeviceType::Local);
+}
+
 void Player::updateScrub() {
     if (!scrubbing || mpv->isStopped()) {
         scrubbing = false;
+        scrubPaused = false;
         return;
     }
     // one seek at a time (each shows its frame); a slow one (a stream) given up for the newer
     // target; the last one exact
     bool done = scrubLast.getElapsedTime().asSeconds() > 0.4f;
+    // no preview: none while held, one at the end
+    if (!done && !seekPreview()) {
+        return;
+    }
     if (mpv->isSeeking() && scrubSeek.getElapsedTime().asSeconds() < 1.0f) {
         return;
     }
-    if (scrubPending || done) {
-        mpv->seekTo(scrubTarget, done);
+    // audio: exact at once (no keyframe to show first, each seek restarts the sound)
+    bool exact = done || !mpv->hasMovingVideo();
+    bool sent = scrubExact && scrubSent == scrubTarget;
+    // resumed before the seek (paused, a seek steps a frame and stays paused)
+    if (done && scrubPaused) {
+        scrubPaused = false;
+        mpv->resume();
+    }
+    if (scrubPending || (done && !sent)) {
+        mpv->seekTo(scrubTarget, exact);
+        scrubExact = exact;
+        scrubSent = scrubTarget;
         scrubPending = false;
         scrubSeek.restart();
     }

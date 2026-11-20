@@ -486,6 +486,14 @@ private:
     bool scrubPending = false;
     int scrubDirection = 0;
     double scrubTarget = 0;
+    // the last seek sent: exact, to that time (none again for it)
+    bool scrubExact = false;
+    // paused for a seek without the preview (resumed after it)
+    bool scrubPaused = false;
+
+    // the picture shown while seeking (seeks on the way)
+    bool seekPreview();
+    double scrubSent = -1;
     c2d::C2DClock scrubHeld;
     c2d::C2DClock scrubLast;
     c2d::C2DClock scrubSeek;

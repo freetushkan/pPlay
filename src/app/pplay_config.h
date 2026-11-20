@@ -83,6 +83,9 @@
 #define OPT_RESTORE_SESSION "RESTORE_SESSION"
 // the list after it: 1 at the restored file, 0 at the last location (the module and its path)
 #define OPT_RESTORE_LOCATION "RESTORE_LOCATION"
+// the picture shown while seeking (seeks on the way): 2 always, 1 local files (saved copies
+// too), 0 never (one seek at the end, paused meanwhile)
+#define OPT_SEEK_PREVIEW "SEEK_PREVIEW"
 // saved copies (<home>/.pplay_save): parallel downloads, kept days (0: forever, by the last
 // access), size limit (GB, 0: none, the oldest access removed first)
 #define OPT_SAVE_THREADS "SAVE_THREADS"

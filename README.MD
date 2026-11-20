@@ -137,7 +137,8 @@ the old file itself is left as it is (for the older versions).
 ### Groups
 
 * `playback` — `autoplay_mode` (`0` stop, `1` next file, `2` loop file, `3` loop directory), `network_retries`,
-  `restore_session`, `restore_location` (`1` list at the restored file, `0` at the last location), `sleep_timer` (minutes, `-1` end of file).
+  `restore_session`, `restore_location` (`1` list at the restored file, `0` at the last location),
+  `seek_preview` (preview position while seeking: `2` always, `1` local files only, saved too, `0` off), `sleep_timer` (minutes, `-1` end of file).
 * `progress` — `progress_min_length`, `watched_tolerance`, `progress_interval`, `progress_line`, `folder_marks`,
   `ts_progress_sync` (`0` off, `1` local first, `2` TorrServer first).
 * `audio_and_subtitles` — `audio_language` (`Auto`), `sub_language` (`Off`): mpv `alang` / `slang` lists like `rus,ru`,
