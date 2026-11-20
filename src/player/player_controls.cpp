@@ -171,10 +171,7 @@ void Player::scrub(int direction) {
 }
 
 bool Player::seekPreview() {
-    // the visualizer made again by each seek (jerky): never
-    if (mpv->hasVisualizer()) {
-        return false;
-    }
+    // (the visualizer: its last frame kept meanwhile, see VideoTexture)
     int mode = main->getConfig()->getOption(OPT_SEEK_PREVIEW)->getInteger();
     // local: the saved copies too
     return mode == 2 || (mode == 1 && ((pplay::Io *) main->getIo())->getDeviceType(file.path)
