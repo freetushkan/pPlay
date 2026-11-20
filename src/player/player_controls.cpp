@@ -128,14 +128,18 @@ int Player::shoulderMode() {
 void Player::scrub(int direction) {
     double duration = (double) mpv->getDuration();
     double time = mpv->getTime();
-    // a new one: another direction, or a pause since the last key
+    // a new one: another direction, or a pause since the last key (taps in a row: one seek
+    // going on, its seek sent between them or not)
     float since = scrubLast.getElapsedTime().asSeconds();
-    bool fresh = !scrubbing || direction != scrubDirection || since > 0.6f;
-    if (fresh) {
-        // a new direction of the same seek: its start kept
-        if (!scrubbing) {
-            scrubTarget = std::max(0.0, time);
-        }
+    bool fresh = direction != scrubDirection || since > 0.6f;
+    if (!scrubbing) {
+        // from where the last seek went while mpv is not there yet (its time the old one)
+        float sinceSeek = scrubSeek.getElapsedTime().asSeconds();
+        bool lagging = scrubSent >= 0 && sinceSeek < 3.0f
+                       && (mpv->isSeeking() || std::fabs(time - scrubSent) > sinceSeek + 1.0);
+        scrubTarget = std::max(0.0, lagging ? scrubSent : time);
+    }
+    if (fresh || !scrubbing) {
         scrubbing = true;
         scrubDirection = direction;
         scrubHeld.restart();
@@ -152,11 +156,10 @@ void Player::scrub(int direction) {
     double step = base;
     if (!fresh) {
         float held = std::min(1.0f, scrubHeld.getElapsedTime().asSeconds() / 4);
-        double start = base * 2;
-        double top = std::max(start * 4, duration > 0 ? duration / 20 : 120.0);
-        double speed = start + (top - start) * held;
+        double top = duration > 0 ? duration / 20 : 120.0;
+        double speed = std::max(base * 2, top * (0.05 + 0.95 * held * held));
         double left = direction > 0 ? (duration > 0 ? duration - scrubTarget : 600.0) : scrubTarget;
-        speed = std::min(speed, std::max(start, left));
+        speed = std::min(speed, std::max(base * 2, left));
         step = speed * std::min(0.5f, since);
     }
     scrubTarget += direction * step;

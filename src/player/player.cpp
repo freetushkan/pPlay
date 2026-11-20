@@ -136,6 +136,8 @@ void Player::forgetProgress() {
 }
 
 bool Player::load(const MediaFile &f, bool firstTry, const std::string &options) {
+    // (the last seek target: of another file)
+    scrubSent = -1;
     pplay::Saved::touch(f.path);
     MediaInfo::touch(f);
     if (reloadPending) {
