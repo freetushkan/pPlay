@@ -10,6 +10,7 @@
 
 #include "cross2d/c2d.h"
 #include "clip_rect.h"
+#include "icon_sprite.h"
 
 class Main;
 
@@ -111,10 +112,10 @@ private:
     c2d::Text *remaining = nullptr;
     std::vector<Chip> chips;
     RoundRect *focus = nullptr;
-    std::vector<c2d::Sprite *> buttons;
+    std::vector<pplay::IconSprite *> buttons;
     std::vector<float> buttonScales;
-    c2d::Sprite *btn_play = nullptr;
-    c2d::Sprite *btn_pause = nullptr;
+    pplay::IconSprite *btn_play = nullptr;
+    pplay::IconSprite *btn_pause = nullptr;
     c2d::Text *next = nullptr;
     c2d::RectangleShape *edge = nullptr;
     int index = (int) ButtonID::Pause;

@@ -8,6 +8,7 @@
 #include <string>
 #include "cross2d/c2d.h"
 #include "clip_rect.h"
+#include "icon_sprite.h"
 
 class RoundRect;
 
@@ -76,7 +77,7 @@ public:
     void onUpdate() override;
 
     MenuItem item;
-    c2d::Sprite *icon = nullptr;
+    pplay::IconSprite *icon = nullptr;
     c2d::RectangleShape *line = nullptr;
 
     c2d::Text *name = nullptr;

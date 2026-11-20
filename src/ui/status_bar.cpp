@@ -132,12 +132,8 @@ StatusBar::StatusBar(Main *m) : Rectangle({0, 0, 64, 64}) {
     StatusBar::add(timeText);
 
     // offline: the kept listings shown
-    offline = new Sprite();
-    // made at its size (sharp)
-    c2d::Texture *offlineIcon = pplay::Skin::icon("offline.png", (int) std::round(22 * sc));
-    if (offlineIcon != nullptr) {
-        offline->setTexture(offlineIcon, true);
-    }
+    offline = new pplay::IconSprite();
+    offline->setIcon("offline.png", std::round(22 * sc));
     offline->setOrigin(Origin::Right);
     offline->setVisibility(Visibility::Hidden);
     StatusBar::add(offline);

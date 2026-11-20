@@ -6,6 +6,7 @@
 #define PPLAY_STATUS_BOX_H
 
 #include "cross2d/skeleton/sfml/RectangleShape.hpp"
+#include "icon_sprite.h"
 
 class Main;
 
@@ -41,7 +42,7 @@ private:
     RoundRect *shadows[3] = {};
     bool error = false;
     bool wasPlayer = false;
-    c2d::Sprite *icon = nullptr;
+    pplay::IconSprite *icon = nullptr;
     c2d::Text *messageText = nullptr;
     c2d::Clock *clock = nullptr;
     SDL_mutex *mutex = nullptr;

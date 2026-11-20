@@ -52,13 +52,13 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
     textTitle->setOrigin(Origin::Left);
 
     iconSize = std::round(FilerItem::getSize().y * 0.7f);
-    icon = new Sprite();
+    icon = new pplay::IconSprite();
     icon->setOrigin(Origin::Left);
     icon->setPosition(std::round(16 * main->getScaling().x), std::round(FilerItem::getSize().y / 2));
     icon->setVisibility(Visibility::Hidden);
     FilerItem::add(icon);
 
-    savedMark = new Sprite();
+    savedMark = new pplay::IconSprite();
     savedMark->setOrigin(Origin::Right);
     savedMark->setVisibility(Visibility::Hidden);
     FilerItem::add(savedMark);
@@ -105,12 +105,10 @@ void FilerItem::setIcon(const std::string &name) {
         icon->setVisibility(Visibility::Hidden);
         return;
     }
-    Texture *texture = pplay::Skin::icon(name, (int) iconSize);
-    if (texture == nullptr) {
+    if (!icon->setIcon(name, iconSize)) {
         icon->setVisibility(Visibility::Hidden);
         return;
     }
-    icon->setTexture(texture, true);
     icon->setVisibility(Visibility::Visible);
 }
 
@@ -224,12 +222,10 @@ float FilerItem::updateSavedMark(float right) {
     } else if (state.saved > 0) {
         name = "saved.png";
     }
-    Texture *texture = name.empty() ? nullptr : pplay::Skin::icon(name, (int) size);
-    if (texture == nullptr) {
+    if (name.empty() || !savedMark->setIcon(name, size)) {
         savedMark->setVisibility(Visibility::Hidden);
         return 0;
     }
-    savedMark->setTexture(texture, true);
     savedMark->setPosition(std::round(right), std::round(getSize().y / 2));
     // quiet, as the icons; the accent while saving
     savedMark->setFillColor(state.pending > 0 ? COLOR_ACCENT : Color(140, 148, 158, 255));

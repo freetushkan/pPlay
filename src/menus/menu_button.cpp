@@ -73,10 +73,9 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
         // any resolution: 30 px at 720p, smaller in compact menus; made at its size (sharp)
         iconSize = std::round(std::min(30.0f * main->getScaling().y, MenuButton::getSize().y * 0.65f));
         column = iconSize;
-        icon = new Sprite();
-        c2d::Texture *texture = item.icon.empty() ? nullptr : pplay::Skin::icon(item.icon, (int) iconSize);
-        if (texture != nullptr) {
-            icon->setTexture(texture, true);
+        icon = new pplay::IconSprite();
+        if (!item.icon.empty()) {
+            icon->setIcon(item.icon, iconSize);
         }
         icon->setOrigin(Origin::Left);
         icon->setPosition(std::round(12 * main->getScaling().x), std::round(MenuButton::getSize().y / 2));
@@ -216,16 +215,10 @@ void MenuButton::setIcon(const std::string &iconName) {
             return;
         }
     }
-    c2d::Texture *texture = pplay::Skin::icon(iconName, (int) iconSize);
-    if (texture == nullptr) {
+    if (!icon->setIcon(iconName, iconSize)) {
         return;
     }
     item.icon = iconName;
-    icon->setTexture(texture, true);
-    if (badgeText != nullptr) {
-        // the origin from the new size
-        icon->setOrigin(Origin::Right);
-    }
 }
 
 void MenuButton::refreshText() {

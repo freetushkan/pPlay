@@ -26,7 +26,7 @@ public:
 
     Battery *battery = nullptr;
     c2d::Text *timeText = nullptr;
-    c2d::Sprite *offline = nullptr;
+    pplay::IconSprite *offline = nullptr;
     c2d::Text *offlineText = nullptr;
 
     // the room the offline label takes in its chip
@@ -48,3 +48,4 @@ private:
 };
 
 #endif //PPLAY_STATUSBAR_H
+#include "icon_sprite.h"

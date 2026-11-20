@@ -120,11 +120,8 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
 
     // the icons in the focus circle, made at their size (sharp); play / pause bigger
     auto addButton = [this, sc](const char *file, float size = 40.0f) {
-        auto *button = new Sprite();
-        c2d::Texture *texture = pplay::Skin::icon(file, (int) std::round(size * sc));
-        if (texture != nullptr) {
-            button->setTexture(texture, true);
-        }
+        auto *button = new pplay::IconSprite();
+        button->setIcon(file, std::round(size * sc));
         button->setOrigin(Origin::Center);
         panel->add(button);
         return button;

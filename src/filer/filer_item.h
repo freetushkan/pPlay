@@ -9,6 +9,7 @@
 #include "media_file.h"
 #include "clip_rect.h"
 #include "highlight.h"
+#include "icon_sprite.h"
 
 class Main;
 
@@ -51,9 +52,9 @@ private:
     c2d::Text *check;
     c2d::Text *check2;
     float textX = 0, textWidth = 0;
-    c2d::Sprite *icon;
+    pplay::IconSprite *icon;
     // saved copies inside / being saved (network rows): a floppy / a progress ring
-    c2d::Sprite *savedMark;
+    pplay::IconSprite *savedMark;
     // shown left of x: its width with the gap, 0 if none
     float updateSavedMark(float right);
     c2d::Rectangle *clip;

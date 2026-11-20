@@ -87,10 +87,10 @@ void KeyHints::setHints(const std::vector<Hint> &list) {
         auto *item = new RectangleShape(Vector2f{1, 1});
         // no keys: a button only
         c2d::Texture *glyph = hint.keys ? pplay::Skin::texture(pplay::InputMap::buttonIcon(hint.keys)) : nullptr;
-        Sprite *icon = nullptr;
+        pplay::IconSprite *icon = nullptr;
         std::string label = pplay::tr(hint.action);
         if (glyph != nullptr) {
-            icon = new Sprite(glyph);
+            icon = new pplay::IconSprite();
             item->add(icon);
         }
         auto *text = new C2DText(label, main->getFontSize(Main::FontSize::Small), main->getFont());
@@ -145,12 +145,8 @@ void KeyHints::layout() {
         float iconWidth = 0;
         if (icons[i] != nullptr) {
             // made at its size (sharp)
-            c2d::Texture *glyph = pplay::Skin::icon(pplay::InputMap::buttonIcon(hints[i].keys), (int) glyphHeight);
-            if (glyph != nullptr) {
-                icons[i]->setTexture(glyph, true);
-                icons[i]->setScale(1, 1);
-            }
-            iconWidth = (float) icons[i]->getTextureRect().width + std::round(6 * main->getScaling().x);
+            icons[i]->setIcon(pplay::InputMap::buttonIcon(hints[i].keys), glyphHeight);
+            iconWidth = icons[i]->getSize().x + std::round(6 * main->getScaling().x);
             icons[i]->setPosition(std::round(pad.x), std::round(pad.y));
         }
         FloatRect bounds = text->getLocalBounds();
