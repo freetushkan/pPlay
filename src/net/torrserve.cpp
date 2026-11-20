@@ -334,7 +334,9 @@ namespace {
     bool parseTorrents(const std::string &response, std::vector<Torrent> *out, ViewedByHash *viewed) {
         std::vector<Torrent> &torrents = *out;
         nlohmann::json json = nlohmann::json::parse(response, nullptr, false);
-        if (!json.is_discarded() && json.is_object() && json.contains("torrents")) {
+        // (MatriX has "file_stats" too, for the active torrents: its files in "data" only)
+        bool silo = !json.is_discarded() && json.is_object() && json.contains("torrents");
+        if (silo) {
             nlohmann::json list = json["torrents"];
             // none: null
             json = list.is_array() ? list : nlohmann::json::array();
@@ -388,7 +390,7 @@ namespace {
                     }
                 }
             }
-            if (item.contains("file_stats") && item["file_stats"].is_array()) {
+            if (silo && item.contains("file_stats") && item["file_stats"].is_array()) {
                 for (const auto &file: item["file_stats"]) {
                     if (!file.contains("id") || !file["id"].is_number_integer() || !file.contains("path")
                         || !file["path"].is_string()) {
