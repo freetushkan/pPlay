@@ -624,7 +624,71 @@ int Main::showMessage(const std::string &title, const std::string &message, cons
         messageBox->getButton(i)->getText()->setOutlineThickness(0);
     }
 
-    return messageBox->show(title, message, buttonLeft, buttonRight);
+    // the box shown (no buttons: not waiting), then its buttons here: the keys of all the
+    // inputs (remotes, other controllers, a touch or a click), not only the libcross2d ones
+    messageBox->show(title, message, "", "");
+    int choices = buttonRight.empty() ? (buttonLeft.empty() ? 0 : 1) : 2;
+    if (choices == 0) {
+        return MessageBox::LEFT;
+    }
+    Button *left = messageBox->getButton(0), *right = messageBox->getButton(1);
+    float y = messageBox->getSize().y - left->getSize().y - 16;
+    left->setText(buttonLeft);
+    left->setPosition(choices == 1 ? messageBox->getSize().x / 2 : messageBox->getSize().x / 3 - 8, y);
+    left->setVisibility(Visibility::Visible);
+    if (choices == 2) {
+        right->setText(buttonRight);
+        right->setPosition(messageBox->getSize().x / 3 * 2 + 8, y);
+        right->setVisibility(Visibility::Visible);
+    }
+    auto paint = [&](int index) {
+        for (int i = 0; i < choices; i++) {
+            Button *b = messageBox->getButton(i);
+            bool on = i == index;
+            b->setFillColor(on ? COLOR_ACCENT : COLOR_BG);
+            b->setOutlineColor(on ? COLOR_FONT : Color(150, 150, 150));
+            b->getText()->setFillColor(on ? COLOR_FONT : Color(150, 150, 150));
+        }
+    };
+    int index = 0, result = -1;
+    paint(index);
+    getInput()->clear(0);
+    pplay::InputMap::takePending();
+    // the touch that opened it: once released
+    bool touchReleased = false;
+    while (result < 0) {
+        Input::Player *players = getInput()->update();
+        unsigned int keys = players[0].buttons;
+        if (keys == Input::Button::Delay) {
+            keys = 0;
+        }
+        keys |= pplay::InputMap::update() | pplay::InputMap::takePending();
+        if (!(keys & Input::Touch)) {
+            touchReleased = true;
+        }
+        if ((keys & Input::Touch) && touchReleased) {
+            touchReleased = false;
+            for (int i = 0; i < choices; i++) {
+                if (messageBox->getButton(i)->getGlobalBounds().contains(players[0].touch)) {
+                    index = i;
+                    result = i == 1 ? MessageBox::RIGHT : MessageBox::LEFT;
+                }
+            }
+        } else if (keys & Input::Left) {
+            index = std::max(0, index - 1);
+        } else if (keys & Input::Right) {
+            index = std::min(choices - 1, index + 1);
+        } else if (keys & Input::A) {
+            result = index == 1 ? MessageBox::RIGHT : MessageBox::LEFT;
+        } else if (keys & (Input::B | Input::Quit)) {
+            result = MessageBox::CANCEL;
+        }
+        paint(index);
+        c2d_renderer->flip(true, false);
+    }
+    messageBox->setVisibility(Visibility::Hidden);
+    getInput()->clear(0);
+    return result;
 }
 
 StatusBox *Main::getStatus() {
