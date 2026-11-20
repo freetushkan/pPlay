@@ -3,6 +3,7 @@
 //
 
 #include <SDL_video.h>
+#include <algorithm>
 #include <cmath>
 #include "mpv.h"
 #include "utility.h"
@@ -14,6 +15,9 @@
 #include <vector>
 #include <string>
 #include <sstream>
+
+// read ahead: the memory setting is the limit (the length one the least)
+#define CACHE_SECS_ALL (24 * 3600)
 
 #ifdef __PS4__
 extern "C" int ps4_mpv_use_precompiled_shaders;
@@ -52,6 +56,9 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
     ps4_mpv_dump_shaders = 0;
 #endif
 
+// read ahead: the memory setting is the limit (the length one the least)
+#define CACHE_SECS_ALL (24 * 3600)
+
     handle = mpv_create();
     if (!handle) {
         pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Mpv::Mpv: error: mpv_create");
@@ -82,7 +89,7 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
 
     mpv_set_option_string(handle, "audio-normalize-downmix", "yes");
     mpv_set_option_string(handle, "cache-pause", "yes");
-    mpv_set_option_string(handle, "cache-secs", "60");
+    mpv_set_option_string(handle, "cache-secs", std::to_string(CACHE_SECS_ALL).c_str());
     mpv_set_option_string(handle, "stream-lavf-o", "reconnect_on_network_error=1");
 #if defined(__PS4__) || defined(__PS5__)
     mpv_set_option_string(handle, "ignore-path-in-watch-later-config", "yes");
@@ -318,6 +325,7 @@ void Mpv::setCache(int seconds, int megabytes) {
     if (!isAvailable()) {
         return;
     }
-    mpv_set_property_string(handle, "cache-secs", std::to_string(seconds).c_str());
+    // the length: at least (a short file read whole, a long one up to the memory)
+    mpv_set_property_string(handle, "cache-secs", std::to_string(std::max(seconds, CACHE_SECS_ALL)).c_str());
     mpv_set_property_string(handle, "demuxer-max-bytes", (std::to_string(megabytes) + "MiB").c_str());
 }
