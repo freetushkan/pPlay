@@ -321,6 +321,8 @@ void Filer::run(DetailsView::Action action) {
         case Action::Menu:
             details->setFocused(false);
             main->getMenuMain()->setVisibility(Visibility::Visible, true);
+            // on the module open (back from the settings: where it was)
+            main->getMenuMain()->selectId(main->getcurrentModuleIndex());
             break;
         case Action::Panel:
             details->setFocused(true);

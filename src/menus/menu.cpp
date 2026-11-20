@@ -481,6 +481,19 @@ void Menu::select(const std::string &name) {
     }
 }
 
+void Menu::selectId(int id) {
+    for (size_t i = 0; i < buttons.size(); i++) {
+        if (buttons[i]->item.id == id && isButtonSelectable((int) i) && buttons[i]->item.enabled) {
+            index = (int) i;
+            updateSelectionState();
+            ensureSelectionVisible();
+            updateScroll();
+            highlight->setPosition(0, buttons[index]->getPosition().y);
+            return;
+        }
+    }
+}
+
 void Menu::reset() {
     index = findFirstSelectableIndex();
     updateSelectionState();
