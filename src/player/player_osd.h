@@ -30,6 +30,7 @@ public:
         Next,
         Stop,
         FrameStep,
+        Playlist,
         Settings
     };
 
@@ -37,7 +38,8 @@ public:
 
     void reset();
 
-    void expand();
+    // keepFocus: on the button it was (back from what it opened)
+    void expand(bool keepFocus = false);
 
     // title and progress for a while (new file, seek)
     void peek();

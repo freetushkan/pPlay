@@ -134,7 +134,7 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     btn_play->setVisibility(Visibility::Hidden);
     buttons = {addButton("btn_prev.png"), addButton("btn_seek_backward.png"), btn_pause,
                addButton("btn_seek_forward.png"), addButton("btn_next.png"), addButton("btn_stop.png"),
-               addButton("btn_frame_step.png"), addButton("btn_settings.png")};
+               addButton("btn_frame_step.png"), addButton("btn_playlist.png"), addButton("btn_settings.png")};
 
     next = new Text("", main->getFontSize(Main::FontSize::Small), main->getFont());
     next->setOutlineThickness(1);
@@ -186,7 +186,7 @@ void PlayerOSD::layout(bool audio) {
     elapsed->setPosition(trackX - 14 * sc, trackY);
     remaining->setPosition(trackX + trackW + 14 * sc, trackY);
 
-    // transport, stop and frame step in a row, settings apart
+    // transport, stop and frame step in a row, the playlist and settings apart
     float step = 52 * sc;
     std::vector<float> xs(buttons.size());
     // audio: no frame step
@@ -195,29 +195,30 @@ void PlayerOSD::layout(bool audio) {
         float width = step * (float) (buttons.size() - 2) + 24 * sc;
         float x = (size.x - width) / 2;
         for (size_t i = 0, n = 0; i < buttons.size(); i++) {
-            xs[i] = x + step * (float) n + (i >= (size_t) ButtonID::Settings ? 24 * sc : 0);
+            xs[i] = x + step * (float) n + (i >= (size_t) ButtonID::Playlist ? 24 * sc : 0);
             n += i == (size_t) ButtonID::FrameStep ? 0 : 1;
         }
     } else {
         float left = 54 * sc + 22 * sc, right = size.x - 54 * sc - 22 * sc;
-        for (size_t i = 0; i < (size_t) ButtonID::Settings; i++) {
+        for (size_t i = 0; i < (size_t) ButtonID::Playlist; i++) {
             xs[i] = left + step * (float) i;
         }
+        xs[(size_t) ButtonID::Playlist] = right - step;
         xs[(size_t) ButtonID::Settings] = right;
     }
     for (size_t i = 0; i < buttons.size(); i++) {
         buttons[i]->setPosition(std::round(xs[i]), std::round(buttonsY));
     }
     btn_play->setPosition(std::round(xs[(size_t) ButtonID::Pause]), std::round(buttonsY));
-    // video: before settings; audio: under the buttons
+    // video: before the playlist; audio: under the buttons
     if (audio) {
         next->setOrigin(Origin::Center);
         next->setPosition(size.x / 2, buttonsY + 40 * sc);
         next->setSizeMax(size.x * 0.6f, 0);
     } else {
         next->setOrigin(Origin::Right);
-        next->setPosition(xs[(size_t) ButtonID::Settings] - 44 * sc, buttonsY);
-        next->setSizeMax(xs[(size_t) ButtonID::Settings] - xs[(size_t) ButtonID::FrameStep] - 100 * sc, 0);
+        next->setPosition(xs[(size_t) ButtonID::Playlist] - 44 * sc, buttonsY);
+        next->setSizeMax(xs[(size_t) ButtonID::Playlist] - xs[(size_t) ButtonID::FrameStep] - 100 * sc, 0);
     }
     if (audio && index == (int) ButtonID::FrameStep) {
         index = (int) ButtonID::Stop;
@@ -226,8 +227,8 @@ void PlayerOSD::layout(bool audio) {
     textKey.clear();
 }
 
-void PlayerOSD::expand() {
-    if (state != State::Full) {
+void PlayerOSD::expand(bool keepFocus) {
+    if (state != State::Full && !keepFocus) {
         index = (int) ButtonID::Pause;
     }
     state = State::Full;
@@ -631,6 +632,16 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
             case ButtonID::Next:
                 peek();
                 player->playSibling((ButtonID) index == ButtonID::Next ? 1 : -1);
+                break;
+            case ButtonID::Playlist:
+                // the current playlist at once
+                if (player->getMenuPlaylist() != nullptr) {
+                    hide();
+                    player->getMenuPlaylist()->fromOsd = true;
+                    player->getMenuPlaylist()->setVisibility(Visibility::Visible, true);
+                } else {
+                    main->getStatus()->show("Info", "Playlist is empty");
+                }
                 break;
             case ButtonID::Settings:
                 hide();

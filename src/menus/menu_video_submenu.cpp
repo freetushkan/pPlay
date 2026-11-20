@@ -59,21 +59,28 @@ void MenuVideoSubmenu::updateSelectionHighlight() {
     } else if (type == MENU_VIDEO_TYPE_VISUALIZER) {
         setSelection(main->getConfig()->getOption(OPT_AUDIO_VISUALIZER)->getInteger());
     } else if (type == MENU_VIDEO_TYPE_PLAYLIST) {
-        if (main->getPlayer()->isPlaylistFile()) {
-            setSelection(main->getPlayer()->getMpv()->getPlaylistPos());
-            return;
-        }
-        for (auto btn: buttons) {
-            auto item = btn->item;
-            if (item.id < 0) {
-                continue;
-            }
-            if (item.data_str == main->getPlayer()->getTitle()) {
-                setSelection(item.id);
-                break;
-            }
+        // the playing one: marked, its icon too
+        int playing = playingId();
+        hideCurrent();
+        setSelection(playing);
+        // its number replaced by the icon
+        for (auto *btn: buttons) {
+            btn->setIcon(btn->item.id == playing ? "list_playing.png" : "");
         }
     }
+}
+
+int MenuVideoSubmenu::playingId() const {
+    Player *player = main->getPlayer();
+    if (player->isPlaylistFile()) {
+        return player->getMpv()->getPlaylistPos();
+    }
+    for (auto *btn: buttons) {
+        if (btn->item.id >= 0 && btn->item.data_str == player->getFile().path) {
+            return btn->item.id;
+        }
+    }
+    return -1;
 }
 
 void MenuVideoSubmenu::onOptionSelection(MenuItem *item) {
@@ -138,6 +145,10 @@ void MenuVideoSubmenu::onOptionSelection(MenuItem *item) {
 }
 
 void MenuVideoSubmenu::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
+    // the playlist opened on the playing file
+    if (type == MENU_VIDEO_TYPE_PLAYLIST && visibility == Visibility::Visible && !isVisible()) {
+        selectId(playingId());
+    }
     Menu::setVisibility(visibility, tweenPlay);
     updateSelectionHighlight();
 }
@@ -145,7 +156,11 @@ void MenuVideoSubmenu::setVisibility(c2d::Visibility visibility, bool tweenPlay)
 bool MenuVideoSubmenu::onInput(c2d::Input::Player *players) {
     if (players[0].buttons & Input::B) {
         setVisibility(Visibility::Hidden, true);
-        main->getMenuVideo()->setVisibility(Visibility::Visible, true);
+        if (fromOsd) {
+            main->getPlayer()->showOsd();
+        } else {
+            main->getMenuVideo()->setVisibility(Visibility::Visible, true);
+        }
         return true;
     }
 

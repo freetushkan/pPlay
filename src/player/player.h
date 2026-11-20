@@ -159,6 +159,9 @@ public:
 
     MenuVideoSubmenu *getMenuPlaylist();
 
+    // the OSD back, on the button it was
+    void showOsd();
+
     MenuVideoSubmenu *getMenuPlaybackMode();
 
     MenuVideoSubmenu *getMenuNormalize();
@@ -335,6 +338,8 @@ private:
     MenuVideoSubmenu *menuAudioStreams = nullptr;
     MenuVideoSubmenu *menuSubtitlesStreams = nullptr;
     MenuVideoSubmenu *menuPlaylist = nullptr;
+    // what menuPlaylist lists
+    std::string playlistKey;
     MenuVideoSubmenu *menuPlaybackMode = nullptr;
     MenuVideoSubmenu *menuNormalize = nullptr;
     MenuVideoSubmenu *menuVisualizer = nullptr;

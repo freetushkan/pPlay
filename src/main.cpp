@@ -169,7 +169,7 @@ void Main::createMenus() {
 
     items.clear();
     items.emplace_back("Playback mode", "pl_mode.png", MenuItem::Position::Top);
-    items.emplace_back("Playlist", "playlist.png", MenuItem::Position::Top);
+    items.emplace_back("Current playlist", "playlist.png", MenuItem::Position::Top);
     items.emplace_back("Audio", "audio.png", MenuItem::Position::Top);
     items.emplace_back("Video", "video.png", MenuItem::Position::Top);
     items.emplace_back("Subtitles", "subtitles.png", MenuItem::Position::Top);

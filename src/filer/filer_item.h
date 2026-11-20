@@ -18,6 +18,9 @@ public:
 
     FilerItem(Main *main, const c2d::FloatRect &rect, const MediaFile &file = {});
 
+    // its icon in lists
+    static std::string iconOf(const MediaFile &file);
+
     void setFile(const MediaFile &file);
 
     void onUpdate();

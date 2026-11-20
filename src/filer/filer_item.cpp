@@ -22,26 +22,24 @@
 
 using namespace c2d;
 
-namespace {
-    std::string iconName(const MediaFile &file) {
-        // opened as directories
-        if (pplay::Playlists::isPlaylist(file.path)) {
-            return "playlist.png";
-        }
-        if (file.type == Io::Type::Directory) {
-            return "file_folder.png";
-        }
-        if (pplay::ExternalTracks::isAudio(file.name)) {
-            return "file_audio.png";
-        }
-        if (pplay::ExternalTracks::isSubtitle(file.name)) {
-            return "subtitles.png";
-        }
-        if (Utility::endsWith(file.name, ".m3u", false) || Utility::endsWith(file.name, ".m3u8", false)) {
-            return "playlist.png";
-        }
-        return pplay::Utility::isMedia(file) ? "file_video.png" : "file_other.png";
+std::string FilerItem::iconOf(const MediaFile &file) {
+    // opened as directories
+    if (pplay::Playlists::isPlaylist(file.path)) {
+        return "playlist.png";
     }
+    if (file.type == Io::Type::Directory) {
+        return "file_folder.png";
+    }
+    if (pplay::ExternalTracks::isAudio(file.name)) {
+        return "file_audio.png";
+    }
+    if (pplay::ExternalTracks::isSubtitle(file.name)) {
+        return "subtitles.png";
+    }
+    if (Utility::endsWith(file.name, ".m3u", false) || Utility::endsWith(file.name, ".m3u8", false)) {
+        return "playlist.png";
+    }
+    return pplay::Utility::isMedia(file) ? "file_video.png" : "file_other.png";
 }
 
 FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : Rectangle(rect) {
@@ -154,7 +152,7 @@ void FilerItem::setFile(const MediaFile &f) {
         const bool playing =
                 file.type == Io::Type::File && main->getPlayer() != nullptr && main->getPlayer()->isPlaying(file.path);
         textTitle->setString(encoding::fix(file.label.empty() ? file.name : file.label));
-        setIcon(playing ? "file_playing.png" : iconName(file));
+        setIcon(playing ? "file_playing.png" : iconOf(file));
     }
     setColor(color());
     // the duration on the right, the name up to it

@@ -22,13 +22,13 @@ namespace {
     std::vector<MenuItem> withValues(std::vector<MenuItem> items) {
         for (auto &item: items) {
             const std::string &n = item.name;
-            if (n == "Playlist" || n == "Audio" || n == "Video" || n == "Subtitles") {
+            if (n == "Current playlist" || n == "Audio" || n == "Video" || n == "Subtitles") {
                 item.opens = true;
             }
             if (n == "Speed" || n == "Brightness" || n == "Screen brightness" || n == "Sleep timer") {
                 item.slider = 0;
             }
-            if (n != "Stop" && n != "Playlist") {
+            if (n != "Stop" && n != "Current playlist") {
                 item.value = "-";
             }
         }
@@ -275,8 +275,9 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
         } else {
             main->getStatus()->show("Info", "No subtitles streams found in media", false, false);
         }
-    } else if (item->name == "Playlist") {
+    } else if (item->name == "Current playlist") {
         if (main->getPlayer()->getMenuPlaylist()) {
+            main->getPlayer()->getMenuPlaylist()->fromOsd = false;
             main->getPlayer()->getMenuPlaylist()->setVisibility(Visibility::Visible, true);
             setVisibility(Visibility::Hidden, true);
         } else {
