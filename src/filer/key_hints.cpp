@@ -8,6 +8,7 @@
 #include "input_map.h"
 #include "key_hints.h"
 #include "skin.h"
+#include "round_rect.h"
 
 using namespace c2d;
 
@@ -84,7 +85,8 @@ void KeyHints::setHints(const std::vector<Hint> &list) {
     hints = list;
 
     for (auto &hint: hints) {
-        auto *item = new RectangleShape(Vector2f{1, 1});
+        // rounded, as the other buttons
+        auto *item = new RoundRect(Vector2f{1, 1}, std::round(6 * main->getScaling().y));
         // no keys: a button only
         c2d::Texture *glyph = hint.keys ? pplay::Skin::texture(pplay::InputMap::buttonIcon(hint.keys)) : nullptr;
         pplay::IconSprite *icon = nullptr;
