@@ -150,7 +150,9 @@ void FilerItem::setFile(const MediaFile &f) {
         const bool playing =
                 file.type == Io::Type::File && main->getPlayer() != nullptr && main->getPlayer()->isPlaying(file.path);
         textTitle->setString(encoding::fix(file.label.empty() ? file.name : file.label));
-        setIcon(playing ? "file_playing.png" : iconOf(file));
+        // the playing one: its pause too
+        shownPaused = playing && main->getPlayer()->getMpv()->isPaused();
+        setIcon(!playing ? iconOf(file) : shownPaused ? "file_paused.png" : "file_playing.png");
     }
     setColor(color());
     // the duration on the right, the name up to it
@@ -285,6 +287,12 @@ void FilerItem::onDraw(Transform &transform, bool draw) {
 
 void FilerItem::onUpdate() {
     const bool isFullscreen = main->getPlayer() && main->getPlayer()->isFullscreen();
+    // the playing one paused or resumed: its icon
+    if (!isFullscreen && file.type == Io::Type::File && main->getPlayer() != nullptr
+        && main->getPlayer()->isPlaying(file.path) && main->getPlayer()->getMpv()->isPaused() != shownPaused) {
+        shownPaused = !shownPaused;
+        setIcon(shownPaused ? "file_paused.png" : "file_playing.png");
+    }
     const bool fullscreenExited = lastFullscreen && !isFullscreen;
     lastFullscreen = isFullscreen;
     // the TorrServer marks came (asked in the background)

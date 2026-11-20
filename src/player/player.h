@@ -162,6 +162,9 @@ public:
     // the OSD back, on the button it was
     void showOsd();
 
+    // paused or resumed (said in the status)
+    void togglePause();
+
     MenuVideoSubmenu *getMenuPlaybackMode();
 
     MenuVideoSubmenu *getMenuNormalize();

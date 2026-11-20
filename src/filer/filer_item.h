@@ -67,6 +67,8 @@ private:
     float iconSize = 0;
 
     bool lastFullscreen = false;
+    // the playing file icon shows the pause
+    bool shownPaused = false;
     // the TorrServer marks shown: from this answer
     unsigned int viewedGeneration = 0;
     unsigned int savedGeneration = 0;

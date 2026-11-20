@@ -106,10 +106,7 @@ bool Player::onInput(c2d::Input::Player *players) {
         main->getMenuVideo()->setVisibility(Visibility::Visible, true);
         return true;
     } else if (keys & Input::A) {
-        bool paused = mpv->isPaused();
-        main->getStatus()->show("Info", paused ? "Resuming playback" : "Pausing playback");
-        paused ? resume() : pause();
-        osd->setPaused(!paused);
+        togglePause();
     }
 
     if (keys && !osd->isExpanded()) {
@@ -187,10 +184,7 @@ void Player::onMediaKeys(unsigned int keys) {
     }
 
     if (keys & pplay::InputMap::PlayPause) {
-        bool paused = mpv->isPaused();
-        main->getStatus()->show("Info", paused ? "Resuming playback" : "Pausing playback");
-        paused ? resume() : pause();
-        osd->setPaused(!paused);
+        togglePause();
     } else if (keys & pplay::InputMap::Stop) {
         main->getStatus()->show("Info", "Stopping playback");
         stop();
@@ -398,4 +392,11 @@ void Player::resetBrightness() {
     if (brightness != 0) {
         changeBrightness(-brightness);
     }
+}
+
+void Player::togglePause() {
+    bool paused = mpv->isPaused();
+    main->getStatus()->show("Info", paused ? "Resuming playback" : "Pausing playback");
+    paused ? resume() : pause();
+    osd->setPaused(!paused);
 }

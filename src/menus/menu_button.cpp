@@ -72,6 +72,11 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
     if (!item.icon.empty() || item.badgeChars > 0) {
         // any resolution: 30 px at 720p, smaller in compact menus; made at its size (sharp)
         iconSize = std::round(std::min(30.0f * main->getScaling().y, MenuButton::getSize().y * 0.65f));
+        if (item.badgeChars > 0) {
+            // in place of a number: as high as its digits
+            Text digit("0", fontSize, main->getFont());
+            iconSize = std::round(digit.getLocalBounds().height);
+        }
         column = iconSize;
         icon = new pplay::IconSprite();
         if (!item.icon.empty()) {

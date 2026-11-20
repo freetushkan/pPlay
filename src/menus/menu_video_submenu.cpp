@@ -63,9 +63,10 @@ void MenuVideoSubmenu::updateSelectionHighlight() {
         int playing = playingId();
         hideCurrent();
         setSelection(playing);
-        // its number replaced by the icon
+        // its number replaced by the icon: playing or paused
+        shownPaused = main->getPlayer()->getMpv()->isPaused();
         for (auto *btn: buttons) {
-            btn->setIcon(btn->item.id == playing ? "list_playing.png" : "");
+            btn->setIcon(btn->item.id != playing ? "" : shownPaused ? "list_paused.png" : "list_playing.png");
         }
     }
 }
@@ -129,6 +130,9 @@ void MenuVideoSubmenu::onOptionSelection(MenuItem *item) {
             main->getPlayer()->setAudioNormalize(item->id);
         } else if (type == MENU_VIDEO_TYPE_VISUALIZER) {
             main->getPlayer()->setAudioScreenMode(item->id);
+        } else if (type == MENU_VIDEO_TYPE_PLAYLIST && item->id == playingId()) {
+            // the playing one: paused, resumed
+            main->getPlayer()->togglePause();
         } else if (type == MENU_VIDEO_TYPE_PLAYLIST) {
             main->getStatus()->show("Wait", "Switching playlist item");
             if (main->getPlayer()->isPlaylistFile()) {
@@ -151,6 +155,14 @@ void MenuVideoSubmenu::setVisibility(c2d::Visibility visibility, bool tweenPlay)
     }
     Menu::setVisibility(visibility, tweenPlay);
     updateSelectionHighlight();
+}
+
+void MenuVideoSubmenu::onUpdate() {
+    // paused or resumed elsewhere: its icon
+    if (type == MENU_VIDEO_TYPE_PLAYLIST && isVisible() && main->getPlayer()->getMpv()->isPaused() != shownPaused) {
+        updateSelectionHighlight();
+    }
+    Menu::onUpdate();
 }
 
 bool MenuVideoSubmenu::onInput(c2d::Input::Player *players) {

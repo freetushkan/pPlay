@@ -34,6 +34,8 @@ public:
 
     void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
 
+    void onUpdate() override;
+
     // the current values marked again (the playlist: the playing file)
     void updateSelectionHighlight() override;
 
@@ -47,6 +49,9 @@ private:
 
     // the playlist item playing, -1 if none
     int playingId() const;
+
+    // the playing icon shows the pause
+    bool shownPaused = false;
 };
 
 #endif //PPLAY_MENU_VIDEO_SUBMENU_H
