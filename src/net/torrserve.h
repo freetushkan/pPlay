@@ -80,8 +80,8 @@ namespace pplay::TorrServe {
     bool isReachable(const std::string &path);
     // the position the server keeps for a file (its "track timecode" setting), 0 if none
     double fileProgress(const std::string &path, bool wait = false);
-    // sent in a thread
-    void setFileProgress(const std::string &path, double seconds);
+    // sent in a thread (duration: 0 if unknown, TS Silo only)
+    void setFileProgress(const std::string &path, double seconds, double duration = 0);
     // the position being sent: done (before an exit)
     void flushProgress();
     bool remFileViewed(const std::string &path);

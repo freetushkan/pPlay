@@ -170,7 +170,11 @@ namespace {
     // hash -> viewed file index -> position (seconds, 0 if none)
     typedef std::map<std::string, std::map<int, double>> ViewedByHash;
 
-    bool parseTorrents(const std::string &response, std::vector<Torrent> *out, ViewedByHash *viewed = nullptr);
+    void siloProgressSeen(const std::string &root);
+
+    // progress: set when a TS Silo list carries the files positions
+    bool parseTorrents(const std::string &response, std::vector<Torrent> *out, ViewedByHash *viewed = nullptr,
+                       bool *progress = nullptr);
 
     void applyViewed(const std::string &root, const std::vector<Torrent> &torrents, const ViewedByHash &viewed);
 
@@ -276,8 +280,12 @@ namespace {
         pplay::Utility::log(pplay::Utility::LogLevel::Trace, nameOf(root) + ": torrents response=" + response);
         // Silo: the viewed files in the same answer
         ViewedByHash viewed;
-        if (!parseTorrents(response, &torrents, silo ? &viewed : nullptr)) {
+        bool progress = false;
+        if (!parseTorrents(response, &torrents, silo ? &viewed : nullptr, &progress)) {
             return torrents;
+        }
+        if (progress) {
+            siloProgressSeen(root);
         }
         if (ok != nullptr) {
             *ok = true;
@@ -305,7 +313,7 @@ namespace {
         pplay::Io::get()->writeText(path, response);
     }
 
-    // a TS Silo viewed file: its index, or (to come) an object with its position too
+    // a TS Silo viewed file: its index, or an object with its position too
     bool siloViewed(const nlohmann::json &item, int *index, double *seconds) {
         *seconds = 0;
         if (item.is_number_integer()) {
@@ -331,7 +339,7 @@ namespace {
 
     // TorrServer: an array, its files in "data"; TS Silo: {"torrents": [...]}, "file_stats" and
     // "viewed_files"
-    bool parseTorrents(const std::string &response, std::vector<Torrent> *out, ViewedByHash *viewed) {
+    bool parseTorrents(const std::string &response, std::vector<Torrent> *out, ViewedByHash *viewed, bool *progress) {
         std::vector<Torrent> &torrents = *out;
         nlohmann::json json = nlohmann::json::parse(response, nullptr, false);
         // (MatriX has "file_stats" too, for the active torrents: its files in "data" only)
@@ -413,6 +421,23 @@ namespace {
                     if (siloViewed(file, &index, &seconds)) {
                         files[index] = seconds;
                     }
+                }
+            }
+            // a Silo keeping positions: {"<index>": {"position": s, "duration": s}}
+            if (viewed != nullptr && item.contains("progress") && item["progress"].is_object()) {
+                if (progress != nullptr) {
+                    *progress = true;
+                }
+                auto &files = (*viewed)[torrent.hash];
+                for (const auto &entry: item["progress"].items()) {
+                    char *end = nullptr;
+                    long index = strtol(entry.key().c_str(), &end, 10);
+                    const auto &value = entry.value();
+                    if (end == entry.key().c_str() || *end != 0 || !value.is_object() || !value.contains("position")
+                        || !value["position"].is_number()) {
+                        continue;
+                    }
+                    files[(int) index] = value["position"].get<double>();
                 }
             }
             torrents.push_back(torrent);
@@ -719,14 +744,63 @@ namespace {
     struct ProgressJob {
         std::string root, hash;
         int index = -1;
-        double seconds = 0;
+        double seconds = 0, duration = 0;
     };
     std::mutex g_progressMutex;
     ProgressJob g_progressJob;
     bool g_progressBusy = false;
     pplay::Worker *g_progressWorker = nullptr;
     // server root -> keeps positions (its "track timecode" setting): unknown until checked
+    // (TS Silo: its list or its progress-tracking answer)
     std::unordered_map<std::string, bool> g_timecodes;
+
+    void siloProgressSeen(const std::string &root) {
+        std::lock_guard<std::mutex> lock(g_progressMutex);
+        auto it = g_timecodes.find(root);
+        if (it == g_timecodes.end() || !it->second) {
+            g_timecodes[root] = true;
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "TorrServer.Silo: positions kept by " + root);
+        }
+    }
+
+    void siloProgress(const ProgressJob &job) {
+        bool known;
+        {
+            std::lock_guard<std::mutex> lock(g_progressMutex);
+            known = g_timecodes.count(job.root) > 0;
+        }
+        if (!known) {
+            // nothing listed yet: asked once (an upstream Silo has no such route)
+            pplay::Http::Response answer = pplay::Http::get(job.root + "api/system/progress-tracking", 5);
+            auto json = nlohmann::json::parse(answer.ok() ? answer.body : "", nullptr, false);
+            bool enabled = !json.is_discarded() && json.is_object() && json.contains("enabled")
+                           && json["enabled"].is_boolean() && json["enabled"].get<bool>();
+            if (!answer.ok() && answer.status == 0) {
+                return; // not reachable: asked again next time
+            }
+            std::lock_guard<std::mutex> lock(g_progressMutex);
+            g_timecodes[job.root] = enabled;
+            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                                std::string("TorrServer.Silo: positions ") + (enabled ? "kept" : "not kept") + " by "
+                                        + job.root);
+            if (!enabled) {
+                return;
+            }
+        }
+        nlohmann::json request = {{"position", job.seconds}};
+        if (job.duration > 0) {
+            request["duration"] = job.duration;
+        }
+        std::string url = job.root + "api/torrents/" + job.hash + "/files/" + std::to_string(job.index) + "/progress";
+        auto response = nlohmann::json::parse(httpRequest(url, 5, request.dump()), nullptr, false);
+        if (!response.is_discarded() && response.is_object() && response.contains("tracked")
+            && response["tracked"].is_boolean() && !response["tracked"].get<bool>()) {
+            // switched off on the server: back with the positions in its list
+            std::lock_guard<std::mutex> lock(g_progressMutex);
+            g_timecodes[job.root] = false;
+            pplay::Utility::log(pplay::Utility::LogLevel::Info, "TorrServer.Silo: positions not kept by " + job.root);
+        }
+    }
 
     int progressThread(void *) {
         while (true) {
@@ -739,6 +813,10 @@ namespace {
                 }
                 job = g_progressJob;
                 g_progressJob = {};
+            }
+            if (isSilo(job.root)) {
+                siloProgress(job);
+                continue;
             }
             nlohmann::json request;
             request["action"] = "set";
@@ -1368,7 +1446,7 @@ namespace pplay::TorrServe {
         return it != viewed.end() ? it->second : 0;
     }
 
-    void setFileProgress(const std::string &p, double seconds) {
+    void setFileProgress(const std::string &p, double seconds, double duration) {
         // a saved copy: its network file
         const std::string path = pplay::Saved::originalOf(p);
         std::string hash;
@@ -1380,18 +1458,17 @@ namespace pplay::TorrServe {
             return;
         }
         std::string root = apiRoot(path);
-        // TS Silo keeps no positions yet (read from its viewed files once it does): sent here then
-        if (isSilo(root)) {
-            return;
-        }
+        bool known;
         {
             std::lock_guard<std::mutex> lock(g_progressMutex);
             auto support = g_timecodes.find(root);
             if (support != g_timecodes.end() && !support->second) {
                 return;
             }
+            known = support != g_timecodes.end();
         }
-        {
+        // a Silo not known to keep them: its file not marked here before it says so
+        if (known || !isSilo(root)) {
             std::lock_guard<std::mutex> lock(g_viewedMutex);
             auto cached = g_viewed.find(root + "|" + hash);
             if (cached != g_viewed.end()) {
@@ -1400,7 +1477,7 @@ namespace pplay::TorrServe {
         }
         {
             std::lock_guard<std::mutex> lock(g_progressMutex);
-            g_progressJob = {root, hash, index, seconds};
+            g_progressJob = {root, hash, index, seconds, duration};
             if (g_progressBusy) {
                 return; // sent by the running worker: the last value only
             }

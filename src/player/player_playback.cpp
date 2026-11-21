@@ -302,7 +302,7 @@ void Player::saveProgress(bool wait) {
     }
     mpv->save(wait);
     if (syncsProgress() && lastKnownPosition > 0) {
-        pplay::TorrServe::setFileProgress(file.path, (double) lastKnownPosition);
+        pplay::TorrServe::setFileProgress(file.path, (double) lastKnownPosition, (double) lastKnownDuration);
     }
 }
 

@@ -118,7 +118,7 @@ TorrServer:
 * displays torrent file structures as directories;
 * streams selected files directly;
 * uses/resets watched marks on the TorrServer side;
-* TorrServer.Silo: early test support.
+* TorrServer.Silo: early test support; the playback positions synced when the server keeps them.
 
 Samba (SMB):
 
