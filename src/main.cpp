@@ -452,6 +452,25 @@ void Main::onUpdate() {
 #endif
     // awake while playing or saving, otherwise until the standby time (0: system timers, -1: never)
     bool playing = player != nullptr && !player->getMpv()->isStopped() && !player->getMpv()->isPaused();
+    if (playing) {
+        playbackClock.restart();
+        hadPlayback = true;
+    }
+    // An end-of-file sleep is intentional; other short stopped gaps after playback are
+    // replacements (mpv may stop before the next file starts).
+    bool endSleep = player != nullptr && player->takeEndSleep();
+    bool transitioning = player != nullptr && !playing && !endSleep
+                         && (player->isLoading()
+                             || (hadPlayback && playbackClock.getElapsedTime().asSeconds() < 3.0f));
+    if (transitioning) {
+        idleClock.restart();
+        sleepAsked = false;
+        if (sleepCountdown) {
+            sleepCountdown = false;
+            statusBox->hide();
+        }
+    }
+    bool activePlayback = playing || transitioning;
     // the user elsewhere, or back from the background / a suspend (no frames meanwhile): the
     // idle time starts over
     static C2DClock frameClock;
@@ -468,7 +487,7 @@ void Main::onUpdate() {
     int standby = config->getOption(OPT_STANDBY_TIME)->getInteger();
     int sleepMinutes = config->getOption(OPT_SLEEP_TIMER)->getInteger();
     bool awake = blackout->isVisible() || sleepCountdown
-                 || (!sleepAsked && (playing || pplay::Saved::busy() || standby < 0 || (standby > 0 && idle < (float) standby * 60)));
+                 || (!sleepAsked && (activePlayback || pplay::Saved::busy() || standby < 0 || (standby > 0 && idle < (float) standby * 60)));
     pplay::Platform::keepAwake(awake, playing);
     if (idle < 1) {
         sleepAsked = false;
@@ -478,12 +497,11 @@ void Main::onUpdate() {
             statusBox->hide();
         }
     }
-    bool endSleep = player != nullptr && player->takeEndSleep();
     if (!sleepAsked && (endSleep || (playing && sleepMinutes > 0 && idle >= (float) sleepMinutes * 60))) {
         sleepAsked = true;
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: sleep timer");
         startSleepCountdown();
-    } else if (!sleepAsked && !playing && !pplay::Saved::busy() && standby > 0 && idle >= (float) standby * 60) {
+    } else if (!sleepAsked && !activePlayback && !pplay::Saved::busy() && standby > 0 && idle >= (float) standby * 60) {
         sleepAsked = true;
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: standby time");
         startSleepCountdown();

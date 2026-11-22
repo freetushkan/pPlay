@@ -61,6 +61,10 @@ namespace {
     }
 
     const Color TEXT_DIM(160, 168, 178, 255);
+    const char *const playbackModeIcons[] = {
+            "pl_stop.png", "btn_next.png", "pl_loop_file.png", "pl_loop_directory.png", "pl_shuffle.png"};
+    const char *const playbackModeNames[] = {
+            "Stop playback", "Play next", "Loop file", "Loop directory", "Shuffle"};
 }
 
 PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
@@ -132,7 +136,8 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     btn_play->setVisibility(Visibility::Hidden);
     buttons = {addButton("btn_prev.png"), addButton("btn_seek_backward.png"), btn_pause,
                addButton("btn_seek_forward.png"), addButton("btn_next.png"), addButton("btn_stop.png"),
-               addButton("btn_frame_step.png"), addButton("btn_playlist.png"), addButton("btn_settings.png")};
+               addButton("btn_frame_step.png"), addButton("btn_playlist.png"), addButton("pl_stop.png"),
+               addButton("btn_settings.png")};
 
     next = new Text("", main->getFontSize(Main::FontSize::Small), main->getFont());
     next->setOutlineThickness(1);
@@ -192,6 +197,7 @@ void PlayerOSD::layout(bool audio) {
     std::vector<float> xs(buttons.size());
     // audio: no frame step
     buttons[(size_t) ButtonID::FrameStep]->setVisibility(audio ? Visibility::Hidden : Visibility::Visible);
+    buttons[(size_t) ButtonID::PlaybackMode]->setVisibility(audio ? Visibility::Visible : Visibility::Hidden);
     if (audio) {
         float width = step * (float) (buttons.size() - 2) + 24 * sc;
         float x = (size.x - width) / 2;
@@ -205,6 +211,7 @@ void PlayerOSD::layout(bool audio) {
             xs[i] = left + step * (float) i;
         }
         xs[(size_t) ButtonID::Playlist] = right - step;
+        xs[(size_t) ButtonID::PlaybackMode] = right - 2 * step;
         xs[(size_t) ButtonID::Settings] = right;
     }
     for (size_t i = 0; i < buttons.size(); i++) {
@@ -223,6 +230,8 @@ void PlayerOSD::layout(bool audio) {
     }
     if (audio && index == (int) ButtonID::FrameStep) {
         index = (int) ButtonID::Stop;
+    } else if (!audio && index == (int) ButtonID::PlaybackMode) {
+        index = (int) ButtonID::Playlist;
     }
     focus->setPosition(focusX = xs[(size_t) index], buttonsY);
     textKey.clear();
@@ -463,6 +472,16 @@ void PlayerOSD::updateChips() {
     }
 }
 
+void PlayerOSD::updatePlaybackMode() {
+    int mode = std::max(0, std::min(4, main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger()));
+    if (mode == playbackModeShown) {
+        return;
+    }
+    buttons[(size_t) ButtonID::PlaybackMode]->setIcon(playbackModeIcons[mode],
+                                                       std::round(40 * main->getScaling().y));
+    playbackModeShown = mode;
+}
+
 void PlayerOSD::updateProgress() {
     Player *player = main->getPlayer();
     Mpv *mpv = player->getMpv();
@@ -557,6 +576,7 @@ void PlayerOSD::onUpdate() {
     if (!laidOut || audio != audioLayout) {
         layout(audio);
     }
+    updatePlaybackMode();
 
     // 0: hidden by Back only
     int fullTime = main->getConfig()->getOption(OPT_OSD_HIDE_TIME)->getInteger();
@@ -651,6 +671,8 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
         int to = index + dir;
         if (audioLayout && to == (int) ButtonID::FrameStep) {
             to += dir;
+        } else if (!audioLayout && to == (int) ButtonID::PlaybackMode) {
+            to += dir;
         }
         if (!pplay::InputMap::isRepeat() || (to >= 0 && to < count)) {
             index = (to + count) % count;
@@ -691,6 +713,17 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
                     main->getStatus()->show("Info", "Playlist is empty");
                 }
                 break;
+            case ButtonID::PlaybackMode: {
+                auto *option = main->getConfig()->getOption(OPT_AUTOPLAY_MODE);
+                option->setType(c2d::config::Option::Type::Integer);
+                int mode = std::max(0, std::min(4, option->getInteger()));
+                mode = (mode + 1) % 5;
+                option->setInteger(mode);
+                main->getConfig()->save();
+                main->getStatus()->show("Info", pplay::tr(playbackModeNames[mode]));
+                updatePlaybackMode();
+                break;
+            }
             case ButtonID::Settings:
                 hide();
                 main->getMenuVideo()->setVisibility(Visibility::Visible, true);

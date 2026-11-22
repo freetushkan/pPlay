@@ -32,6 +32,7 @@ public:
         Stop,
         FrameStep,
         Playlist,
+        PlaybackMode,
         Settings
     };
 
@@ -78,6 +79,8 @@ private:
     void scrollTitle();
 
     void updateChips();
+
+    void updatePlaybackMode();
 
     void updateProgress();
 
@@ -127,6 +130,7 @@ private:
     c2d::Text *next = nullptr;
     c2d::RectangleShape *edge = nullptr;
     int index = (int) ButtonID::Pause;
+    int playbackModeShown = -1;
     float focusX = 0;
 };
 
