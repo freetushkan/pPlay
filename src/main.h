@@ -164,6 +164,9 @@ private:
 
     // since the last key (stay awake)
     c2d::C2DClock idleClock;
+    // Ignore brief stopped/paused states while mpv switches between files.
+    c2d::C2DClock playbackClock;
+    bool hadPlayback = false;
 
 
     // the playing file (fullscreen or not) for the next start

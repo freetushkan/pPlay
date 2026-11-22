@@ -173,8 +173,8 @@ namespace {
     void siloProgressSeen(const std::string &root);
 
     // progress: set when a TS Silo list carries the files positions
-    bool parseTorrents(const std::string &response, std::vector<Torrent> *out, ViewedByHash *viewed = nullptr,
-                       bool *progress = nullptr);
+    bool parseTorrents(const std::string &response, std::vector<Torrent> *out, bool silo,
+                       ViewedByHash *viewed = nullptr, bool *progress = nullptr);
 
     void applyViewed(const std::string &root, const std::vector<Torrent> &torrents, const ViewedByHash &viewed);
 
@@ -281,7 +281,7 @@ namespace {
         // Silo: the viewed files in the same answer
         ViewedByHash viewed;
         bool progress = false;
-        if (!parseTorrents(response, &torrents, silo ? &viewed : nullptr, &progress)) {
+        if (!parseTorrents(response, &torrents, silo, silo ? &viewed : nullptr, &progress)) {
             return torrents;
         }
         if (progress) {
@@ -339,17 +339,19 @@ namespace {
 
     // TorrServer: an array, its files in "data"; TS Silo: {"torrents": [...]}, "file_stats" and
     // "viewed_files"
-    bool parseTorrents(const std::string &response, std::vector<Torrent> *out, ViewedByHash *viewed, bool *progress) {
+    bool parseTorrents(const std::string &response, std::vector<Torrent> *out, bool silo,
+                       ViewedByHash *viewed, bool *progress) {
         std::vector<Torrent> &torrents = *out;
         nlohmann::json json = nlohmann::json::parse(response, nullptr, false);
-        // (MatriX has "file_stats" too, for the active torrents: its files in "data" only)
-        bool silo = !json.is_discarded() && json.is_object() && json.contains("torrents");
+        // Use only the response format belonging to this network's configured API.
         if (silo) {
+            if (json.is_discarded() || !json.is_object() || !json.contains("torrents")) {
+                return false;
+            }
             nlohmann::json list = json["torrents"];
             // none: null
             json = list.is_array() ? list : nlohmann::json::array();
-        }
-        if (json.is_discarded() || !json.is_array()) {
+        } else if (json.is_discarded() || !json.is_array()) {
             return false;
         }
 
@@ -380,7 +382,7 @@ namespace {
             pplay::Utility::log(pplay::Utility::LogLevel::Trace,
                                 "TorrServer: torrent " + torrent.title + ", hash=" + torrent.hash);
 
-            if (item.contains("data") && item["data"].is_string()) {
+            if (!silo && item.contains("data") && item["data"].is_string()) {
                 nlohmann::json data = nlohmann::json::parse(item["data"].get<std::string>(), nullptr, false);
                 if (!data.is_discarded() && data.contains("TorrServer") && data["TorrServer"].contains("Files")
                     && data["TorrServer"]["Files"].is_array()) {
@@ -501,7 +503,7 @@ namespace {
         }
         std::vector<Torrent> torrents;
         std::string response;
-        if (pplay::Io::get()->readText(torrentsListPath(root), response) && parseTorrents(response, &torrents)) {
+        if (pplay::Io::get()->readText(torrentsListPath(root), response) && parseTorrents(response, &torrents, isSilo(root))) {
             std::lock_guard<std::mutex> lock(g_cacheMutex);
             g_torrentsCache[root] = torrents;
         }
