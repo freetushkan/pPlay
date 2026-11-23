@@ -58,3 +58,8 @@ jobs:
         run: |
           cd cmake-build
           make pplay_linux_release -j$(nproc) VERBOSE=1
+          # Keep a matching separate debug file; the AppImage remains compact.
+          objcopy --only-keep-debug release/pplay/pplay pplay.debug
+          strip --strip-debug release/pplay/pplay
+          objcopy --add-gnu-debuglink=pplay.debug release/pplay/pplay
+          ldd release/pplay/pplay || true
