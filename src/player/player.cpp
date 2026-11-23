@@ -17,6 +17,7 @@
 #include "input_map.h"
 #include "video_texture.h"
 #include "audio_view.h"
+#include "external_tracks.h"
 #include "utility.h"
 #include "pplay_config.h"
 #include "encodings.h"
@@ -164,9 +165,10 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
                 break;
             }
         }
-        if (!existsInAutoplay) {
-            autoplayFiles = main->getFiler()->getFilesSnapshot();
-            shuffleOrder.clear();
+        const bool filterByType =
+                main->getConfig()->getOption(OPT_AUTOPLAY_TYPE_FILTER)->getInteger() != 0;
+        if (!existsInAutoplay || autoplayTypeFiltered != filterByType) {
+            refreshAutoplayFiles();
         }
     }
 
@@ -324,8 +326,38 @@ void Player::updateFrame() {
     frame->setOutlineColor(color);
     frame->setVisibility(Visibility::Visible);
 }
+ 
+void Player::refreshAutoplayFiles() {
+    autoplayFiles = main->getFiler()->getFilesSnapshot();
+    autoplayTypeFiltered = main->getConfig()->getOption(OPT_AUTOPLAY_TYPE_FILTER)->getInteger() != 0;
+    if (autoplayTypeFiltered) {
+        const bool audio = pplay::ExternalTracks::isAudio(file.name);
+        autoplayFiles.erase(
+                std::remove_if(autoplayFiles.begin(), autoplayFiles.end(), [audio](const MediaFile &candidate) {
+                    if (!pplay::Utility::isMedia(candidate)) {
+                        return false;
+                    }
+                    // A playlist has no single audio/video type of its own.
+                    if (c2d::Utility::endsWith(candidate.name, ".m3u", false)
+                        || c2d::Utility::endsWith(candidate.name, ".m3u8", false)) {
+                        return true;
+                    }
+                    return pplay::ExternalTracks::isAudio(candidate.name) != audio;
+                }),
+                autoplayFiles.end());
+    }
+    shuffleOrder.clear();
+    menusPlaylistBuildPending = true;
+}
 
 void Player::onUpdate() {
+    if (!mpv->isStopped() && !isPlaylistFile()) {
+        const bool filterByType =
+                main->getConfig()->getOption(OPT_AUTOPLAY_TYPE_FILTER)->getInteger() != 0;
+        if (autoplayTypeFiltered != filterByType) {
+            refreshAutoplayFiles();
+        }
+    }
     updateShuffle();
     updateScrub();
     updateExternalTracks();

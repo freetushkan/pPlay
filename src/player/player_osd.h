@@ -31,8 +31,8 @@ public:
         Next,
         Stop,
         FrameStep,
-        Playlist,
         PlaybackMode,
+        Playlist,
         Settings
     };
 

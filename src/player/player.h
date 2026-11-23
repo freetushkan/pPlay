@@ -363,10 +363,12 @@ private:
     MediaFile file;
     std::string playingKey;
     std::vector<MediaFile> autoplayFiles;
+    bool autoplayTypeFiltered = false;
     // shuffle: the media paths of autoplayFiles mixed once (when turned on, with a new list),
     // the file playing then first
     std::vector<std::string> shuffleOrder;
 
+    void refreshAutoplayFiles();
     void updateShuffle();
 
     void buildPlaylistMenu();

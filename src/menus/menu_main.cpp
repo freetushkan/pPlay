@@ -27,6 +27,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     categories.push_back({"Playback",
                           {
                                   MenuItem("Playback mode", "pl_mode.png", Pos::Top),
+                                  MenuItem("Match media type", "file_audio.png", Pos::Top),
                                   MenuItem("Playback retry", "pl_retry.png", Pos::Top),
                                   MenuItem("Seek preview", "btn_seek_forward.png", Pos::Top),
                                   MenuItem("Restore last file", "restore.png", Pos::Top),
@@ -192,6 +193,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Stop playback", 0}, {"Play next", 1}, {"Loop file", 2}, {"Loop directory", 3},
                              {"Shuffle", 4}}),
                Submenu::ValueType::Integer);
+    addSubmenu("Match media type", "Only files of the current audio or video type are added to queue",
+               OPT_AUTOPLAY_TYPE_FILTER, makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
 #if !defined(__ANDROID__) && !defined(__LINUX__)
     addSubmenu("Bumpers and triggers", "Bumpers and triggers", OPT_SWAP_CONTROLS,
                makeIntItems({{"Normal", 0}, {"Swapped", 1}, {"Off", 2}}), Submenu::ValueType::Integer);

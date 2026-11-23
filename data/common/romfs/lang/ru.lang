@@ -30,6 +30,8 @@ Play next = Включить следующий файл
 Loop file = Повторять файл
 Loop directory = Повторять папку
 Shuffle = Перемешать
+Match media type = Фильтр по типу медиа
+Only files of the current audio or video type are added to queue = В очередь попадают только файлы текущего типа (аудио или видео)
 
 # Settings
 Normal = Обычно

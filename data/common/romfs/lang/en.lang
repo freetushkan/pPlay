@@ -30,6 +30,8 @@ Play next = Play next file
 Loop file = Loop file
 Loop directory = Loop directory
 Shuffle = Shuffle
+Match media type = Match media type
+Only files of the current audio or video type are added to queue = Only files of the current audio or video type are added to queue
 
 # Settings
 Normal = Normal

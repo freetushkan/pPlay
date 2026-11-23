@@ -57,8 +57,8 @@ namespace {
     // the file groups, as in the menu; the others in "state"
     const std::vector<std::pair<const char *, std::vector<const char *>>> &groups() {
         static const std::vector<std::pair<const char *, std::vector<const char *>>> list = {
-                {"playback", {OPT_AUTOPLAY_MODE, OPT_NETWORK_RETRIES, OPT_RESTORE_SESSION, OPT_RESTORE_LOCATION,
-                              OPT_SEEK_PREVIEW, OPT_SLEEP_TIMER}},
+                {"playback", {OPT_AUTOPLAY_MODE, OPT_AUTOPLAY_TYPE_FILTER, OPT_NETWORK_RETRIES, OPT_RESTORE_SESSION,
+                              OPT_RESTORE_LOCATION, OPT_SEEK_PREVIEW, OPT_SLEEP_TIMER}},
                 {"progress", {OPT_PROGRESS_MIN_LENGTH, OPT_WATCHED_TOLERANCE, OPT_PROGRESS_INTERVAL,
                               OPT_PROGRESS_LINE, OPT_FOLDER_MARKS, OPT_TS_PROGRESS}},
                 {"audio_and_subtitles", {OPT_AUDIO_LANGUAGE, OPT_SUB_LANGUAGE, OPT_EXTERNAL_TRACKS, OPT_SUB_ASS_PLAIN,
@@ -340,6 +340,7 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_SMB_READ_BUFFER_MB, (int) 10});
 #endif
     addOption({OPT_AUTOPLAY_MODE, (int) 1});
+    addOption({OPT_AUTOPLAY_TYPE_FILTER, (int) 1});
     addOption({OPT_LOG_LEVEL, (int) 0}); // 0 OFF, 1 ERROR, 2 INFO, 3 DEBUG, 4 TRACE
     addOption({OPT_SWAP_CONTROLS, (int) 0});
 #ifdef __SWITCH__
