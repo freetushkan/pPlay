@@ -1,0 +1,97 @@
+name: P2Play network module
+
+on:
+  pull_request:
+    paths:
+      - "src/app/io.*"
+      - "src/net/net_http.*"
+      - "src/net/p2play.*"
+      - "src/player/player.cpp"
+      - "src/filer/filer.cpp"
+      - "src/main.cpp"
+      - "src/menus/menu_main_items.cpp"
+      - "README.MD"
+      - "CMakeLists.txt"
+      - "ci/linux-static-deps.sh"
+      - "ci/mpv-mkv-noindex-seek.patch"
+      - "ci/linux-appimage.sh"
+      - ".github/workflows/main.yml"
+      - ".github/workflows/p2play-network.yml"
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    container: ubuntu:22.04
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      DEBIAN_FRONTEND: noninteractive
+      PPLAY_STATIC: /opt/pplay-static
+    steps:
+      - name: Create build environment
+        run: |
+          apt-get update
+          apt-get install -y build-essential git cmake ninja-build nasm pkg-config patch curl file zip ca-certificates \
+            python3-pip python3-jinja2 \
+            zlib1g-dev libbz2-dev liblzma-dev libpng-dev libexpat1-dev libfontconfig-dev \
+            libfreetype-dev libbrotli-dev uuid-dev libssl-dev libgl-dev libglm-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxfixes-dev libxss-dev \
+            libxkbcommon-dev libwayland-dev wayland-protocols libegl-dev libdrm-dev libgbm-dev \
+            libpulse-dev libasound2-dev libpipewire-0.3-dev libdbus-1-dev libudev-dev
+          pip3 install meson==1.6.1
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Cache for build dependencies
+        id: linux-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PPLAY_STATIC }}
+          key: linux-static-${{ hashFiles('ci/linux-static-deps.sh', 'ci/mpv-mkv-noindex-seek.patch') }}
+
+      - name: Build static dependencies
+        if: steps.linux-cache.outputs.cache-hit != 'true'
+        run: |
+          WORK_DIR=/tmp/pplay-static-build ci/linux-static-deps.sh "$PPLAY_STATIC"
+
+      - name: Configure pPlay
+        run: |
+          git clone -b master https://github.com/freetushkan/libsmb2.git
+          rm -rf cmake-build
+          mkdir -p cmake-build && cd cmake-build
+          cmake -G "Unix Makefiles" \
+            -DPLATFORM_LINUX=ON \
+            -DOPTION_LINUX_STATIC=ON \
+            -DLINUX_STATIC_PREFIX="$PPLAY_STATIC" \
+            -DOPTION_SMB2=ON \
+            -DCMAKE_BUILD_TYPE=Release ..
+
+      - name: Build pPlay
+        run: |
+          cd cmake-build
+          make pplay_linux_release -j$(nproc) VERBOSE=1
+          # Keep a matching separate debug file; the AppImage remains compact.
+          objcopy --only-keep-debug release/pplay/pplay pplay.debug
+          strip --strip-debug release/pplay/pplay
+          objcopy --add-gnu-debuglink=pplay.debug release/pplay/pplay
+          ldd release/pplay/pplay || true
+
+      - name: Build AppImage
+        run: |
+          ci/linux-appimage.sh cmake-build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pPlay-Linux
+          path: "cmake-build/pPlay-x86_64.AppImage"
+
+      - name: Upload debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: pPlay-Symbols-Linux
+          path: "cmake-build/pplay.debug"
+          retention-days: 90

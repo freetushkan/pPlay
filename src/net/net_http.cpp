@@ -162,8 +162,11 @@ Http::Response Http::perform(const Request &request) {
     WriteContext ctx{&response.body, request.maxSize};
     // the network user and password in place of the url ones (TS Silo: its token)
     std::string user, password;
-    bool credentials = pplay::Io::get() != nullptr && pplay::Io::get()->credentialsOf(request.url, &user, &password);
-    std::string url = pplay::Io::get() != nullptr ? pplay::Io::get()->withCredentials(request.url) : request.url;
+    bool credentials = request.useNetworkCredentials && pplay::Io::get() != nullptr &&
+                       pplay::Io::get()->credentialsOf(request.url, &user, &password);
+    std::string url = request.useNetworkCredentials && pplay::Io::get() != nullptr
+                              ? pplay::Io::get()->withCredentials(request.url)
+                              : request.url;
     url = normalizeUrl(url);
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());

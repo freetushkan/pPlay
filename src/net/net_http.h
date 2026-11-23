@@ -31,6 +31,8 @@ namespace pplay::Http {
         size_t maxSize = 16 * 1024 * 1024;
         // a path of the network it comes from (a poster elsewhere): its certificate check
         std::string context;
+        // false for API clients that provide their own Bearer/Cookie authentication.
+        bool useNetworkCredentials = true;
     };
 
     // call once (not thread safe)

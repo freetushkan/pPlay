@@ -115,7 +115,7 @@ Player::~Player() {
 }
 
 std::string Player::keyOf(const std::string &path) {
-    std::string key = pplay::TorrServe::toStreamUrl(pplay::Paths::normalizeSmbPathSeparators(path));
+    std::string key = pplay::Io::get()->streamUrl(pplay::Paths::normalizeSmbPathSeparators(path));
     std::replace(key.begin(), key.end(), '\\', '/');
     while (key.size() > 1 && key.back() == '/') {
         key.pop_back();
@@ -196,7 +196,7 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
                         "Player::load path=" + encoding::fix(file.path) + " name=" + encoding::fix(file.name) + " type="
                                 + std::to_string((int) file.type) + " firstTry=" + std::to_string(firstTry ? 1 : 0)
                                 + " retryCount=" + std::to_string(retryCount));
-    std::string path = pplay::TorrServe::toStreamUrl(file.path);
+    std::string path = pplay::Io::get()->streamUrl(file.path);
     copyPath = pplay::Saved::localCopy(file.path);
 #ifdef __SMB2__
     if (Utility::startWith(path, "smb://")) {

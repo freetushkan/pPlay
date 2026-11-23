@@ -22,7 +22,8 @@ Supported features:
 Supported protocols & networks:
 - HTTP(S), FTP, WebDAV, and SMB/Samba (`smb://`);
 - DLNA / UPnP media servers;
-- TorrServer client integration.
+- TorrServer client integration (MatriX, Silo);
+- P2Play MediaMesh (early test).
 
 pPlay uses the [MPV](https://mpv.io/) interface to handle FFmpeg interoperability, providing a fast, stable and powerful playback experience.
 
@@ -118,12 +119,18 @@ TorrServer:
 * displays torrent file structures as directories;
 * streams selected files directly;
 * uses/resets watched marks on the TorrServer side;
-* TorrServer.Silo: early test support; the playback positions synced when the server keeps them.
+* the playback positions synced when the server keeps them;
+* TorrServer.Silo: early test support.
 
 Samba (SMB):
 
 * Start with an SMB buffer of 10 MB (default), increase it (`1..100`) on unstable networks.
 * Increase the connection timeout and Settings > Playback > Playback retry if playback interruptions occur.
+
+P2Play MediaMesh:
+
+* Discover and My lists expose MediaMesh catalogs; opening a discovered catalog requests subscription (the server requires an admin-rank account for subscriptions);
+* Search by tag browses indexed records; opening a record adds it to the user's P2Play library and plays it through the native `/api/stream` endpoint.
 
 ## Known issues
 

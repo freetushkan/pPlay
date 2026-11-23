@@ -21,7 +21,8 @@ pPlay — кроссплатформенный видеоплеер на осн�
 
 Протоколы и сети:
 - HTTP(S), FTP, WebDAV и SMB/Samba (`smb://`);
-- Клиент TorrServer.
+- Клиент TorrServer (MatriX, Silo);
+- P2Play MediaMesh (раннее тестирование).
 
 pPlay работает с FFmpeg через интерфейс [MPV](https://mpv.io/): быстро, стабильно и с широкими возможностями.
 
@@ -118,12 +119,18 @@ TorrServer:
 * показывает структуру файлов торрента как папки;
 * воспроизводит выбранные файлы напрямую;
 * использует и сбрасывает отметки о просмотре на стороне TorrServer;
-* TorrServer.Silo: тестовая поддержка; позиции воспроизведения синхронизируются, если сервер их хранит.
+* позиции воспроизведения синхронизируются, если сервер их хранит;
+* TorrServer.Silo: тестовая поддержка.
 
 Samba (SMB):
 
 * Начните с буфера SMB 10 МБ (по умолчанию), при нестабильной сети увеличьте его (`1..100`).
 * Если воспроизведение прерывается, увеличьте таймаут соединения и Настройки > Воспроизведение > Попытки воспроизведения.
+
+P2Play MediaMesh:
+
+* Discover and My lists expose MediaMesh catalogs; opening a discovered catalog requests subscription (the server requires an admin-rank account for subscriptions);
+* Search by tag browses indexed records; opening a record adds it to the user's P2Play library and plays it through the native `/api/stream` endpoint.
 
 ## Известные проблемы
 
