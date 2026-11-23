@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include "cross2d/c2d.h"
+#include "icon_sprite.h"
 
 class Main;
 
@@ -46,7 +47,7 @@ private:
     PosterLoader *loader = nullptr;
     std::vector<std::string> pictureUrls;
     size_t pictureIndex = 0;
-    c2d::Sprite *note = nullptr;
+    pplay::IconSprite *note = nullptr;
 };
 
 #endif //PPLAY_AUDIO_VIEW_H

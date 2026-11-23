@@ -144,6 +144,9 @@ public:
     // configuration changed (settings, file editor)
     void applyConfig();
 
+    // TS Silo: a token got with the user and password kept in the settings
+    void keepSiloTokens();
+
     void setLanguage(const std::string &code);
 
     void quit();
@@ -161,6 +164,9 @@ private:
 
     // since the last key (stay awake)
     c2d::C2DClock idleClock;
+    // Ignore brief stopped/paused states while mpv switches between files.
+    c2d::C2DClock playbackClock;
+    bool hadPlayback = false;
 
 
     // the playing file (fullscreen or not) for the next start

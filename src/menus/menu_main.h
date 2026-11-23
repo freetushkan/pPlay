@@ -28,6 +28,12 @@ public:
 
     MenuFileEditor *getFileEditor();
 
+    // the settings shown; from the player: on its side, back to its menu
+    void openSettings(bool fromPlayer);
+
+    // the settings opened from the player menu (and their submenus) closed
+    void closePlayerSettings();
+
     bool isMenuVisible();
 
     void setSelection(int moduleId);

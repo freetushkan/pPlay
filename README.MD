@@ -23,7 +23,7 @@ Supported protocols & networks:
 - HTTP(S), FTP, WebDAV, and SMB/Samba (`smb://`);
 - DLNA / UPnP media servers;
 - TorrServer client integration;
-- P2Play MediaMesh network client (catalog discovery, subscriptions, tag browsing and native streaming).
+- P2Play MediaMesh catalog discovery, subscriptions, tag browsing and native streaming.
 
 pPlay uses the [MPV](https://mpv.io/) interface to handle FFmpeg interoperability, providing a fast, stable and powerful playback experience.
 
@@ -97,31 +97,36 @@ Networks
 Settings > Networks > Add network creates a network, Settings > Networks > Network x sets it up:
 
 * **Type** (`type`):
-  * `TorrServe` — TorrServer api (`http(s)://host:8090/`, may be behind a reverse proxy sub path);
-  * `P2Play` — native MediaMesh API (`http(s)://host:8090/`); the configured user must be allowed to subscribe to lists;
+  * `TorrServer.MatriX` — TorrServer api (`http(s)://host:8090/`, may be behind a reverse proxy sub path);
+  * `TorrServer.Silo` — the new TorrServer (its `silo` branch), the same address; it works with a **Token** (`token`):
+    got with the user and password once (an empty user = `owner`) and written next to them, or typed. The user
+    and password may be cleared then; kept, they get a new token when it is refused. Its links
+    (`.../api/stream/<hash>/<n>?token=...`) open in the network of that token;
   * `WebDAV` — `http(s)://host/path/` (Nextcloud, nginx dav, rclone serve webdav...);
   * `DLNA` — a media server, its device description url (`http://host:8200/rootDesc.xml`), or just `http://host:port/`;
   * `Samba` (`smb://host/share/`), `FTP` (`ftp://`), `HTTP` (`http(s)://` directory listing).
 * **Name**, **URL**, **User**, **Password** (not for `DLNA`). The user and the password are kept apart from the url
   and added to it for the connections; a url typed with `user:password@` gets them moved to these fields.
-* **Connection timeout**, **Certificate check** (`https://` only), **Synchronization** (`TorrServe` only:
+* **Connection timeout**, **Certificate check** (`https://` only), **Synchronization** (`TorrServer.MatriX`, `TorrServer.Silo` only:
   the watched marks refresh period), **SMB buffer** (`Samba` only).
-* **Search servers** (`DLNA`, `TorrServe`, `Samba`): the servers of the local network (TorrServer and Samba:
+* **Search servers** (`DLNA`, `TorrServer.MatriX`, `TorrServer.Silo`, `Samba`): the servers of the local network (TorrServer and Samba:
   the addresses of its /24 tried, ports 8090 and 445); `smb://host/` lists its shares.
 * **Move up**, **Move down**, **Delete network**.
 
-P2Play:
+P2Play MediaMesh:
 
-* pPlay verifies the server through the public `/api/p2play/version` endpoint and authenticates with a Bearer token;
-* Discover and My lists expose MediaMesh list directories; opening a discovered catalog requests its subscription (the server requires an admin-rank account for subscriptions);
-* Search by tag browses indexed records; opening a record adds it to the user's P2Play library and opens its native stream API.
+* pPlay verifies the native server identity through `/api/p2play/version` and authenticates with a Bearer token;
+* Discover and My lists expose MediaMesh catalogs; opening a discovered catalog requests subscription (the server requires an admin-rank account for subscriptions);
+* Search by tag browses indexed records; opening a record adds it to the user's P2Play library and plays it through the native `/api/stream` endpoint.
+* The adapter is kept in separate `src/net/p2play.h/.cpp` files and does not reuse any `torrserve.*` implementation.
 
 TorrServer:
 
 * pPlay retrieves torrent lists using the TorrServer API;
 * displays torrent file structures as directories;
 * streams selected files directly;
-* uses/resets watched marks on the TorrServer side.
+* uses/resets watched marks on the TorrServer side;
+* TorrServer.Silo: early test support; the playback positions synced when the server keeps them.
 
 Samba (SMB):
 
@@ -145,7 +150,8 @@ the old file itself is left as it is (for the older versions).
 ### Groups
 
 * `playback` — `autoplay_mode` (`0` stop, `1` next file, `2` loop file, `3` loop directory), `network_retries`,
-  `restore_session`, `restore_location` (`1` list at the restored file, `0` at the last location), `sleep_timer` (minutes, `-1` end of file).
+  `restore_session`, `restore_location` (`1` list at the restored file, `0` at the last location),
+  `seek_preview` (preview position while seeking: `2` always, `1` local files only, saved too, `0` off), `sleep_timer` (minutes, `-1` end of file).
 * `progress` — `progress_min_length`, `watched_tolerance`, `progress_interval`, `progress_line`, `folder_marks`,
   `ts_progress_sync` (`0` off, `1` local first, `2` TorrServer first).
 * `audio_and_subtitles` — `audio_language` (`Auto`), `sub_language` (`Off`): mpv `alang` / `slang` lists like `rus,ru`,
@@ -162,9 +168,10 @@ the old file itself is left as it is (for the older versions).
   | Key | Meaning |
   | :--- | :--- |
   | `name` | label shown in UI (empty: "Network x") |
-  | `type` | `TorrServe`, `Samba`, `FTP`, `HTTP`, `WebDAV`, `DLNA` |
+  | `type` | `TorrServer.MatriX`, `TorrServer.Silo`, `Samba`, `FTP`, `HTTP`, `WebDAV`, `DLNA` |
   | `url` | address, without user and password |
   | `user`, `password` | credentials (`DOMAIN\user` for Samba) |
+  | `token` | `TorrServer.Silo` api token |
   | `timeout` | connection timeout, seconds (default `15`) |
   | `tls_verify` | `1` check the https certificate (default), `0` not |
   | `sync` | TorrServer marks refresh period, seconds (default `30`) |
@@ -188,7 +195,7 @@ the old file itself is left as it is (for the older versions).
     "list": [
       {
         "name": "TorrServer",
-        "type": "TorrServe",
+        "type": "TorrServer.MatriX",
         "url": "http://192.168.1.10:8090/",
         "user": "",
         "password": "",

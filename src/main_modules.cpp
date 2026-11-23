@@ -159,6 +159,22 @@ void Main::openLink(const std::string &url, const std::string &name) {
             order.push_back(i);
         }
     }
+    // TS Silo: the network of its token, if one has it (its user's torrents)
+    const std::string token = TorrServe::linkToken(url);
+    if (!token.empty()) {
+        std::vector<int> owners;
+        for (int i: order) {
+            std::string network =
+                    Paths::ensureTrailingSlash(config->getOption(PPLAYConfig::networkOption(i))->getString());
+            int timeout = config->getOption(PPLAYConfig::networkTimeoutOption(i))->getInteger();
+            if (network != "/" && TorrServe::isLinkOf(network, url) && TorrServe::siloToken(network, timeout) == token) {
+                owners.push_back(i);
+            }
+        }
+        if (!owners.empty()) {
+            order = owners;
+        }
+    }
     for (int i: order) {
         int timeout = config->getOption(PPLAYConfig::networkTimeoutOption(i))->getInteger();
         std::string network = Paths::ensureTrailingSlash(config->getOption(PPLAYConfig::networkOption(i))->getString());

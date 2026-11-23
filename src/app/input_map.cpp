@@ -89,6 +89,9 @@ namespace {
 
     std::mutex g_mutex;
     unsigned int g_pending = 0;
+    // the presses of the mapped keys and buttons (their events), and the ones the app got: a
+    // tap during a long frame (the state read after it has none) not lost
+    unsigned int g_pressed = 0, g_seen = 0;
     bool g_textInput = false;
     std::atomic<bool> g_fullscreenToggle{false};
     c2d::Input *g_input = nullptr;
@@ -502,6 +505,16 @@ namespace {
                     return 1;
                 }
             }
+#if !defined(NO_KEYBOARD) || defined(__ANDROID__)
+            if (!event->key.repeat) {
+                for (const auto &map: g_keyboard) {
+                    if (map.value == (int) scancode) {
+                        std::lock_guard<std::mutex> lock(g_mutex);
+                        g_pressed |= map.button;
+                    }
+                }
+            }
+#endif
             if (!event->key.repeat && !isKeyboardMapped(scancode)) {
                 snprintf(buf, sizeof(buf),
                          "key \"%s\": scancode {Input::Button::?, (SDL_Scancode) %d}, "
@@ -509,7 +522,13 @@ namespace {
                          SDL_GetKeyName(sym), (int) scancode, (unsigned int) sym);
                 logUnknown(buf);
             }
-        } else if (event->type == SDL_CONTROLLERBUTTONDOWN && event->cbutton.which >= 0) {
+        } else if (event->type == SDL_CONTROLLERBUTTONDOWN && event->cbutton.which >= 0 && g_input != nullptr) {
+            for (const auto &map: g_input->getPlayer(0)->mapping) {
+                if (map.value == event->cbutton.button) {
+                    std::lock_guard<std::mutex> lock(g_mutex);
+                    g_pressed |= map.button;
+                }
+            }
             if (!isJoystickMapped(event->cbutton.button)) {
                 SDL_GameController *pad = SDL_GameControllerFromInstanceID(event->cbutton.which);
                 snprintf(buf, sizeof(buf),
@@ -638,6 +657,21 @@ namespace pplay::InputMap {
 
     bool updateRepeated() {
         return g_extraRepeat;
+    }
+
+    void noteSeen(unsigned int buttons) {
+        if (buttons != Input::Button::Delay) {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            g_seen |= buttons;
+        }
+    }
+
+    unsigned int takeMissed() {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        unsigned int missed = g_pressed & ~g_seen;
+        g_pressed = 0;
+        g_seen = 0;
+        return missed;
     }
 
     unsigned int takePending() {

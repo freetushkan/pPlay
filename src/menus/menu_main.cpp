@@ -27,7 +27,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     categories.push_back({"Playback",
                           {
                                   MenuItem("Playback mode", "pl_mode.png", Pos::Top),
+                                  MenuItem("Match media type", "file_audio.png", Pos::Top),
                                   MenuItem("Playback retry", "pl_retry.png", Pos::Top),
+                                  MenuItem("Seek preview", "btn_seek_forward.png", Pos::Top),
                                   MenuItem("Restore last file", "restore.png", Pos::Top),
                                   MenuItem("Browse position after restore", "restore.png", Pos::Top),
                           }});
@@ -191,6 +193,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Stop playback", 0}, {"Play next", 1}, {"Loop file", 2}, {"Loop directory", 3},
                              {"Shuffle", 4}}),
                Submenu::ValueType::Integer);
+    addSubmenu("Match media type", "Only files of the current audio or video type are added to queue",
+               OPT_AUTOPLAY_TYPE_FILTER, makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
 #if !defined(__ANDROID__) && !defined(__LINUX__)
     addSubmenu("Bumpers and triggers", "Bumpers and triggers", OPT_SWAP_CONTROLS,
                makeIntItems({{"Normal", 0}, {"Swapped", 1}, {"Off", 2}}), Submenu::ValueType::Integer);
@@ -271,6 +275,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Off", 0}, {"Always", 2}}),
 #endif
                Submenu::ValueType::Integer);
+    addSubmenu("Seek preview", "Play at seek position", OPT_SEEK_PREVIEW,
+               makeIntItems({{"Always", 2}, {"Local files only", 1}, {"Off", 0}}), Submenu::ValueType::Integer);
     addSubmenu("Browse position after restore", "Browse position after the last file restored", OPT_RESTORE_LOCATION,
                makeIntItems({{"At the current file", 1}, {"At the last location", 0}}), Submenu::ValueType::Integer);
     addSubmenu("Saved section", "The Saved section in the menu", OPT_SHOW_SAVED,
@@ -326,8 +332,8 @@ void MenuMain::addNetworkMenus(int i) {
     const std::string name = networkKey(i);
     parents[name] = "Networks";
     std::vector<MenuItem> items;
-    for (const char *suffix: {" type", " name", " url", " user", " password", " timeout", " tls", " sync", " smb",
-                              " search", " up", " down", " delete"}) {
+    for (const char *suffix: {" type", " name", " url", " user", " password", " token", " timeout", " tls", " sync",
+                              " smb", " search", " up", " down", " delete"}) {
 #ifndef __SMB2__
         if (std::string(suffix) == " smb") {
             continue;
@@ -355,6 +361,7 @@ void MenuMain::addNetworkMenus(int i) {
     addText(name + " url", PPLAYConfig::networkOption(i));
     addText(name + " user", PPLAYConfig::networkUserOption(i));
     addText(name + " password", PPLAYConfig::networkPasswordOption(i));
+    addText(name + " token", PPLAYConfig::networkTokenOption(i));
     std::vector<MenuItem> typeItems;
     for (auto &typeName: pplay::Io::networkTypeNames()) {
         typeItems.emplace_back(typeName, "", Pos::Top);
@@ -456,6 +463,12 @@ void MenuMain::updateNetworkLabels() {
                 } else if (button->item.name == key + " password") {
                     bool set = !main->getConfig()->getOption(PPLAYConfig::networkPasswordOption(i))->getString().empty();
                     button->item.label = pplay::tr("Password") + ": " + (set ? "******" : pplay::tr("<empty>"));
+                } else if (button->item.name == key + " token") {
+                    // its start only
+                    std::string token = main->getConfig()->getOption(PPLAYConfig::networkTokenOption(i))->getString();
+                    button->item.label = pplay::tr("Token") + ": "
+                                         + (token.empty() ? pplay::tr("<empty>")
+                                                          : token.size() > 9 ? token.substr(0, 9) + "..." : token);
                 } else if (button->item.name == key + " search") {
                     button->item.label = pplay::tr("Search servers");
                 } else if (button->item.name == key + " timeout") {
@@ -476,19 +489,45 @@ void MenuMain::updateNetworkLabels() {
                 button->refreshText();
             }
         }
-        for (const char *suffix: {" name", " url", " user", " password", " type", " tls", " search"}) {
+        for (const char *suffix: {" name", " url", " user", " password", " token", " type", " tls", " search"}) {
             auto sub = menuMainOptionsSubmenus.find(key + suffix);
             if (sub != menuMainOptionsSubmenus.end()) {
                 std::string what = std::string(suffix) == " name"       ? "Name"
                                    : std::string(suffix) == " url"      ? "URL"
                                    : std::string(suffix) == " user"     ? "User"
                                    : std::string(suffix) == " password" ? "Password"
+                                   : std::string(suffix) == " token"    ? "Token"
                                    : std::string(suffix) == " type"     ? "Type"
                                    : std::string(suffix) == " tls"      ? "Certificate check"
                                                                         : "Search servers";
                 sub->second->setTitle(label + ": " + pplay::tr(what));
             }
         }
+    }
+}
+
+void MenuMain::openSettings(bool fromPlayer) {
+    menuMainOptions->fromPlayer = fromPlayer;
+    menuMainOptions->setSide(!fromPlayer);
+    for (auto &submenu: menuMainOptionsSubmenus) {
+        submenu.second->setSide(!fromPlayer);
+    }
+    if (fileEditor != nullptr) {
+        fileEditor->setSide(!fromPlayer);
+    }
+    menuMainOptions->setVisibility(Visibility::Visible);
+}
+
+void MenuMain::closePlayerSettings() {
+    if (!menuMainOptions->fromPlayer) {
+        return;
+    }
+    menuMainOptions->setVisibility(Visibility::Hidden, true);
+    for (auto &submenu: menuMainOptionsSubmenus) {
+        submenu.second->setVisibility(Visibility::Hidden, true);
+    }
+    if (fileEditor != nullptr) {
+        fileEditor->setVisibility(Visibility::Hidden, true);
     }
 }
 
@@ -602,7 +641,7 @@ void MenuMain::onOptionSelection(MenuItem *item) {
         main->show(Main::MenuType::Local);
     } else if (item->name == "Settings") {
         setVisibility(Visibility::Hidden, true);
-        menuMainOptions->setVisibility(Visibility::Visible);
+        openSettings(false);
     } else if (item->name == "Playlists") {
         setVisibility(Visibility::Hidden, true);
         main->setCurrentModuleIndex(item->id);

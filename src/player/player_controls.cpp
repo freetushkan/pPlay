@@ -106,10 +106,7 @@ bool Player::onInput(c2d::Input::Player *players) {
         main->getMenuVideo()->setVisibility(Visibility::Visible, true);
         return true;
     } else if (keys & Input::A) {
-        bool paused = mpv->isPaused();
-        main->getStatus()->show("Info", paused ? "Resuming playback" : "Pausing playback");
-        paused ? resume() : pause();
-        osd->setPaused(!paused);
+        togglePause();
     }
 
     if (keys && !osd->isExpanded()) {
@@ -131,17 +128,30 @@ int Player::shoulderMode() {
 void Player::scrub(int direction) {
     double duration = (double) mpv->getDuration();
     double time = mpv->getTime();
-    // a new one: another direction, or a pause since the last key
+    // a new one: another direction, or a pause since the last key (taps in a row: one seek
+    // going on, its seek sent between them or not)
     float since = scrubLast.getElapsedTime().asSeconds();
-    bool fresh = !scrubbing || direction != scrubDirection || since > 0.6f;
-    if (fresh) {
+    bool fresh = direction != scrubDirection || since > 0.6f;
+    if (!scrubbing) {
+        // from where the last seek went while mpv is not there yet (its time the old one)
+        float sinceSeek = scrubSeek.getElapsedTime().asSeconds();
+        bool lagging = scrubSent >= 0 && sinceSeek < 3.0f
+                       && (mpv->isSeeking() || std::fabs(time - scrubSent) > sinceSeek + 1.0);
+        scrubTarget = std::max(0.0, lagging ? scrubSent : time);
+    }
+    if (fresh || !scrubbing) {
         scrubbing = true;
         scrubDirection = direction;
-        scrubTarget = std::max(0.0, time);
         scrubHeld.restart();
+        // no preview: paused till the seek (no sound running away meanwhile)
+        if (!scrubPaused && !seekPreview() && !mpv->isPaused()) {
+            mpv->pause();
+            scrubPaused = true;
+        }
     }
     // a tap: about 0.5 % of the file (5..15 s); held: a speed (seconds of the file a second)
-    // growing to the whole file in 20 s over 4 s of holding, slower where little is left
+    // from twice a tap, growing evenly over 4 s of holding to the whole file in 20 s (4 times
+    // the start at least: short files too), slower where little is left
     double base = duration > 0 ? std::max(5.0, std::min(15.0, duration * 0.005)) : 10.0;
     double step = base;
     if (!fresh) {
@@ -160,19 +170,42 @@ void Player::scrub(int direction) {
     main->getStatus()->show("Info", pplay::Utility::formatTime(scrubTarget) + " / " + pplay::Utility::formatTime(duration));
 }
 
+bool Player::seekPreview() {
+    // (the visualizer: its last frame kept meanwhile, see VideoTexture)
+    int mode = main->getConfig()->getOption(OPT_SEEK_PREVIEW)->getInteger();
+    // local: the saved copies too
+    return mode == 2 || (mode == 1 && ((pplay::Io *) main->getIo())->getDeviceType(file.path)
+                                              == pplay::Io::DeviceType::Local);
+}
+
 void Player::updateScrub() {
     if (!scrubbing || mpv->isStopped()) {
         scrubbing = false;
+        scrubPaused = false;
         return;
     }
     // one seek at a time (each shows its frame); a slow one (a stream) given up for the newer
     // target; the last one exact
     bool done = scrubLast.getElapsedTime().asSeconds() > 0.4f;
+    // no preview: none while held, one at the end
+    if (!done && !seekPreview()) {
+        return;
+    }
     if (mpv->isSeeking() && scrubSeek.getElapsedTime().asSeconds() < 1.0f) {
         return;
     }
-    if (scrubPending || done) {
-        mpv->seekTo(scrubTarget, done);
+    // audio: exact at once (no keyframe to show first, each seek restarts the sound)
+    bool exact = done || !mpv->hasMovingVideo();
+    bool sent = scrubExact && scrubSent == scrubTarget;
+    // resumed before the seek (paused, a seek steps a frame and stays paused)
+    if (done && scrubPaused) {
+        scrubPaused = false;
+        mpv->resume();
+    }
+    if (scrubPending || (done && !sent)) {
+        mpv->seekTo(scrubTarget, exact);
+        scrubExact = exact;
+        scrubSent = scrubTarget;
         scrubPending = false;
         scrubSeek.restart();
     }
@@ -187,10 +220,7 @@ void Player::onMediaKeys(unsigned int keys) {
     }
 
     if (keys & pplay::InputMap::PlayPause) {
-        bool paused = mpv->isPaused();
-        main->getStatus()->show("Info", paused ? "Resuming playback" : "Pausing playback");
-        paused ? resume() : pause();
-        osd->setPaused(!paused);
+        togglePause();
     } else if (keys & pplay::InputMap::Stop) {
         main->getStatus()->show("Info", "Stopping playback");
         stop();
@@ -398,4 +428,11 @@ void Player::resetBrightness() {
     if (brightness != 0) {
         changeBrightness(-brightness);
     }
+}
+
+void Player::togglePause() {
+    bool paused = mpv->isPaused();
+    main->getStatus()->show("Info", paused ? "Resuming playback" : "Pausing playback");
+    paused ? resume() : pause();
+    osd->setPaused(!paused);
 }

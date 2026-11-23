@@ -22,26 +22,24 @@
 
 using namespace c2d;
 
-namespace {
-    std::string iconName(const MediaFile &file) {
-        // opened as directories
-        if (pplay::Playlists::isPlaylist(file.path)) {
-            return "playlist.png";
-        }
-        if (file.type == Io::Type::Directory) {
-            return "file_folder.png";
-        }
-        if (pplay::ExternalTracks::isAudio(file.name)) {
-            return "file_audio.png";
-        }
-        if (pplay::ExternalTracks::isSubtitle(file.name)) {
-            return "subtitles.png";
-        }
-        if (Utility::endsWith(file.name, ".m3u", false) || Utility::endsWith(file.name, ".m3u8", false)) {
-            return "playlist.png";
-        }
-        return pplay::Utility::isMedia(file) ? "file_video.png" : "file_other.png";
+std::string FilerItem::iconOf(const MediaFile &file) {
+    // opened as directories
+    if (pplay::Playlists::isPlaylist(file.path)) {
+        return "playlist.png";
     }
+    if (file.type == Io::Type::Directory) {
+        return "file_folder.png";
+    }
+    if (pplay::ExternalTracks::isAudio(file.name)) {
+        return "file_audio.png";
+    }
+    if (pplay::ExternalTracks::isSubtitle(file.name)) {
+        return "subtitles.png";
+    }
+    if (Utility::endsWith(file.name, ".m3u", false) || Utility::endsWith(file.name, ".m3u8", false)) {
+        return "playlist.png";
+    }
+    return pplay::Utility::isMedia(file) ? "file_video.png" : "file_other.png";
 }
 
 FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : Rectangle(rect) {
@@ -54,13 +52,13 @@ FilerItem::FilerItem(Main *m, const c2d::FloatRect &rect, const MediaFile &f) : 
     textTitle->setOrigin(Origin::Left);
 
     iconSize = std::round(FilerItem::getSize().y * 0.7f);
-    icon = new Sprite();
+    icon = new pplay::IconSprite();
     icon->setOrigin(Origin::Left);
     icon->setPosition(std::round(16 * main->getScaling().x), std::round(FilerItem::getSize().y / 2));
     icon->setVisibility(Visibility::Hidden);
     FilerItem::add(icon);
 
-    savedMark = new Sprite();
+    savedMark = new pplay::IconSprite();
     savedMark->setOrigin(Origin::Right);
     savedMark->setVisibility(Visibility::Hidden);
     FilerItem::add(savedMark);
@@ -107,12 +105,10 @@ void FilerItem::setIcon(const std::string &name) {
         icon->setVisibility(Visibility::Hidden);
         return;
     }
-    Texture *texture = pplay::Skin::icon(name, (int) iconSize);
-    if (texture == nullptr) {
+    if (!icon->setIcon(name, iconSize)) {
         icon->setVisibility(Visibility::Hidden);
         return;
     }
-    icon->setTexture(texture, true);
     icon->setVisibility(Visibility::Visible);
 }
 
@@ -121,7 +117,7 @@ void FilerItem::setColor(const c2d::Color &color) {
     textTitle->setFillColor(color);
     textTitle->setAlpha(alpha);
     // the icons quieter than the names, the accent for the playing file only
-    bool playing = file.type == Io::Type::File && main->getPlayer() != nullptr && main->getPlayer()->isPlaying(file.path);
+    bool playing = isPlaying();
     Color iconColor = playing ? COLOR_ACCENT : color == COLOR_FONT ? Color(140, 148, 158, 255) : color;
     icon->setFillColor(iconColor);
     icon->setAlpha(alpha);
@@ -130,6 +126,9 @@ void FilerItem::setColor(const c2d::Color &color) {
 void FilerItem::setFile(const MediaFile &f) {
 
     this->file = f;
+    // asked for each frame: made once
+    streamUrl = file.type == Io::Type::File ? pplay::TorrServe::toStreamUrl(file.path) : std::string();
+    playKey = file.type == Io::Type::File && !file.path.empty() ? Player::keyOf(file.path) : std::string();
     viewedGeneration = pplay::TorrServe::viewedGeneration();
     savedGeneration = pplay::Saved::generation();
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "FilerItem::setFile name=" + file.name + " path=" + file.path
@@ -151,10 +150,11 @@ void FilerItem::setFile(const MediaFile &f) {
         textTitle->setString(pplay::tr("BACK"));
         setIcon("file_back.png");
     } else {
-        const bool playing =
-                file.type == Io::Type::File && main->getPlayer() != nullptr && main->getPlayer()->isPlaying(file.path);
+        const bool playing = isPlaying();
         textTitle->setString(encoding::fix(file.label.empty() ? file.name : file.label));
-        setIcon(playing ? "file_playing.png" : iconName(file));
+        // the playing one: its pause too
+        shownPaused = playing && main->getPlayer()->getMpv()->isPaused();
+        setIcon(!playing ? iconOf(file) : shownPaused ? "file_paused.png" : "file_playing.png");
     }
     setColor(color());
     // the duration on the right, the name up to it
@@ -170,7 +170,7 @@ void FilerItem::setFile(const MediaFile &f) {
     std::string marks;
     bool both = false;
     if (file.type == Io::Type::File) {
-        bool local = pplay::Utility::isWatchLaterExist(pplay::TorrServe::toStreamUrl(file.path));
+        bool local = pplay::Utility::isWatchLaterExist(streamUrl);
         bool server = pplay::TorrServe::isFileViewed(file.path);
         marks = local || server ? "✓" : "";
         both = local && server;
@@ -226,12 +226,10 @@ float FilerItem::updateSavedMark(float right) {
     } else if (state.saved > 0) {
         name = "saved.png";
     }
-    Texture *texture = name.empty() ? nullptr : pplay::Skin::icon(name, (int) size);
-    if (texture == nullptr) {
+    if (name.empty() || !savedMark->setIcon(name, size)) {
         savedMark->setVisibility(Visibility::Hidden);
         return 0;
     }
-    savedMark->setTexture(texture, true);
     savedMark->setPosition(std::round(right), std::round(getSize().y / 2));
     // quiet, as the icons; the accent while saving
     savedMark->setFillColor(state.pending > 0 ? COLOR_ACCENT : Color(140, 148, 158, 255));
@@ -255,12 +253,15 @@ void FilerItem::updateWatched() {
     watchedTrack->setVisibility(Visibility::Visible);
 }
 
+bool FilerItem::isPlaying() const {
+    return !playKey.empty() && main->getPlayer() != nullptr && main->getPlayer()->isPlayingKey(playKey);
+}
+
 c2d::Color FilerItem::color() {
     if (file.type == Io::Type::Directory) {
         return COLOR_FONT;
     }
     if (file.type == Io::Type::File) {
-        const std::string streamUrl = pplay::TorrServe::toStreamUrl(file.path);
         bool watched = pplay::Utility::isWatchLaterExist(streamUrl) || pplay::TorrServe::isFileViewed(file.path);
         return watched ? COLOR_VIEWED : COLOR_FONT;
     }
@@ -291,6 +292,11 @@ void FilerItem::onDraw(Transform &transform, bool draw) {
 
 void FilerItem::onUpdate() {
     const bool isFullscreen = main->getPlayer() && main->getPlayer()->isFullscreen();
+    // the playing one paused or resumed: its icon
+    if (!isFullscreen && isPlaying() && main->getPlayer()->getMpv()->isPaused() != shownPaused) {
+        shownPaused = !shownPaused;
+        setIcon(shownPaused ? "file_paused.png" : "file_playing.png");
+    }
     const bool fullscreenExited = lastFullscreen && !isFullscreen;
     lastFullscreen = isFullscreen;
     // the TorrServer marks came (asked in the background)

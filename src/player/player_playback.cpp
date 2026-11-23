@@ -134,7 +134,7 @@ void Player::onStopEvent(int reason) {
     if (!reloading) {
         main->getStatus()->hide();
     }
-    main->getMenuVideo()->reset();
+    // the player menu: its position kept (another file)
     osd->reset();
 
     menusDeletePending = true;
@@ -302,7 +302,7 @@ void Player::saveProgress(bool wait) {
     }
     mpv->save(wait);
     if (syncsProgress() && lastKnownPosition > 0) {
-        pplay::TorrServe::setFileProgress(file.path, (double) lastKnownPosition);
+        pplay::TorrServe::setFileProgress(file.path, (double) lastKnownPosition, (double) lastKnownDuration);
     }
 }
 

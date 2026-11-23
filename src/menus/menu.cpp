@@ -420,6 +420,14 @@ void Menu::fit() {
     }
 }
 
+void Menu::setSide(bool left) {
+    if (leftSide == left) {
+        return;
+    }
+    leftSide = left;
+    fit();
+}
+
 void Menu::setCompact(bool value) {
     if (compact == value) {
         return;
@@ -471,6 +479,19 @@ void Menu::retranslate() {
 void Menu::select(const std::string &name) {
     for (size_t i = 0; i < buttons.size(); i++) {
         if (buttons[i]->item.name == name && isButtonSelectable((int) i)) {
+            index = (int) i;
+            updateSelectionState();
+            ensureSelectionVisible();
+            updateScroll();
+            highlight->setPosition(0, buttons[index]->getPosition().y);
+            return;
+        }
+    }
+}
+
+void Menu::selectId(int id) {
+    for (size_t i = 0; i < buttons.size(); i++) {
+        if (buttons[i]->item.id == id && isButtonSelectable((int) i) && buttons[i]->item.enabled) {
             index = (int) i;
             updateSelectionState();
             ensureSelectionVisible();

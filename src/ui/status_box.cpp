@@ -34,7 +34,7 @@ StatusBox::StatusBox(Main *m) : Rectangle({0, 0, 64, 64}) {
     chip->setFillColor(Color(10, 12, 16, 170));
     StatusBox::add(chip);
 
-    icon = new Sprite();
+    icon = new pplay::IconSprite();
     icon->setOrigin(Origin::Center);
     icon->setFillColor(COLOR_FONT);
     icon->setAlpha(255);
@@ -143,10 +143,8 @@ void StatusBox::onUpdate() {
 
     if (icon->isVisible()) {
         // made at its size, filtered (it turns)
-        c2d::Texture *texture = pplay::Skin::icon("wait.png", (int) iconSize, true);
-        if (texture != nullptr && icon->getTexture() != texture) {
-            icon->setTexture(texture, true);
-            icon->setOrigin(Origin::Center);
+        if (icon->getIcon().empty()) {
+            icon->setIcon("wait.png", iconSize, true);
         }
         currentX += iconSize + std::round(10 * sc.x);
     }

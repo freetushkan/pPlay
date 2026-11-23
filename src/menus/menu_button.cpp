@@ -67,18 +67,40 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
     line->setVisibility(item.line ? Visibility::Visible : Visibility::Hidden);
     MenuButton::add(line);
 
-    if (!item.icon.empty()) {
+    // the icon column: the icon, or a badge as wide as its digits
+    float column = 0;
+    if (!item.icon.empty() || item.badgeChars > 0) {
         // any resolution: 30 px at 720p, smaller in compact menus; made at its size (sharp)
         iconSize = std::round(std::min(30.0f * main->getScaling().y, MenuButton::getSize().y * 0.65f));
-        icon = new Sprite();
-        c2d::Texture *texture = pplay::Skin::icon(item.icon, (int) iconSize);
-        if (texture != nullptr) {
-            icon->setTexture(texture, true);
+        if (item.badgeChars > 0) {
+            // in place of a number: as high as its digits
+            Text digit("0", fontSize, main->getFont());
+            iconSize = std::round(digit.getLocalBounds().height);
+        }
+        column = iconSize;
+        icon = new pplay::IconSprite();
+        if (!item.icon.empty()) {
+            icon->setIcon(item.icon, iconSize);
         }
         icon->setOrigin(Origin::Left);
         icon->setPosition(std::round(12 * main->getScaling().x), std::round(MenuButton::getSize().y / 2));
         icon->setFillColor(COLOR_FONT);
         MenuButton::add(icon);
+    }
+    if (item.badgeChars > 0) {
+        column = std::max(column, std::ceil(pplay::TextWrap::width(main->getFont(), fontSize,
+                                                                   std::string((size_t) item.badgeChars, '0'))));
+        // both at the right of the column (the names in a straight line after it)
+        float right = std::round(12 * main->getScaling().x + column);
+        icon->setOrigin(Origin::Right);
+        icon->setPosition(right, std::round(MenuButton::getSize().y / 2));
+        badgeText = new Text(item.badge, fontSize, main->getFont());
+        badgeText->setOrigin(Origin::Right);
+        badgeText->setPosition(right, std::round(MenuButton::getSize().y / 2));
+        badgeText->setFillColor(Color(230, 230, 230, 150));
+        MenuButton::add(badgeText);
+        icon->setVisibility(item.icon.empty() ? Visibility::Hidden : Visibility::Visible);
+        badgeText->setVisibility(item.icon.empty() ? Visibility::Visible : Visibility::Hidden);
     }
 
     name = new Text(item.text(), fontSize, main->getFont());
@@ -86,7 +108,7 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
     name->setFillColor(pplay::Utility::isValidHexColor(item.data_str) ? pplay::Utility::hexToColor(item.data_str)
                                                                       : COLOR_FONT);
 
-    float textX = 12.0f * main->getScaling().x + (item.icon.empty() ? 0 : iconSize + 12.0f * main->getScaling().x);
+    float textX = 12.0f * main->getScaling().x + (column > 0 ? column + 12.0f * main->getScaling().x : 0);
     // up to the button edge (the highlight cursor), or the value part
     const float sc = main->getScaling().x;
     float right = MenuButton::getSize().x - 18 * sc;
@@ -189,12 +211,19 @@ void MenuButton::setIcon(const std::string &iconName) {
     if (icon == nullptr || iconName == item.icon) {
         return;
     }
-    c2d::Texture *texture = pplay::Skin::icon(iconName, (int) iconSize);
-    if (texture == nullptr) {
+    // with a badge: none shows it
+    if (badgeText != nullptr) {
+        icon->setVisibility(iconName.empty() ? Visibility::Hidden : Visibility::Visible);
+        badgeText->setVisibility(iconName.empty() ? Visibility::Visible : Visibility::Hidden);
+        if (iconName.empty()) {
+            item.icon.clear();
+            return;
+        }
+    }
+    if (!icon->setIcon(iconName, iconSize)) {
         return;
     }
     item.icon = iconName;
-    icon->setTexture(texture, true);
 }
 
 void MenuButton::refreshText() {

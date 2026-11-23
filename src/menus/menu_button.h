@@ -8,6 +8,7 @@
 #include <string>
 #include "cross2d/c2d.h"
 #include "clip_rect.h"
+#include "icon_sprite.h"
 
 class RoundRect;
 
@@ -49,6 +50,10 @@ public:
     float slider = -1;
     // opens a submenu ("›" without a value)
     bool opens = false;
+    // a column before the name, as wide as badgeChars digits (the same in all the items):
+    // the badge (a number), or the icon when there is one
+    std::string badge;
+    int badgeChars = 0;
 };
 
 class MenuButton : public c2d::Rectangle {
@@ -72,7 +77,7 @@ public:
     void onUpdate() override;
 
     MenuItem item;
-    c2d::Sprite *icon = nullptr;
+    pplay::IconSprite *icon = nullptr;
     c2d::RectangleShape *line = nullptr;
 
     c2d::Text *name = nullptr;
@@ -87,6 +92,7 @@ private:
     void startScroll();
 
     c2d::Text *valueText = nullptr;
+    c2d::Text *badgeText = nullptr;
     c2d::RectangleShape *sliderTrack = nullptr;
     c2d::RectangleShape *sliderFill = nullptr;
     RoundRect *sliderKnob = nullptr;

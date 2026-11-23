@@ -24,10 +24,11 @@ using namespace c2d;
 #define OSD_PEEK_TIME 3.0f
 
 namespace {
-    std::string clockText(double seconds) {
+    // hours: always (a long file, the same width all along)
+    std::string clockText(double seconds, bool hours = false) {
         int s = std::max(0, (int) seconds);
         char text[32];
-        if (s >= 3600) {
+        if (s >= 3600 || hours) {
             snprintf(text, sizeof(text), "%d:%02d:%02d", s / 3600, s / 60 % 60, s % 60);
         } else {
             snprintf(text, sizeof(text), "%d:%02d", s / 60, s % 60);
@@ -60,6 +61,10 @@ namespace {
     }
 
     const Color TEXT_DIM(160, 168, 178, 255);
+    const char *const playbackModeIcons[] = {
+            "pl_stop.png", "pl_next.png", "pl_loop_file.png", "pl_loop_directory.png", "pl_shuffle.png"};
+    const char *const playbackModeNames[] = {
+            "Stop playback", "Play next", "Loop file", "Loop directory", "Shuffle"};
 }
 
 PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
@@ -120,11 +125,8 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
 
     // the icons in the focus circle, made at their size (sharp); play / pause bigger
     auto addButton = [this, sc](const char *file, float size = 40.0f) {
-        auto *button = new Sprite();
-        c2d::Texture *texture = pplay::Skin::icon(file, (int) std::round(size * sc));
-        if (texture != nullptr) {
-            button->setTexture(texture, true);
-        }
+        auto *button = new pplay::IconSprite();
+        button->setIcon(file, std::round(size * sc));
         button->setOrigin(Origin::Center);
         panel->add(button);
         return button;
@@ -134,7 +136,8 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     btn_play->setVisibility(Visibility::Hidden);
     buttons = {addButton("btn_prev.png"), addButton("btn_seek_backward.png"), btn_pause,
                addButton("btn_seek_forward.png"), addButton("btn_next.png"), addButton("btn_stop.png"),
-               addButton("btn_frame_step.png"), addButton("btn_settings.png")};
+               addButton("btn_frame_step.png"), addButton("pl_stop.png"), addButton("btn_playlist.png"),
+               addButton("btn_settings.png")};
 
     next = new Text("", main->getFontSize(Main::FontSize::Small), main->getFont());
     next->setOutlineThickness(1);
@@ -153,7 +156,7 @@ void PlayerOSD::layout(bool audio) {
     audioLayout = audio;
     laidOut = true;
 
-    float trackY, trackX, trackW, buttonsY;
+    float buttonsY;
     if (audio) {
         // under the cover / visualizer zone, centered
         FloatRect zone = AudioView::zone();
@@ -167,6 +170,8 @@ void PlayerOSD::layout(bool audio) {
         meta->setOrigin(Origin::Center);
         meta->setPosition(size.x / 2, titleY + 28 * sc);
         peekOffset = 0;
+        elapsed->setOrigin(Origin::Right);
+        remaining->setOrigin(Origin::Left);
     } else {
         float margin = 54 * sc;
         buttonsY = size.y - 40 * sc;
@@ -174,19 +179,20 @@ void PlayerOSD::layout(bool audio) {
         // the title alone on its line, the media info under it, the chips right of that
         metaY = trackY - 26 * sc;
         titleY = metaY - 30 * sc;
-        trackX = margin + 80 * sc;
-        trackW = size.x - 2 * trackX;
+        trackX = margin;
+        trackW = size.x - 2 * margin;
         titleMax = size.x - 2 * margin;
         meta->setOrigin(Origin::Left);
         meta->setPosition(margin, metaY);
         peekOffset = 50 * sc;
+        // the times at the panel edges (the title, the buttons)
+        elapsed->setOrigin(Origin::Left);
+        remaining->setOrigin(Origin::Right);
     }
-    track->setPosition(trackX, trackY - track->getSize().y / 2);
-    track->setSize(trackW, track->getSize().y);
-    elapsed->setPosition(trackX - 14 * sc, trackY);
-    remaining->setPosition(trackX + trackW + 14 * sc, trackY);
+    timePattern.clear();
+    placeTrack();
 
-    // transport, stop and frame step in a row, settings apart
+    // transport, playback mode, playlist and settings
     float step = 52 * sc;
     std::vector<float> xs(buttons.size());
     // audio: no frame step
@@ -195,29 +201,31 @@ void PlayerOSD::layout(bool audio) {
         float width = step * (float) (buttons.size() - 2) + 24 * sc;
         float x = (size.x - width) / 2;
         for (size_t i = 0, n = 0; i < buttons.size(); i++) {
-            xs[i] = x + step * (float) n + (i >= (size_t) ButtonID::Settings ? 24 * sc : 0);
+            xs[i] = x + step * (float) n + (i >= (size_t) ButtonID::PlaybackMode ? 24 * sc : 0);
             n += i == (size_t) ButtonID::FrameStep ? 0 : 1;
         }
     } else {
         float left = 54 * sc + 22 * sc, right = size.x - 54 * sc - 22 * sc;
-        for (size_t i = 0; i < (size_t) ButtonID::Settings; i++) {
+        for (size_t i = 0; i < (size_t) ButtonID::PlaybackMode; i++) {
             xs[i] = left + step * (float) i;
         }
+        xs[(size_t) ButtonID::PlaybackMode] = right - 2 * step;
+        xs[(size_t) ButtonID::Playlist] = right - step;
         xs[(size_t) ButtonID::Settings] = right;
     }
     for (size_t i = 0; i < buttons.size(); i++) {
         buttons[i]->setPosition(std::round(xs[i]), std::round(buttonsY));
     }
     btn_play->setPosition(std::round(xs[(size_t) ButtonID::Pause]), std::round(buttonsY));
-    // video: before settings; audio: under the buttons
+    // video: before the playlist; audio: under the buttons
     if (audio) {
         next->setOrigin(Origin::Center);
         next->setPosition(size.x / 2, buttonsY + 40 * sc);
         next->setSizeMax(size.x * 0.6f, 0);
     } else {
         next->setOrigin(Origin::Right);
-        next->setPosition(xs[(size_t) ButtonID::Settings] - 44 * sc, buttonsY);
-        next->setSizeMax(xs[(size_t) ButtonID::Settings] - xs[(size_t) ButtonID::FrameStep] - 100 * sc, 0);
+        next->setPosition(xs[(size_t) ButtonID::PlaybackMode] - 44 * sc, buttonsY);
+        next->setSizeMax(xs[(size_t) ButtonID::PlaybackMode] - xs[(size_t) ButtonID::FrameStep] - 100 * sc, 0);
     }
     if (audio && index == (int) ButtonID::FrameStep) {
         index = (int) ButtonID::Stop;
@@ -226,8 +234,37 @@ void PlayerOSD::layout(bool audio) {
     textKey.clear();
 }
 
-void PlayerOSD::expand() {
-    if (state != State::Full) {
+// the bar between the times, their room from the duration (its digits): the same all along
+void PlayerOSD::placeTrack() {
+    const float sc = main->getScaling().y;
+    const float gap = std::round(14 * sc);
+    auto widthOf = [this](const std::string &text) {
+        std::string kept = elapsed->getString();
+        elapsed->setString(text);
+        float width = std::ceil(elapsed->getLocalBounds().width);
+        elapsed->setString(kept);
+        return width;
+    };
+    float left = widthOf(timePattern.empty() ? "0:00" : timePattern);
+    float right = widthOf("-" + (timePattern.empty() ? "0:00" : timePattern));
+    float x = trackX, w = trackW;
+    if (audioLayout) {
+        // the whole line centered: the bar moved by the difference of the times
+        x = std::round(trackX + (left - right) / 2);
+        elapsed->setPosition(x - gap, trackY);
+        remaining->setPosition(x + w + gap, trackY);
+    } else {
+        x = trackX + left + gap;
+        w = trackX + trackW - right - gap - x;
+        elapsed->setPosition(trackX, trackY);
+        remaining->setPosition(trackX + trackW, trackY);
+    }
+    track->setPosition(x, std::round(trackY - track->getSize().y / 2));
+    track->setSize(std::round(w), track->getSize().y);
+}
+
+void PlayerOSD::expand(bool keepFocus) {
+    if (state != State::Full && !keepFocus) {
         index = (int) ButtonID::Pause;
     }
     state = State::Full;
@@ -432,24 +469,52 @@ void PlayerOSD::updateChips() {
     }
 }
 
+void PlayerOSD::updatePlaybackMode() {
+    int mode = std::max(0, std::min(4, main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger()));
+    if (mode == playbackModeShown) {
+        return;
+    }
+    buttons[(size_t) ButtonID::PlaybackMode]->setIcon(playbackModeIcons[mode],
+                                                       std::round(40 * main->getScaling().y));
+    playbackModeShown = mode;
+}
+
 void PlayerOSD::updateProgress() {
     Player *player = main->getPlayer();
     Mpv *mpv = player->getMpv();
     // seeking: where it goes (the stream may lag behind)
     double position = player->isScrubbing() ? player->getScrubTarget() : std::max(0.0, mpv->getTime());
     double duration = (double) mpv->getDuration();
+    // the times room: from the duration digits
+    bool hours = duration >= 3600;
+    std::string pattern = clockText(duration > 0 ? duration : 0, hours);
+    for (auto &c: pattern) {
+        c = c >= '0' && c <= '9' ? '0' : c;
+    }
+    if (pattern != timePattern) {
+        timePattern = pattern;
+        placeTrack();
+    }
     float width = track->getSize().x;
     float done = duration > 0 ? (float) std::min(1.0, position / duration) : 0;
+    // the read ahead end: asked a few times a second (its own time, not the position plus a
+    // length: the two changed apart, the line shook)
+    if (cacheClock.getElapsedTime().asSeconds() >= 0.25f) {
+        cacheClock.restart();
+        double end = 0;
+        bool eof = false;
+        cacheEnd = mpv->getCacheEnd(&end, &eof) ? (eof ? duration : end) : -1;
+    }
     float cache = 0;
-    if (duration > 0) {
-        cache = (float) std::min(1.0, (position + std::max(0.0, mpv->getCacheDuration())) / duration);
+    if (duration > 0 && cacheEnd > 0) {
+        cache = (float) std::min(1.0, std::max(position, cacheEnd) / duration);
     }
     played->setSize(std::round(done * width), played->getSize().y);
     buffered->setSize(std::round(cache * width), buffered->getSize().y);
     knob->setPosition(std::round(done * width), track->getSize().y / 2);
-    elapsed->setString(clockText(position));
+    elapsed->setString(clockText(position, hours));
     double speed = std::max(0.01, mpv->getSpeed());
-    remaining->setString("-" + clockText(std::max(0.0, (duration - position) / speed)));
+    remaining->setString("-" + clockText(std::max(0.0, (duration - position) / speed), hours));
     // full screen: 3 px; minimized (a quarter): taller here, 2 px on the screen
     float sc = main->getScaling().y;
     float minimized = std::max(0.0f, std::min(1.0f, (1 - main->getPlayer()->getScale().x) / 0.75f));
@@ -508,6 +573,7 @@ void PlayerOSD::onUpdate() {
     if (!laidOut || audio != audioLayout) {
         layout(audio);
     }
+    updatePlaybackMode();
 
     // 0: hidden by Back only
     int fullTime = main->getConfig()->getOption(OPT_OSD_HIDE_TIME)->getInteger();
@@ -632,6 +698,27 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
                 peek();
                 player->playSibling((ButtonID) index == ButtonID::Next ? 1 : -1);
                 break;
+            case ButtonID::Playlist:
+                // the current playlist at once
+                if (player->getMenuPlaylist() != nullptr) {
+                    hide();
+                    player->getMenuPlaylist()->fromOsd = true;
+                    player->getMenuPlaylist()->setVisibility(Visibility::Visible, true);
+                } else {
+                    main->getStatus()->show("Info", "Playlist is empty");
+                }
+                break;
+            case ButtonID::PlaybackMode: {
+                auto *option = main->getConfig()->getOption(OPT_AUTOPLAY_MODE);
+                option->setType(c2d::config::Option::Type::Integer);
+                int mode = std::max(0, std::min(4, option->getInteger()));
+                mode = (mode + 1) % 5;
+                option->setInteger(mode);
+                main->getConfig()->save();
+                main->getStatus()->show("Info", pplay::tr(playbackModeNames[mode]));
+                updatePlaybackMode();
+                break;
+            }
             case ButtonID::Settings:
                 hide();
                 main->getMenuVideo()->setVisibility(Visibility::Visible, true);

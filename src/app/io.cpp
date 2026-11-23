@@ -75,14 +75,41 @@ Io *Io::get() {
 }
 
 const std::vector<std::string> &Io::networkTypeNames() {
-    static const std::vector<std::string> names = {"TorrServe", "P2Play", "Samba", "FTP", "HTTP", "WebDAV", "DLNA"};
+    static const std::vector<std::string> names = {"TorrServer.MatriX", "P2Play", "Samba", "FTP", "HTTP", "WebDAV",
+                                                   "DLNA", "TorrServer.Silo"};
     return names;
+}
+
+std::string Io::networkTypeName(NetworkType type) {
+    switch (type) {
+        case NetworkType::TorrServe:
+            return "TorrServer.MatriX";
+        case NetworkType::P2Play:
+            return "P2Play";
+        case NetworkType::TorrServeSilo:
+            return "TorrServer.Silo";
+        case NetworkType::Smb:
+            return "Samba";
+        case NetworkType::Ftp:
+            return "FTP";
+        case NetworkType::Http:
+            return "HTTP";
+        case NetworkType::WebDav:
+            return "WebDAV";
+        case NetworkType::Dlna:
+            return "DLNA";
+        default:
+            return "";
+    }
 }
 
 Io::NetworkType Io::parseNetworkType(const std::string &name) {
     const std::string n = c2d::Utility::toLower(name);
-    if (n == "torrserve" || n == "torrserver") {
+    if (n == "torrserver.matrix" || n == "torrserver" || n == "torrserve" || n == "ts_matrix") {
         return NetworkType::TorrServe;
+    }
+    if (n == "torrserver.silo" || n == "ts_silo" || n == "silo") {
+        return NetworkType::TorrServeSilo;
     }
     if (n == "p2play") {
         return NetworkType::P2Play;
@@ -158,7 +185,8 @@ std::vector<c2d::Io::File> Io::list(const DeviceType &type, const std::string &p
     } else if (type == DeviceType::TorrServe) {
         files = pplay::TorrServe::getDirList(path, timeout, &failed);
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                            "Io::TorrServe path=" + path + " entries=" + std::to_string(files.size()));
+                            "Io::" + networkTypeName(getNetworkType(path)) + " path=" + path
+                                    + " entries=" + std::to_string(files.size()));
     } else if (type == DeviceType::P2Play) {
         files = pplay::P2Play::getDirList(path, timeout, &failed);
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
@@ -238,6 +266,15 @@ static std::string userOf(const std::string &url) {
     return info.substr(0, info.find(':'));
 }
 
+void Io::forgetNetworks() {
+    {
+        std::lock_guard<std::mutex> lock(networkCacheMutex);
+        networkCache[0].clear();
+        networkCache[1].clear();
+    }
+    P2Play::forgetFailures();
+}
+
 int Io::findNetwork(const std::string &path, bool typedOnly) {
     if (path.find("://") == std::string::npos) {
         return -1;
@@ -245,6 +282,24 @@ int Io::findNetwork(const std::string &path, bool typedOnly) {
     if (config == nullptr) {
         return -1;
     }
+    auto &cache = networkCache[typedOnly ? 0 : 1];
+    {
+        std::lock_guard<std::mutex> lock(networkCacheMutex);
+        auto known = cache.find(path);
+        if (known != cache.end()) {
+            return known->second;
+        }
+    }
+    int index = searchNetwork(path, typedOnly);
+    std::lock_guard<std::mutex> lock(networkCacheMutex);
+    if (cache.size() > 4096) {
+        cache.clear();
+    }
+    cache[path] = index;
+    return index;
+}
+
+int Io::searchNetwork(const std::string &path, bool typedOnly) {
     const std::string target = comparableUrl(path);
     // the same address in several networks: the one of the path user
     const std::string user = userOf(path);
@@ -290,9 +345,35 @@ std::string Io::getNetworkRoot(const std::string &path) {
     return root;
 }
 
+Io::NetworkType Io::getNetworkType(const std::string &path) {
+    int index = findNetwork(path, true);
+    return index > 0 ? parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString())
+                     : NetworkType::Auto;
+}
+
+std::string Io::siloToken(const std::string &url) {
+    int index = findNetwork(url, true);
+    return index > 0 ? config->getOption(PPLAYConfig::networkTokenOption(index))->getString() : std::string();
+}
+
+bool Io::loginOf(const std::string &url, std::string *user, std::string *password) {
+    int index = findNetwork(url, false);
+    if (index < 1) {
+        return false;
+    }
+    *user = config->getOption(PPLAYConfig::networkUserOption(index))->getString();
+    *password = config->getOption(PPLAYConfig::networkPasswordOption(index))->getString();
+    return true;
+}
+
 bool Io::credentialsOf(const std::string &url, std::string *user, std::string *password) {
     int index = findNetwork(url, false);
-    if (index < 1 || parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString()) == NetworkType::Dlna) {
+    if (index < 1) {
+        return false;
+    }
+    // DLNA has no login, TS Silo a token instead
+    NetworkType type = parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString());
+    if (type == NetworkType::Dlna || type == NetworkType::TorrServeSilo) {
         return false;
     }
     *user = config->getOption(PPLAYConfig::networkUserOption(index))->getString();
@@ -326,6 +407,21 @@ int Io::smbBuffer(const std::string &url) {
 std::string Io::withCredentials(const std::string &url) {
     std::string user, password;
     bool http = c2d::Utility::startWith(url, "http://") || c2d::Utility::startWith(url, "https://");
+    if (http && getNetworkType(url) == NetworkType::TorrServeSilo) {
+        // its user (in its paths) not sent, its token instead
+        std::string token = TorrServe::tokenOf(url);
+        std::string plain = url;
+        size_t scheme = plain.find("://") + 3;
+        size_t end = plain.find_first_of("/?#", scheme);
+        size_t at = plain.rfind('@', end == std::string::npos ? std::string::npos : end);
+        if (at != std::string::npos && at >= scheme) {
+            plain.erase(scheme, at + 1 - scheme);
+        }
+        if (token.empty() || plain.find("token=") != std::string::npos) {
+            return plain;
+        }
+        return plain + (plain.find('?') == std::string::npos ? "?" : "&") + "token=" + Http::escape(token);
+    }
     if ((!http && !c2d::Utility::startWith(url, "ftp://")) || !credentialsOf(url, &user, &password)) {
         return url;
     }
@@ -349,6 +445,7 @@ Io::DeviceType Io::getDeviceType(const std::string &path) {
     if (index > 0) {
         switch (parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString())) {
             case NetworkType::TorrServe:
+            case NetworkType::TorrServeSilo:
                 return DeviceType::TorrServe;
             case NetworkType::P2Play:
                 return DeviceType::P2Play;

@@ -5,6 +5,7 @@
 #include "main.h"
 #include "menu_main_options.h"
 #include "menu_file_editor.h"
+#include "menu_video.h"
 
 using namespace c2d;
 
@@ -27,7 +28,11 @@ void MenuMainOptions::onOptionSelection(MenuItem *item) {
 bool MenuMainOptions::onInput(c2d::Input::Player *players) {
     if (players[0].buttons & Input::B) {
         setVisibility(Visibility::Hidden, true);
-        main->getMenuMain()->setVisibility(Visibility::Visible, true);
+        if (fromPlayer) {
+            main->getMenuVideo()->setVisibility(Visibility::Visible, true);
+        } else {
+            main->getMenuMain()->setVisibility(Visibility::Visible, true);
+        }
         return true;
     }
 

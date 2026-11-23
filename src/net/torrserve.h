@@ -41,7 +41,8 @@ namespace pplay::TorrServe {
 
     std::string toStreamUrl(const std::string &path);
 
-    // TorrServer link (.../stream/...?link=&index=, .../play/<hash>/<n>) of this network
+    // TorrServer link (.../stream/...?link=&index=, .../play/<hash>/<n>; TS Silo .../api/stream/<hash>/<n>)
+    // of this network
     // (host, port, path; user if the link has one)
     bool isLinkOf(const std::string &network, const std::string &url);
     // the linked file in that network
@@ -55,8 +56,20 @@ namespace pplay::TorrServe {
     // the viewed files on disk (if changed): done by the background requests, else here
     void saveViewedCache();
 
-    // the failed requests asked again now (a user or password changed)
+    // the failed requests asked again now (a user or password changed), TS Silo logins too
     void forgetFailures();
+    // TS Silo: the token of the network of an url (in use, else the kept one; "" if none)
+    std::string tokenOf(const std::string &url);
+    // TS Silo: a token got with a user and password (the network root, its http url)
+    struct Token {
+        std::string root, user, password, token;
+    };
+    // TS Silo: the token of a network, got now if needed ("" if none)
+    std::string siloToken(const std::string &network, int timeout);
+    // the ones got since the last call: kept in the network settings
+    std::vector<Token> takeTokens();
+    // the token of a link (?token=...), "" if none
+    std::string linkToken(const std::string &url);
     // changes with each server answer about viewed files: the marks to show again
     unsigned int viewedGeneration();
 
@@ -67,8 +80,8 @@ namespace pplay::TorrServe {
     bool isReachable(const std::string &path);
     // the position the server keeps for a file (its "track timecode" setting), 0 if none
     double fileProgress(const std::string &path, bool wait = false);
-    // sent in a thread
-    void setFileProgress(const std::string &path, double seconds);
+    // sent in a thread (duration: 0 if unknown, TS Silo only)
+    void setFileProgress(const std::string &path, double seconds, double duration = 0);
     // the position being sent: done (before an exit)
     void flushProgress();
     bool remFileViewed(const std::string &path);

@@ -32,6 +32,9 @@ public:
     // file opened in the player? (paths may be spelled differently)
     bool isPlaying(const std::string &path);
 
+    // the same, by its key (keyOf)
+    bool isPlayingKey(const std::string &key) const;
+
     // progress reset by the user: don't write it back for the current playback
     void forgetProgress();
 
@@ -158,6 +161,12 @@ public:
     MenuVideoSubmenu *getMenuSubtitlesStreams();
 
     MenuVideoSubmenu *getMenuPlaylist();
+
+    // the OSD back, on the button it was
+    void showOsd();
+
+    // paused or resumed (said in the status)
+    void togglePause();
 
     MenuVideoSubmenu *getMenuPlaybackMode();
 
@@ -335,6 +344,8 @@ private:
     MenuVideoSubmenu *menuAudioStreams = nullptr;
     MenuVideoSubmenu *menuSubtitlesStreams = nullptr;
     MenuVideoSubmenu *menuPlaylist = nullptr;
+    // what menuPlaylist lists
+    std::string playlistKey;
     MenuVideoSubmenu *menuPlaybackMode = nullptr;
     MenuVideoSubmenu *menuNormalize = nullptr;
     MenuVideoSubmenu *menuVisualizer = nullptr;
@@ -352,10 +363,12 @@ private:
     MediaFile file;
     std::string playingKey;
     std::vector<MediaFile> autoplayFiles;
+    bool autoplayTypeFiltered = false;
     // shuffle: the media paths of autoplayFiles mixed once (when turned on, with a new list),
     // the file playing then first
     std::vector<std::string> shuffleOrder;
 
+    void refreshAutoplayFiles();
     void updateShuffle();
 
     void buildPlaylistMenu();
@@ -478,6 +491,14 @@ private:
     bool scrubPending = false;
     int scrubDirection = 0;
     double scrubTarget = 0;
+    // the last seek sent: exact, to that time (none again for it)
+    bool scrubExact = false;
+    // paused for a seek without the preview (resumed after it)
+    bool scrubPaused = false;
+
+    // the picture shown while seeking (seeks on the way)
+    bool seekPreview();
+    double scrubSent = -1;
     c2d::C2DClock scrubHeld;
     c2d::C2DClock scrubLast;
     c2d::C2DClock scrubSeek;

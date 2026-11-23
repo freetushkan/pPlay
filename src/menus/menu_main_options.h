@@ -13,6 +13,9 @@ public:
 
     MenuMainOptions(Main *main, const c2d::FloatRect &rect, const std::vector<MenuItem> &items);
 
+    // opened from the player menu: back there
+    bool fromPlayer = false;
+
 private:
 
     bool onInput(c2d::Input::Player *players) override;

@@ -39,11 +39,8 @@ AudioView::AudioView(Main *m) : Rectangle(m->getSize()), main(m) {
 
     // made at its size
     float noteSize = std::round(z.height * size.y * 0.4f);
-    note = new Sprite();
-    c2d::Texture *noteIcon = pplay::Skin::icon("audio_note.png", (int) noteSize, true);
-    if (noteIcon != nullptr) {
-        note->setTexture(noteIcon, true);
-    }
+    note = new pplay::IconSprite();
+    note->setIcon("audio_note.png", noteSize, true);
     note->setOrigin(Origin::Center);
     note->setPosition(size.x / 2, (z.top + z.height / 2) * size.y);
     note->setFillColor(Color(140, 140, 140));

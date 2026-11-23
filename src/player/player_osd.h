@@ -10,6 +10,7 @@
 
 #include "cross2d/c2d.h"
 #include "clip_rect.h"
+#include "icon_sprite.h"
 
 class Main;
 
@@ -30,6 +31,8 @@ public:
         Next,
         Stop,
         FrameStep,
+        PlaybackMode,
+        Playlist,
         Settings
     };
 
@@ -37,7 +40,8 @@ public:
 
     void reset();
 
-    void expand();
+    // keepFocus: on the button it was (back from what it opened)
+    void expand(bool keepFocus = false);
 
     // title and progress for a while (new file, seek)
     void peek();
@@ -76,6 +80,8 @@ private:
 
     void updateChips();
 
+    void updatePlaybackMode();
+
     void updateProgress();
 
     void applyFade();
@@ -99,6 +105,14 @@ private:
     c2d::Text *title = nullptr;
     std::string titleShown;
     float titleMax = 0, titleY = 0, metaY = 0;
+    // the progress line: its room (the times aside) and the times format it was placed for
+    float trackX = 0, trackY = 0, trackW = 0;
+    std::string timePattern;
+    // the read ahead end (s), -1: none
+    double cacheEnd = -1;
+    c2d::C2DClock cacheClock;
+
+    void placeTrack();
     c2d::C2DClock titleClock;
     c2d::Text *meta = nullptr;
     c2d::RectangleShape *track = nullptr;
@@ -109,13 +123,14 @@ private:
     c2d::Text *remaining = nullptr;
     std::vector<Chip> chips;
     RoundRect *focus = nullptr;
-    std::vector<c2d::Sprite *> buttons;
+    std::vector<pplay::IconSprite *> buttons;
     std::vector<float> buttonScales;
-    c2d::Sprite *btn_play = nullptr;
-    c2d::Sprite *btn_pause = nullptr;
+    pplay::IconSprite *btn_play = nullptr;
+    pplay::IconSprite *btn_pause = nullptr;
     c2d::Text *next = nullptr;
     c2d::RectangleShape *edge = nullptr;
     int index = (int) ButtonID::Pause;
+    int playbackModeShown = -1;
     float focusX = 0;
 };
 

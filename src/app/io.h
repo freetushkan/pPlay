@@ -6,6 +6,8 @@
 #define PPLAY_IO_H
 
 #include <atomic>
+#include <mutex>
+#include <unordered_map>
 #include "cross2d/c2d.h"
 
 #ifdef __SMB2__
@@ -32,8 +34,14 @@ namespace pplay {
         // the network open in the filer (main menu), 0 if none: the one taken among the same
         // address and user (the filer requests)
         void setCurrentNetwork(int index) {
-            currentNetwork = index;
+            if (currentNetwork != index) {
+                currentNetwork = index;
+                forgetNetworks();
+            }
         }
+
+        // the networks settings changed: the paths found again
+        void forgetNetworks();
 
         enum class DeviceType {
             Local,
@@ -55,12 +63,17 @@ namespace pplay {
             Ftp,
             Http,
             WebDav,
-            Dlna
+            Dlna,
+            // the new TorrServer (its silo branch): its own api, a token for the login
+            TorrServeSilo
         };
 
         static NetworkType parseNetworkType(const std::string &name);
 
         static const std::vector<std::string> &networkTypeNames();
+
+        // as shown and saved ("" for Auto)
+        static std::string networkTypeName(NetworkType type);
 
         void setConfig(PPLAYConfig *cfg) { config = cfg; }
 
@@ -75,14 +88,23 @@ namespace pplay {
         // type of the network the path belongs to, or from the url scheme
         DeviceType getDeviceType(const std::string &path);
 
+        // type of the network (its setting) the path belongs to, Auto if none
+        NetworkType getNetworkType(const std::string &path);
+
         // root url of the network the path belongs to, or ""
         std::string getNetworkRoot(const std::string &path);
 
-        // Playback URL for a virtual/network file (TorrServer, P2Play, HTTP, DLNA, etc.)
+        // Resolve the playback URL of a virtual source (including P2Play's token URL).
         std::string streamUrl(const std::string &path);
 
         // the user and password of the network of an url (its options, over the url ones), false if none
         bool credentialsOf(const std::string &url, std::string *user, std::string *password);
+
+        // TS Silo: the token kept for the network of an url ("" if none)
+        std::string siloToken(const std::string &url);
+
+        // the user and password set for the network of an url, whatever its type
+        bool loginOf(const std::string &url, std::string *user, std::string *password);
 
         // the settings of the network of a path or url (its defaults if none)
         int networkTimeout(const std::string &path);
@@ -97,7 +119,7 @@ namespace pplay {
         // Samba: the read ahead (MB)
         int smbBuffer(const std::string &url);
 
-        // http(s) / ftp: the url with them (encoded), else as is
+        // http(s) / ftp: the url with them (encoded), TS Silo: with its token, else as is
         std::string withCredentials(const std::string &url);
 
         const std::string &getLastError() const { return lastError; }
@@ -131,8 +153,15 @@ namespace pplay {
 
         std::atomic<int> currentNetwork {0};
 
+        // path -> network index (the filer items ask for each of them, often): the typed ones, all
+        std::mutex networkCacheMutex;
+        std::unordered_map<std::string, int> networkCache[2];
+
         // network index of a path, -1 if none
         int findNetwork(const std::string &path, bool typedOnly);
+
+        // (not cached)
+        int searchNetwork(const std::string &path, bool typedOnly);
 
         // false if a file failed
         bool syncRomFsDir(const std::string &relativePath, bool full);

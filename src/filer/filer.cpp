@@ -13,7 +13,6 @@
 #include "round_rect.h"
 #include "utility.h"
 #include "torrserve.h"
-#include "io.h"
 #include "saved.h"
 #include "offline.h"
 #include "playlists.h"
@@ -322,6 +321,8 @@ void Filer::run(DetailsView::Action action) {
         case Action::Menu:
             details->setFocused(false);
             main->getMenuMain()->setVisibility(Visibility::Visible, true);
+            // on the module open (back from the settings: where it was)
+            main->getMenuMain()->selectId(main->getcurrentModuleIndex());
             break;
         case Action::Panel:
             details->setFocused(true);
@@ -406,7 +407,8 @@ void Filer::resetProgress(const MediaFile &file) {
         main->getStatus()->show("Info", "Removing local watch later data");
         pplay::Utility::deleteWatchLater(url);
     }
-    if (pplay::TorrServe::isFileViewed(file.path)) {
+    if (pplay::Io::get()->getDeviceType(file.path) == pplay::Io::DeviceType::TorrServe
+        && pplay::TorrServe::isFileViewed(file.path)) {
         main->getStatus()->show("Info", "Removing TorrServer watched state");
         pplay::TorrServe::remFileViewed(file.path);
     }
@@ -547,7 +549,9 @@ void Filer::markWatched(const MediaFile &file) {
         return;
     }
     pplay::Utility::setWatchLaterWatched(pplay::Io::get()->streamUrl(file.path), (double) duration);
-    pplay::TorrServe::setFileViewed(file.path, (double) duration);
+    if (pplay::Io::get()->getDeviceType(file.path) == pplay::Io::DeviceType::TorrServe) {
+        pplay::TorrServe::setFileViewed(file.path, (double) duration);
+    }
     main->getStatus()->show("Info", "Marked as watched");
     dirty = true;
 }
@@ -563,7 +567,8 @@ void Filer::markFolder(const MediaFile &dir, bool watched) {
         std::string path = pplay::Saved::originalOf(file.path);
         std::string url = pplay::Io::get()->streamUrl(path);
         bool local = pplay::Utility::isWatchLaterExist(url);
-        bool server = pplay::TorrServe::isFileViewed(path);
+        bool server = pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::TorrServe
+                      && pplay::TorrServe::isFileViewed(path);
         // the opened file: no more saves over the change
         if (player->isPlaying(file.path) || player->isPlaying(path)) {
             player->forgetProgress();
@@ -575,7 +580,9 @@ void Filer::markFolder(const MediaFile &dir, bool watched) {
             // the duration if known (the progress line full), else the mark only
             long duration = MediaInfo(file).duration;
             pplay::Utility::setWatchLaterWatched(url, duration > 0 ? (double) duration : 0);
-            pplay::TorrServe::setFileViewed(path, duration > 0 ? (double) duration : 0);
+            if (pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::TorrServe) {
+                pplay::TorrServe::setFileViewed(path, duration > 0 ? (double) duration : 0);
+            }
         } else {
             if (!local && !server) {
                 continue;

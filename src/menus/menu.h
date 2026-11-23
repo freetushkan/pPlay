@@ -29,6 +29,8 @@ public:
 
     // the item of that name selected (if shown)
     void select(const std::string &name);
+    // the item of that id selected (if shown)
+    void selectId(int id);
 
     // language change
     virtual void retranslate();
@@ -42,6 +44,9 @@ public:
 
     // smaller texts and items (long lists)
     void setCompact(bool compact);
+
+    // on the left or the right of the screen
+    void setSide(bool left);
 
     void setVisibility(c2d::Visibility visibility, bool tweenPlay = true) override;
 

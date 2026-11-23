@@ -157,6 +157,11 @@ void DetailsView::setFocused(bool value) {
     hints->setButtons(focused);
     updateHints();
     layout();
+    // nothing to scroll: the buttons at once
+    if (focused && contentHeight <= view->getSize().y - contentTop + 0.5f && hints->count() > 0) {
+        button = hints->usable(0, 1);
+        hints->setFocus(button);
+    }
 }
 
 void DetailsView::updateHints() {

@@ -24,6 +24,7 @@
 #define OPT_SMB_READ_BUFFER_MB "SMB_READ_BUFFER_MB"
 #endif
 #define OPT_AUTOPLAY_MODE "AUTOPLAY_MODE"
+#define OPT_AUTOPLAY_TYPE_FILTER "AUTOPLAY_TYPE_FILTER"
 #define OPT_LOG_LEVEL "LOG_LEVEL"
 #define OPT_SWAP_CONTROLS "SWAP_CONTROLS"
 #define OPT_CPU_BOOST "CPU_BOOST"
@@ -83,6 +84,9 @@
 #define OPT_RESTORE_SESSION "RESTORE_SESSION"
 // the list after it: 1 at the restored file, 0 at the last location (the module and its path)
 #define OPT_RESTORE_LOCATION "RESTORE_LOCATION"
+// the picture shown while seeking (seeks on the way): 2 always, 1 local files (saved copies
+// too), 0 never (one seek at the end, paused meanwhile)
+#define OPT_SEEK_PREVIEW "SEEK_PREVIEW"
 // saved copies (<home>/.pplay_save): parallel downloads, kept days (0: forever, by the last
 // access), size limit (GB, 0: none, the oldest access removed first)
 #define OPT_SAVE_THREADS "SAVE_THREADS"
@@ -155,6 +159,8 @@ public:
     // TorrServer: the torrents list and the viewed marks asked again after (s)
     static const char *networkSyncOption(int index);
     static const char *networkSmbBufferOption(int index);
+    // TS Silo: its api token (got with the user and password, or typed)
+    static const char *networkTokenOption(int index);
 
     int getNetworkCount() const { return networkCount; }
 

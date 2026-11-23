@@ -237,8 +237,13 @@ void MenuMainOptionsSubmenu::refreshValues() {
         } else if (network > 0 && (Utility::endsWith(name, " sync") || Utility::endsWith(name, " smb"))) {
             pplay::Io::NetworkType type =
                     pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(network))->getString());
-            shown = type == (Utility::endsWith(name, " sync") ? pplay::Io::NetworkType::TorrServe
-                                                              : pplay::Io::NetworkType::Smb);
+            shown = Utility::endsWith(name, " sync") ? type == pplay::Io::NetworkType::TorrServe
+                                                             || type == pplay::Io::NetworkType::TorrServeSilo
+                                                     : type == pplay::Io::NetworkType::Smb;
+        } else if (network > 0 && Utility::endsWith(name, " token")) {
+            // TS Silo only
+            shown = pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(network))->getString()) ==
+                    pplay::Io::NetworkType::TorrServeSilo;
         } else if (network > 0 && (Utility::endsWith(name, " user") || Utility::endsWith(name, " password"))) {
             // DLNA has no login
             shown = pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(network))->getString()) !=

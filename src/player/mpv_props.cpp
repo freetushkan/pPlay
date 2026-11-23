@@ -60,10 +60,21 @@ void Mpv::refresh() {
     }
 }
 
+bool Mpv::isSeekBusy() {
+    // (its end missed: not for long)
+    seekBusy &= std::chrono::steady_clock::now() - seekAt < std::chrono::seconds(3);
+    return seekBusy;
+}
+
+void Mpv::startSeek() {
+    seekBusy = true;
+    seekAt = std::chrono::steady_clock::now();
+}
+
 bool Mpv::read(const char *name, mpv_format format, double *value) {
     Prop &p = props[name];
     auto now = std::chrono::steady_clock::now();
-    if (p.known && (p.watched ? now >= p.polled : saving && now - p.read < std::chrono::seconds(1))) {
+    if (p.known && (isSeekBusy() || (p.watched ? now >= p.polled : saving && now - p.read < std::chrono::seconds(1)))) {
         *value = p.value;
         return p.ok;
     }
@@ -101,15 +112,28 @@ int Mpv::save(bool wait) {
     return res;
 }
 
+// a state just set: known at once (its change comes later; reading mpv meanwhile waits for its
+// core, busy with a seek...)
+void Mpv::setKnown(const char *name, double value) {
+    Prop &p = props[name];
+    p.value = value;
+    p.ok = true;
+    p.known = true;
+}
+
 int Mpv::pause() {
     int res = mpv_command_string(handle, "set pause yes");
-    refresh();
+    if (res >= 0) {
+        setKnown("pause", 1);
+    }
     return res;
 }
 
 int Mpv::resume() {
     int res = mpv_command_string(handle, "set pause no");
-    refresh();
+    if (res >= 0) {
+        setKnown("pause", 0);
+    }
     return res;
 }
 
@@ -162,7 +186,9 @@ int Mpv::getOsdHeight() {
 int Mpv::seek(double position) {
     std::string cmd = "no-osd seek " + std::to_string(position);
     int res = mpv_command_string(handle, cmd.c_str());
-    refresh();
+    if (res >= 0) {
+        startSeek();
+    }
     // paused: a hardware decoder gives the new frame only with more input (MediaCodec...), one
     // frame stepped to show it
     std::string hwdec = getString("hwdec-current");
@@ -299,7 +325,10 @@ double Mpv::getTime() {
 int Mpv::seekTo(double time, bool exact) {
     std::string cmd = "no-osd seek " + std::to_string(time) + (exact ? " absolute+exact" : " absolute+keyframes");
     int res = mpv_command_string(handle, cmd.c_str());
-    refresh();
+    // (no reads from mpv while it seeks: they wait for it, frames lost)
+    if (res >= 0) {
+        startSeek();
+    }
     // paused: a hardware decoder gives the new frame only with more input, one frame stepped
     std::string hwdec = getString("hwdec-current");
     if (res >= 0 && isPaused() && !hwdec.empty() && hwdec != "no") {
@@ -324,6 +353,38 @@ long Mpv::getCacheSpeed() {
 
 double Mpv::getCacheDuration() {
     return getDouble("demuxer-cache-duration", -1);
+}
+
+bool Mpv::getCacheEnd(double *end, bool *eof) {
+    if (isSeekBusy()) {
+        *end = cacheEnd;
+        *eof = cacheEof;
+        return cacheOk;
+    }
+    mpv_node node;
+    if (!isAvailable() || mpv_get_property(handle, "demuxer-cache-state", MPV_FORMAT_NODE, &node) < 0) {
+        cacheOk = false;
+        return false;
+    }
+    bool found = false;
+    *eof = false;
+    if (node.format == MPV_FORMAT_NODE_MAP && node.u.list != nullptr) {
+        for (int i = 0; i < node.u.list->num; i++) {
+            const std::string key = node.u.list->keys[i];
+            const mpv_node &value = node.u.list->values[i];
+            if (key == "cache-end" && value.format == MPV_FORMAT_DOUBLE) {
+                *end = value.u.double_;
+                found = true;
+            } else if (key == "eof" && value.format == MPV_FORMAT_FLAG) {
+                *eof = value.u.flag != 0;
+            }
+        }
+    }
+    mpv_free_node_contents(&node);
+    cacheOk = found;
+    cacheEnd = *end;
+    cacheEof = *eof;
+    return found;
 }
 
 long Mpv::getFrameNumber() {
@@ -372,14 +433,19 @@ mpv_event *Mpv::getEvent() {
                 }
                 break;
             // a new state: read once (the changes may come after it)
+            // (a seek: once done, not while mpv seeks)
+            case MPV_EVENT_SEEK:
+                startSeek();
+                break;
             case MPV_EVENT_START_FILE:
             case MPV_EVENT_FILE_LOADED:
             case MPV_EVENT_END_FILE:
             case MPV_EVENT_IDLE:
-            case MPV_EVENT_SEEK:
             case MPV_EVENT_PLAYBACK_RESTART:
             case MPV_EVENT_VIDEO_RECONFIG:
             case MPV_EVENT_AUDIO_RECONFIG:
+                seekBusy &= event->event_id != MPV_EVENT_PLAYBACK_RESTART && event->event_id != MPV_EVENT_END_FILE
+                            && event->event_id != MPV_EVENT_IDLE;
                 refresh();
                 break;
             default:
@@ -398,12 +464,20 @@ mpv_render_context *Mpv::getContext() {
 }
 
 std::string Mpv::getString(const char *name) {
+    if (isSeekBusy()) {
+        auto known = strings.find(name);
+        if (known != strings.end()) {
+            return known->second;
+        }
+    }
     char *value = nullptr;
     if (!isAvailable() || mpv_get_property(handle, name, MPV_FORMAT_STRING, &value) < 0 || !value) {
+        strings[name] = "";
         return "";
     }
     std::string out = value;
     mpv_free(value);
+    strings[name] = out;
     return out;
 }
 

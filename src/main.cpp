@@ -23,6 +23,7 @@
 #if defined(__LINUX__) || defined(__PS5__) || defined(__SWITCH__) || defined(__ANDROID__)
 #include "crashlog.h"
 #endif
+#include "paths.h"
 #include "pplay_config.h"
 #include "utility.h"
 
@@ -170,7 +171,7 @@ void Main::createMenus() {
 
     items.clear();
     items.emplace_back("Playback mode", "pl_mode.png", MenuItem::Position::Top);
-    items.emplace_back("Playlist", "playlist.png", MenuItem::Position::Top);
+    items.emplace_back("Current playlist", "playlist.png", MenuItem::Position::Top);
     items.emplace_back("Audio", "audio.png", MenuItem::Position::Top);
     items.emplace_back("Video", "video.png", MenuItem::Position::Top);
     items.emplace_back("Subtitles", "subtitles.png", MenuItem::Position::Top);
@@ -188,6 +189,7 @@ void Main::createMenus() {
     items.emplace_back("Progress line", "progress_line.png", MenuItem::Position::Top);
     items.emplace_back("Sleep timer", "awake.png", MenuItem::Position::Top);
     items.emplace_back("Information", "info.png", MenuItem::Position::Top);
+    items.emplace_back("Settings", "options.png", MenuItem::Position::Top);
     items.emplace_back("Stop", "stop.png", MenuItem::Position::Bottom);
     menu_video = new MenuVideo(this, {Main::getSize().x, inset, 420 * scaling.x, Main::getSize().y - 2 * inset},
                                items);
@@ -227,6 +229,33 @@ void Main::setLanguage(const std::string &code) {
     retranslate();
 }
 
+// TS Silo: a token got with the user and password written next to them
+void Main::keepSiloTokens() {
+    bool changed = false;
+    for (auto &token: pplay::TorrServe::takeTokens()) {
+        for (int i = 1; i <= config->getNetworkCount(); i++) {
+            std::string url =
+                    pplay::Paths::ensureTrailingSlash(config->getOption(PPLAYConfig::networkOption(i))->getString());
+            if (pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(i))->getString())
+                        == pplay::Io::NetworkType::TorrServeSilo
+                && c2d::Utility::toLower(url) == c2d::Utility::toLower(token.root)
+                && config->getOption(PPLAYConfig::networkUserOption(i))->getString() == token.user
+                && config->getOption(PPLAYConfig::networkPasswordOption(i))->getString() == token.password) {
+                config->getOption(PPLAYConfig::networkTokenOption(i))->setString(token.token);
+                changed = true;
+                pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                                    "Main: network " + std::to_string(i) + ": Silo token kept");
+            }
+        }
+    }
+    if (changed) {
+        config->save();
+        if (menu_main != nullptr) {
+            menu_main->updateNetworks();
+        }
+    }
+}
+
 void Main::applyConfig() {
     pplay::Utility::setLogLevel((pplay::Utility::LogLevel) config->getOption(OPT_LOG_LEVEL)->getInteger());
     int codePage = config->getOption(OPT_TEXT_ENCODING)->getInteger();
@@ -242,6 +271,7 @@ void Main::applyConfig() {
     for (int i = 1; i <= config->getNetworkCount(); i++) {
         access += "\n" + config->getOption(PPLAYConfig::networkUserOption(i))->getString() + "\n"
                   + config->getOption(PPLAYConfig::networkPasswordOption(i))->getString() + "\n"
+                  + config->getOption(PPLAYConfig::networkTokenOption(i))->getString() + "\n"
                   + config->getOption(PPLAYConfig::networkTlsOption(i))->getString();
     }
     static std::string appliedAccess;
@@ -282,6 +312,8 @@ Main::~Main() {
 }
 
 bool Main::onInput(c2d::Input::Player *players) {
+    // (a press handled: not given again as missed)
+    pplay::InputMap::noteSeen(players[0].buttons);
     // the black screen: any key brings the interface back, nothing else
     if (blackout->isVisible()) {
         unsigned int pressed = players[0].buttons;
@@ -375,6 +407,7 @@ void Main::onUpdate() {
     }
 
     pplay::Saved::update();
+    keepSiloTokens();
 #ifdef __ANDROID__
     static C2DClock viewClock;
     if (viewClock.getElapsedTime().asMilliseconds() > 500) {
@@ -421,6 +454,25 @@ void Main::onUpdate() {
 #endif
     // awake while playing or saving, otherwise until the standby time (0: system timers, -1: never)
     bool playing = player != nullptr && !player->getMpv()->isStopped() && !player->getMpv()->isPaused();
+    if (playing) {
+        playbackClock.restart();
+        hadPlayback = true;
+    }
+    // An end-of-file sleep is intentional; other short stopped gaps after playback are
+    // replacements (mpv may stop before the next file starts).
+    bool endSleep = player != nullptr && player->takeEndSleep();
+    bool transitioning = player != nullptr && !playing && !endSleep
+                         && (player->isLoading()
+                             || (hadPlayback && playbackClock.getElapsedTime().asSeconds() < 3.0f));
+    if (transitioning) {
+        idleClock.restart();
+        sleepAsked = false;
+        if (sleepCountdown) {
+            sleepCountdown = false;
+            statusBox->hide();
+        }
+    }
+    bool activePlayback = playing || transitioning;
     // the user elsewhere, or back from the background / a suspend (no frames meanwhile): the
     // idle time starts over
     static C2DClock frameClock;
@@ -437,7 +489,7 @@ void Main::onUpdate() {
     int standby = config->getOption(OPT_STANDBY_TIME)->getInteger();
     int sleepMinutes = config->getOption(OPT_SLEEP_TIMER)->getInteger();
     bool awake = blackout->isVisible() || sleepCountdown
-                 || (!sleepAsked && (playing || pplay::Saved::busy() || standby < 0 || (standby > 0 && idle < (float) standby * 60)));
+                 || (!sleepAsked && (activePlayback || pplay::Saved::busy() || standby < 0 || (standby > 0 && idle < (float) standby * 60)));
     pplay::Platform::keepAwake(awake, playing);
     if (idle < 1) {
         sleepAsked = false;
@@ -447,12 +499,11 @@ void Main::onUpdate() {
             statusBox->hide();
         }
     }
-    bool endSleep = player != nullptr && player->takeEndSleep();
     if (!sleepAsked && (endSleep || (playing && sleepMinutes > 0 && idle >= (float) sleepMinutes * 60))) {
         sleepAsked = true;
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: sleep timer");
         startSleepCountdown();
-    } else if (!sleepAsked && !playing && !pplay::Saved::busy() && standby > 0 && idle >= (float) standby * 60) {
+    } else if (!sleepAsked && !activePlayback && !pplay::Saved::busy() && standby > 0 && idle >= (float) standby * 60) {
         sleepAsked = true;
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: standby time");
         startSleepCountdown();
@@ -480,7 +531,7 @@ void Main::onUpdate() {
 
     // media keys and other devices
     unsigned int other = pplay::InputMap::update();
-    unsigned int pending = pplay::InputMap::takePending() | other;
+    unsigned int pending = pplay::InputMap::takePending() | other | pplay::InputMap::takeMissed();
     if (pending != 0) {
         Input::Player *players = getInput()->getPlayers();
         unsigned int saved = players[0].buttons;
@@ -595,7 +646,73 @@ int Main::showMessage(const std::string &title, const std::string &message, cons
         messageBox->getButton(i)->getText()->setOutlineThickness(0);
     }
 
-    return messageBox->show(title, message, buttonLeft, buttonRight);
+    // the box shown (no buttons: not waiting), then its buttons here: the keys of all the
+    // inputs (remotes, other controllers, a touch or a click), not only the libcross2d ones
+    messageBox->show(title, message, "", "");
+    int choices = buttonRight.empty() ? (buttonLeft.empty() ? 0 : 1) : 2;
+    if (choices == 0) {
+        return MessageBox::LEFT;
+    }
+    Button *left = messageBox->getButton(0), *right = messageBox->getButton(1);
+    float y = messageBox->getSize().y - left->getSize().y - 16;
+    left->setText(buttonLeft);
+    left->setPosition(choices == 1 ? messageBox->getSize().x / 2 : messageBox->getSize().x / 3 - 8, y);
+    left->setVisibility(Visibility::Visible);
+    if (choices == 2) {
+        right->setText(buttonRight);
+        right->setPosition(messageBox->getSize().x / 3 * 2 + 8, y);
+        right->setVisibility(Visibility::Visible);
+    }
+    auto paint = [&](int index) {
+        for (int i = 0; i < choices; i++) {
+            Button *b = messageBox->getButton(i);
+            bool on = i == index;
+            b->setFillColor(on ? COLOR_ACCENT : COLOR_BG);
+            b->setOutlineColor(on ? COLOR_FONT : Color(150, 150, 150));
+            b->getText()->setFillColor(on ? COLOR_FONT : Color(150, 150, 150));
+        }
+    };
+    int index = 0, result = -1;
+    paint(index);
+    getInput()->clear(0);
+    pplay::InputMap::takePending();
+    // the touch that opened it: once released
+    bool touchReleased = false;
+    while (result < 0) {
+        Input::Player *players = getInput()->update();
+        unsigned int keys = players[0].buttons;
+        if (keys == Input::Button::Delay) {
+            keys = 0;
+        }
+        keys |= pplay::InputMap::update() | pplay::InputMap::takePending();
+        pplay::InputMap::noteSeen(keys);
+        keys |= pplay::InputMap::takeMissed();
+        if (!(keys & Input::Touch)) {
+            touchReleased = true;
+        }
+        if ((keys & Input::Touch) && touchReleased) {
+            touchReleased = false;
+            for (int i = 0; i < choices; i++) {
+                if (messageBox->getButton(i)->getGlobalBounds().contains(players[0].touch)) {
+                    index = i;
+                    result = i == 1 ? MessageBox::RIGHT : MessageBox::LEFT;
+                }
+            }
+        } else if (keys & Input::Left) {
+            index = std::max(0, index - 1);
+        } else if (keys & Input::Right) {
+            index = std::min(choices - 1, index + 1);
+        } else if (keys & Input::A) {
+            result = index == 1 ? MessageBox::RIGHT : MessageBox::LEFT;
+        } else if (keys & (Input::B | Input::Quit)) {
+            result = MessageBox::CANCEL;
+        }
+        paint(index);
+        c2d_renderer->flip(true, false);
+    }
+    messageBox->setVisibility(Visibility::Hidden);
+    getInput()->clear(0);
+    return result;
 }
 
 StatusBox *Main::getStatus() {

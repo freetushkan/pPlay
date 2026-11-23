@@ -48,7 +48,15 @@ void VideoTexture::onDraw(c2d::Transform &transform, bool draw) {
         mpv_render_context *ctx = main->getPlayer()->getMpv()->getContext();
         if (ctx != nullptr) {
             uint64_t flags = mpv_render_context_update(ctx);
-            if (flags > 0 || forceDraw) { // flags & MPV_RENDER_UPDATE_FRAME
+            // seeking with the visualizer: its last frame kept till the key is released (made
+            // again by each seek), the frames still taken from mpv
+            Player *player = main->getPlayer();
+            int frozen = player->isScrubbing() && player->getMpv()->hasVisualizer() ? 1 : 0;
+            if (frozen && flags > 0) {
+                mpv_render_param skip[] = {{MPV_RENDER_PARAM_SKIP_RENDERING, &frozen},
+                                           {MPV_RENDER_PARAM_INVALID, nullptr}};
+                mpv_render_context_render(ctx, skip);
+            } else if (flags > 0 || forceDraw) { // flags & MPV_RENDER_UPDATE_FRAME
                 int zero{0};
                 mpv_opengl_fbo mpv_fbo;
                 std::memset(&mpv_fbo, 0, sizeof(mpv_fbo));

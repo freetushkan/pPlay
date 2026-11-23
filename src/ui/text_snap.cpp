@@ -4,6 +4,9 @@
 // The font atlas is point filtered and the glyphs are placed at "font offset * size / 24"
 // (half pixels for some sizes: -4 * 27 / 24 = -4.5): there, each glyph samples its texels
 // right on their edges and some letters ("р", "ц"...) end up a pixel lower than the others.
+// Its glyph quads checked against its font page size too: made at its update, a page grown
+// later (new glyphs of another text in the frame, its own, or while its parent was not
+// updated) drew them on the wrong texels (garbage while texts change: a file opened).
 //
 
 #include <cmath>
@@ -18,6 +21,16 @@ namespace c2d {
         }
 
         if (draw) {
+            // (a page may grow again while the quads are made)
+            for (int pass = 0; pass < 3 && !m_font->isBmFont(); pass++) {
+                Vector2i texSize = m_font->getTexture(m_characterSize)->getTextureSize();
+                if (texSize == m_textureSize) {
+                    break;
+                }
+                m_textureSize = texSize;
+                m_geometryNeedUpdate = true;
+                ensureGeometryUpdate();
+            }
             Transform combined = transform * getTransform();
             const float *m = combined.getMatrix();
             // not rotated: snap the glyphs origin to the pixel grid (the window scale too)

@@ -9,6 +9,7 @@
 #include "media_file.h"
 #include "clip_rect.h"
 #include "highlight.h"
+#include "icon_sprite.h"
 
 class Main;
 
@@ -17,6 +18,9 @@ class FilerItem : public c2d::Rectangle {
 public:
 
     FilerItem(Main *main, const c2d::FloatRect &rect, const MediaFile &file = {});
+
+    // its icon in lists
+    static std::string iconOf(const MediaFile &file);
 
     void setFile(const MediaFile &file);
 
@@ -48,9 +52,9 @@ private:
     c2d::Text *check;
     c2d::Text *check2;
     float textX = 0, textWidth = 0;
-    c2d::Sprite *icon;
+    pplay::IconSprite *icon;
     // saved copies inside / being saved (network rows): a floppy / a progress ring
-    c2d::Sprite *savedMark;
+    pplay::IconSprite *savedMark;
     // shown left of x: its width with the gap, 0 if none
     float updateSavedMark(float right);
     c2d::Rectangle *clip;
@@ -63,6 +67,12 @@ private:
     float iconSize = 0;
 
     bool lastFullscreen = false;
+    // the playing file icon shows the pause
+    bool shownPaused = false;
+    // its stream url and player key (from its path, made once)
+    std::string streamUrl, playKey;
+
+    bool isPlaying() const;
     // the TorrServer marks shown: from this answer
     unsigned int viewedGeneration = 0;
     unsigned int savedGeneration = 0;

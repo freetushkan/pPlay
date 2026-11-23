@@ -2,9 +2,12 @@
 // Player menus: tracks, playlist, playback mode, normalization.
 //
 
+#include <algorithm>
+
 #include "main.h"
 #include "player.h"
 #include "menu_video_submenu.h"
+#include "player_osd.h"
 #include "encodings.h"
 
 using namespace c2d;
@@ -77,11 +80,11 @@ void Player::buildMenus() {
 
     if (menuPlaybackMode == nullptr) {
         menuPlaybackMode = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "At file end..",
-                                                {MenuItem("Stop playback", "", MenuItem::Position::Top, 0),
-                                                 MenuItem("Play next", "", MenuItem::Position::Top, 1),
-                                                 MenuItem("Loop file", "", MenuItem::Position::Top, 2),
-                                                 MenuItem("Loop directory", "", MenuItem::Position::Top, 3),
-                                                 MenuItem("Shuffle", "", MenuItem::Position::Top, 4)},
+                                                {MenuItem("Stop playback", "pl_stop.png", MenuItem::Position::Top, 0),
+                                                 MenuItem("Play next", "pl_next.png", MenuItem::Position::Top, 1),
+                                                 MenuItem("Loop file", "pl_loop_file.png", MenuItem::Position::Top, 2),
+                                                 MenuItem("Loop directory", "pl_loop_directory.png", MenuItem::Position::Top, 3),
+                                                 MenuItem("Shuffle", "pl_shuffle.png", MenuItem::Position::Top, 4)},
                                                 MENU_VIDEO_TYPE_PL_MODE);
         menuPlaybackMode->setLayer(3);
         menuPlaybackMode->setVisibility(Visibility::Hidden, false);
@@ -132,13 +135,14 @@ void Player::buildTrackMenus() {
 }
 
 void Player::buildPlaylistMenu() {
-    delete (menuPlaylist);
-    menuPlaylist = nullptr;
     std::vector<MenuItem> playlistItems;
+    std::string key;
     if (isPlaylistFile()) {
+        key = "m3u:" + file.path;
         for (auto &entry: mpv->getPlaylistItems()) {
-            std::string name = std::to_string(entry.first + 1) + ". " + entry.second;
-            playlistItems.emplace_back(name, "", MenuItem::Position::Top, entry.first);
+            playlistItems.emplace_back(entry.second, "", MenuItem::Position::Top, entry.first);
+            playlistItems.back().badge = std::to_string(entry.first + 1);
+            key += "\n" + entry.second;
         }
     } else {
         // shuffled: in its order
@@ -162,14 +166,37 @@ void Player::buildPlaylistMenu() {
                 continue;
             }
             size_t number = shuffleOrder.empty() ? order[n] + 1 : n + 1;
-            std::string name = std::to_string(number) + ". " + encoding::fix(item.label.empty() ? item.name : item.label);
-            playlistItems.emplace_back(name, "", MenuItem::Position::Top, (int) order[n], true, item.name);
+            std::string name = encoding::fix(item.label.empty() ? item.name : item.label);
+            playlistItems.emplace_back(name, "", MenuItem::Position::Top, (int) order[n], true, item.path);
+            playlistItems.back().badge = std::to_string(number);
+            key += "\n" + std::to_string(number) + " " + item.path;
         }
     }
+    // the numbers in one column: as wide as the widest
+    size_t chars = 1;
+    for (auto &item: playlistItems) {
+        chars = std::max(chars, item.badge.size());
+    }
+    for (auto &item: playlistItems) {
+        item.badgeChars = (int) chars;
+    }
+    // the same list: kept (shown, its focus), the playing one marked
+    if (menuPlaylist != nullptr && key == playlistKey) {
+        menuPlaylist->updateSelectionHighlight();
+        return;
+    }
+    // another list (shuffled meanwhile): shown again if it was
+    bool shown = menuPlaylist != nullptr && menuPlaylist->isVisible();
+    delete (menuPlaylist);
+    menuPlaylist = nullptr;
+    playlistKey = key;
     if (!playlistItems.empty()) {
-        menuPlaylist = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Playlist", playlistItems,
-                                            MENU_VIDEO_TYPE_PLAYLIST);
+        menuPlaylist = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Current playlist",
+                                            playlistItems, MENU_VIDEO_TYPE_PLAYLIST);
         menuPlaylist->setVisibility(Visibility::Hidden, false);
+        if (shown) {
+            menuPlaylist->setVisibility(Visibility::Visible, false);
+        }
         menuPlaylist->setLayer(3);
         main->add(menuPlaylist);
     }
@@ -198,8 +225,13 @@ bool Player::isMenuVisible() const {
     return false;
 }
 
+void Player::showOsd() {
+    osd->expand(true);
+}
+
 void Player::hideMenus() {
     main->getMenuVideo()->setVisibility(Visibility::Hidden, true);
+    main->getMenuMain()->closePlayerSettings();
     for (auto *menu: menus()) {
         menu->setVisibility(Visibility::Hidden, true);
     }
@@ -210,11 +242,16 @@ void Player::deleteMenus(bool all) {
                        &menuNormalize, &menuVisualizer, &menuSpeed, &menuBrightness}) {
         // the file independent ones are kept between files
         bool kept = menu == &menuPlaybackMode || menu == &menuNormalize || menu == &menuVisualizer
-                    || menu == &menuSpeed || menu == &menuBrightness;
+                    || menu == &menuSpeed || menu == &menuBrightness
+                    // its list may stay (another file of it)
+                    || menu == &menuPlaylist;
         if (*menu != nullptr && (all || !kept)) {
             delete (*menu);
             *menu = nullptr;
         }
+    }
+    if (all) {
+        playlistKey.clear();
     }
 }
 

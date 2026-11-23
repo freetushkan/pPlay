@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include "cross2d/c2d.h"
+#include "icon_sprite.h"
 
 class Main;
 
@@ -67,7 +68,7 @@ private:
     std::string language;
     std::vector<c2d::RectangleShape *> items;
     std::vector<c2d::Text *> texts;
-    std::vector<c2d::Sprite *> icons;
+    std::vector<pplay::IconSprite *> icons;
     bool buttons = false;
     int focus = -1;
     float height = 0;

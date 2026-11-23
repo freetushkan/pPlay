@@ -20,9 +20,10 @@ std::string Player::visualizerGraph() const {
     char accent[160];
     snprintf(accent, sizeof(accent), "lutrgb=r='val*%d/255':g='val*%d/255':b='val*%d/255'", COLOR_ACCENT.r,
              COLOR_ACCENT.g, COLOR_ACCENT.b);
-    // no DC / rumble: the first two bins (log scale) dropped, they would stay up
+    // no DC / rumble: the first two bins (log scale) dropped, they would stay up; the last two
+    // too (over ~16 kHz, empty in most files: the bands looked off center)
     return "aformat=channel_layouts=mono,highpass=f=40,"
-           "showfreqs=s=34x40:mode=bar:ascale=log:fscale=log:win_size=2048:overlap=0.5:averaging=2:colors=white,"
+           "showfreqs=s=36x40:mode=bar:ascale=log:fscale=log:win_size=2048:overlap=0.5:averaging=2:colors=white,"
            "crop=32:24:2:0,format=gray,split[bands][held];"
            "[held]lagfun=decay=0.95,lut=y='if(gt(val,40),255,0)',split[peaks][below];"
            "[below]pad=32:25:0:1,crop=32:24:0:0[shifted];"
@@ -31,7 +32,8 @@ std::string Player::visualizerGraph() const {
            + "[top];"
              "[bands]format=gbrp,lutrgb=r='val*208/255':g='val*208/255':b='val*208/255'[gray];"
              "[gray][top]blend=all_expr='if(gt(B,0),B,A)',scale=128:96:flags=neighbor,format=yuv444p,"
-             "drawgrid=w=4:h=4:t=1:c=black,scale=1024:576:flags=neighbor,format=yuv420p";
+             // the grid lines on both sides: the bands centered
+             "drawgrid=w=4:h=4:t=1:c=black,pad=129:97:0:0:black,scale=1024:576:flags=neighbor,format=yuv420p";
 }
 
 void Player::clearAudioScreen() {
