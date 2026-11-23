@@ -1,20 +1,7 @@
-name: P2Play network module
+name: Linux
 
 on:
   pull_request:
-    paths:
-      - "src/app/io.*"
-      - "src/net/net_http.*"
-      - "src/net/p2play.*"
-      - "src/player/player.cpp"
-      - "src/filer/filer.cpp"
-      - "src/main.cpp"
-      - "CMakeLists.txt"
-      - "ci/linux-static-deps.sh"
-      - "ci/mpv-mkv-noindex-seek.patch"
-      - "ci/linux-appimage.sh"
-      - ".github/workflows/main.yml"
-      - ".github/workflows/p2play-network.yml"
   workflow_dispatch:
 
 jobs:
@@ -71,25 +58,3 @@ jobs:
         run: |
           cd cmake-build
           make pplay_linux_release -j$(nproc) VERBOSE=1
-          # Keep a matching separate debug file; the AppImage remains compact.
-          objcopy --only-keep-debug release/pplay/pplay pplay.debug
-          strip --strip-debug release/pplay/pplay
-          objcopy --add-gnu-debuglink=pplay.debug release/pplay/pplay
-          ldd release/pplay/pplay || true
-
-      - name: Build AppImage
-        run: |
-          ci/linux-appimage.sh cmake-build
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pPlay-Linux
-          path: "cmake-build/pPlay-x86_64.AppImage"
-
-      - name: Upload debug symbols
-        uses: actions/upload-artifact@v4
-        with:
-          name: pPlay-Symbols-Linux
-          path: "cmake-build/pplay.debug"
-          retention-days: 90

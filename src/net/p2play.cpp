@@ -43,7 +43,7 @@ namespace {
     }
 
     std::string cleanRoot(const std::string &root) {
-        std::string value = pplay::PPLAYConfig::withoutCredentials(root);
+        std::string value = PPLAYConfig::withoutCredentials(root);
         if (!value.empty() && value.back() != '/') {
             value += '/';
         }
