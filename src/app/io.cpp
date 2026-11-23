@@ -13,6 +13,8 @@
 #include "pplay_config.h"
 #include "net_http.h"
 #include "torrserve.h"
+#include "p2play.h"
+#include "saved.h"
 #include "dlna.h"
 #include "ftp.h"
 #ifdef __SWITCH__
@@ -73,7 +75,7 @@ Io *Io::get() {
 }
 
 const std::vector<std::string> &Io::networkTypeNames() {
-    static const std::vector<std::string> names = {"TorrServe", "Samba", "FTP", "HTTP", "WebDAV", "DLNA"};
+    static const std::vector<std::string> names = {"TorrServe", "P2Play", "Samba", "FTP", "HTTP", "WebDAV", "DLNA"};
     return names;
 }
 
@@ -81,6 +83,9 @@ Io::NetworkType Io::parseNetworkType(const std::string &name) {
     const std::string n = c2d::Utility::toLower(name);
     if (n == "torrserve" || n == "torrserver") {
         return NetworkType::TorrServe;
+    }
+    if (n == "p2play") {
+        return NetworkType::P2Play;
     }
     if (n == "samba" || n == "smb") {
         return NetworkType::Smb;
@@ -154,6 +159,10 @@ std::vector<c2d::Io::File> Io::list(const DeviceType &type, const std::string &p
         files = pplay::TorrServe::getDirList(path, timeout, &failed);
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
                             "Io::TorrServe path=" + path + " entries=" + std::to_string(files.size()));
+    } else if (type == DeviceType::P2Play) {
+        files = pplay::P2Play::getDirList(path, timeout, &failed);
+        pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                            "Io::P2Play path=" + path + " entries=" + std::to_string(files.size()));
     } else if (type == DeviceType::Ftp) {
         files = Ftp::list(path, timeout, &failed);
     } else if (type == DeviceType::Dlna) {
@@ -327,12 +336,22 @@ std::string Io::withCredentials(const std::string &url) {
     return url.substr(0, scheme) + Http::escape(user) + ":" + Http::escape(password) + "@" + url.substr(host);
 }
 
+std::string Io::streamUrl(const std::string &path) {
+    const std::string original = Saved::originalOf(path);
+    if (getDeviceType(original) == DeviceType::P2Play) {
+        return P2Play::toStreamUrl(original);
+    }
+    return TorrServe::toStreamUrl(path);
+}
+
 Io::DeviceType Io::getDeviceType(const std::string &path) {
     int index = findNetwork(path, true);
     if (index > 0) {
         switch (parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString())) {
             case NetworkType::TorrServe:
                 return DeviceType::TorrServe;
+            case NetworkType::P2Play:
+                return DeviceType::P2Play;
             case NetworkType::Smb:
                 return DeviceType::Smb;
             case NetworkType::Ftp:

@@ -1,0 +1,42 @@
+name: P2Play network module
+
+on:
+  pull_request:
+    paths:
+      - "src/app/io.*"
+      - "src/net/net_http.*"
+      - "src/net/p2play.*"
+      - "src/player/player.cpp"
+      - "src/filer/filer.cpp"
+      - "src/main.cpp"
+      - "CMakeLists.txt"
+      - ".github/workflows/p2play-network.yml"
+  workflow_dispatch:
+
+jobs:
+  linux-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake pkg-config \
+            libmpv-dev libass-dev libavcodec-dev libavformat-dev libavfilter-dev \
+            libavutil-dev libswscale-dev libswresample-dev libbz2-dev \
+            libcurl4-openssl-dev libfreetype-dev libfontconfig1-dev \
+            libexpat1-dev zlib1g-dev libpng-dev libssl-dev libgl-dev libglm-dev \
+            libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libxfixes-dev libxss-dev libxkbcommon-dev libwayland-dev wayland-protocols \
+            libegl-dev libdrm-dev libgbm-dev libpulse-dev libasound2-dev \
+            libpipewire-0.3-dev libdbus-1-dev libudev-dev
+
+      - name: Configure
+        run: cmake -S . -B cmake-build-p2play -DPLATFORM_LINUX=ON -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build cmake-build-p2play --target pplay -j2

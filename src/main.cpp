@@ -12,6 +12,7 @@
 #include "saved.h"
 #include "folder_marks.h"
 #include "torrserve.h"
+#include "p2play.h"
 #include "playlists.h"
 #include "menu_main_items.h"
 #include "i18n.h"
@@ -247,6 +248,7 @@ void Main::applyConfig() {
     static bool accessApplied = false;
     if (accessApplied && access != appliedAccess) {
         pplay::TorrServe::forgetFailures();
+        pplay::P2Play::forgetFailures();
         if (filer != nullptr) {
             filer->refresh();
         }

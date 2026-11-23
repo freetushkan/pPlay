@@ -41,6 +41,7 @@ namespace pplay {
             Ftp,
             Smb,
             TorrServe,
+            P2Play,
             WebDav,
             Dlna
         };
@@ -49,6 +50,7 @@ namespace pplay {
         enum class NetworkType {
             Auto,
             TorrServe,
+            P2Play,
             Smb,
             Ftp,
             Http,
@@ -75,6 +77,9 @@ namespace pplay {
 
         // root url of the network the path belongs to, or ""
         std::string getNetworkRoot(const std::string &path);
+
+        // Playback URL for a virtual/network file (TorrServer, P2Play, HTTP, DLNA, etc.)
+        std::string streamUrl(const std::string &path);
 
         // the user and password of the network of an url (its options, over the url ones), false if none
         bool credentialsOf(const std::string &url, std::string *user, std::string *password);

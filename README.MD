@@ -22,7 +22,8 @@ Supported features:
 Supported protocols & networks:
 - HTTP(S), FTP, WebDAV, and SMB/Samba (`smb://`);
 - DLNA / UPnP media servers;
-- TorrServer client integration.
+- TorrServer client integration;
+- P2Play MediaMesh network client (catalog discovery, subscriptions, tag browsing and native streaming).
 
 pPlay uses the [MPV](https://mpv.io/) interface to handle FFmpeg interoperability, providing a fast, stable and powerful playback experience.
 
@@ -97,6 +98,7 @@ Settings > Networks > Add network creates a network, Settings > Networks > Netwo
 
 * **Type** (`type`):
   * `TorrServe` — TorrServer api (`http(s)://host:8090/`, may be behind a reverse proxy sub path);
+  * `P2Play` — native MediaMesh API (`http(s)://host:8090/`); the configured user must be allowed to subscribe to lists;
   * `WebDAV` — `http(s)://host/path/` (Nextcloud, nginx dav, rclone serve webdav...);
   * `DLNA` — a media server, its device description url (`http://host:8200/rootDesc.xml`), or just `http://host:port/`;
   * `Samba` (`smb://host/share/`), `FTP` (`ftp://`), `HTTP` (`http(s)://` directory listing).
@@ -107,6 +109,12 @@ Settings > Networks > Add network creates a network, Settings > Networks > Netwo
 * **Search servers** (`DLNA`, `TorrServe`, `Samba`): the servers of the local network (TorrServer and Samba:
   the addresses of its /24 tried, ports 8090 and 445); `smb://host/` lists its shares.
 * **Move up**, **Move down**, **Delete network**.
+
+P2Play:
+
+* pPlay verifies the server through the public `/api/p2play/version` endpoint and authenticates with a Bearer token;
+* Discover and My lists expose MediaMesh list directories; opening a discovered catalog requests its subscription (the server requires an admin-rank account for subscriptions);
+* Search by tag browses indexed records; opening a record adds it to the user's P2Play library and opens its native stream API.
 
 TorrServer:
 

@@ -13,6 +13,7 @@
 #include "round_rect.h"
 #include "utility.h"
 #include "torrserve.h"
+#include "io.h"
 #include "saved.h"
 #include "offline.h"
 #include "playlists.h"
@@ -400,7 +401,7 @@ void Filer::resetProgress(const MediaFile &file) {
     if (main->getPlayer()->isPlaying(file.path)) {
         main->getPlayer()->forgetProgress();
     }
-    std::string url = pplay::TorrServe::toStreamUrl(file.path);
+    std::string url = pplay::Io::get()->streamUrl(file.path);
     if (pplay::Utility::isWatchLaterExist(url)) {
         main->getStatus()->show("Info", "Removing local watch later data");
         pplay::Utility::deleteWatchLater(url);
@@ -545,7 +546,7 @@ void Filer::markWatched(const MediaFile &file) {
         main->getStatus()->show("Error", "Unknown duration, play the file first");
         return;
     }
-    pplay::Utility::setWatchLaterWatched(pplay::TorrServe::toStreamUrl(file.path), (double) duration);
+    pplay::Utility::setWatchLaterWatched(pplay::Io::get()->streamUrl(file.path), (double) duration);
     pplay::TorrServe::setFileViewed(file.path, (double) duration);
     main->getStatus()->show("Info", "Marked as watched");
     dirty = true;
@@ -560,7 +561,7 @@ void Filer::markFolder(const MediaFile &dir, bool watched) {
     int count = 0;
     for (auto &file: list) {
         std::string path = pplay::Saved::originalOf(file.path);
-        std::string url = pplay::TorrServe::toStreamUrl(path);
+        std::string url = pplay::Io::get()->streamUrl(path);
         bool local = pplay::Utility::isWatchLaterExist(url);
         bool server = pplay::TorrServe::isFileViewed(path);
         // the opened file: no more saves over the change
