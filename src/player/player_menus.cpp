@@ -81,7 +81,7 @@ void Player::buildMenus() {
     if (menuPlaybackMode == nullptr) {
         menuPlaybackMode = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "At file end..",
                                                 {MenuItem("Stop playback", "pl_stop.png", MenuItem::Position::Top, 0),
-                                                 MenuItem("Play next", "btn_next.png", MenuItem::Position::Top, 1),
+                                                 MenuItem("Play next", "pl_next.png", MenuItem::Position::Top, 1),
                                                  MenuItem("Loop file", "pl_loop_file.png", MenuItem::Position::Top, 2),
                                                  MenuItem("Loop directory", "pl_loop_directory.png", MenuItem::Position::Top, 3),
                                                  MenuItem("Shuffle", "pl_shuffle.png", MenuItem::Position::Top, 4)},
