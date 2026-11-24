@@ -20,6 +20,7 @@
 #include "input_map.h"
 #include "io.h"
 #include "discovery.h"
+#include "p2play.h"
 
 using namespace c2d;
 
