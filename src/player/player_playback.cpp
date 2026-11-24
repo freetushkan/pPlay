@@ -16,9 +16,7 @@
 #include "history.h"
 #include "i18n.h"
 #include "filer.h"
-#include "torrserve.h"
-#include "p2play.h"
-#include "saved.h"
+#include "io.h"
 
 using namespace c2d;
 
@@ -263,7 +261,7 @@ bool Player::scheduleReload(const std::string &reason, bool counted) {
         retryCount++;
     }
     reloadPending = true;
-    // a sleeping source (TorrServer torrent) takes a while to wake up
+    // a sleeping network source may take a while to wake up
     reloadDelayMs = counted ? std::min(5000 * retryCount, 30000) : 500;
     reloadPosition = lastTime;
     reloadPaused = userPaused;
@@ -303,17 +301,11 @@ void Player::saveProgress(bool wait) {
     }
     mpv->save(wait);
     if (syncsProgress() && lastKnownPosition > 0) {
-        const auto device = pplay::Io::get()->getDeviceType(pplay::Saved::originalOf(file.path));
-        if (device == pplay::Io::DeviceType::P2Play) {
-            std::string error;
-            if (!pplay::P2Play::setFileProgress(file.path, (double) lastKnownPosition,
-                                                (double) lastKnownDuration,
-                                                pplay::Io::get()->networkTimeout(file.path), &error) &&
-                !error.empty()) {
-                pplay::Utility::log(pplay::Utility::LogLevel::Debug, "P2Play progress write: " + error);
-            }
-        } else {
-            pplay::TorrServe::setFileProgress(file.path, (double) lastKnownPosition, (double) lastKnownDuration);
+        auto *io = pplay::Io::get();
+        std::string error;
+        if (io != nullptr && !io->setPlaybackProgress(file.path, (double) lastKnownPosition,
+                                                       (double) lastKnownDuration, &error) && !error.empty()) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Server progress write: " + error);
         }
     }
 }

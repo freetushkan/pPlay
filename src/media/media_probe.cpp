@@ -11,15 +11,11 @@
 #include "cover.h"
 #include "io.h"
 #include "media_probe.h"
-#include "torrserve.h"
-#include "saved.h"
 #include "offline.h"
 #include "utility.h"
 
 #define SETTLE_MS 400
 #define PROBE_TRIES 3
-// TorrServer marks the streamed files viewed
-#define UNVIEW_DELAY_MS 2000
 
 namespace {
     std::string tag(AVDictionary *metadata, const char *key) {
@@ -125,9 +121,10 @@ MediaProbe::~MediaProbe() {
     }
 }
 
-// offline, no saved copy: not asked at all
+// offline, no local copy: not asked at all
 static bool unreachable(const std::string &path) {
-    return pplay::Offline::isOffline(path) && pplay::Saved::localCopy(path).empty();
+    auto *io = pplay::Io::get();
+    return pplay::Offline::isOffline(path) && (io == nullptr || io->localCopy(path).empty());
 }
 
 void MediaProbe::request(const MediaFile &file) {
@@ -223,14 +220,8 @@ bool MediaProbe::poll(MediaFile *file) {
 int MediaProbe::run(void *data) {
     auto *self = (MediaProbe *) data;
     auto *io = pplay::Io::get();
-    std::string url = pplay::Saved::localCopy(self->job.path);
-    if (url.empty()) {
-        url = io != nullptr && io->getDeviceType(self->job.path) == pplay::Io::DeviceType::P2Play
-                  ? io->streamUrl(self->job.path) : pplay::Saved::openUrl(self->job.path);
-    }
-    bool torrent = url.find("://") != std::string::npos &&
-                   io != nullptr && io->getDeviceType(self->job.path) == pplay::Io::DeviceType::TorrServe;
-    bool viewed = torrent && pplay::TorrServe::isFileViewed(self->job.path, true);
+    const bool restoreTransientState = io != nullptr && io->prepareMediaProbe(self->job.path);
+    const std::string url = io != nullptr ? io->mediaProbeUrl(self->job.path) : self->job.path;
     std::string error;
     MediaInfo info;
     bool failed = true;
@@ -275,10 +266,7 @@ int MediaProbe::run(void *data) {
                                                                 + std::to_string(info.audios.size()) + "a "
                                                                 + std::to_string(info.subtitles.size()) + "s)");
     self->probed = true;
-    if (torrent && !viewed) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(UNVIEW_DELAY_MS));
-        pplay::TorrServe::remFileViewed(self->job.path);
-    }
+    if (io != nullptr) io->finishMediaProbe(self->job.path, restoreTransientState);
     self->done = true;
     return 0;
 }

@@ -1,8 +1,5 @@
 //
-// P2Play MediaMesh network client.
-//
-// This file owns its complete P2Play API adapter. It deliberately does not include,
-// call, or share implementation files with the TorrServer adapter in torrserve.*.
+// P2Play MediaMesh network client. This file owns the complete P2Play API adapter.
 //
 
 #include <algorithm>
@@ -22,7 +19,6 @@
 #include "net_http.h"
 #include "p2play.h"
 #include "pplay_config.h"
-#include "saved.h"
 #include "utility.h"
 
 namespace {
@@ -268,7 +264,7 @@ namespace {
                         std::string *hash, int *index, std::string *error) {
         if (!context || !root || !hash || !index || !error) return false;
         *error = "";
-        const std::string original = pplay::Saved::originalOf(filePath);
+        const std::string &original = filePath;
         const std::string networkRoot = rootOf(original);
         if (networkRoot.empty()) { *error = "P2Play file path has no network root"; return false; }
         const auto parts = splitPath(relativeOf(networkRoot, original));
@@ -1026,7 +1022,7 @@ namespace pplay::P2Play {
     }
 
     std::string toStreamUrl(const std::string &input) {
-        const std::string path = pplay::Saved::originalOf(input);
+        const std::string &path = input;
         const std::string context = rootOf(path);
         if (context.empty()) {
             return input;

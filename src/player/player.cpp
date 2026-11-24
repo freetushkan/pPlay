@@ -10,9 +10,6 @@
 #include "main.h"
 #include "player.h"
 #include "folder_marks.h"
-#include "torrserve.h"
-#include "p2play.h"
-#include "saved.h"
 #include "player_osd.h"
 #include "paths.h"
 #include "input_map.h"
@@ -140,7 +137,8 @@ void Player::forgetProgress() {
 bool Player::load(const MediaFile &f, bool firstTry, const std::string &options) {
     // (the last seek target: of another file)
     scrubSent = -1;
-    pplay::Saved::touch(f.path);
+    auto *io = pplay::Io::get();
+    if (io != nullptr) io->touchSavedFile(f.path);
     MediaInfo::touch(f);
     if (reloadPending) {
         reloadPending = false;
@@ -198,8 +196,8 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
                         "Player::load path=" + encoding::fix(file.path) + " name=" + encoding::fix(file.name) + " type="
                                 + std::to_string((int) file.type) + " firstTry=" + std::to_string(firstTry ? 1 : 0)
                                 + " retryCount=" + std::to_string(retryCount));
-    std::string path = pplay::Io::get()->streamUrl(file.path);
-    copyPath = pplay::Saved::localCopy(file.path);
+    std::string path = io != nullptr ? io->streamUrl(file.path) : file.path;
+    copyPath = io != nullptr ? io->localCopy(file.path) : std::string();
 #ifdef __SMB2__
     if (Utility::startWith(path, "smb://")) {
         std::replace(path.begin(), path.end(), '\\', '/');
@@ -248,34 +246,27 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     if (hadWatchLater && opts.find("start=") == std::string::npos && pplay::Utility::isWatchLaterWatched(path)) {
         opts += std::string(opts.empty() ? "" : ",") + "start=0";
     }
-    // Restore per-user server progress, preserving the existing TorrServer behavior.
-    bool serverFirst = main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger() == 2;
+    // Restore per-user server progress, keeping the configured source priority.
+    const bool serverFirst = main->getConfig()->getOption(OPT_SERVER_PROGRESS)->getInteger() == 2;
     if ((!hadWatchLater || serverFirst) && opts.find("start=") == std::string::npos && syncsProgress()) {
-        const auto device = pplay::Io::get()->getDeviceType(pplay::Saved::originalOf(file.path));
-        double position = 0;
+        double position = 0, storedDuration = 0;
         long duration = file.mediaInfo.duration;
-        if (device == pplay::Io::DeviceType::P2Play) {
-            pplay::P2Play::PlaybackProgress stored;
-            std::string error;
-            if (pplay::P2Play::getFileProgress(file.path, pplay::Io::get()->networkTimeout(file.path), &stored, &error)) {
-                position = stored.position;
-                if (duration <= 0 && stored.duration > 0) {
-                    duration = (long) stored.duration;
-                    file.mediaInfo.duration = duration;
-                    file.mediaInfo.save(file);
-                    main->getFiler()->setMediaInfo(file, file.mediaInfo);
-                }
-            } else if (!error.empty()) {
-                pplay::Utility::log(pplay::Utility::LogLevel::Debug, "P2Play progress read: " + error);
+        std::string error;
+        if (io != nullptr && io->getPlaybackProgress(file.path, copyPath.empty(), &position, &storedDuration, &error)) {
+            if (duration <= 0 && storedDuration > 0) {
+                duration = (long) storedDuration;
+                file.mediaInfo.duration = duration;
+                file.mediaInfo.save(file);
+                main->getFiler()->setMediaInfo(file, file.mediaInfo);
             }
-        } else {
-            position = pplay::TorrServe::fileProgress(file.path, copyPath.empty());
+        } else if (!error.empty()) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Server progress read: " + error);
         }
         if (duration > 0) lastKnownDuration = duration;
         if (position > 10 && (duration <= 0 || position < (double) duration - 30)) {
             opts += std::string(opts.empty() ? "" : ",") + "start=" + std::to_string((int) position);
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                                "Player: " + pplay::Io::networkTypeName(pplay::Io::get()->getNetworkType(pplay::Saved::originalOf(file.path)))
+                                "Player: " + pplay::Io::networkTypeName(io->getNetworkType(io->originalPath(file.path)))
                                         + " position " + std::to_string((int) position));
         }
     }
@@ -307,8 +298,8 @@ void Player::onLoadEvent() {
     file.mediaInfo.save(file);
     // the details panel shows it
     main->getFiler()->setMediaInfo(file, file.mediaInfo);
-    if (file.mediaInfo.duration <= 0 &&
-        pplay::Io::get()->getDeviceType(pplay::Saved::originalOf(file.path)) == pplay::Io::DeviceType::P2Play) {
+    if (file.mediaInfo.duration <= 0 && pplay::Io::get() != nullptr &&
+        pplay::Io::get()->needsDurationProbe(file.path)) {
         durationProbeRequested = true;
         durationProbeClock.restart();
         main->getFiler()->requestMediaProbe(file);
@@ -526,7 +517,7 @@ void Player::keepProgressNow() {
     if (keepsProgress(lastKnownPosition, lastKnownDuration)) {
         saveProgress(true);
     }
-    pplay::TorrServe::flushProgress();
+    if (auto *io = pplay::Io::get()) io->flushPlaybackProgress();
 }
 
 void Player::stop() {
@@ -590,9 +581,8 @@ const std::string &Player::getTitle() const {
 }
 
 bool Player::syncsProgress() const {
-    if (main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger() == 0) return false;
-    const auto device = pplay::Io::get()->getDeviceType(pplay::Saved::originalOf(file.path));
-    return device == pplay::Io::DeviceType::TorrServe || device == pplay::Io::DeviceType::P2Play;
+    auto *io = pplay::Io::get();
+    return io != nullptr && io->syncProgressEnabled(file.path);
 }
 
 bool Player::keepsProgress(long position, long duration) const {

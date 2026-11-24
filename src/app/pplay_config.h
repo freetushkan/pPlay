@@ -68,8 +68,9 @@
 #define OPT_AUDIO_VISUALIZER "AUDIO_VISUALIZER"
 // code page of the old tags / file names, 0: guessed
 #define OPT_TEXT_ENCODING "TEXT_ENCODING"
-// playback position kept by TorrServer (its "track timecode" setting) read and sent
-#define OPT_TS_PROGRESS "TS_PROGRESS_SYNC"
+// Per-network server playback progress (legacy persisted key retained for compatibility).
+#define OPT_SERVER_PROGRESS "TS_PROGRESS_SYNC"
+#define OPT_TS_PROGRESS OPT_SERVER_PROGRESS
 // thin progress line under the hidden panel (and on the minimized player)
 #define OPT_PROGRESS_LINE "PROGRESS_LINE"
 #define OPT_OSD_HIDE_TIME "OSD_HIDE_TIME"

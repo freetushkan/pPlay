@@ -90,8 +90,21 @@ namespace pplay {
         // root url of the network the path belongs to, or ""
         std::string getNetworkRoot(const std::string &path);
 
-        // Resolve the playback URL of a virtual source (including P2Play's token URL).
+        // Network-neutral media operations. Backend-specific work is dispatched here.
         std::string streamUrl(const std::string &path);
+        std::string originalPath(const std::string &path);
+        std::string localCopy(const std::string &path);
+        void touchSavedFile(const std::string &path);
+        bool needsDurationProbe(const std::string &path);
+        bool syncProgressEnabled(const std::string &path);
+        bool getPlaybackProgress(const std::string &path, bool wait, double *position, double *duration,
+                                 std::string *error = nullptr);
+        bool setPlaybackProgress(const std::string &path, double position, double duration,
+                                 std::string *error = nullptr);
+        void flushPlaybackProgress();
+        std::string mediaProbeUrl(const std::string &path);
+        bool prepareMediaProbe(const std::string &path);
+        void finishMediaProbe(const std::string &path, bool restoreTransientState);
 
         // the user and password of the network of an url (its options, over the url ones), false if none
         bool credentialsOf(const std::string &url, std::string *user, std::string *password);

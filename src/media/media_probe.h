@@ -28,7 +28,7 @@ public:
     void requestDuration(const MediaFile &file);
 
     // each frame: true for a finished probe, its file with the information (again once
-    // its TorrServer viewed state is restored)
+    // backend-specific transient state is restored)
     bool poll(MediaFile *file);
 
     // the cache was cleared

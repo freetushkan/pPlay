@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <thread>
+#include <chrono>
 #include <vector>
 
 #include "io.h"
@@ -459,12 +461,93 @@ std::string Io::withCredentials(const std::string &url) {
     return url.substr(0, scheme) + Http::escape(user) + ":" + Http::escape(password) + "@" + url.substr(host);
 }
 
+std::string Io::originalPath(const std::string &path) {
+    if (getDeviceType(path) == DeviceType::P2Play) return path;
+    return Saved::originalOf(path);
+}
+
+std::string Io::localCopy(const std::string &path) {
+    if (getDeviceType(originalPath(path)) == DeviceType::P2Play) return {};
+    return Saved::localCopy(path);
+}
+
+void Io::touchSavedFile(const std::string &path) {
+    if (getDeviceType(originalPath(path)) != DeviceType::P2Play) Saved::touch(path);
+}
+
 std::string Io::streamUrl(const std::string &path) {
-    const std::string original = Saved::originalOf(path);
-    if (getDeviceType(original) == DeviceType::P2Play) {
-        return P2Play::toStreamUrl(original);
-    }
+    const std::string original = originalPath(path);
+    if (getDeviceType(original) == DeviceType::P2Play) return P2Play::toStreamUrl(original);
     return TorrServe::toStreamUrl(path);
+}
+
+bool Io::needsDurationProbe(const std::string &path) {
+    return getDeviceType(originalPath(path)) == DeviceType::P2Play;
+}
+
+bool Io::syncProgressEnabled(const std::string &path) {
+    if (config == nullptr || config->getOption(OPT_SERVER_PROGRESS)->getInteger() == 0) return false;
+    const DeviceType type = getDeviceType(originalPath(path));
+    return type == DeviceType::TorrServe || type == DeviceType::P2Play;
+}
+
+bool Io::getPlaybackProgress(const std::string &path, bool wait, double *position, double *duration,
+                             std::string *error) {
+    if (position == nullptr || duration == nullptr) {
+        if (error != nullptr) *error = "Invalid playback progress output";
+        return false;
+    }
+    *position = 0; *duration = 0;
+    if (error != nullptr) error->clear();
+    const std::string original = originalPath(path);
+    const DeviceType type = getDeviceType(original);
+    if (type == DeviceType::P2Play) {
+        P2Play::PlaybackProgress stored;
+        std::string localError;
+        std::string *failure = error != nullptr ? error : &localError;
+        if (!P2Play::getFileProgress(original, networkTimeout(original), &stored, failure)) return false;
+        *position = stored.position; *duration = stored.duration;
+        return true;
+    }
+    if (type == DeviceType::TorrServe) {
+        *position = TorrServe::fileProgress(path, wait);
+        return true;
+    }
+    return false;
+}
+
+bool Io::setPlaybackProgress(const std::string &path, double position, double duration, std::string *error) {
+    if (error != nullptr) error->clear();
+    const std::string original = originalPath(path);
+    const DeviceType type = getDeviceType(original);
+    if (type == DeviceType::P2Play) {
+        std::string localError;
+        std::string *failure = error != nullptr ? error : &localError;
+        return P2Play::setFileProgress(original, position, duration, networkTimeout(original), failure);
+    }
+    if (type == DeviceType::TorrServe) {
+        TorrServe::setFileProgress(path, position, duration);
+        return true;
+    }
+    return false;
+}
+
+void Io::flushPlaybackProgress() { TorrServe::flushProgress(); }
+
+std::string Io::mediaProbeUrl(const std::string &path) {
+    const std::string local = localCopy(path);
+    return local.empty() ? streamUrl(path) : local;
+}
+
+bool Io::prepareMediaProbe(const std::string &path) {
+    return getDeviceType(originalPath(path)) == DeviceType::TorrServe && !TorrServe::isFileViewed(path, true);
+}
+
+void Io::finishMediaProbe(const std::string &path, bool restoreTransientState) {
+    if (restoreTransientState && getDeviceType(originalPath(path)) == DeviceType::TorrServe) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+        TorrServe::remFileViewed(path);
+    }
 }
 
 Io::DeviceType Io::getDeviceType(const std::string &path) {
