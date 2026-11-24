@@ -320,7 +320,7 @@ if (PLATFORM_ANDROID)
     target_link_options(${CMAKE_PROJECT_NAME} PRIVATE "LINKER:-z,max-page-size=16384")
 endif ()
 target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS})
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE p2play_core)
+target_link_libraries(${CMAKE_PROJECT_NAME} p2play_core)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
     APP_VERSION="${APP_VERSION}"
 )
