@@ -30,6 +30,7 @@ jobs:
 
       - name: Create build environment
         run: |
+          exec > >(tee -a job.log) 2>&1
           sudo apt -yq update || true
           sudo apt -yq install git build-essential cmake curl git file patch
 
@@ -55,6 +56,7 @@ jobs:
       - name: Build libusbhsfs
         if: steps.switch-cache.outputs.cache-hit != 'true'
         run: |
+          exec > >(tee -a job.log) 2>&1
           set -eux
           mkdir -p /opt/compiled_libs/libusbhsfs
           chown -R builder:builder /opt/compiled_libs
@@ -66,6 +68,7 @@ jobs:
       - name: Build FFmpeg
         if: steps.switch-cache.outputs.cache-hit != 'true'
         run: |
+          exec > >(tee -a job.log) 2>&1
           set -eux
           mkdir -p /opt/compiled_libs/ffmpeg
           chown -R builder:builder /opt/compiled_libs
@@ -77,6 +80,7 @@ jobs:
       - name: Build libmpv
         if: steps.switch-cache.outputs.cache-hit != 'true'
         run: |
+          exec > >(tee -a job.log) 2>&1
           set -eux
           mkdir -p /opt/compiled_libs/libmpv
           chown -R builder:builder /opt/compiled_libs
@@ -88,6 +92,7 @@ jobs:
       - name: Install cached libs
         if: steps.switch-cache.outputs.cache-hit == 'true'
         run: |
+          exec > >(tee -a job.log) 2>&1
           find /opt/compiled_libs/ffmpeg -name "*.pkg.tar.*" -exec sudo dkp-pacman --noconfirm -U {} \;
           find /opt/compiled_libs/libmpv -name "*.pkg.tar.*" -exec sudo dkp-pacman --noconfirm -U {} \;
           find /opt/compiled_libs/libusbhsfs -name "*.pkg.tar.*" -exec sudo dkp-pacman --noconfirm -U {} \;
@@ -102,6 +107,7 @@ jobs:
 
       - name: Configure pPlay
         run: |
+          exec > >(tee -a job.log) 2>&1
           rm -rf cmake-build
           mkdir -p cmake-build && cd cmake-build
           cmake -G "Unix Makefiles" \
@@ -115,6 +121,7 @@ jobs:
 
       - name: Build pPlay
         run: |
+          exec > >(tee -a job.log) 2>&1
           cd cmake-build
           # Keep an unstripped ELF for crash.log address resolution.
           make pplay -j$(nproc) VERBOSE=1
@@ -136,6 +143,9 @@ jobs:
           name: pPlay-Switch
           path: "cmake-build/release/*"
 
+      - name: Build diagnostics summary
+        if: always()
+        run: bash ci/summarize-diagnostics.sh "pPlay Switch" job.log
   ps4:
     runs-on: ubuntu-24.04
     env:
@@ -149,6 +159,7 @@ jobs:
 
       - name: Create build environment
         run: |
+          exec > >(tee -a job.log) 2>&1
           sudo apt-get update || true
           sudo apt-get install -y \
             pacman-package-manager wget cmake git gettext smpq \
@@ -186,6 +197,7 @@ jobs:
       - name: Build FFmpeg
         if: steps.ps4-cache.outputs.cache-hit != 'true'
         run: |
+          exec > >(tee -a job.log) 2>&1
           set -eux
           mkdir -p /opt/compiled_libs/ffmpeg
           cd /tmp/portlibs/ffmpeg
@@ -197,6 +209,7 @@ jobs:
       - name: Build libmpv
         if: steps.ps4-cache.outputs.cache-hit != 'true'
         run: |
+          exec > >(tee -a job.log) 2>&1
           set -eux
           mkdir -p /opt/compiled_libs/libmpv
 
@@ -218,6 +231,7 @@ jobs:
       - name: Install cached libs
         if: steps.ps4-cache.outputs.cache-hit == 'true'
         run: |
+          exec > >(tee -a job.log) 2>&1
           find /opt/compiled_libs/ffmpeg -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
           find /opt/compiled_libs/libmpv -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
 
@@ -231,6 +245,7 @@ jobs:
 
       - name: Configure pPlay
         run: |
+          exec > >(tee -a job.log) 2>&1
           # libjbc (only used with -DOPTION_PS4_JAILBREAK=ON) and FIX pid_t conflict
           if [ ! -d "src/libjbc" ]; then
             git clone https://github.com/freetushkan/ps4-libjbc.git src/libjbc
@@ -251,6 +266,7 @@ jobs:
 
       - name: Build pPlay
         run: |
+          exec > >(tee -a job.log) 2>&1
           cd cmake-build
           make pplay_ps4_release -j$(nproc) VERBOSE=1
 
@@ -267,6 +283,9 @@ jobs:
           path: "cmake-build/pplay"
           retention-days: 90
 
+      - name: Build diagnostics summary
+        if: always()
+        run: bash ci/summarize-diagnostics.sh "pPlay PS4" job.log
   ps5:
     runs-on: ubuntu-24.04
     env:
@@ -281,6 +300,7 @@ jobs:
 
       - name: Create build environment
         run: |
+          exec > >(tee -a job.log) 2>&1
           sudo apt update || true
           sudo apt install -y bash clang-18 lld-18 build-essential \
             cmake python3-pip ninja-build pacman-package-manager \
@@ -311,6 +331,7 @@ jobs:
       - name: Build libplacebo
         if: steps.ps5-cache.outputs.cache-hit != 'true'
         run: |
+          exec > >(tee -a job.log) 2>&1
           set -eux
           mkdir -p /opt/compiled_libs/libplacebo
           cd /tmp/portlibs/libplacebo
@@ -322,6 +343,7 @@ jobs:
       - name: Build libmpv
         if: steps.ps5-cache.outputs.cache-hit != 'true'
         run: |
+          exec > >(tee -a job.log) 2>&1
           set -eux
           mkdir -p /opt/compiled_libs/libmpv
           cd /tmp/portlibs/libmpv
@@ -333,6 +355,7 @@ jobs:
       - name: Install cached libs
         if: steps.ps5-cache.outputs.cache-hit == 'true'
         run: |
+          exec > >(tee -a job.log) 2>&1
           find /opt/compiled_libs/libplacebo -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
           find /opt/compiled_libs/libmpv -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
 
@@ -346,6 +369,7 @@ jobs:
 
       - name: Configure pPlay
         run: |
+          exec > >(tee -a job.log) 2>&1
           rm -rf cmake-build
           mkdir cmake-build && cd cmake-build
           /opt/ps5-payload-sdk/bin/prospero-cmake \
@@ -358,6 +382,7 @@ jobs:
 
       - name: Build pPlay
         run: |
+          exec > >(tee -a job.log) 2>&1
           cd cmake-build
           make pplay_ps5_release pplay_loader -j$(nproc) VERBOSE=1
           # Preserve the exact unstripped payload ELF for crash.log address resolution.
@@ -389,6 +414,9 @@ jobs:
             cmake-build/release/pplay
             cmake-build/pplay_loader.elf
 
+      - name: Build diagnostics summary
+        if: always()
+        run: bash ci/summarize-diagnostics.sh "pPlay PS5" job.log
   ps5-pkg:
     # PS5 PKG: PS4 package with the PS5 build (ps5/launcher, ps5/loader)
     needs: [ps5]
@@ -402,6 +430,7 @@ jobs:
 
       - name: Create build environment
         run: |
+          exec > >(tee -a job.log) 2>&1
           sudo apt-get update || true
           sudo apt-get install -y pacman-package-manager libarchive-tools cmake make zstd
 
@@ -422,6 +451,7 @@ jobs:
 
       - name: Build PKG
         run: |
+          exec > >(tee -a job.log) 2>&1
           set -eux
           export OPENORBIS=/opt/pacbrew/ps4/openorbis
           VERSION_MAJOR=$(sed -n 's/^set(VERSION_MAJOR "\(.*\)")/\1/p' CMakeLists.txt)
@@ -455,6 +485,9 @@ jobs:
           name: pPlay-PS5
           path: "release/*.pkg"
 
+      - name: Build diagnostics summary
+        if: always()
+        run: bash ci/summarize-diagnostics.sh "pPlay PS5 package" job.log
   linux:
     runs-on: ubuntu-24.04
     container: ubuntu:22.04
@@ -490,6 +523,7 @@ jobs:
       - name: Build static dependencies
         if: steps.linux-cache.outputs.cache-hit != 'true'
         run: |
+          exec > >(tee -a job.log) 2>&1
           WORK_DIR=/tmp/pplay-static-build ci/linux-static-deps.sh "$PPLAY_STATIC"
 
       - name: Cache embedded P2Play Boost headers
@@ -502,6 +536,7 @@ jobs:
 
       - name: Configure pPlay
         run: |
+          exec > >(tee -a job.log) 2>&1
           git clone -b master https://github.com/freetushkan/libsmb2.git
           rm -rf cmake-build
           mkdir -p cmake-build && cd cmake-build
@@ -516,6 +551,7 @@ jobs:
 
       - name: Build pPlay
         run: |
+          exec > >(tee -a job.log) 2>&1
           cd cmake-build
           make pplay_linux_release -j$(nproc) VERBOSE=1
           # Keep a matching separate debug file; the AppImage remains compact.
@@ -526,6 +562,7 @@ jobs:
 
       - name: Build AppImage
         run: |
+          exec > >(tee -a job.log) 2>&1
           ci/linux-appimage.sh cmake-build
 
       - name: Upload artifact
@@ -541,6 +578,9 @@ jobs:
           path: "cmake-build/pplay.debug"
           retention-days: 90
 
+      - name: Build diagnostics summary
+        if: always()
+        run: bash ci/summarize-diagnostics.sh "pPlay Linux" job.log
   android:
     runs-on: ubuntu-24.04
     env:
@@ -571,6 +611,7 @@ jobs:
 
       - name: Create build environment
         run: |
+          exec > >(tee -a job.log) 2>&1
           sudo apt-get update || true
           sudo apt-get install -y autoconf pkgconf libtool ninja-build python3-pip gperf nasm wget unzip patch
           sudo pip3 install meson --break-system-packages
@@ -599,6 +640,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
+          exec > >(tee -a job.log) 2>&1
           if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
             echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/pplay.keystore"
             export ANDROID_KEYSTORE="$RUNNER_TEMP/pplay.keystore"
@@ -618,6 +660,9 @@ jobs:
           path: "symbols/*"
           retention-days: 90
 
+      - name: Build diagnostics summary
+        if: always()
+        run: bash ci/summarize-diagnostics.sh "pPlay Android" job.log
   publish:
     needs: [ps4, ps5, ps5-pkg, switch, linux, android]
     runs-on: ubuntu-latest
@@ -636,6 +681,7 @@ jobs:
       # pPlay-<version>-Symbols.zip, last
       - name: Pack release assets
         run: |
+          exec > >(tee -a job.log) 2>&1
           set -eux
           VERSION="$(sed -n 's/^set(VERSION_MAJOR "\(.*\)")/\1/p' CMakeLists.txt).$(sed -n 's/^set(VERSION_MINOR "\(.*\)")/\1/p' CMakeLists.txt)"
           OUT="${GITHUB_WORKSPACE}/release-assets"
@@ -668,3 +714,7 @@ jobs:
             ./release-assets/pPlay-${{ env.VERSION }}-PS5_websrv.zip
             ./release-assets/pPlay-${{ env.VERSION }}-Switch.zip
             ./release-assets/pPlay-${{ env.VERSION }}-Symbols.zip
+
+      - name: Build diagnostics summary
+        if: always()
+        run: bash ci/summarize-diagnostics.sh "pPlay release packaging" job.log
