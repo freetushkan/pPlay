@@ -517,7 +517,7 @@ void Player::keepProgressNow() {
     if (keepsProgress(lastKnownPosition, lastKnownDuration)) {
         saveProgress(true);
     }
-    if (auto *io = pplay::Io::get()) io->flushPlaybackProgress();
+    if (auto *io = pplay::Io::get()) io->flushPlaybackProgress(file.path);
 }
 
 void Player::stop() {

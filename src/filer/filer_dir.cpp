@@ -164,7 +164,11 @@ bool Filer::getDir(const std::string &p) {
             wanted = wanted || Utility::endsWith(file.name, e, false);
         }
         if (wanted) {
-            files.emplace_back(file, MediaInfo(file));
+            MediaFile media(file, MediaInfo(file));
+            if (pplay::P2Play::isContinueWatchingPath(path)) {
+                media.label = pplay::P2Play::progressLabel(file.path);
+            }
+            files.emplace_back(std::move(media));
         }
     }
     // smb:// is opened by mpv only
@@ -184,7 +188,8 @@ bool Filer::getDir(const std::string &p) {
                 file.label = file.name + " (" + (dir.empty() ? "/" : dir) + ")";
             }
         }
-    } else if (!playlist && !pplay::P2Play::isSearchResultsPath(path)) {
+    } else if (!playlist && !pplay::P2Play::isSearchResultsPath(path) &&
+               !pplay::P2Play::isContinueWatchingPath(path)) {
         std::sort(files.begin(), files.end(), compare);
         // a torrent root: its all files first
         std::stable_partition(files.begin(), files.end(),

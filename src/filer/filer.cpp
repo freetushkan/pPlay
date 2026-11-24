@@ -806,6 +806,15 @@ void Filer::queueDurations() {
 }
 
 void Filer::onUpdate() {
+    const bool playerFullscreen = main->getPlayer()->isFullscreen();
+    if (playerWasFullscreen && !playerFullscreen && pplay::P2Play::isContinueWatchingPath(path)) {
+        const std::string selectedPath = getSelection().path;
+        const int previousIndex = item_index;
+        if (getDir(path) && !selectByPath(selectedPath)) {
+            setSelection(previousIndex);
+        }
+    }
+    playerWasFullscreen = playerFullscreen;
     if (fadeDirection != 0) {
         float step = std::min(0.1f, fadeClock.restart().asSeconds()) * 255 / 0.5f;
         coverAlpha = std::min(255.0f, std::max(0.0f, coverAlpha + (float) fadeDirection * step));

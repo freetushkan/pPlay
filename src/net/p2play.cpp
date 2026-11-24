@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cctype>
+#include <cmath>
 #include <ctime>
 #include <map>
 #include <mutex>
@@ -35,6 +36,7 @@ namespace {
     std::map<std::string, Session> g_sessions;
     std::set<std::string> g_verifiedServers;
     std::map<std::string, std::string> g_torrents;
+    std::map<std::string, std::string> g_progressLabels;
 
     json noBody() {
         return json(json::value_t::discarded);
@@ -282,6 +284,17 @@ namespace {
     std::string baseName(const std::string &path) {
         const size_t slash = path.find_last_of("/\\");
         return slash == std::string::npos ? path : path.substr(slash + 1);
+    }
+
+    std::string progressTime(double value) {
+        const long total = static_cast<long>(std::max(0.0, value));
+        const long seconds = total % 60;
+        const long minutes = (total / 60) % 60;
+        const long hours = total / 3600;
+        const std::string mm = (minutes < 10 && hours > 0 ? "0" : "") + std::to_string(minutes);
+        const std::string ss = (seconds < 10 ? "0" : "") + std::to_string(seconds);
+        return hours > 0 ? std::to_string(hours) + ":" + mm + ":" + ss
+                         : std::to_string(total / 60) + ":" + ss;
     }
 
     c2d::Io::File directory(const std::string &name, const std::string &path) {
@@ -599,6 +612,15 @@ namespace pplay::P2Play {
         const auto p = pathParts(path);
         return (p.size() == 3 || p.size() == 4) && p[0] == ".p2play" && p[1] == "results";
     }
+    bool isContinueWatchingPath(const std::string &path) {
+        const auto p = pathParts(path);
+        return p.size() == 2 && p[0] == ".p2play" && p[1] == "progress";
+    }
+    std::string progressLabel(const std::string &path) {
+        std::lock_guard<std::mutex> lock(g_mutex);
+        const auto it = g_progressLabels.find(path);
+        return it == g_progressLabels.end() ? std::string() : it->second;
+    }
     bool isSearchResultPath(const std::string &path) {
         const auto p = pathParts(path);
         return p.size() == 3 && p[0] == ".p2play" && p[1] == "result";
@@ -812,6 +834,7 @@ namespace pplay::P2Play {
 
         if (parts.empty()) {
             files.push_back(directory("Search torrents", virtualPath(context, {".p2play", "search"})));
+            files.push_back(directory("Continue watching", virtualPath(context, {".p2play", "progress"})));
             files.push_back(directory("Discover", virtualPath(context, {".p2play", "discover"})));
             files.push_back(directory("My lists", virtualPath(context, {".p2play", "lists"})));
             files.push_back(directory("Search by tag", virtualPath(context, {".p2play", "search"})));
@@ -819,6 +842,31 @@ namespace pplay::P2Play {
         }
         if (parts[0] != ".p2play") {
             fail("Unknown P2Play virtual path");
+            return files;
+        }
+        if (parts.size() == 2 && parts[1] == "progress") {
+            std::vector<ProgressEntry> progress;
+            if (!getProgress(context, timeout, &progress, &failure)) {
+                fail(failure);
+                return files;
+            }
+            for (const auto &entry : progress) {
+                if (entry.viewed || entry.position <= 0 || entry.hash.empty() || entry.fileIndex < 0 ||
+                    entry.fileName.empty()) continue;
+                const std::string labelBase = entry.title.empty() || entry.title == entry.fileName
+                                                  ? entry.fileName : entry.title + " — " + entry.fileName;
+                std::string label = labelBase + "  (" + progressTime(entry.position);
+                if (entry.duration > 0) label += " / " + progressTime(entry.duration);
+                label += ")";
+                const std::string filePath = virtualPath(context, {".p2play", "file", "progress", entry.hash,
+                                                                    std::to_string(entry.fileIndex), entry.fileName});
+                c2d::Io::File file(entry.fileName, filePath, c2d::Io::Type::File, 0);
+                {
+                    std::lock_guard<std::mutex> lock(g_mutex);
+                    g_progressLabels[filePath] = label;
+                }
+                files.push_back(std::move(file));
+            }
             return files;
         }
         if ((parts.size() == 3 || parts.size() == 4) && parts[1] == "results") {
@@ -1082,6 +1130,46 @@ namespace pplay::P2Play {
         const json body = {{"position", position}, {"duration", duration}};
         return apiJson(root, context, "/api/torrents/" + pplay::Http::escape(hash) + "/files/" +
                        std::to_string(index) + "/progress", "PUT", body, timeout, &answer, error);
+    }
+
+    bool getProgress(const std::string &contextPath, int timeout, std::vector<ProgressEntry> *progress,
+                    std::string *error) {
+        if (progress == nullptr || error == nullptr) return false;
+        progress->clear();
+        error->clear();
+        const std::string context = rootOf(contextPath);
+        if (context.empty()) {
+            *error = "P2Play network path is invalid";
+            return false;
+        }
+        json answer;
+        if (!apiJson(cleanRoot(context), context, "/api/progress", "GET", noBody(), timeout, &answer, error)) {
+            return false;
+        }
+        const json *items = nullptr;
+        if (!answer.is_object() || !arrayAt(answer, "progress", &items)) {
+            *error = "P2Play progress response has no progress array";
+            return false;
+        }
+        for (const auto &item : *items) {
+            if (!item.is_object() || !item.value("hash", json()).is_string() ||
+                !item.value("file_id", json()).is_number_integer() ||
+                !item.value("file_name", json()).is_string()) continue;
+            ProgressEntry entry;
+            entry.hash = item["hash"].get<std::string>();
+            entry.fileIndex = item["file_id"].get<int>();
+            entry.fileName = item["file_name"].get<std::string>();
+            if (entry.hash.empty() || entry.fileIndex < 0 || entry.fileName.empty()) continue;
+            if (item.value("title", json()).is_string()) entry.title = item["title"].get<std::string>();
+            if (item.value("updated_at", json()).is_string()) entry.updatedAt = item["updated_at"].get<std::string>();
+            if (item.value("position", json()).is_number()) entry.position = item["position"].get<double>();
+            if (item.value("duration", json()).is_number()) entry.duration = item["duration"].get<double>();
+            if (!std::isfinite(entry.position) || !std::isfinite(entry.duration) ||
+                entry.position < 0 || entry.duration < 0) continue;
+            entry.viewed = item.value("viewed", false);
+            progress->push_back(std::move(entry));
+        }
+        return true;
     }
 
     bool getUsers(const std::string &contextPath, int timeout, std::vector<ServerUser> *users,

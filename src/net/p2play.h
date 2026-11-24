@@ -34,9 +34,17 @@ namespace pplay::P2Play {
         bool banned = false;
     };
     struct PlaybackProgress { double position = 0; double duration = 0; bool viewed = false; };
+    struct ProgressEntry {
+        std::string hash, title, fileName, updatedAt;
+        int fileIndex = -1;
+        double position = 0, duration = 0;
+        bool viewed = false;
+    };
 
     bool isSearchPromptPath(const std::string &path);
     bool isSearchResultsPath(const std::string &path);
+    bool isContinueWatchingPath(const std::string &path);
+    std::string progressLabel(const std::string &path);
     bool isSearchResultPath(const std::string &path);
     std::string searchResultsPath(const std::string &contextPath, const std::string &query,
                                   const std::vector<std::string> &selectedLists = {});
@@ -56,6 +64,8 @@ namespace pplay::P2Play {
                     int timeout, std::string *error);
     bool getFileProgress(const std::string &filePath, int timeout, PlaybackProgress *progress, std::string *error);
     bool setFileProgress(const std::string &filePath, double position, double duration, int timeout, std::string *error);
+    bool getProgress(const std::string &contextPath, int timeout, std::vector<ProgressEntry> *progress,
+                    std::string *error);
     // Fetch signed description/poster refs only when a result is selected, never during search.
     bool getCatalogDetails(const std::string &contextPath, const std::string &recordHash, int timeout,
                            CatalogDetails *details, std::string *error);

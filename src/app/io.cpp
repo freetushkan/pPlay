@@ -532,7 +532,11 @@ bool Io::setPlaybackProgress(const std::string &path, double position, double du
     return false;
 }
 
-void Io::flushPlaybackProgress() { TorrServe::flushProgress(); }
+void Io::flushPlaybackProgress(const std::string &path) {
+    if (getDeviceType(originalPath(path)) == DeviceType::TorrServe) {
+        TorrServe::flushProgress();
+    }
+}
 
 std::string Io::mediaProbeUrl(const std::string &path) {
     const std::string local = localCopy(path);

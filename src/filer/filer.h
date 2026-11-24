@@ -143,6 +143,7 @@ private:
     c2d::C2DMutex *mutex;
 
     bool dirty = false;
+    bool playerWasFullscreen = false;
     c2d::RectangleShape *cover = nullptr;
     // 1: covering (then hidden), -1: uncovering, 0: still
     int fadeDirection = 0;

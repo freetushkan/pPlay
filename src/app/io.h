@@ -101,7 +101,7 @@ namespace pplay {
                                  std::string *error = nullptr);
         bool setPlaybackProgress(const std::string &path, double position, double duration,
                                  std::string *error = nullptr);
-        void flushPlaybackProgress();
+        void flushPlaybackProgress(const std::string &path);
         std::string mediaProbeUrl(const std::string &path);
         bool prepareMediaProbe(const std::string &path);
         void finishMediaProbe(const std::string &path, bool restoreTransientState);
