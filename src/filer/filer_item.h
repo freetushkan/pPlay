@@ -24,7 +24,7 @@ public:
 
     void setFile(const MediaFile &file);
 
-    void onUpdate();
+    void onUpdate() override;
 
     void onDraw(c2d::Transform &transform, bool draw = true) override;
 

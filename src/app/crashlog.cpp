@@ -27,7 +27,6 @@ namespace {
     constexpr int MaxFrames = 64;
 
     int crashFd = -1;
-    uintptr_t executableBase = 0;
     volatile sig_atomic_t handlingCrash = 0;
 
     struct SignalStack {
@@ -64,7 +63,9 @@ namespace {
         } while (value != 0 && length < sizeof(buffer));
         while (length > 0) {
             char c = buffer[--length];
-            write(fd, &c, 1);
+            if (write(fd, &c, 1) != 1) {
+                return;
+            }
         }
     }
 

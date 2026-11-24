@@ -156,9 +156,11 @@ extern "C" void __libnx_exception_handler(ThreadExceptionDump *ctx) {
         fp = previous;
     }
 
+    const char *reportPath = crashPath[0] ? crashPath : "(unavailable)";
+    constexpr int reportPathMax = (int) sizeof(line) - (int) sizeof("Crash report: \n========== end crash report ==========\n");
     snprintf(line, sizeof(line),
-             "Crash report: %s\n========== end crash report ==========\n",
-             crashPath[0] ? crashPath : "(unavailable)");
+             "Crash report: %.*s\n========== end crash report ==========\n",
+             reportPathMax, reportPath);
     logLine(line);
     if (crashFd >= 0) {
         fsync(crashFd);

@@ -250,7 +250,7 @@ std::string PPLAYConfig::withNetworkCredentials(int index, const std::string &ur
     std::string plain = withoutCredentials(url);
     std::string user = getOption(networkUserOption(index))->getString();
     std::string password = getOption(networkPasswordOption(index))->getString();
-    size_t start, end;
+    size_t start = 0, end = 0;
     userInfoOf(plain, &start, &end);
     pplay::Io::NetworkType type = pplay::Io::parseNetworkType(getOption(networkTypeOption(index))->getString());
     // DLNA: no login

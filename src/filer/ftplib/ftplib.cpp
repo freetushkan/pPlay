@@ -214,8 +214,7 @@ static int socket_wait(netbuf *ctl) {
         rv = select(ctl->handle + 1, rfd, wfd, nullptr, &tv);
         if (rv == -1) {
             rv = 0;
-            strncpy(ctl->ctrl->response, strerror(errno),
-                    sizeof(ctl->ctrl->response));
+            snprintf(ctl->ctrl->response, sizeof(ctl->ctrl->response), "%s", strerror(errno));
             break;
         } else if (rv > 0) {
             rv = 1;
@@ -813,8 +812,7 @@ static int FtpAcceptConnection(netbuf *nData, netbuf *nControl) {
         i = nData->handle;
     i = select(i + 1, &mask, nullptr, nullptr, &tv);
     if (i == -1) {
-        strncpy(nControl->response, strerror(errno),
-                sizeof(nControl->response));
+        snprintf(nControl->response, sizeof(nControl->response), "%s", strerror(errno));
         net_close(nData->handle);
         nData->handle = 0;
         rv = 0;
@@ -833,8 +831,7 @@ static int FtpAcceptConnection(netbuf *nData, netbuf *nControl) {
                 rv = 1;
                 nData->handle = sData;
             } else {
-                strncpy(nControl->response, strerror(i),
-                        sizeof(nControl->response));
+                snprintf(nControl->response, sizeof(nControl->response), "%s", strerror(i));
                 nData->handle = 0;
                 rv = 0;
             }
@@ -1143,8 +1140,7 @@ static int FtpXfer(const char *localfile, const char *path,
             ac[1] = 'b';
         local = fopen(localfile, ac);
         if (local == nullptr) {
-            strncpy(nControl->response, strerror(errno),
-                    sizeof(nControl->response));
+            snprintf(nControl->response, sizeof(nControl->response), "%s", strerror(errno));
             return 0;
         }
     }
@@ -1315,7 +1311,11 @@ GLOBALDEF int FtpModDate(const char *path, char *dt, int max, netbuf *nControl) 
     if (!FtpSendCmd(buf, '2', nControl))
         rv = 0;
     else
-        strncpy(dt, &nControl->response[4], max);
+        if (max > 0) {
+            size_t length = strnlen(&nControl->response[4], max - 1);
+            memcpy(dt, &nControl->response[4], length);
+            dt[length] = '\0';
+        }
     return rv;
 }
 
