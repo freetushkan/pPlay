@@ -34,11 +34,17 @@ namespace pplay {
         // the network open in the filer (main menu), 0 if none: the one taken among the same
         // address and user (the filer requests)
         void setCurrentNetwork(int index) {
+            if (index > 0 && config != nullptr && index <= config->getNetworkCount() &&
+                parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString()) == NetworkType::P2Play) {
+                lastP2PlayNetwork = index;
+            }
             if (currentNetwork != index) {
                 currentNetwork = index;
                 forgetNetworks();
             }
         }
+
+        int lastP2PlayNetworkIndex();
 
         // the networks settings changed: the paths found again
         void forgetNetworks();
@@ -152,6 +158,7 @@ namespace pplay {
     private:
 
         std::atomic<int> currentNetwork {0};
+        std::atomic<int> lastP2PlayNetwork {0};
 
         // path -> network index (the filer items ask for each of them, often): the typed ones, all
         std::mutex networkCacheMutex;

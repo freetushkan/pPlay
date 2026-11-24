@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <sstream>
 #include "main.h"
 #include "paths.h"
 #include "filer.h"
@@ -13,6 +14,7 @@
 #include "round_rect.h"
 #include "utility.h"
 #include "torrserve.h"
+#include "p2play.h"
 #include "saved.h"
 #include "offline.h"
 #include "playlists.h"
@@ -301,7 +303,11 @@ void Filer::run(DetailsView::Action action) {
     switch (action) {
         case Action::Open:
             details->setFocused(false);
-            if (selection.type == Io::Type::Directory) {
+            if (pplay::P2Play::isSearchPromptPath(selection.path)) {
+                searchP2Play(selection.path);
+            } else if (pplay::P2Play::isSearchResultPath(selection.path)) {
+                showP2PlayRecord(selection);
+            } else if (selection.type == Io::Type::Directory) {
                 enter(item_index);
             } else if (pplay::Utility::isMedia(selection)) {
                 if (!player->getMpv()->isStopped()
@@ -392,6 +398,100 @@ void Filer::run(DetailsView::Action action) {
         default:
             break;
     }
+}
+
+namespace {
+    std::string p2playTorrentSummary(const pplay::P2Play::TorrentInfo &torrent) {
+        std::ostringstream out;
+        out << (torrent.title.empty() ? "Torrent" : torrent.title);
+        if (torrent.size > 0) out << "\nSize: " << pplay::Utility::formatSize(static_cast<uint64_t>(torrent.size));
+        out << "\nFiles: " << torrent.files.size();
+        const size_t count = std::min<size_t>(torrent.files.size(), 18);
+        for (size_t i = 0; i < count; ++i) {
+            const auto &file = torrent.files[i];
+            out << "\n" << pplay::Utility::formatSize(static_cast<uint64_t>(std::max<int64_t>(0, file.size)))
+                << "  " << file.path;
+        }
+        if (torrent.files.size() > count) out << "\n... " << (torrent.files.size() - count) << " more files";
+        return out.str();
+    }
+}
+
+void Filer::searchP2Play(const std::string &entryPath) {
+    std::string query;
+    if (!pplay::Keyboard::edit(pplay::tr("Search torrents"), query, false)) return;
+    const size_t first = query.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) return;
+    query = query.substr(first, query.find_last_not_of(" \t\r\n") - first + 1);
+    const std::string results = pplay::P2Play::searchResultsPath(entryPath, query);
+    if (results.empty()) return;
+    const int previous = item_index;
+    if (getDir(results)) { item_index_prev.push_back(previous); setSelection(0); }
+}
+
+void Filer::showP2PlayRecord(const MediaFile &file) {
+    const std::string hash = pplay::P2Play::searchResultHash(file.path);
+    if (hash.empty()) return;
+    const int timeout = pplay::Io::get()->networkTimeout(file.path);
+    pplay::P2Play::CatalogRecord record;
+    pplay::P2Play::TorrentInfo torrent;
+    std::string error;
+    main->getStatus()->show("Wait", pplay::tr("Loading torrent information"), true);
+    if (!pplay::P2Play::previewCatalogRecord(file.path, hash, timeout, &record, &torrent, &error)) {
+        main->getStatus()->hide();
+        main->showMessage(pplay::tr("P2Play"), error, pplay::tr("OK"));
+        return;
+    }
+    main->getStatus()->hide();
+    int action = main->showMessage(pplay::tr("Torrent details"), p2playTorrentSummary(torrent),
+                                   pplay::tr("Add"), pplay::tr("Cancel"));
+    if (action != MessageBox::LEFT) return;
+    main->getStatus()->show("Wait", pplay::tr("Adding torrent"), true);
+    if (!pplay::P2Play::addCatalogRecord(file.path, hash, timeout, &torrent, &error)) {
+        main->getStatus()->hide();
+        main->showMessage(pplay::tr("P2Play"), error, pplay::tr("OK"));
+        return;
+    }
+    main->getStatus()->hide();
+    const int previous = item_index;
+    const std::string folder = pplay::P2Play::directTorrentPath(file.path, torrent.hash);
+    if (!folder.empty() && getDir(folder)) { item_index_prev.push_back(previous); setSelection(0); }
+}
+
+void Filer::openP2PlayLink(const std::string &url, const std::string &name) {
+    auto *io = pplay::Io::get();
+    const int network = io ? io->lastP2PlayNetworkIndex() : 0;
+    if (network <= 0) {
+        main->showMessage(pplay::tr("P2Play"), pplay::tr("Add a P2Play network before opening this link"),
+                          pplay::tr("OK"));
+        return;
+    }
+    main->setCurrentModuleIndex(network);
+    std::string root = main->getConfig()->getOption(PPLAYConfig::networkOption(network))->getString();
+    if (root.empty()) return;
+    if (root.back() != '/') root += '/';
+    const int timeout = io->networkTimeout(root);
+    pplay::P2Play::TorrentInfo torrent;
+    std::string error;
+    main->getStatus()->show("Wait", pplay::tr("Loading torrent information"), true);
+    if (!pplay::P2Play::previewTorrentLink(root, url, name, timeout, &torrent, &error)) {
+        main->getStatus()->hide();
+        main->showMessage(pplay::tr("P2Play"), error, pplay::tr("OK"));
+        return;
+    }
+    main->getStatus()->hide();
+    int action = main->showMessage(pplay::tr("Torrent details"), p2playTorrentSummary(torrent),
+                                   pplay::tr("Add"), pplay::tr("Cancel"));
+    if (action != MessageBox::LEFT) return;
+    main->getStatus()->show("Wait", pplay::tr("Adding torrent"), true);
+    if (!pplay::P2Play::addTorrentLink(root, url, name, timeout, &torrent, &error)) {
+        main->getStatus()->hide();
+        main->showMessage(pplay::tr("P2Play"), error, pplay::tr("OK"));
+        return;
+    }
+    main->getStatus()->hide();
+    const std::string folder = pplay::P2Play::directTorrentPath(root, torrent.hash);
+    if (!folder.empty() && getDir(folder)) { item_index_prev.clear(); setSelection(0); }
 }
 
 void Filer::resetProgress(const MediaFile &file) {

@@ -11,6 +11,7 @@
 #include "saved.h"
 #include "playlists.h"
 #include "torrserve.h"
+#include "p2play.h"
 
 #define EMPTY_NAME "<Empty>"
 
@@ -183,12 +184,15 @@ bool Filer::getDir(const std::string &p) {
                 file.label = file.name + " (" + (dir.empty() ? "/" : dir) + ")";
             }
         }
-    } else if (!playlist) {
+    } else if (!playlist && !pplay::P2Play::isSearchResultsPath(path)) {
         std::sort(files.begin(), files.end(), compare);
         // a torrent root: its all files first
         std::stable_partition(files.begin(), files.end(),
                               [](const MediaFile &f) { return pplay::TorrServe::isAllFiles(f.path); });
     }
+    std::stable_partition(files.begin(), files.end(), [](const MediaFile &f) {
+        return pplay::P2Play::isSearchPromptPath(f.path);
+    });
 
     files.erase(std::remove_if(files.begin(), files.end(),
                                [](const MediaFile &f) { return f.name == ".." || f.name == "."; }),

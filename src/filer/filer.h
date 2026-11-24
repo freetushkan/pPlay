@@ -54,6 +54,9 @@ public:
 
     // the media information cache was cleared
     void clearMediaInfo();
+    void openP2PlayLink(const std::string &url, const std::string &name);
+    void searchP2Play(const std::string &entryPath);
+    void showP2PlayRecord(const MediaFile &file);
 
     // "<Empty>" entry of an empty directory
     static bool isPlaceholder(const MediaFile &file);

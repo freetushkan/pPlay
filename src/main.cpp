@@ -415,7 +415,8 @@ void Main::onUpdate() {
         std::string name, url = pplay::Platform::takeViewed(&name);
         if (!url.empty()) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: opened from another app: " + url);
-            openLink(url, name);
+            if (url.rfind("torrs://", 0) == 0) filer->openP2PlayLink(url, name);
+            else openLink(url, name);
         }
         // media session: updated on state change or a seek
         static std::string lastTitle;

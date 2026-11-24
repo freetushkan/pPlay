@@ -132,6 +132,22 @@ Io::NetworkType Io::parseNetworkType(const std::string &name) {
     return NetworkType::Auto;
 }
 
+int Io::lastP2PlayNetworkIndex() {
+    if (config == nullptr) return 0;
+    auto valid = [&](int index) {
+        return index > 0 && index <= config->getNetworkCount() &&
+               !config->getOption(PPLAYConfig::networkOption(index))->getString().empty() &&
+               parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString()) == NetworkType::P2Play;
+    };
+    const int last = lastP2PlayNetwork.load();
+    if (valid(last)) return last;
+    for (int i = config->getNetworkCount(); i >= 1; --i) {
+        if (valid(i)) { lastP2PlayNetwork = i; return i; }
+    }
+    lastP2PlayNetwork = 0;
+    return 0;
+}
+
 std::vector<c2d::Io::File> Io::getDirList(const pplay::Io::DeviceType &type, const std::vector<std::string> &extensions,
                                           const std::string &path, int timeout, bool sort, bool showHidden) {
 
