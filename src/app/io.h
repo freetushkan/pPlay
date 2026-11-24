@@ -33,17 +33,7 @@ namespace pplay {
 
         // the network open in the filer (main menu), 0 if none: the one taken among the same
         // address and user (the filer requests)
-        void setCurrentNetwork(int index) {
-            if (index > 0 && config != nullptr && index <= config->getNetworkCount() &&
-                parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString()) == NetworkType::P2Play) {
-                lastP2PlayNetwork = index;
-            }
-            if (currentNetwork != index) {
-                currentNetwork = index;
-                forgetNetworks();
-            }
-        }
-
+        void setCurrentNetwork(int index);
         int lastP2PlayNetworkIndex();
 
         // the networks settings changed: the paths found again

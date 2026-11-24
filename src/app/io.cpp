@@ -132,6 +132,17 @@ Io::NetworkType Io::parseNetworkType(const std::string &name) {
     return NetworkType::Auto;
 }
 
+void Io::setCurrentNetwork(int index) {
+    if (index > 0 && config != nullptr && index <= config->getNetworkCount() &&
+        parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString()) == NetworkType::P2Play) {
+        lastP2PlayNetwork = index;
+    }
+    if (currentNetwork != index) {
+        currentNetwork = index;
+        forgetNetworks();
+    }
+}
+
 int Io::lastP2PlayNetworkIndex() {
     if (config == nullptr) return 0;
     auto valid = [&](int index) {

@@ -438,6 +438,7 @@ namespace {
         info.hash = status.value("hash", std::string());
         info.title = status.value("title", std::string());
         info.size = status.value("size", int64_t(0));
+        int64_t measuredSize = 0;
         for (const auto &file : stats) {
             if (!file.is_object() || !file.value("id", json()).is_number_integer() ||
                 !file.value("path", json()).is_string()) continue;
@@ -445,9 +446,10 @@ namespace {
             item.index = file["id"].get<int>();
             item.path = file["path"].get<std::string>();
             item.size = file.value("length", int64_t(0));
-            if (info.size <= 0) info.size += std::max<int64_t>(0, item.size);
+            measuredSize += std::max<int64_t>(0, item.size);
             info.files.push_back(std::move(item));
         }
+        if (info.size <= 0) info.size = measuredSize;
         if (info.hash.empty() || info.files.empty()) return false;
         *out = std::move(info);
         return true;
