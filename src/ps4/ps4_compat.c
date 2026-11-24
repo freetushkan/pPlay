@@ -3,7 +3,6 @@
 #include <errno.h>
 #include <limits.h>
 #include <pthread.h>
-#include <stdatomic.h>
 #include <signal.h>
 #include <sys/socket.h>
 #include <stdio.h>
@@ -127,15 +126,11 @@ static int ps4_msg_flags(int flags) {
 
 ssize_t __real_sendto(int fd, const void *buf, size_t len, int flags, const struct sockaddr *addr, socklen_t alen);
 ssize_t __real_recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr *addr, socklen_t *alen);
-ssize_t __real_sendmsg(int fd, const struct msghdr *msg, int flags);
-ssize_t __real_recvmsg(int fd, struct msghdr *msg, int flags);
 
 ssize_t __wrap_send(int fd, const void *buf, size_t len, int flags);
 ssize_t __wrap_recv(int fd, void *buf, size_t len, int flags);
 ssize_t __wrap_sendto(int fd, const void *buf, size_t len, int flags, const struct sockaddr *addr, socklen_t alen);
 ssize_t __wrap_recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr *addr, socklen_t *alen);
-ssize_t __wrap_sendmsg(int fd, const struct msghdr *msg, int flags);
-ssize_t __wrap_recvmsg(int fd, struct msghdr *msg, int flags);
 
 ssize_t __wrap_send(int fd, const void *buf, size_t len, int flags) {
     return __real_sendto(fd, buf, len, ps4_msg_flags(flags), NULL, 0);
@@ -151,85 +146,6 @@ ssize_t __wrap_sendto(int fd, const void *buf, size_t len, int flags, const stru
 
 ssize_t __wrap_recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr *addr, socklen_t *alen) {
     return __real_recvfrom(fd, buf, len, ps4_msg_flags(flags) & ~FBSD_MSG_NOSIGNAL, addr, alen);
-}
-
-ssize_t __wrap_sendmsg(int fd, const struct msghdr *msg, int flags) {
-    return __real_sendmsg(fd, msg, ps4_msg_flags(flags));
-}
-
-ssize_t __wrap_recvmsg(int fd, struct msghdr *msg, int flags) {
-    return __real_recvmsg(fd, msg, ps4_msg_flags(flags) & ~FBSD_MSG_NOSIGNAL);
-}
-
-
-/*
- * OpenOrbis libc does not export __cxa_thread_atexit_impl, which libc++abi
- * uses to register C++ thread_local destructors. Keep a per-thread LIFO list
- * and execute it from a pthread-key destructor when the thread exits.
- */
-typedef struct ps4_thread_dtor {
-    void (*function)(void *);
-    void *object;
-    struct ps4_thread_dtor *next;
-} ps4_thread_dtor;
-
-static pthread_key_t g_ps4_thread_dtor_key;
-static atomic_flag g_ps4_thread_dtor_key_lock = ATOMIC_FLAG_INIT;
-static atomic_int g_ps4_thread_dtor_key_state = ATOMIC_VAR_INIT(0);
-
-static void ps4_run_thread_dtors(void *value) {
-    ps4_thread_dtor *entry = (ps4_thread_dtor *) value;
-    while (entry != NULL) {
-        ps4_thread_dtor *next = entry->next;
-        entry->function(entry->object);
-        free(entry);
-        entry = next;
-    }
-}
-
-static int ps4_ensure_thread_dtor_key(void) {
-    int state = atomic_load_explicit(&g_ps4_thread_dtor_key_state, memory_order_acquire);
-    if (state == 1) {
-        return 0;
-    }
-    if (state < 0) {
-        return -1;
-    }
-
-    while (atomic_flag_test_and_set_explicit(&g_ps4_thread_dtor_key_lock, memory_order_acquire)) {
-        /* Key creation happens once; this short spin avoids OpenOrbis pthread_once ABI differences. */
-    }
-
-    state = atomic_load_explicit(&g_ps4_thread_dtor_key_state, memory_order_relaxed);
-    if (state == 0) {
-        state = pthread_key_create(&g_ps4_thread_dtor_key, ps4_run_thread_dtors) == 0 ? 1 : -1;
-        atomic_store_explicit(&g_ps4_thread_dtor_key_state, state, memory_order_release);
-    }
-
-    atomic_flag_clear_explicit(&g_ps4_thread_dtor_key_lock, memory_order_release);
-    return state == 1 ? 0 : -1;
-}
-
-/* C++ ABI entry point used by libc++abi for thread_local destructors. */
-int __cxa_thread_atexit_impl(void (*function)(void *), void *object, void *dso_symbol) {
-    (void) dso_symbol;
-    if (function == NULL || ps4_ensure_thread_dtor_key() != 0) {
-        return -1;
-    }
-
-    ps4_thread_dtor *entry = (ps4_thread_dtor *) malloc(sizeof(*entry));
-    if (entry == NULL) {
-        return -1;
-    }
-
-    entry->function = function;
-    entry->object = object;
-    entry->next = (ps4_thread_dtor *) pthread_getspecific(g_ps4_thread_dtor_key);
-    if (pthread_setspecific(g_ps4_thread_dtor_key, entry) != 0) {
-        free(entry);
-        return -1;
-    }
-    return 0;
 }
 
 // Timezone: musl has no tz database, TZ is built from the system settings.

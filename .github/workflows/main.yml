@@ -562,6 +562,11 @@ jobs:
           java-version: '17'
           distribution: temurin
 
+      # Cache the Gradle wrapper and resolved Android Gradle Plugin/dependencies.
+      # This avoids re-downloading AGP from Maven repositories on every release build.
+      - name: Set up Gradle dependency cache
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Create build environment
         run: |
           sudo apt-get update || true

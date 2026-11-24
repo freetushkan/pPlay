@@ -762,10 +762,6 @@ void PPLAYConfig::sanitize() {
         getOption(networkTypeOption(i))->setString(type == pplay::Io::NetworkType::Auto
                                                            ? "TorrServer.MatriX"
                                                            : pplay::Io::networkTypeName(type));
-        if (type == pplay::Io::NetworkType::P2PlayEmbedded) {
-            getOption(networkOption(i))->setString("http://127.0.0.1:8090");
-            getOption(networkUserOption(i))->setString("owner");
-        }
         auto clampNetwork = [this](const char *name, int min, int max) {
             int value = getOption(name)->getInteger();
             getOption(name)->setInteger(std::max(min, std::min(max, value)));

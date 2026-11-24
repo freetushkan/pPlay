@@ -448,7 +448,7 @@ GLOBALDEF int FtpConnect(const char *host, netbuf **nControl) {
         sin.sin_port = htons(atoi(pnum));
     else {
         struct servent *pse;
-#if defined(_REENTRANT) && !defined(__ANDROID__)
+#if _REENTRANT
         struct servent se;
         char tmpbuf[TMP_BUFSIZ];
         int i;

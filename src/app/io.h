@@ -35,8 +35,6 @@ namespace pplay {
         // address and user (the filer requests)
         void setCurrentNetwork(int index);
         int lastP2PlayNetworkIndex();
-        bool updateEmbedded();
-        bool embeddedReady() const;
 
         // the networks settings changed: the paths found again
         void forgetNetworks();
@@ -57,7 +55,6 @@ namespace pplay {
             Auto,
             TorrServe,
             P2Play,
-            P2PlayEmbedded,
             Smb,
             Ftp,
             Http,

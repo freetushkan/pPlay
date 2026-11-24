@@ -242,21 +242,8 @@ void MenuMainOptionsSubmenu::refreshValues() {
                                                              || type == pplay::Io::NetworkType::TorrServeSilo
                                                      : type == pplay::Io::NetworkType::Smb;
         } else if (network > 0 && Utility::endsWith(name, " users")) {
-            const auto type = pplay::Io::parseNetworkType(
-                    config->getOption(PPLAYConfig::networkTypeOption(network))->getString());
-            shown = type == pplay::Io::NetworkType::P2Play || type == pplay::Io::NetworkType::P2PlayEmbedded;
-        } else if (network > 0 && Utility::endsWith(name, " url")) {
-            shown = pplay::Io::parseNetworkType(
-                    config->getOption(PPLAYConfig::networkTypeOption(network))->getString()) !=
-                    pplay::Io::NetworkType::P2PlayEmbedded;
-        } else if (network > 0 && Utility::endsWith(name, " search")) {
-            shown = pplay::Io::parseNetworkType(
-                    config->getOption(PPLAYConfig::networkTypeOption(network))->getString()) !=
-                    pplay::Io::NetworkType::P2PlayEmbedded;
-        } else if (network > 0 && Utility::endsWith(name, " user")) {
-            const auto type = pplay::Io::parseNetworkType(
-                    config->getOption(PPLAYConfig::networkTypeOption(network))->getString());
-            shown = type != pplay::Io::NetworkType::P2PlayEmbedded && type != pplay::Io::NetworkType::Dlna;
+            shown = pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(network))->getString()) ==
+                    pplay::Io::NetworkType::P2Play;
         } else if (network > 0 && Utility::endsWith(name, " token")) {
             // TS Silo only
             shown = pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(network))->getString()) ==
@@ -624,19 +611,8 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
     option->setString(newValue);
     int network = PPLAYConfig::networkOf(option_name, "_TYPE");
     if (network > 0) {
-        const auto selectedType = pplay::Io::parseNetworkType(newValue);
-        const auto previousType = pplay::Io::parseNetworkType(oldValue);
-        if (selectedType == pplay::Io::NetworkType::P2PlayEmbedded) {
-            main->getConfig()->getOption(PPLAYConfig::networkUserOption(network))->setString("owner");
-            main->getConfig()->getOption(PPLAYConfig::networkPasswordOption(network))->setString("");
-            main->getConfig()->setNetworkUrl(network, "http://127.0.0.1:8090");
-        } else if (previousType == pplay::Io::NetworkType::P2PlayEmbedded) {
-            main->getConfig()->getOption(PPLAYConfig::networkPasswordOption(network))->setString("");
-            main->getConfig()->getOption(PPLAYConfig::networkUserOption(network))->setString("");
-            main->getConfig()->setNetworkUrl(network, "");
-        } else {
-            main->getConfig()->updateNetworkCredentials(network);
-        }
+        // DLNA: no login in its urls
+        main->getConfig()->updateNetworkCredentials(network);
     }
     main->getConfig()->save();
     pplay::Utility::log(pplay::Utility::LogLevel::Info,

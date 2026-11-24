@@ -14,9 +14,6 @@ SDL="$(realpath "$2")"
 PNG="$(realpath "$3")"
 GLM="$(realpath "$4")"
 
-# One pinned core checkout / Boost header tree is shared by both Android ABIs.
-source "$ROOT/ci/prepare-p2play-embedded.sh"
-
 # libcross2d's Android device: a Device (sdl2_renderer.cpp asks its display size)
 sed -i 's/class ANDROIDDevice {/class ANDROIDDevice : public Device {/' \
 	"$ROOT/libcross2d/include/cross2d/platforms/android/android_device.h"
@@ -165,8 +162,6 @@ TOOLCHAIN
 		-DPLATFORM_ANDROID=ON -DANDROID_ABI="$abi" \
 		-DOPTION_BUILTIN_LIBCONFIG=ON -DOPTION_SMB2=ON \
 		-DANDROID_ASSETS_PATH="$ROOT/android/app/src/main/assets" \
-        -DP2PLAY_EMBEDDED_SOURCE_DIR="$P2PLAY_EMBEDDED_SOURCE_DIR" \
-        -DP2PLAY_EMBEDDED_BOOST_INCLUDE_DIR="$P2PLAY_EMBEDDED_BOOST_INCLUDE_DIR" \
 		-DCMAKE_C_FLAGS="-isystem $prefix/include" -DCMAKE_CXX_FLAGS="-isystem $prefix/include" \
 		-DCMAKE_BUILD_TYPE=Release
 	PKG_CONFIG_LIBDIR="$prefix/lib/pkgconfig" PKG_CONFIG_SYSROOT_DIR="$prefix" \
