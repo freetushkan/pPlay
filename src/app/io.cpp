@@ -540,7 +540,8 @@ std::string Io::mediaProbeUrl(const std::string &path) {
 }
 
 bool Io::prepareMediaProbe(const std::string &path) {
-    return getDeviceType(originalPath(path)) == DeviceType::TorrServe && !TorrServe::isFileViewed(path, true);
+    return localCopy(path).empty() && getDeviceType(originalPath(path)) == DeviceType::TorrServe
+           && !TorrServe::isFileViewed(path, true);
 }
 
 void Io::finishMediaProbe(const std::string &path, bool restoreTransientState) {
