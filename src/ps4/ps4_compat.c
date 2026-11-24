@@ -126,11 +126,15 @@ static int ps4_msg_flags(int flags) {
 
 ssize_t __real_sendto(int fd, const void *buf, size_t len, int flags, const struct sockaddr *addr, socklen_t alen);
 ssize_t __real_recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr *addr, socklen_t *alen);
+ssize_t __real_sendmsg(int fd, const struct msghdr *msg, int flags);
+ssize_t __real_recvmsg(int fd, struct msghdr *msg, int flags);
 
 ssize_t __wrap_send(int fd, const void *buf, size_t len, int flags);
 ssize_t __wrap_recv(int fd, void *buf, size_t len, int flags);
 ssize_t __wrap_sendto(int fd, const void *buf, size_t len, int flags, const struct sockaddr *addr, socklen_t alen);
 ssize_t __wrap_recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr *addr, socklen_t *alen);
+ssize_t __wrap_sendmsg(int fd, const struct msghdr *msg, int flags);
+ssize_t __wrap_recvmsg(int fd, struct msghdr *msg, int flags);
 
 ssize_t __wrap_send(int fd, const void *buf, size_t len, int flags) {
     return __real_sendto(fd, buf, len, ps4_msg_flags(flags), NULL, 0);
@@ -146,6 +150,14 @@ ssize_t __wrap_sendto(int fd, const void *buf, size_t len, int flags, const stru
 
 ssize_t __wrap_recvfrom(int fd, void *buf, size_t len, int flags, struct sockaddr *addr, socklen_t *alen) {
     return __real_recvfrom(fd, buf, len, ps4_msg_flags(flags) & ~FBSD_MSG_NOSIGNAL, addr, alen);
+}
+
+ssize_t __wrap_sendmsg(int fd, const struct msghdr *msg, int flags) {
+    return __real_sendmsg(fd, msg, ps4_msg_flags(flags));
+}
+
+ssize_t __wrap_recvmsg(int fd, struct msghdr *msg, int flags) {
+    return __real_recvmsg(fd, msg, ps4_msg_flags(flags) & ~FBSD_MSG_NOSIGNAL);
 }
 
 // Timezone: musl has no tz database, TZ is built from the system settings.

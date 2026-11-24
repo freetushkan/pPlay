@@ -284,6 +284,11 @@ set(BOOST_INCLUDE_DIR "${P2PLAY_EMBEDDED_BOOST_INCLUDE_DIR}" CACHE PATH "" FORCE
 set(P2P_EMBEDDED_ONLY ON CACHE BOOL "Build only p2play_core for embedding in another application" FORCE)
 add_subdirectory("${P2PLAY_EMBEDDED_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/p2play-core" EXCLUDE_FROM_ALL)
 
+if (PLATFORM_SWITCH)
+    # The Switch executable is a PIE; its embedded static libraries must be PIC.
+    set_target_properties(p2play_core torrent-rasterbar PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif ()
+
 #####################
 # pplay executable
 #####################
