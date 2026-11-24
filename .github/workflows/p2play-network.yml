@@ -1,22 +1,8 @@
 name: P2Play network module
 
 on:
-  pull_request:
-    paths:
-      - "src/app/io.*"
-      - "src/net/net_http.*"
-      - "src/net/p2play.*"
-      - "src/player/player.cpp"
-      - "src/filer/filer.cpp"
-      - "src/main.cpp"
-      - "src/menus/menu_main_items.cpp"
-      - "README.MD"
-      - "CMakeLists.txt"
-      - "ci/linux-static-deps.sh"
-      - "ci/mpv-mkv-noindex-seek.patch"
-      - "ci/linux-appimage.sh"
-      - ".github/workflows/main.yml"
-      - ".github/workflows/p2play-network.yml"
+  # Retained for an explicitly requested Linux-only diagnostic run.
+  # All pull requests to dev use the complete platform matrix in main.yml.
   workflow_dispatch:
 
 jobs:

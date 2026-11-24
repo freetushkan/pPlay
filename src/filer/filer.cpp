@@ -423,7 +423,78 @@ void Filer::searchP2Play(const std::string &entryPath) {
     const size_t first = query.find_first_not_of(" \t\r\n");
     if (first == std::string::npos) return;
     query = query.substr(first, query.find_last_not_of(" \t\r\n") - first + 1);
-    const std::string results = pplay::P2Play::searchResultsPath(entryPath, query);
+
+    auto *io = pplay::Io::get();
+    const int timeout = io != nullptr ? io->networkTimeout(entryPath) : 15;
+    std::vector<pplay::P2Play::CatalogList> lists;
+    std::string error;
+    if (!pplay::P2Play::getCatalogLists(entryPath, timeout, &lists, &error)) {
+        main->showMessage(pplay::tr("P2Play"), error, pplay::tr("OK"));
+        return;
+    }
+
+    std::vector<std::string> selectedLists;
+    int action = main->showMessage(pplay::tr("Search torrents"),
+        pplay::tr("Query: ") + query + "\n\n" +
+        pplay::tr("Search all available catalogs or narrow the search to selected lists."),
+        pplay::tr("Search"), pplay::tr("Select lists"));
+
+    while (action == MessageBox::RIGHT) {
+        if (lists.empty()) {
+            main->showMessage(pplay::tr("Select lists"),
+                pplay::tr("No catalog lists are available on this server yet.") + "\n\n" +
+                pplay::tr("You can still search all records currently known to this server. To test a populated list selector, publish or subscribe to a MediaMesh catalog list; the P2Play CI mesh test creates and removes a temporary list."),
+                pplay::tr("OK"));
+        } else {
+            for (size_t i = 0; i < lists.size(); ++i) {
+                const auto &list = lists[i];
+                if (list.includes.empty()) continue;
+                auto isIncluded = [&] {
+                    return std::all_of(list.includes.begin(), list.includes.end(), [&](const std::string &key) {
+                        return std::find(selectedLists.begin(), selectedLists.end(), key) != selectedLists.end();
+                    });
+                };
+                while (true) {
+                    const bool included = isIncluded();
+                    const std::string kind = list.meta ? pplay::tr("Meta-list") : pplay::tr("Catalog");
+                    const std::string message = list.name + "\n" + kind + "\n" +
+                        pplay::tr("Enabled catalogs: ") + std::to_string(list.includes.size()) + "\n" +
+                        pplay::tr("List key: ") + list.pubkey.substr(0, 16) + "…\n\n" +
+                        (included ? pplay::tr("Included in this search.") : pplay::tr("Not selected."));
+                    const std::string next = i + 1 == lists.size() ? pplay::tr("Apply") : pplay::tr("Next");
+                    const int choice = main->showMessage(pplay::tr("Select lists"), message,
+                                                          included ? pplay::tr("Remove") : pplay::tr("Include"),
+                                                          next);
+                    if (choice == MessageBox::CANCEL) return;
+                    if (choice == MessageBox::LEFT) {
+                        if (included) {
+                            selectedLists.erase(std::remove_if(selectedLists.begin(), selectedLists.end(),
+                                [&](const std::string &key) {
+                                    return std::find(list.includes.begin(), list.includes.end(), key) != list.includes.end();
+                                }), selectedLists.end());
+                        } else {
+                            for (const auto &key : list.includes) {
+                                if (std::find(selectedLists.begin(), selectedLists.end(), key) == selectedLists.end()) {
+                                    selectedLists.push_back(key);
+                                }
+                            }
+                        }
+                        continue;
+                    }
+                    break;
+                }
+            }
+        }
+
+        std::string scope = selectedLists.empty() ? pplay::tr("All catalogs")
+                                                  : std::to_string(selectedLists.size()) + " " + pplay::tr("catalogs selected");
+        action = main->showMessage(pplay::tr("Search torrents"),
+            pplay::tr("Query: ") + query + "\n" + pplay::tr("Search scope: ") + scope,
+            pplay::tr("Search"), pplay::tr("Change lists"));
+    }
+
+    if (action != MessageBox::LEFT) return;
+    const std::string results = pplay::P2Play::searchResultsPath(entryPath, query, selectedLists);
     if (results.empty()) return;
     const int previous = item_index;
     if (getDir(results)) { item_index_prev.push_back(previous); setSelection(0); }

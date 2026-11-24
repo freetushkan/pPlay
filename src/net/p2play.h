@@ -15,11 +15,19 @@ namespace pplay::P2Play {
     struct TorrentFile { int index = -1; std::string path; int64_t size = 0; };
     struct TorrentInfo { std::string hash, title; int64_t size = 0; std::vector<TorrentFile> files; };
     struct CatalogRecord { std::string hash, title; int64_t size = 0, date = 0; int files = 0; std::vector<std::string> tags; };
+    struct CatalogList {
+        std::string pubkey, name, description;
+        bool meta = false;
+        std::vector<std::string> includes;
+    };
 
     bool isSearchPromptPath(const std::string &path);
     bool isSearchResultsPath(const std::string &path);
     bool isSearchResultPath(const std::string &path);
-    std::string searchResultsPath(const std::string &contextPath, const std::string &query);
+    std::string searchResultsPath(const std::string &contextPath, const std::string &query,
+                                  const std::vector<std::string> &selectedLists = {});
+    bool getCatalogLists(const std::string &contextPath, int timeout,
+                         std::vector<CatalogList> *lists, std::string *error);
     std::string searchResultHash(const std::string &path);
     std::string directTorrentPath(const std::string &contextPath, const std::string &torrentHash);
 

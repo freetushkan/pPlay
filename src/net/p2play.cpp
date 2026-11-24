@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cctype>
 #include <ctime>
 #include <map>
 #include <mutex>
@@ -284,13 +285,21 @@ namespace {
     }
 
     bool searchResults(const std::string &root, const std::string &context, const std::string &query,
-                       const std::string &tag, int timeout, json *records, std::string *error) {
+                       const std::string &tag, int timeout, json *records, std::string *error,
+                       const std::vector<std::string> &selectedLists = {}) {
         std::string route = "/api/catalog/search?limit=500";
         if (!query.empty()) {
             route += "&q=" + pplay::Http::escape(query);
         }
         if (!tag.empty()) {
             route += "&tag=" + pplay::Http::escape(tag);
+        }
+        if (!selectedLists.empty()) {
+            route += "&lists=";
+            for (size_t i = 0; i < selectedLists.size(); ++i) {
+                if (i) route += ",";
+                route += selectedLists[i];
+            }
         }
         json answer;
         if (!apiJson(root, context, route, "GET", noBody(), timeout, &answer, error)) {
@@ -535,15 +544,83 @@ namespace pplay::P2Play {
     }
     bool isSearchResultsPath(const std::string &path) {
         const auto p = pathParts(path);
-        return p.size() == 3 && p[0] == ".p2play" && p[1] == "results";
+        return (p.size() == 3 || p.size() == 4) && p[0] == ".p2play" && p[1] == "results";
     }
     bool isSearchResultPath(const std::string &path) {
         const auto p = pathParts(path);
         return p.size() == 3 && p[0] == ".p2play" && p[1] == "result";
     }
-    std::string searchResultsPath(const std::string &contextPath, const std::string &query) {
+    std::string searchResultsPath(const std::string &contextPath, const std::string &query,
+                                  const std::vector<std::string> &selectedLists) {
         const auto root = rootOf(contextPath);
-        return root.empty() || query.empty() ? std::string() : virtualPath(root, {".p2play", "results", query});
+        if (root.empty() || query.empty()) return {};
+        std::vector<std::string> parts = {".p2play", "results", query};
+        std::set<std::string> unique;
+        for (const auto &key : selectedLists) {
+            if (key.size() == 64 && std::all_of(key.begin(), key.end(), [](unsigned char c) {
+                    return std::isxdigit(c) != 0;
+                })) unique.insert(key);
+        }
+        if (!unique.empty()) {
+            std::string filter;
+            for (const auto &key : unique) {
+                if (!filter.empty()) filter += ',';
+                filter += key;
+            }
+            parts.push_back(filter);
+        }
+        return virtualPath(root, parts);
+    }
+
+    bool getCatalogLists(const std::string &contextPath, int timeout,
+                         std::vector<CatalogList> *lists, std::string *error) {
+        if (lists == nullptr || error == nullptr) return false;
+        lists->clear();
+        const std::string context = rootOf(contextPath);
+        if (context.empty()) {
+            *error = "P2Play network path is invalid";
+            return false;
+        }
+        json answer;
+        if (!apiJson(cleanRoot(context), context, "/api/lists", "GET", noBody(), timeout, &answer, error)) return false;
+        const json *items = nullptr;
+        if (!answer.is_object() || !arrayAt(answer, "lists", &items)) {
+            *error = "P2Play list response has no lists array";
+            return false;
+        }
+        for (const auto &item : *items) {
+            if (!item.is_object() || !item.value("pubkey", json()).is_string()) continue;
+            CatalogList list;
+            list.pubkey = item["pubkey"].get<std::string>();
+            if (list.pubkey.size() != 64 ||
+                !std::all_of(list.pubkey.begin(), list.pubkey.end(), [](unsigned char c) {
+                    return std::isxdigit(c) != 0;
+                })) continue;
+            list.name = item.value("name", list.pubkey.substr(0, 12));
+            list.description = item.value("description", std::string());
+            list.meta = item.value("type", std::string("catalog")) == "meta";
+            if (list.meta) {
+                const json children = item.value("items", json::array());
+                if (children.is_array()) for (const auto &child : children) {
+                    if (!child.is_object()) continue;
+                    const json enabled = child.value("enabled", json(true));
+                    if (!enabled.is_boolean() || !enabled.get<bool>() ||
+                        !child.value("pubkey", json()).is_string()) continue;
+                    const std::string key = child["pubkey"].get<std::string>();
+                    if (key.size() == 64 && std::all_of(key.begin(), key.end(), [](unsigned char c) {
+                            return std::isxdigit(c) != 0;
+                        })) list.includes.push_back(key);
+                }
+            } else {
+                list.includes.push_back(list.pubkey);
+            }
+            lists->push_back(std::move(list));
+        }
+        std::stable_sort(lists->begin(), lists->end(), [](const CatalogList &a, const CatalogList &b) {
+            if (a.meta != b.meta) return !a.meta;
+            return a.name < b.name;
+        });
+        return true;
     }
     std::string searchResultHash(const std::string &path) {
         const auto p = pathParts(path);
@@ -645,9 +722,17 @@ namespace pplay::P2Play {
             fail("Unknown P2Play virtual path");
             return files;
         }
-        if (parts.size() == 3 && parts[1] == "results") {
+        if ((parts.size() == 3 || parts.size() == 4) && parts[1] == "results") {
             json records;
-            if (!searchResults(root, context, parts[2], {}, timeout, &records, &failure)) {
+            std::vector<std::string> selectedLists;
+            if (parts.size() == 4) {
+                std::stringstream filter(parts[3]);
+                std::string key;
+                while (std::getline(filter, key, ',')) {
+                    if (key.size() == 64) selectedLists.push_back(key);
+                }
+            }
+            if (!searchResults(root, context, parts[2], {}, timeout, &records, &failure, selectedLists)) {
                 fail(failure);
                 return files;
             }
