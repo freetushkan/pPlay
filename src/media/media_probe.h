@@ -25,6 +25,7 @@ public:
 
     // probed once the selection settles; known files and the others skipped
     void request(const MediaFile &file);
+    void requestDuration(const MediaFile &file);
 
     // each frame: true for a finished probe, its file with the information (again once
     // its TorrServer viewed state is restored)

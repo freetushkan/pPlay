@@ -129,6 +129,20 @@ void Filer::setMediaInfo(const MediaFile &target, const MediaInfo &mediaInfo) {
     mutex->unlock();
 }
 
+void Filer::requestMediaProbe(const MediaFile &file) {
+    if (probe != nullptr && file.mediaInfo.duration <= 0) probe->requestDuration(file);
+}
+
+long Filer::mediaDuration(const std::string &targetPath) const {
+    long duration = 0;
+    mutex->lock();
+    for (const auto &file : files) {
+        if (file.path == targetPath) { duration = file.mediaInfo.duration; break; }
+    }
+    mutex->unlock();
+    return duration;
+}
+
 void Filer::setSelection(int index) {
     mutex->lock();
     int count = (int) files.size();

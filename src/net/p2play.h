@@ -33,6 +33,7 @@ namespace pplay::P2Play {
         int rank = 0;
         bool banned = false;
     };
+    struct PlaybackProgress { double position = 0; double duration = 0; bool viewed = false; };
 
     bool isSearchPromptPath(const std::string &path);
     bool isSearchResultsPath(const std::string &path);
@@ -53,6 +54,8 @@ namespace pplay::P2Play {
                      int rank, int timeout, std::string *error);
     bool deleteUser(const std::string &contextPath, const std::string &userId,
                     int timeout, std::string *error);
+    bool getFileProgress(const std::string &filePath, int timeout, PlaybackProgress *progress, std::string *error);
+    bool setFileProgress(const std::string &filePath, double position, double duration, int timeout, std::string *error);
     // Fetch signed description/poster refs only when a result is selected, never during search.
     bool getCatalogDetails(const std::string &contextPath, const std::string &recordHash, int timeout,
                            CatalogDetails *details, std::string *error);

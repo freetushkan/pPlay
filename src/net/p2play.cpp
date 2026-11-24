@@ -259,10 +259,27 @@ namespace {
 
     bool arrayAt(const json &object, const char *key, const json **array) {
         auto it = object.find(key);
-        if (it == object.end() || !it->is_array()) {
-            return false;
-        }
+        if (it == object.end() || !it->is_array()) return false;
         *array = &*it;
+        return true;
+    }
+
+    bool fileAddressOf(const std::string &filePath, std::string *context, std::string *root,
+                        std::string *hash, int *index, std::string *error) {
+        if (!context || !root || !hash || !index || !error) return false;
+        *error = "";
+        const std::string original = pplay::Saved::originalOf(filePath);
+        const std::string networkRoot = rootOf(original);
+        if (networkRoot.empty()) { *error = "P2Play file path has no network root"; return false; }
+        const auto parts = splitPath(relativeOf(networkRoot, original));
+        if (parts.size() < 6 || parts[0] != ".p2play" || parts[1] != "file" ||
+            parts[3].empty() || parts[4].empty() || parts[4].size() > 9 ||
+            !std::all_of(parts[4].begin(), parts[4].end(), [](unsigned char c) { return std::isdigit(c) != 0; })) {
+            *error = "P2Play path is not a playable torrent file"; return false;
+        }
+        int parsed = 0;
+        for (unsigned char c : parts[4]) parsed = parsed * 10 + (c - '0');
+        *context = original; *root = cleanRoot(networkRoot); *hash = parts[3]; *index = parsed;
         return true;
     }
 
@@ -1037,6 +1054,38 @@ namespace pplay::P2Play {
             url += "?token=" + pplay::Http::escape(token);
         }
         return pplay::Http::normalize(url);
+    }
+
+    bool getFileProgress(const std::string &filePath, int timeout, PlaybackProgress *progress, std::string *error) {
+        if (!progress || !error) return false;
+        *progress = PlaybackProgress();
+        std::string context, root, hash; int index = -1;
+        if (!fileAddressOf(filePath, &context, &root, &hash, &index, error)) return false;
+        json status;
+        if (!apiJson(root, context, "/api/torrents/" + pplay::Http::escape(hash), "GET", noBody(), timeout, &status, error)) return false;
+        const json *items = nullptr;
+        if (!status.is_object() || !arrayAt(status, "file_progress", &items)) {
+            *error = "P2Play torrent response has no file progress array"; return false;
+        }
+        for (const auto &item : *items) {
+            if (!item.is_object() || !item.value("id", json()).is_number_integer() || item["id"].get<int>() != index) continue;
+            if (item.value("position", json()).is_number()) progress->position = item["position"].get<double>();
+            if (item.value("duration", json()).is_number()) progress->duration = item["duration"].get<double>();
+            progress->viewed = item.value("viewed", false);
+            break;
+        }
+        return true;
+    }
+
+    bool setFileProgress(const std::string &filePath, double position, double duration, int timeout, std::string *error) {
+        if (!error) return false;
+        std::string context, root, hash; int index = -1;
+        if (!fileAddressOf(filePath, &context, &root, &hash, &index, error)) return false;
+        if (position < 0 || duration < 0) { *error = "P2Play progress values must not be negative"; return false; }
+        json answer;
+        const json body = {{"position", position}, {"duration", duration}};
+        return apiJson(root, context, "/api/torrents/" + pplay::Http::escape(hash) + "/files/" +
+                       std::to_string(index) + "/progress", "PUT", body, timeout, &answer, error);
     }
 
     bool getUsers(const std::string &contextPath, int timeout, std::vector<ServerUser> *users,

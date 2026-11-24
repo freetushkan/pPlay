@@ -131,8 +131,8 @@ static bool unreachable(const std::string &path) {
 }
 
 void MediaProbe::request(const MediaFile &file) {
-    // playlists are text
-    if (!pplay::Utility::isMedia(file) || file.mediaInfo.known
+    // A known stream layout may still have no usable duration.
+    if (!pplay::Utility::isMedia(file) || file.mediaInfo.duration > 0
         || c2d::Utility::endsWith(file.name, ".m3u", false) || c2d::Utility::endsWith(file.name, ".m3u8", false)
         || tried.count(file.path) > 0 || unreachable(file.path)) {
         pending = false;
@@ -145,8 +145,16 @@ void MediaProbe::request(const MediaFile &file) {
     }
 }
 
+void MediaProbe::requestDuration(const MediaFile &file) {
+    if (!pplay::Utility::isMedia(file) || file.mediaInfo.duration > 0) return;
+    if ((thread != nullptr && job.path == file.path) || (pending && wanted.path == file.path)) return;
+    tried.erase(file.path);
+    failures.erase(file.path);
+    request(file);
+}
+
 void MediaProbe::requestBackground(const MediaFile &file) {
-    if (!pplay::Utility::isMedia(file) || file.mediaInfo.known
+    if (!pplay::Utility::isMedia(file) || file.mediaInfo.duration > 0
         || c2d::Utility::endsWith(file.name, ".m3u", false) || c2d::Utility::endsWith(file.name, ".m3u8", false)
         || tried.count(file.path) > 0 || unreachable(file.path)) {
         return;
@@ -214,9 +222,14 @@ bool MediaProbe::poll(MediaFile *file) {
 
 int MediaProbe::run(void *data) {
     auto *self = (MediaProbe *) data;
-    std::string url = pplay::Saved::openUrl(self->job.path);
-    bool torrent = url.find("://") != std::string::npos
-                   && pplay::Io::get()->getDeviceType(self->job.path) == pplay::Io::DeviceType::TorrServe;
+    auto *io = pplay::Io::get();
+    std::string url = pplay::Saved::localCopy(self->job.path);
+    if (url.empty()) {
+        url = io != nullptr && io->getDeviceType(self->job.path) == pplay::Io::DeviceType::P2Play
+                  ? io->streamUrl(self->job.path) : pplay::Saved::openUrl(self->job.path);
+    }
+    bool torrent = url.find("://") != std::string::npos &&
+                   io != nullptr && io->getDeviceType(self->job.path) == pplay::Io::DeviceType::TorrServe;
     bool viewed = torrent && pplay::TorrServe::isFileViewed(self->job.path, true);
     std::string error;
     MediaInfo info;

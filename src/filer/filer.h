@@ -29,6 +29,8 @@ public:
     ~Filer() override;
 
     void setMediaInfo(const MediaFile &target, const MediaInfo &mediaInfo);
+    void requestMediaProbe(const MediaFile &file);
+    long mediaDuration(const std::string &path) const;
 
     virtual bool getDir(const std::string &path);
 

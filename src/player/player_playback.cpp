@@ -17,6 +17,7 @@
 #include "i18n.h"
 #include "filer.h"
 #include "torrserve.h"
+#include "p2play.h"
 #include "saved.h"
 
 using namespace c2d;
@@ -302,7 +303,18 @@ void Player::saveProgress(bool wait) {
     }
     mpv->save(wait);
     if (syncsProgress() && lastKnownPosition > 0) {
-        pplay::TorrServe::setFileProgress(file.path, (double) lastKnownPosition, (double) lastKnownDuration);
+        const auto device = pplay::Io::get()->getDeviceType(pplay::Saved::originalOf(file.path));
+        if (device == pplay::Io::DeviceType::P2Play) {
+            std::string error;
+            if (!pplay::P2Play::setFileProgress(file.path, (double) lastKnownPosition,
+                                                (double) lastKnownDuration,
+                                                pplay::Io::get()->networkTimeout(file.path), &error) &&
+                !error.empty()) {
+                pplay::Utility::log(pplay::Utility::LogLevel::Debug, "P2Play progress write: " + error);
+            }
+        } else {
+            pplay::TorrServe::setFileProgress(file.path, (double) lastKnownPosition, (double) lastKnownDuration);
+        }
     }
 }
 

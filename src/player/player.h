@@ -419,6 +419,8 @@ private:
     bool progressForgotten = false;
     long lastKnownDuration = 0;
     long lastKnownPosition = 0;
+    bool durationProbeRequested = false;
+    c2d::C2DClock durationProbeClock;
     bool watchLaterSkip[2] = {false, false};
 
     // reloads and the stall watchdog
