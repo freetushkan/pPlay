@@ -20,6 +20,8 @@ set(PLATFORM_ANDROID OFF CACHE BOOL "Android platform target (the native part of
 set(OPTION_SMB2 OFF CACHE BOOL "Build with smb2 support")
 set(OPTION_LINUX_STATIC OFF CACHE BOOL "Linux: link the static libraries of ci/linux-static-deps.sh")
 set(LINUX_STATIC_PREFIX "/opt/pplay-static" CACHE PATH "Linux: ci/linux-static-deps.sh prefix")
+set(P2PLAY_EMBEDDED_SOURCE_DIR "" CACHE PATH "Pinned P2Play source checkout for embedded mode")
+set(P2PLAY_EMBEDDED_BOOST_INCLUDE_DIR "" CACHE PATH "Patched Boost header tree for embedded P2Play")
 
 if (PLATFORM_LINUX AND OPTION_LINUX_STATIC)
     set(ENV{PKG_CONFIG_PATH} "${LINUX_STATIC_PREFIX}/lib/pkgconfig")
@@ -152,7 +154,10 @@ set(PPLAY_LDFLAGS
 # PLATORM SPECIFIC
 #####################
 if (PLATFORM_SWITCH)
-    list(APPEND PPLAY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/switch/crashlog.cpp)
+    list(APPEND PPLAY_SRC
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/switch/crashlog.cpp
+            ${P2PLAY_EMBEDDED_SOURCE_DIR}/compat/switch/switch_compat.c
+        )
     #####################
     # SWITCH PLATORM
     #####################
@@ -266,8 +271,6 @@ endif ()
 #####################
 # Embedded P2Play core: static library only (p2playd is never built into pPlay).
 #####################
-set(P2PLAY_EMBEDDED_SOURCE_DIR "" CACHE PATH "Pinned P2Play source checkout for embedded mode")
-set(P2PLAY_EMBEDDED_BOOST_INCLUDE_DIR "" CACHE PATH "Patched Boost header tree for embedded P2Play")
 if (P2PLAY_EMBEDDED_SOURCE_DIR STREQUAL "")
     message(FATAL_ERROR "Prepare the pinned P2Play core first: ci/prepare-p2play-embedded.sh")
 endif ()
@@ -344,7 +347,9 @@ if (PLATFORM_PS4)
             "LINKER:--wrap=send"
             "LINKER:--wrap=recv"
             "LINKER:--wrap=sendto"
-            "LINKER:--wrap=recvfrom")
+            "LINKER:--wrap=recvfrom"
+            "LINKER:--wrap=sendmsg"
+            "LINKER:--wrap=recvmsg")
     function(add_pkg project pkgdir title_id title version)
         _add_pkg(${project} ${pkgdir} ${title_id} "${title}" ${version} ${PS4_PKG_ATTRIBUTE} ${PS4_PKG_CATEGORY})
     endfunction()

@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REF="${P2PLAY_CORE_REF:-b6c7b74916e36a873663fa55d27a9aaa209e7cfe}"
-BRANCH="${P2PLAY_CORE_BRANCH:-feature/embedded-drain-api}"
+BRANCH="${P2PLAY_CORE_BRANCH:-master}"
 BOOST="${P2PLAY_BOOST_INCLUDE_DIR:-.cache/p2play-boost-headers}"
 case "$BOOST" in
     /*) ;;
