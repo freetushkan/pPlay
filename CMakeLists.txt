@@ -20,6 +20,8 @@ set(PLATFORM_ANDROID OFF CACHE BOOL "Android platform target (the native part of
 set(OPTION_SMB2 OFF CACHE BOOL "Build with smb2 support")
 set(OPTION_LINUX_STATIC OFF CACHE BOOL "Linux: link the static libraries of ci/linux-static-deps.sh")
 set(LINUX_STATIC_PREFIX "/opt/pplay-static" CACHE PATH "Linux: ci/linux-static-deps.sh prefix")
+set(P2PLAY_EMBEDDED_SOURCE_DIR "" CACHE PATH "Pinned P2Play source checkout for embedded mode")
+set(P2PLAY_EMBEDDED_BOOST_INCLUDE_DIR "" CACHE PATH "Patched Boost header tree for embedded P2Play")
 
 if (PLATFORM_LINUX AND OPTION_LINUX_STATIC)
     set(ENV{PKG_CONFIG_PATH} "${LINUX_STATIC_PREFIX}/lib/pkgconfig")
@@ -152,7 +154,10 @@ set(PPLAY_LDFLAGS
 # PLATORM SPECIFIC
 #####################
 if (PLATFORM_SWITCH)
-    list(APPEND PPLAY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/switch/crashlog.cpp)
+    list(APPEND PPLAY_SRC
+            ${CMAKE_CURRENT_SOURCE_DIR}/src/switch/crashlog.cpp
+            ${P2PLAY_EMBEDDED_SOURCE_DIR}/compat/switch/switch_compat.c
+        )
     #####################
     # SWITCH PLATORM
     #####################
@@ -264,6 +269,27 @@ if (OPTION_SMB2)
 endif ()
 
 #####################
+# Embedded P2Play core: static library only (p2playd is never built into pPlay).
+#####################
+if (P2PLAY_EMBEDDED_SOURCE_DIR STREQUAL "")
+    message(FATAL_ERROR "Prepare the pinned P2Play core first: ci/prepare-p2play-embedded.sh")
+endif ()
+if (NOT EXISTS "${P2PLAY_EMBEDDED_SOURCE_DIR}/src/core/p2play.h")
+    message(FATAL_ERROR "P2PLAY_EMBEDDED_SOURCE_DIR does not contain the P2Play core")
+endif ()
+if (NOT EXISTS "${P2PLAY_EMBEDDED_BOOST_INCLUDE_DIR}/boost/version.hpp")
+    message(FATAL_ERROR "P2PLAY_EMBEDDED_BOOST_INCLUDE_DIR must point to patched Boost headers")
+endif ()
+set(BOOST_INCLUDE_DIR "${P2PLAY_EMBEDDED_BOOST_INCLUDE_DIR}" CACHE PATH "" FORCE)
+set(P2P_EMBEDDED_ONLY ON CACHE BOOL "Build only p2play_core for embedding in another application" FORCE)
+add_subdirectory("${P2PLAY_EMBEDDED_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/p2play-core" EXCLUDE_FROM_ALL)
+
+if (PLATFORM_SWITCH)
+    # The Switch executable is a PIE; its embedded static libraries must be PIC.
+    set_target_properties(p2play_core torrent-rasterbar PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif ()
+
+#####################
 # pplay executable
 #####################
 add_executable(${CMAKE_PROJECT_NAME} ${PPLAY_SRC})
@@ -302,6 +328,7 @@ if (PLATFORM_ANDROID)
     target_link_options(${CMAKE_PROJECT_NAME} PRIVATE "LINKER:-z,max-page-size=16384")
 endif ()
 target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS})
+target_link_libraries(${CMAKE_PROJECT_NAME} p2play_core)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
     APP_VERSION="${APP_VERSION}"
 )
@@ -325,7 +352,9 @@ if (PLATFORM_PS4)
             "LINKER:--wrap=send"
             "LINKER:--wrap=recv"
             "LINKER:--wrap=sendto"
-            "LINKER:--wrap=recvfrom")
+            "LINKER:--wrap=recvfrom"
+            "LINKER:--wrap=sendmsg"
+            "LINKER:--wrap=recvmsg")
     function(add_pkg project pkgdir title_id title version)
         _add_pkg(${project} ${pkgdir} ${title_id} "${title}" ${version} ${PS4_PKG_ATTRIBUTE} ${PS4_PKG_CATEGORY})
     endfunction()

@@ -16,6 +16,7 @@
 #include "net_http.h"
 #include "torrserve.h"
 #include "p2play.h"
+#include "p2play_embedded.h"
 #include "saved.h"
 #include "dlna.h"
 #include "ftp.h"
@@ -76,9 +77,19 @@ Io *Io::get() {
     return g_io;
 }
 
+bool Io::updateEmbedded() {
+    const bool wasReady = P2PlayEmbedded::isReady();
+    P2PlayEmbedded::update();
+    return wasReady != P2PlayEmbedded::isReady();
+}
+
+bool Io::embeddedReady() const {
+    return P2PlayEmbedded::isReady();
+}
+
 const std::vector<std::string> &Io::networkTypeNames() {
     static const std::vector<std::string> names = {"TorrServer.MatriX", "Samba", "FTP", "HTTP", "WebDAV",
-                                                   "DLNA", "TorrServer.Silo", "P2Play"};
+                                                   "DLNA", "TorrServer.Silo", "P2Play", "P2Play_embedded"};
     return names;
 }
 
@@ -88,6 +99,8 @@ std::string Io::networkTypeName(NetworkType type) {
             return "TorrServer.MatriX";
         case NetworkType::P2Play:
             return "P2Play";
+        case NetworkType::P2PlayEmbedded:
+            return "P2Play_embedded";
         case NetworkType::TorrServeSilo:
             return "TorrServer.Silo";
         case NetworkType::Smb:
@@ -115,6 +128,9 @@ Io::NetworkType Io::parseNetworkType(const std::string &name) {
     }
     if (n == "p2play") {
         return NetworkType::P2Play;
+    }
+    if (n == "p2play_embedded" || n == "p2play-embedded") {
+        return NetworkType::P2PlayEmbedded;
     }
     if (n == "samba" || n == "smb") {
         return NetworkType::Smb;
@@ -217,7 +233,11 @@ std::vector<c2d::Io::File> Io::list(const DeviceType &type, const std::string &p
                             "Io::" + networkTypeName(getNetworkType(path)) + " path=" + path
                                     + " entries=" + std::to_string(files.size()));
     } else if (type == DeviceType::P2Play) {
-        files = pplay::P2Play::getDirList(path, timeout, &failed);
+        if (getNetworkType(path) == NetworkType::P2PlayEmbedded && !P2PlayEmbedded::isReady()) {
+            failed = "Embedded P2Play is starting, stopping, or unavailable; check the owner password";
+        } else {
+            files = pplay::P2Play::getDirList(path, timeout, &failed);
+        }
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
                             "Io::P2Play path=" + path + " entries=" + std::to_string(files.size()));
     } else if (type == DeviceType::Ftp) {
@@ -230,8 +250,9 @@ std::vector<c2d::Io::File> Io::list(const DeviceType &type, const std::string &p
         files = Smb::list(path, timeout, &failed);
     }
 #endif
-    // refused (a user or password): the server is there, not the kept listing
-    bool refused = failed.find(" 401") != std::string::npos || failed.find(" 403") != std::string::npos;
+    // Refused credentials / unavailable embedded server: do not display a stale offline cache.
+    bool refused = failed.find(" 401") != std::string::npos || failed.find(" 403") != std::string::npos ||
+                   (getNetworkType(path) == NetworkType::P2PlayEmbedded && !P2PlayEmbedded::isReady());
 #ifdef __SMB2__
     refused = refused || Smb::isRefusal(failed);
 #endif
@@ -302,6 +323,17 @@ void Io::forgetNetworks() {
         networkCache[1].clear();
     }
     P2Play::forgetFailures();
+    const int index = currentNetwork.load();
+    if (config != nullptr && index > 0 && index <= config->getNetworkCount() &&
+        parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString()) ==
+                NetworkType::P2PlayEmbedded) {
+        const std::string dataDir = getDataPath() + "p2play_embedded/";
+        create(dataDir);
+        const std::string password = config->getOption(PPLAYConfig::networkPasswordOption(index))->getString();
+        P2PlayEmbedded::activate(dataDir, password);
+    } else {
+        P2PlayEmbedded::deactivate();
+    }
 }
 
 int Io::findNetwork(const std::string &path, bool typedOnly) {
@@ -563,6 +595,7 @@ Io::DeviceType Io::getDeviceType(const std::string &path) {
             case NetworkType::TorrServeSilo:
                 return DeviceType::TorrServe;
             case NetworkType::P2Play:
+            case NetworkType::P2PlayEmbedded:
                 return DeviceType::P2Play;
             case NetworkType::Smb:
                 return DeviceType::Smb;
@@ -678,6 +711,7 @@ bool Io::writeText(const std::string &path, const std::string &text) {
 }
 
 Io::~Io() {
+    P2PlayEmbedded::shutdown();
     if (g_io == this) {
         g_io = nullptr;
     }

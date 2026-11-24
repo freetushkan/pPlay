@@ -25,7 +25,7 @@ namespace pplay::MenuMainItems {
             || (type == Io::NetworkType::Auto && device == Io::DeviceType::TorrServe)) {
             return "net_torrserve.png";
         }
-        if (type == Io::NetworkType::P2Play) {
+        if (type == Io::NetworkType::P2Play || type == Io::NetworkType::P2PlayEmbedded) {
             return "net_http.png";
         }
         if (type == Io::NetworkType::Smb || (type == Io::NetworkType::Auto && device == Io::DeviceType::Smb)) {
