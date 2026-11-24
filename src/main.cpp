@@ -373,6 +373,11 @@ void Main::onUpdate() {
 
     messageBox->setOutlineColor(COLOR_ACCENT);
     player->updateFrame();
+    if (pplayIo->updateEmbedded() && currentModuleIndex > 0 &&
+        pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(currentModuleIndex))->getString()) ==
+                pplay::Io::NetworkType::P2PlayEmbedded) {
+        filer->refresh();
+    }
 
     // the TorrServer marks asked for a while: shown (not over a full screen video), kept while
     // it lasts

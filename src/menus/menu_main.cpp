@@ -445,7 +445,14 @@ void MenuMain::showNetworkUsers(int index, const std::string &select) {
     if (index < 1 || index > main->getConfig()->getNetworkCount()) return;
     const auto type = pplay::Io::parseNetworkType(
             main->getConfig()->getOption(PPLAYConfig::networkTypeOption(index))->getString());
-    if (type != pplay::Io::NetworkType::P2Play) return;
+    if (type != pplay::Io::NetworkType::P2Play && type != pplay::Io::NetworkType::P2PlayEmbedded) return;
+    if (type == pplay::Io::NetworkType::P2PlayEmbedded) {
+        pplay::Io::get()->setCurrentNetwork(index);
+        if (!pplay::Io::get()->embeddedReady()) {
+            main->getStatus()->show("Wait", pplay::tr("Embedded P2Play is starting. Open Users again shortly."));
+            return;
+        }
+    }
 
     const std::string context = main->getConfig()->getOption(PPLAYConfig::networkOption(index))->getString();
     const int timeout = main->getConfig()->getOption(PPLAYConfig::networkTimeoutOption(index))->getInteger();
@@ -587,7 +594,9 @@ void MenuMain::updateNetworkLabels() {
                     button->item.label = pplay::tr("User") + ": " + (user.empty() ? pplay::tr("<empty>") : user);
                 } else if (button->item.name == key + " password") {
                     bool set = !main->getConfig()->getOption(PPLAYConfig::networkPasswordOption(i))->getString().empty();
-                    button->item.label = pplay::tr("Password") + ": " + (set ? "******" : pplay::tr("<empty>"));
+                    const bool embedded = pplay::Io::parseNetworkType(type) == pplay::Io::NetworkType::P2PlayEmbedded;
+                    button->item.label = pplay::tr(embedded ? "Owner password" : "Password") + ": "
+                                          + (set ? "******" : pplay::tr("<empty>"));
                 } else if (button->item.name == key + " token") {
                     // its start only
                     std::string token = main->getConfig()->getOption(PPLAYConfig::networkTokenOption(i))->getString();

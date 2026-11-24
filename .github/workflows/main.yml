@@ -10,6 +10,11 @@ on:
 permissions:
   contents: write
 
+env:
+  P2PLAY_CORE_REF: b6c7b74916e36a873663fa55d27a9aaa209e7cfe
+  P2PLAY_CORE_BRANCH: feature/embedded-drain-api
+  P2PLAY_BOOST_INCLUDE_DIR: .cache/p2play-boost-headers
+
 jobs:
   switch:
     runs-on: ubuntu-24.04
@@ -26,7 +31,7 @@ jobs:
       - name: Create build environment
         run: |
           sudo apt -yq update || true
-          sudo apt -yq install git build-essential cmake curl git file
+          sudo apt -yq install git build-essential cmake curl git file patch
 
           git clone -b switch https://github.com/freetushkan/libsmb2.git
           git clone --depth 1 https://github.com/freetushkan/pacman-packages /tmp/pacman-packages
@@ -36,7 +41,7 @@ jobs:
 
           # Install system and devkitPro dependencies
           sudo apt -yq update || true
-          sudo apt -yq install git build-essential cmake curl meson ninja-build nasm fakeroot zstd
+          sudo apt -yq install git build-essential cmake curl meson ninja-build nasm fakeroot zstd patch
 
           # sudo dkp-pacman -S --noconfirm switch-lwext4 switch-ntfs-3g
 
@@ -87,6 +92,14 @@ jobs:
           find /opt/compiled_libs/libmpv -name "*.pkg.tar.*" -exec sudo dkp-pacman --noconfirm -U {} \;
           find /opt/compiled_libs/libusbhsfs -name "*.pkg.tar.*" -exec sudo dkp-pacman --noconfirm -U {} \;
 
+      - name: Cache embedded P2Play Boost headers
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.P2PLAY_BOOST_INCLUDE_DIR }}
+          key: p2play-boost-1.86.0-v1
+      - name: Prepare embedded P2Play core
+        run: ci/prepare-p2play-embedded.sh
+
       - name: Configure pPlay
         run: |
           rm -rf cmake-build
@@ -94,6 +107,8 @@ jobs:
           cmake -G "Unix Makefiles" \
             -DPLATFORM_SWITCH=ON \
             -DOPTION_SMB2=ON \
+            -DP2PLAY_EMBEDDED_SOURCE_DIR="$P2PLAY_EMBEDDED_SOURCE_DIR" \
+            -DP2PLAY_EMBEDDED_BOOST_INCLUDE_DIR="$P2PLAY_EMBEDDED_BOOST_INCLUDE_DIR" \
             -DCMAKE_CXX_FLAGS="-D_GNU_SOURCE=1" \
             -DCMAKE_C_FLAGS="-D_GNU_SOURCE=1" \
             -DCMAKE_BUILD_TYPE=Release ..
@@ -139,7 +154,7 @@ jobs:
             pacman-package-manager wget cmake git gettext smpq \
             makepkg libarchive-tools build-essential autoconf \
             libtool nasm curl python3-pip libfast-float-dev \
-            alien rpm debhelper
+            alien rpm debhelper patch
           pip3 install meson glad2 --break-system-packages
 
           sudo tee -a /etc/pacman.conf > /dev/null <<TEXT
@@ -206,6 +221,14 @@ jobs:
           find /opt/compiled_libs/ffmpeg -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
           find /opt/compiled_libs/libmpv -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
 
+      - name: Cache embedded P2Play Boost headers
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.P2PLAY_BOOST_INCLUDE_DIR }}
+          key: p2play-boost-1.86.0-v1
+      - name: Prepare embedded P2Play core
+        run: ci/prepare-p2play-embedded.sh
+
       - name: Configure pPlay
         run: |
           # libjbc (only used with -DOPTION_PS4_JAILBREAK=ON) and FIX pid_t conflict
@@ -222,6 +245,8 @@ jobs:
           cmake -G "Unix Makefiles" \
             -DPLATFORM_PS4=ON \
             -DOPTION_SMB2=ON \
+            -DP2PLAY_EMBEDDED_SOURCE_DIR="$P2PLAY_EMBEDDED_SOURCE_DIR" \
+            -DP2PLAY_EMBEDDED_BOOST_INCLUDE_DIR="$P2PLAY_EMBEDDED_BOOST_INCLUDE_DIR" \
             -DCMAKE_BUILD_TYPE=Release ..
 
       - name: Build pPlay
@@ -259,7 +284,7 @@ jobs:
           sudo apt update || true
           sudo apt install -y bash clang-18 lld-18 build-essential \
             cmake python3-pip ninja-build pacman-package-manager \
-            makepkg libarchive-tools zstd
+            makepkg libarchive-tools zstd patch
           pip3 install meson --break-system-packages
 
           git clone -b ps5 https://github.com/freetushkan/libsmb2.git
@@ -311,6 +336,14 @@ jobs:
           find /opt/compiled_libs/libplacebo -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
           find /opt/compiled_libs/libmpv -name "*.pkg.tar.*" -exec sudo pacman --noconfirm -U {} \;
 
+      - name: Cache embedded P2Play Boost headers
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.P2PLAY_BOOST_INCLUDE_DIR }}
+          key: p2play-boost-1.86.0-v1
+      - name: Prepare embedded P2Play core
+        run: ci/prepare-p2play-embedded.sh
+
       - name: Configure pPlay
         run: |
           rm -rf cmake-build
@@ -319,6 +352,8 @@ jobs:
             -DPLATFORM_PS5=ON \
             -DOPTION_SMB2=ON \
             -DPS5_PAYLOAD_SDK=/opt/ps5-payload-sdk \
+            -DP2PLAY_EMBEDDED_SOURCE_DIR="$P2PLAY_EMBEDDED_SOURCE_DIR" \
+            -DP2PLAY_EMBEDDED_BOOST_INCLUDE_DIR="$P2PLAY_EMBEDDED_BOOST_INCLUDE_DIR" \
             -DCMAKE_BUILD_TYPE=Release ..
 
       - name: Build pPlay
@@ -457,6 +492,14 @@ jobs:
         run: |
           WORK_DIR=/tmp/pplay-static-build ci/linux-static-deps.sh "$PPLAY_STATIC"
 
+      - name: Cache embedded P2Play Boost headers
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.P2PLAY_BOOST_INCLUDE_DIR }}
+          key: p2play-boost-1.86.0-v1
+      - name: Prepare embedded P2Play core
+        run: ci/prepare-p2play-embedded.sh
+
       - name: Configure pPlay
         run: |
           git clone -b master https://github.com/freetushkan/libsmb2.git
@@ -467,6 +510,8 @@ jobs:
             -DOPTION_LINUX_STATIC=ON \
             -DLINUX_STATIC_PREFIX="$PPLAY_STATIC" \
             -DOPTION_SMB2=ON \
+            -DP2PLAY_EMBEDDED_SOURCE_DIR="$P2PLAY_EMBEDDED_SOURCE_DIR" \
+            -DP2PLAY_EMBEDDED_BOOST_INCLUDE_DIR="$P2PLAY_EMBEDDED_BOOST_INCLUDE_DIR" \
             -DCMAKE_BUILD_TYPE=Release ..
 
       - name: Build pPlay
@@ -520,7 +565,7 @@ jobs:
       - name: Create build environment
         run: |
           sudo apt-get update || true
-          sudo apt-get install -y autoconf pkgconf libtool ninja-build python3-pip gperf nasm wget unzip
+          sudo apt-get install -y autoconf pkgconf libtool ninja-build python3-pip gperf nasm wget unzip patch
           sudo pip3 install meson --break-system-packages
 
           git clone https://github.com/mpv-android/mpv-android.git "$RUNNER_TEMP/mpv-android"
@@ -535,6 +580,11 @@ jobs:
           path: ${{ runner.temp }}/mpv-android/buildscripts/prefix
           key: android-prefix-${{ env.MPV_ANDROID_REV }}-${{ env.SDL_TAG }}-${{ env.PNG_TAG }}-v3
 
+      - name: Cache embedded P2Play Boost headers
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.P2PLAY_BOOST_INCLUDE_DIR }}
+          key: p2play-boost-1.86.0-v1
       - name: Build pPlay
         env:
           # optional: a stable signing key (else the debug one of the runner, a new one each time)

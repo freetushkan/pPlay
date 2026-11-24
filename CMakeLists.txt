@@ -264,6 +264,24 @@ if (OPTION_SMB2)
 endif ()
 
 #####################
+# Embedded P2Play core: static library only (p2playd is never built into pPlay).
+#####################
+set(P2PLAY_EMBEDDED_SOURCE_DIR "" CACHE PATH "Pinned P2Play source checkout for embedded mode")
+set(P2PLAY_EMBEDDED_BOOST_INCLUDE_DIR "" CACHE PATH "Patched Boost header tree for embedded P2Play")
+if (P2PLAY_EMBEDDED_SOURCE_DIR STREQUAL "")
+    message(FATAL_ERROR "Prepare the pinned P2Play core first: ci/prepare-p2play-embedded.sh")
+endif ()
+if (NOT EXISTS "${P2PLAY_EMBEDDED_SOURCE_DIR}/src/core/p2play.h")
+    message(FATAL_ERROR "P2PLAY_EMBEDDED_SOURCE_DIR does not contain the P2Play core")
+endif ()
+if (NOT EXISTS "${P2PLAY_EMBEDDED_BOOST_INCLUDE_DIR}/boost/version.hpp")
+    message(FATAL_ERROR "P2PLAY_EMBEDDED_BOOST_INCLUDE_DIR must point to patched Boost headers")
+endif ()
+set(BOOST_INCLUDE_DIR "${P2PLAY_EMBEDDED_BOOST_INCLUDE_DIR}" CACHE PATH "" FORCE)
+set(P2P_EMBEDDED_ONLY ON CACHE BOOL "Build only p2play_core for embedding in another application" FORCE)
+add_subdirectory("${P2PLAY_EMBEDDED_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/p2play-core" EXCLUDE_FROM_ALL)
+
+#####################
 # pplay executable
 #####################
 add_executable(${CMAKE_PROJECT_NAME} ${PPLAY_SRC})
@@ -302,6 +320,7 @@ if (PLATFORM_ANDROID)
     target_link_options(${CMAKE_PROJECT_NAME} PRIVATE "LINKER:-z,max-page-size=16384")
 endif ()
 target_link_libraries(${CMAKE_PROJECT_NAME} cross2d ${PPLAY_LDFLAGS} ${PLATFORM_LIBS})
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE p2play_core)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE 
     APP_VERSION="${APP_VERSION}"
 )
