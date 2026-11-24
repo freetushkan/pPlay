@@ -1,8 +1,10 @@
 // the native libraries and the assets come from ci/android-build.sh (app/src/main/jniLibs, assets)
 buildscript {
     repositories {
-        mavenCentral()
+        // AGP and Android tooling are published to Google's Maven repository.
+        // Try it before Maven Central to avoid unnecessary Central requests/429s.
         google()
+        mavenCentral()
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:9.2.1'
@@ -11,7 +13,7 @@ buildscript {
 
 allprojects {
     repositories {
-        mavenCentral()
         google()
+        mavenCentral()
     }
 }
