@@ -2,8 +2,12 @@
 buildscript {
     repositories {
         // AGP and Android tooling are published to Google's Maven repository.
-        // Try it before Maven Central to avoid unnecessary Central requests/429s.
         google()
+        // Google-hosted Maven Central mirror reduces 429s on shared CI egress.
+        maven {
+            name = 'GoogleMavenCentralMirror'
+            url = uri('https://maven-central.storage-download.googleapis.com/maven2/')
+        }
         mavenCentral()
     }
     dependencies {
@@ -14,6 +18,10 @@ buildscript {
 allprojects {
     repositories {
         google()
+        maven {
+            name = 'GoogleMavenCentralMirror'
+            url = uri('https://maven-central.storage-download.googleapis.com/maven2/')
+        }
         mavenCentral()
     }
 }
