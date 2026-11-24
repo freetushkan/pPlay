@@ -22,6 +22,7 @@ namespace {
     // the pause of a switch (the decoder restarted, at the same position)
     constexpr float SwitchSecs = 1.5f;
 
+#ifdef PPLAY_HW_DECODING
     const char *hardwareDecoder() {
 #ifdef __SWITCH__
         return "nvtegra-copy";
@@ -32,6 +33,7 @@ namespace {
         return "auto-safe";
 #endif
     }
+#endif
 
     const char *qualityNames[] = {"Best", "Balanced", "Fast"};
 }

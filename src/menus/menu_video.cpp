@@ -88,15 +88,6 @@ namespace {
         return 0;
     }
 
-    int cycle(int value, int direction, int count);
-
-    void changeChoice(PPLAYConfig *config, const Choices &choices, int direction) {
-        auto *option = config->getOption(choices.option);
-        option->setType(c2d::config::Option::Type::Integer);
-        option->setInteger(choices.values[cycle(choiceIndex(config, choices), direction, (int) choices.values.size())]);
-        config->save();
-    }
-
     int cycle(int value, int direction, int count) {
         // a held key stops at the last value
         if (pplay::InputMap::isRepeat() && (value + direction < 0 || value + direction >= count)) {
