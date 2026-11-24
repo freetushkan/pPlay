@@ -20,7 +20,11 @@ class PosterLoader;
 
 namespace pplay {
     class ClipRect;
+    class Worker;
+    namespace P2Play { struct CatalogDetails; }
 }
+
+struct CatalogDetailsJob;
 
 class DetailsView : public c2d::Rectangle {
 
@@ -80,6 +84,10 @@ private:
 
     void updateHints();
 
+    void startCatalogDetails();
+    void pollCatalogDetails();
+    void applyCatalogDetails(const pplay::P2Play::CatalogDetails &details);
+
     std::string nextPoster() const;
 
     void showPoster(c2d::Texture *texture);
@@ -103,6 +111,13 @@ private:
     std::string heading;
     std::string details;
     PosterLoader *loader;
+    pplay::Worker *catalogWorker = nullptr;
+    CatalogDetailsJob *catalogJob = nullptr;
+    std::string catalogRequestPath, catalogRequestHash;
+    int catalogRequestTimeout = 15;
+    unsigned int catalogGeneration = 0;
+    bool catalogPending = false;
+    c2d::C2DClock catalogRequestClock;
     unsigned int folderGeneration = 0;
     c2d::Texture *posterTexture = nullptr;
     c2d::Texture *placeholder;

@@ -5,8 +5,15 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <ctime>
+#include <sstream>
+#include <atomic>
 
 #include "main.h"
+#include "worker.h"
+#include "io.h"
+#include "p2play.h"
+#include "encodings.h"
 #include "clip_rect.h"
 #include "filer.h"
 #include "input_map.h"
@@ -26,6 +33,36 @@
 #include "media_info.h"
 
 using namespace c2d;
+
+struct CatalogDetailsJob {
+    std::string path, hash;
+    int timeout = 15;
+    unsigned int generation = 0;
+    pplay::P2Play::CatalogDetails details;
+    std::string error;
+    bool ok = false;
+    std::atomic<bool> done{false};
+};
+
+namespace {
+    int loadCatalogDetails(void *data) {
+        auto *job = static_cast<CatalogDetailsJob *>(data);
+        job->ok = pplay::P2Play::getCatalogDetails(job->path, job->hash, job->timeout,
+                                                   &job->details, &job->error);
+        job->done.store(true, std::memory_order_release);
+        return 0;
+    }
+
+    std::string catalogDate(int64_t timestamp) {
+        if (timestamp <= 0) return {};
+        const std::time_t value = static_cast<std::time_t>(timestamp);
+        std::tm tm{};
+        if (!gmtime_r(&value, &tm)) return {};
+        char out[24]{};
+        if (std::strftime(out, sizeof(out), "%Y-%m-%d", &tm) == 0) return {};
+        return out;
+    }
+}
 
 #define MARGIN 24
 // details right of the poster up to this part of the panel width
@@ -79,6 +116,10 @@ DetailsView::DetailsView(Main *m, const c2d::FloatRect &rect) : Rectangle(rect),
 }
 
 DetailsView::~DetailsView() {
+    delete (catalogWorker); // joins the outstanding HTTP request
+    catalogWorker = nullptr;
+    delete (catalogJob);
+    catalogJob = nullptr;
     delete (loader);
     delete (posterTexture);
     delete (placeholder);
@@ -101,13 +142,28 @@ bool DetailsView::isWatched(const MediaFile &file, double position) {
 }
 
 void DetailsView::setFile(const MediaFile &f) {
-    if (f.path != file.path || f.name != file.name) {
+    const bool changed = f.path != file.path || f.name != file.name;
+    if (changed) {
         scroll = scrollShown = 0;
         posterError.clear();
+        ++catalogGeneration;
+        catalogPending = false;
+        catalogRequestPath.clear();
+        catalogRequestHash.clear();
         // looked at: kept by the cleanups
         if (f.type == Io::Type::File) {
             MediaInfo::touch(f);
             pplay::Saved::touch(f.path);
+        }
+        if (pplay::P2Play::isSearchResultPath(f.path)) {
+            catalogRequestHash = pplay::P2Play::searchResultHash(f.path);
+            if (!catalogRequestHash.empty()) {
+                catalogRequestPath = f.path;
+                auto *io = pplay::Io::get();
+                catalogRequestTimeout = io != nullptr ? io->networkTimeout(f.path) : 15;
+                catalogPending = true;
+                catalogRequestClock.restart();
+            }
         }
     }
     file = f;
@@ -118,7 +174,8 @@ void DetailsView::setFile(const MediaFile &f) {
     posterUrls.clear();
     // offline: the cached ones only (local pictures too), nothing asked from the network
     bool offline = pplay::Offline::isOffline(file.path);
-    for (auto &url: {info.cover, file.type == Io::Type::File ? folderCover : "", info.poster}) {
+    const bool catalogResult = pplay::P2Play::isSearchResultPath(file.path);
+    for (auto &url: {info.cover, file.type == Io::Type::File ? folderCover : "", catalogResult ? std::string() : info.poster}) {
         bool local = c2d::Utility::startWith(url, "dir:") && url.find("://") == std::string::npos;
         if (!url.empty() && (!offline || local || !pplay::PosterCache::find(url).empty())) {
             posterUrls.push_back(url);
@@ -141,6 +198,85 @@ std::string DetailsView::nextPoster() const {
         }
     }
     return "";
+}
+
+void DetailsView::startCatalogDetails() {
+    if (catalogWorker != nullptr || !catalogPending || catalogRequestPath.empty() ||
+        catalogRequestHash.empty()) return;
+    catalogJob = new CatalogDetailsJob();
+    catalogJob->path = catalogRequestPath;
+    catalogJob->hash = catalogRequestHash;
+    catalogJob->timeout = catalogRequestTimeout;
+    catalogJob->generation = catalogGeneration;
+    catalogPending = false;
+    catalogWorker = new pplay::Worker(loadCatalogDetails, catalogJob);
+}
+
+void DetailsView::pollCatalogDetails() {
+    if (catalogWorker != nullptr && catalogJob != nullptr &&
+        catalogJob->done.load(std::memory_order_acquire)) {
+        catalogWorker->join();
+        delete catalogWorker;
+        catalogWorker = nullptr;
+        const bool current = catalogJob->generation == catalogGeneration &&
+                             catalogJob->path == file.path &&
+                             pplay::P2Play::isSearchResultPath(file.path);
+        if (current && catalogJob->ok) {
+            applyCatalogDetails(catalogJob->details);
+        } else if (current && !catalogJob->error.empty()) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Info,
+                                "P2Play catalog details: " + catalogJob->error);
+        }
+        delete catalogJob;
+        catalogJob = nullptr;
+    }
+    // Debounce fast navigation through a search result list before issuing HTTP requests.
+    if (catalogWorker == nullptr && catalogPending &&
+        catalogRequestClock.getElapsedTime().asMilliseconds() >= 250) {
+        startCatalogDetails();
+    }
+}
+
+void DetailsView::applyCatalogDetails(const pplay::P2Play::CatalogDetails &catalog) {
+    if (!catalog.title.empty()) heading = encoding::fix(catalog.title);
+    std::ostringstream out;
+    const std::string date = catalogDate(catalog.date);
+    if (!date.empty()) out << pplay::tr("Published") << ": " << date << "\n";
+    if (catalog.size > 0) out << pplay::tr("Size") << ": "
+                              << pplay::Utility::formatSize(static_cast<uint64_t>(catalog.size)) << "\n";
+    if (catalog.files > 0) out << pplay::tr("Files") << ": " << catalog.files << "\n";
+    if (!catalog.tags.empty()) {
+        out << pplay::tr("Tags") << ": ";
+        for (size_t i = 0; i < catalog.tags.size(); ++i) {
+            if (i) out << ", ";
+            out << encoding::fix(catalog.tags[i]);
+        }
+        out << "\n";
+    }
+    const std::string metadata = out.str();
+    if (!catalog.description.empty()) {
+        details = metadata + (metadata.empty() ? "" : "\n") + encoding::fix(catalog.description);
+    } else {
+        details = metadata;
+    }
+
+    if (!catalog.posterBytes.empty() && !catalog.posterCacheKey.empty()) {
+        std::string cacheError;
+        if (pplay::PosterCache::store(catalog.posterCacheKey, catalog.posterBytes, &cacheError)) {
+            failedPosters.erase(catalog.posterCacheKey);
+            posterUrls.insert(posterUrls.begin(), catalog.posterCacheKey);
+        } else {
+            posterError = cacheError;
+        }
+    } else if (!catalog.posterError.empty()) {
+        posterError = catalog.posterError;
+    }
+
+    const std::string wanted = nextPoster();
+    if (wanted != shownPoster) hidePoster();
+    posterUrl = wanted;
+    loader->request(posterUrl == shownPoster ? "" : posterUrl, file.path);
+    layout();
 }
 
 void DetailsView::setFocused(bool value) {
@@ -471,6 +607,7 @@ DetailsView::Action DetailsView::onKeys(unsigned int keys) {
 
 void DetailsView::onUpdate() {
     float dt = frameClock.restart().asSeconds();
+    pollCatalogDetails();
 
     Texture *texture;
     std::string error;

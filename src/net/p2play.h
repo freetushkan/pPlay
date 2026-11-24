@@ -15,6 +15,13 @@ namespace pplay::P2Play {
     struct TorrentFile { int index = -1; std::string path; int64_t size = 0; };
     struct TorrentInfo { std::string hash, title; int64_t size = 0; std::vector<TorrentFile> files; };
     struct CatalogRecord { std::string hash, title; int64_t size = 0, date = 0; int files = 0; std::vector<std::string> tags; };
+    struct CatalogDetails {
+        std::string title, description, posterBytes, posterCacheKey;
+        std::string descriptionError, posterError;
+        int64_t size = 0, date = 0;
+        int files = 0;
+        std::vector<std::string> tags;
+    };
     struct CatalogList {
         std::string pubkey, name, description;
         bool meta = false;
@@ -28,6 +35,9 @@ namespace pplay::P2Play {
                                   const std::vector<std::string> &selectedLists = {});
     bool getCatalogLists(const std::string &contextPath, int timeout,
                          std::vector<CatalogList> *lists, std::string *error);
+    // Fetch signed description/poster refs only when a result is selected, never during search.
+    bool getCatalogDetails(const std::string &contextPath, const std::string &recordHash, int timeout,
+                           CatalogDetails *details, std::string *error);
     std::string searchResultHash(const std::string &path);
     std::string directTorrentPath(const std::string &contextPath, const std::string &torrentHash);
 

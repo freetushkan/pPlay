@@ -127,7 +127,8 @@ namespace {
 
     pplay::Http::Response sendRequest(const std::string &root, const std::string &context,
                                       const std::string &route, const std::string &method,
-                                      const std::string &body, int timeout, const std::string &token) {
+                                      const std::string &body, int timeout, const std::string &token,
+                                      size_t maxSize = 32u * 1024u * 1024u) {
         std::string path = route;
         while (!path.empty() && path.front() == '/') {
             path.erase(path.begin());
@@ -137,7 +138,7 @@ namespace {
         request.method = method;
         request.body = body;
         request.timeout = std::max(1, timeout);
-        request.maxSize = 32u * 1024u * 1024u;
+        request.maxSize = maxSize;
         request.context = context;
         request.useNetworkCredentials = false;
         request.headers.emplace_back("Accept: application/json");
@@ -491,6 +492,45 @@ namespace {
                        "GET", noBody(), timeout, record, error);
     }
 
+    bool getCatalogMedia(const std::string &root, const std::string &context, const std::string &hash,
+                         const std::string &kind, int timeout, std::string *bytes, std::string *error) {
+        if (bytes == nullptr || error == nullptr || (kind != "description" && kind != "poster")) {
+            if (error) *error = "invalid catalog media request";
+            return false;
+        }
+        const size_t maxSize = kind == "description" ? (64u << 10) : (2u << 20);
+        const std::string route = "/api/catalog/" + pplay::Http::escape(hash) + "/" + kind;
+        std::string token = cachedToken(root, context);
+        for (int attempt = 0; attempt < 4; ++attempt) {
+            auto response = sendRequest(root, context, route, "GET", {}, timeout, token, maxSize);
+            if (response.status == 401) {
+                token.clear();
+                if (!login(root, context, timeout, &token, error)) return false;
+                response = sendRequest(root, context, route, "GET", {}, timeout, token, maxSize);
+            }
+            if (response.status == 503 && attempt < 3) {
+                // The daemon queues the lazy media-pack request and advertises Retry-After: 2.
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+                continue;
+            }
+            if (!response.ok()) {
+                *error = response.status == 404 ? "catalog media is not published"
+                                                : "catalog " + kind + " request failed (HTTP " +
+                                                      std::to_string(response.status) + ")";
+                if (!response.error.empty()) *error += ": " + response.error;
+                return false;
+            }
+            if (response.body.empty()) {
+                *error = "catalog " + kind + " is empty";
+                return false;
+            }
+            *bytes = std::move(response.body);
+            return true;
+        }
+        *error = "catalog " + kind + " is still being fetched by the daemon";
+        return false;
+    }
+
     std::string recordLink(const json &record) {
         std::string link = record.value("torrs", std::string());
         if (!link.empty()) return link;
@@ -622,6 +662,52 @@ namespace pplay::P2Play {
         });
         return true;
     }
+    bool getCatalogDetails(const std::string &contextPath, const std::string &recordHash, int timeout,
+                           CatalogDetails *details, std::string *error) {
+        if (details == nullptr || error == nullptr) return false;
+        *details = CatalogDetails();
+        const std::string context = rootOf(contextPath);
+        if (context.empty()) {
+            *error = "P2Play network path is invalid";
+            return false;
+        }
+        const std::string root = cleanRoot(context);
+        json source;
+        if (!getCatalogRecord(root, context, recordHash, timeout, &source, error) || !source.is_object()) return false;
+
+        details->title = source.value("title", std::string("Untitled"));
+        details->size = source.value("size", int64_t(0));
+        details->date = source.value("date", int64_t(0));
+        details->files = source.value("files", 0);
+        const json tags = source.value("tags", json::array());
+        if (tags.is_array()) {
+            for (const auto &tag : tags) {
+                if (tag.is_string()) details->tags.push_back(tag.get<std::string>());
+            }
+        }
+
+        // The API resolves the signed media reference across the record's source lists.
+        // Pack and slice hashes are verified by the native daemon before these bytes are served.
+        const auto descriptionRef = source.find("description_ref");
+        if (descriptionRef != source.end() && descriptionRef->is_object()) {
+            if (!getCatalogMedia(root, context, recordHash, "description", timeout,
+                                 &details->description, &details->descriptionError)) {
+                details->description.clear();
+            }
+        }
+        const auto posterRef = source.find("poster_ref");
+        if (posterRef != source.end() && posterRef->is_object()) {
+            if (getCatalogMedia(root, context, recordHash, "poster", timeout,
+                                &details->posterBytes, &details->posterError)) {
+                // A stable local cache key, with credentials removed from the network origin.
+                details->posterCacheKey = "p2play-media:" + root + recordHash + "/poster";
+            } else {
+                details->posterBytes.clear();
+            }
+        }
+        return true;
+    }
+
     std::string searchResultHash(const std::string &path) {
         const auto p = pathParts(path);
         return p.size() == 3 && p[0] == ".p2play" && p[1] == "result" ? p[2] : std::string();
