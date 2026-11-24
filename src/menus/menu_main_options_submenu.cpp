@@ -240,6 +240,9 @@ void MenuMainOptionsSubmenu::refreshValues() {
             shown = Utility::endsWith(name, " sync") ? type == pplay::Io::NetworkType::TorrServe
                                                              || type == pplay::Io::NetworkType::TorrServeSilo
                                                      : type == pplay::Io::NetworkType::Smb;
+        } else if (network > 0 && Utility::endsWith(name, " users")) {
+            shown = pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(network))->getString()) ==
+                    pplay::Io::NetworkType::P2Play;
         } else if (network > 0 && Utility::endsWith(name, " token")) {
             // TS Silo only
             shown = pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(network))->getString()) ==
@@ -360,6 +363,99 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
     }
 
     if (option_name.empty()) {
+        // Network settings -> Users.
+        if (item->name.rfind("Network ", 0) == 0 && Utility::endsWith(item->name, " users") &&
+            key != item->name) {
+            const int network = std::atoi(key.c_str() + strlen("Network "));
+            setVisibility(Visibility::Hidden, true);
+            main->getMenuMain()->showNetworkUsers(network);
+            return;
+        }
+
+        // Dynamic list of accounts, with a separated final Add user row.
+        if (Utility::endsWith(key, " users")) {
+            const int network = std::atoi(key.c_str() + strlen("Network "));
+            if (item->name == "Add user") {
+                std::string username, password;
+                if (!pplay::Keyboard::edit(pplay::tr("New username"), username) || username.empty()) return;
+                if (!pplay::Keyboard::edit(pplay::tr("New password"), password) || password.empty()) return;
+                const std::string context = main->getConfig()->getOption(PPLAYConfig::networkOption(network))->getString();
+                const int timeout = main->getConfig()->getOption(PPLAYConfig::networkTimeoutOption(network))->getInteger();
+                std::string error;
+                if (!pplay::P2Play::createUser(context, username, password, 10, timeout, &error)) {
+                    main->getStatus()->show("Error", error);
+                    return;
+                }
+                main->getStatus()->show("Info", pplay::tr("User created"));
+                setVisibility(Visibility::Hidden, true);
+                main->getMenuMain()->showNetworkUsers(network);
+                return;
+            }
+            if (!item->data_str.empty()) {
+                const std::string userId = item->data_str;
+                setVisibility(Visibility::Hidden, true);
+                main->getMenuMain()->showNetworkUserDetails(network, userId);
+            }
+            return;
+        }
+
+        // Per-user submenu and its Role child submenu.
+        const size_t userMarker = key.find(" user ");
+        if (userMarker != std::string::npos) {
+            const int network = std::atoi(key.c_str() + strlen("Network "));
+            std::string suffix = key.substr(userMarker + strlen(" user "));
+            const bool roleMenu = Utility::endsWith(suffix, " role");
+            const std::string userId = roleMenu ? suffix.substr(0, suffix.size() - strlen(" role")) : suffix;
+            const std::string context = main->getConfig()->getOption(PPLAYConfig::networkOption(network))->getString();
+            const int timeout = main->getConfig()->getOption(PPLAYConfig::networkTimeoutOption(network))->getInteger();
+            std::string error;
+
+            if (roleMenu) {
+                if (!pplay::P2Play::setUserRank(context, userId, item->id, timeout, &error)) {
+                    main->getStatus()->show("Error", error);
+                    return;
+                }
+                main->getStatus()->show("Info", pplay::tr("Role updated"));
+                setVisibility(Visibility::Hidden, true);
+                main->getMenuMain()->showNetworkUserDetails(network, userId);
+                return;
+            }
+
+            if (item->name == "Change password") {
+                std::string password;
+                if (!pplay::Keyboard::edit(pplay::tr("New password"), password) || password.empty()) return;
+                if (!pplay::P2Play::updateUserPassword(context, userId, password, timeout, &error)) {
+                    main->getStatus()->show("Error", error);
+                    return;
+                }
+                main->getStatus()->show("Info", pplay::tr("Password updated"));
+                setVisibility(Visibility::Hidden, true);
+                main->getMenuMain()->showNetworkUserDetails(network, userId);
+                return;
+            }
+            if (item->name == "Role") {
+                auto *role = main->getMenuMain()->getMenuMainOptionsSubmenu(key + " role");
+                if (role != nullptr) {
+                    setVisibility(Visibility::Hidden, true);
+                    role->setVisibility(Visibility::Visible, true);
+                }
+                return;
+            }
+            if (item->name == "Delete user") {
+                if (main->showMessage(pplay::tr("Delete user"), title->getString(),
+                                      pplay::tr("Delete"), pplay::tr("Cancel")) != c2d::MessageBox::LEFT) return;
+                if (!pplay::P2Play::deleteUser(context, userId, timeout, &error)) {
+                    main->getStatus()->show("Error", error);
+                    return;
+                }
+                main->getStatus()->show("Info", pplay::tr("User deleted"));
+                setVisibility(Visibility::Hidden, true);
+                main->getMenuMain()->showNetworkUsers(network);
+                return;
+            }
+            return;
+        }
+
         if (item->name == "Add network") {
             int network = main->getConfig()->addNetwork();
             main->getConfig()->save();

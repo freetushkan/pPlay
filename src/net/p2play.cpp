@@ -1039,6 +1039,93 @@ namespace pplay::P2Play {
         return pplay::Http::normalize(url);
     }
 
+    bool getUsers(const std::string &contextPath, int timeout, std::vector<ServerUser> *users,
+                  int *actorRank, std::string *error) {
+        if (users == nullptr || actorRank == nullptr || error == nullptr) return false;
+        users->clear();
+        *actorRank = 0;
+        error->clear();
+        const std::string context = rootOf(contextPath);
+        if (context.empty()) {
+            *error = "P2Play network path is invalid";
+            return false;
+        }
+        const std::string root = cleanRoot(context);
+        json current;
+        if (!apiJson(root, context, "/api/auth/me", "GET", noBody(), timeout, &current, error)) return false;
+        if (!current.is_object() || !current.value("rank", json()).is_number_integer()) {
+            *error = "P2Play current-user response has no rank";
+            return false;
+        }
+        *actorRank = current["rank"].get<int>();
+
+        json answer;
+        if (!apiJson(root, context, "/api/users", "GET", noBody(), timeout, &answer, error)) return false;
+        const json *items = nullptr;
+        if (!answer.is_object() || !arrayAt(answer, "users", &items)) {
+            *error = "P2Play user response has no users array";
+            return false;
+        }
+        for (const auto &item : *items) {
+            if (!item.is_object() || !item.value("id", json()).is_string() ||
+                !item.value("username", json()).is_string() ||
+                !item.value("rank", json()).is_number_integer()) continue;
+            ServerUser user;
+            user.id = item["id"].get<std::string>();
+            user.username = item["username"].get<std::string>();
+            user.rank = item["rank"].get<int>();
+            user.banned = item.value("is_banned", false);
+            if (!user.id.empty() && !user.username.empty()) users->push_back(std::move(user));
+        }
+        return true;
+    }
+
+    bool createUser(const std::string &contextPath, const std::string &username, const std::string &password,
+                    int rank, int timeout, std::string *error) {
+        if (error == nullptr) return false;
+        error->clear();
+        const std::string context = rootOf(contextPath);
+        if (context.empty()) { *error = "P2Play network path is invalid"; return false; }
+        json answer;
+        const json body = {{"username", username}, {"password", password}, {"rank", rank}};
+        return apiJson(cleanRoot(context), context, "/api/users", "POST", body, timeout, &answer, error);
+    }
+
+    bool updateUserPassword(const std::string &contextPath, const std::string &userId,
+                            const std::string &password, int timeout, std::string *error) {
+        if (error == nullptr) return false;
+        error->clear();
+        const std::string context = rootOf(contextPath);
+        if (context.empty()) { *error = "P2Play network path is invalid"; return false; }
+        json answer;
+        const json body = {{"password", password}};
+        return apiJson(cleanRoot(context), context, "/api/users/" + pplay::Http::escape(userId),
+                       "PUT", body, timeout, &answer, error);
+    }
+
+    bool setUserRank(const std::string &contextPath, const std::string &userId,
+                     int rank, int timeout, std::string *error) {
+        if (error == nullptr) return false;
+        error->clear();
+        const std::string context = rootOf(contextPath);
+        if (context.empty()) { *error = "P2Play network path is invalid"; return false; }
+        json answer;
+        const json body = {{"rank", rank}};
+        return apiJson(cleanRoot(context), context, "/api/users/" + pplay::Http::escape(userId) + "/rank",
+                       "POST", body, timeout, &answer, error);
+    }
+
+    bool deleteUser(const std::string &contextPath, const std::string &userId,
+                    int timeout, std::string *error) {
+        if (error == nullptr) return false;
+        error->clear();
+        const std::string context = rootOf(contextPath);
+        if (context.empty()) { *error = "P2Play network path is invalid"; return false; }
+        json answer;
+        return apiJson(cleanRoot(context), context, "/api/users/" + pplay::Http::escape(userId),
+                       "DELETE", json::object(), timeout, &answer, error);
+    }
+
     void forgetFailures() {
         std::lock_guard<std::mutex> lock(g_mutex);
         g_sessions.clear();

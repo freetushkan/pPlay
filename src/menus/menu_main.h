@@ -46,6 +46,9 @@ public:
     // a network settings menu shown, that item selected
     void showNetwork(int index, const std::string &select = "");
 
+    void showNetworkUsers(int index, const std::string &select = "");
+    void showNetworkUserDetails(int index, const std::string &userId);
+
 private:
 
     void addSubmenu(const std::string &name, const std::string &title, const std::string &optionName,

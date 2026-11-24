@@ -13,11 +13,21 @@
 #include "i18n.h"
 #include "saved.h"
 #include "playlists.h"
+#include "p2play.h"
 
 using namespace c2d;
 
 using Submenu = MenuMainOptionsSubmenu;
 using namespace pplay::MenuMainItems;
+
+namespace {
+    std::string userRoleName(int rank) {
+        if (rank >= 100) return pplay::tr("Owner");
+        if (rank >= 50) return pplay::tr("Administrator");
+        if (rank >= 10) return pplay::tr("User");
+        return pplay::tr("Guest");
+    }
+}
 
 MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<MenuItem> &items)
     : Menu(main, rect, "pPlay v" APP_VERSION, items, true) {
@@ -333,7 +343,7 @@ void MenuMain::addNetworkMenus(int i) {
     parents[name] = "Networks";
     std::vector<MenuItem> items;
     for (const char *suffix: {" type", " name", " url", " user", " password", " token", " timeout", " tls", " sync",
-                              " smb", " search", " up", " down", " delete"}) {
+                              " smb", " search", " users", " up", " down", " delete"}) {
 #ifndef __SMB2__
         if (std::string(suffix) == " smb") {
             continue;
@@ -342,15 +352,18 @@ void MenuMain::addNetworkMenus(int i) {
         items.emplace_back(name + suffix, "", Pos::Top);
         parents[name + suffix] = name;
     }
-    // its settings: a value on the right
+    // its settings: a value on the right; user management is separated from connection options.
     for (auto &item: items) {
         for (const char *suffix: {" timeout", " tls", " sync", " smb"}) {
             if (item.name == name + suffix) {
                 item.value = "-";
             }
         }
+        if (item.name == name + " users") item.line = true;
     }
     addSubmenu(name, name, "", items, Submenu::ValueType::String);
+    addSubmenu(name + " users", "Users", "", {});
+    parents[name + " users"] = name;
     // the servers found (DLNA, TorrServer, Samba): one picked sets the url (the items made when shown)
     addSubmenu(name + " search", name + " search", PPLAYConfig::networkOption(i), {}, Submenu::ValueType::String);
     auto addText = [&](const std::string &key, const char *option) {
@@ -428,6 +441,118 @@ void MenuMain::showNetwork(int index, const std::string &select) {
     }
 }
 
+void MenuMain::showNetworkUsers(int index, const std::string &select) {
+    if (index < 1 || index > main->getConfig()->getNetworkCount()) return;
+    const auto type = pplay::Io::parseNetworkType(
+            main->getConfig()->getOption(PPLAYConfig::networkTypeOption(index))->getString());
+    if (type != pplay::Io::NetworkType::P2Play) return;
+
+    const std::string context = main->getConfig()->getOption(PPLAYConfig::networkOption(index))->getString();
+    const int timeout = main->getConfig()->getOption(PPLAYConfig::networkTimeoutOption(index))->getInteger();
+    std::vector<pplay::P2Play::ServerUser> users;
+    int actorRank = 0;
+    std::string error;
+    if (!pplay::P2Play::getUsers(context, timeout, &users, &actorRank, &error)) {
+        main->getStatus()->show("Error", error);
+        return;
+    }
+
+    const std::string network = networkKey(index);
+    const std::string key = network + " users";
+    auto found = menuMainOptionsSubmenus.find(key);
+    if (found == menuMainOptionsSubmenus.end()) {
+        addSubmenu(key, "Users", "", {});
+        found = menuMainOptionsSubmenus.find(key);
+    }
+    std::vector<MenuItem> items;
+    for (const auto &user : users) {
+        MenuItem item(user.id, "", MenuItem::Position::Top, 0, true, user.id);
+        item.label = user.username + " — " + userRoleName(user.rank);
+        if (user.banned) item.label += " — " + pplay::tr("Banned");
+        item.opens = true;
+        item.line = items.empty();
+        items.push_back(item);
+    }
+    MenuItem add("Add user", "net_add.png", MenuItem::Position::Top);
+    add.line = true;
+    items.push_back(add);
+
+    parents[key] = network;
+    found->second->setTitle(pplay::tr("Users"));
+    found->second->setItems(items);
+    found->second->setSide(!menuMainOptions->fromPlayer);
+    found->second->setVisibility(Visibility::Visible, true);
+    if (!select.empty()) found->second->select(select);
+}
+
+void MenuMain::showNetworkUserDetails(int index, const std::string &userId) {
+    if (index < 1 || index > main->getConfig()->getNetworkCount() || userId.empty()) return;
+    const std::string context = main->getConfig()->getOption(PPLAYConfig::networkOption(index))->getString();
+    const int timeout = main->getConfig()->getOption(PPLAYConfig::networkTimeoutOption(index))->getInteger();
+    std::vector<pplay::P2Play::ServerUser> users;
+    int actorRank = 0;
+    std::string error;
+    if (!pplay::P2Play::getUsers(context, timeout, &users, &actorRank, &error)) {
+        main->getStatus()->show("Error", error);
+        return;
+    }
+    auto user = std::find_if(users.begin(), users.end(), [&](const pplay::P2Play::ServerUser &candidate) {
+        return candidate.id == userId;
+    });
+    if (user == users.end()) {
+        main->getStatus()->show("Error", pplay::tr("User not found"));
+        showNetworkUsers(index);
+        return;
+    }
+
+    const std::string usersKey = networkKey(index) + " users";
+    const std::string detailKey = networkKey(index) + " user " + userId;
+    std::vector<MenuItem> details;
+    if (user->id == "owner" || user->rank >= 100) {
+        details.emplace_back("Owner account is protected", "", MenuItem::Position::Top, 0, false);
+    } else if (actorRank <= user->rank) {
+        details.emplace_back("Insufficient permissions", "", MenuItem::Position::Top, 0, false);
+    } else {
+        details.emplace_back("Change password", "", MenuItem::Position::Top, 0, true, userId);
+        MenuItem role("Role", "", MenuItem::Position::Top, 0, true, userId);
+        role.label = pplay::tr("Role") + ": " + userRoleName(user->rank);
+        role.opens = true;
+        details.push_back(role);
+        details.emplace_back("Delete user", "", MenuItem::Position::Top, 0, true, userId);
+    }
+
+    auto setDynamic = [&](const std::string &key, const std::string &titleText,
+                          const std::string &parent, const std::vector<MenuItem> &items) {
+        auto it = menuMainOptionsSubmenus.find(key);
+        if (it == menuMainOptionsSubmenus.end()) {
+            addSubmenu(key, titleText, "", items);
+            it = menuMainOptionsSubmenus.find(key);
+        } else {
+            it->second->setTitle(titleText);
+            it->second->setItems(items);
+        }
+        parents[key] = parent;
+        it->second->setSide(!menuMainOptions->fromPlayer);
+        return it->second;
+    };
+
+    const std::string roleKey = detailKey + " role";
+    std::vector<MenuItem> roles;
+    const std::pair<const char *, int> roleOptions[] = {
+            {"Administrator", 50}, {"User", 10}, {"Guest", 1}};
+    for (const auto &role : roleOptions) {
+        if (role.second >= actorRank || role.second == user->rank) continue;
+        MenuItem item(role.first, "", MenuItem::Position::Top, role.second, true, userId);
+        roles.push_back(item);
+    }
+    if (roles.empty()) {
+        roles.emplace_back("No other role can be assigned", "", MenuItem::Position::Top, 0, false);
+    }
+    setDynamic(roleKey, pplay::tr("Role"), detailKey, roles);
+    auto *detail = setDynamic(detailKey, user->username, usersKey, details);
+    detail->setVisibility(Visibility::Visible, true);
+}
+
 void MenuMain::updateNetworkLabels() {
     for (int i = 1; i <= main->getConfig()->getNetworkCount(); i++) {
         const std::string key = networkKey(i);
@@ -471,6 +596,8 @@ void MenuMain::updateNetworkLabels() {
                                                           : token.size() > 9 ? token.substr(0, 9) + "..." : token);
                 } else if (button->item.name == key + " search") {
                     button->item.label = pplay::tr("Search servers");
+                } else if (button->item.name == key + " users") {
+                    button->item.label = pplay::tr("Users");
                 } else if (button->item.name == key + " timeout") {
                     button->item.label = pplay::tr("Connection timeout");
                 } else if (button->item.name == key + " tls") {
@@ -489,7 +616,7 @@ void MenuMain::updateNetworkLabels() {
                 button->refreshText();
             }
         }
-        for (const char *suffix: {" name", " url", " user", " password", " token", " type", " tls", " search"}) {
+        for (const char *suffix: {" name", " url", " user", " password", " token", " type", " tls", " search", " users"}) {
             auto sub = menuMainOptionsSubmenus.find(key + suffix);
             if (sub != menuMainOptionsSubmenus.end()) {
                 std::string what = std::string(suffix) == " name"       ? "Name"
@@ -499,6 +626,7 @@ void MenuMain::updateNetworkLabels() {
                                    : std::string(suffix) == " token"    ? "Token"
                                    : std::string(suffix) == " type"     ? "Type"
                                    : std::string(suffix) == " tls"      ? "Certificate check"
+                                   : std::string(suffix) == " users"    ? "Users"
                                                                         : "Search servers";
                 sub->second->setTitle(label + ": " + pplay::tr(what));
             }

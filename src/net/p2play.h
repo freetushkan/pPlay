@@ -28,6 +28,12 @@ namespace pplay::P2Play {
         std::vector<std::string> includes;
     };
 
+    struct ServerUser {
+        std::string id, username;
+        int rank = 0;
+        bool banned = false;
+    };
+
     bool isSearchPromptPath(const std::string &path);
     bool isSearchResultsPath(const std::string &path);
     bool isSearchResultPath(const std::string &path);
@@ -35,6 +41,18 @@ namespace pplay::P2Play {
                                   const std::vector<std::string> &selectedLists = {});
     bool getCatalogLists(const std::string &contextPath, int timeout,
                          std::vector<CatalogList> *lists, std::string *error);
+
+    // Silo-compatible user management. Tokens are deliberately not exposed.
+    bool getUsers(const std::string &contextPath, int timeout, std::vector<ServerUser> *users,
+                  int *actorRank, std::string *error);
+    bool createUser(const std::string &contextPath, const std::string &username, const std::string &password,
+                    int rank, int timeout, std::string *error);
+    bool updateUserPassword(const std::string &contextPath, const std::string &userId,
+                            const std::string &password, int timeout, std::string *error);
+    bool setUserRank(const std::string &contextPath, const std::string &userId,
+                     int rank, int timeout, std::string *error);
+    bool deleteUser(const std::string &contextPath, const std::string &userId,
+                    int timeout, std::string *error);
     // Fetch signed description/poster refs only when a result is selected, never during search.
     bool getCatalogDetails(const std::string &contextPath, const std::string &recordHash, int timeout,
                            CatalogDetails *details, std::string *error);
