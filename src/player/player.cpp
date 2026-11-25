@@ -613,6 +613,11 @@ void Player::applyConfig() {
     pplay::Utility::setWatchedTolerance(main->getConfig()->getOption(OPT_WATCHED_TOLERANCE)->getInteger());
     applyLanguages();
     applyAudioFilter();
+    PPLAYConfig *config = main->getConfig();
+    mpv->setSubPos(config->getOption(OPT_SUB_POSITION)->getInteger() ? 0.0 : 100.0);
+    mpv->setSubFontSize(config->getOption(OPT_SUB_FONT_SIZE)->getInteger());
+    mpv->setSubColor(config->getOption(OPT_SUB_COLOR)->getString());
+    mpv->setSubOutlineColor(config->getOption(OPT_SUB_OUTLINE_COLOR)->getString());
     mpv_set_property_string(mpv->getHandle(), "sub-ass-override",
                             main->getConfig()->getOption(OPT_SUB_ASS_PLAIN)->getInteger() != 0 ? "force" : "scale");
     // on change only (the audio output opened again)

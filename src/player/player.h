@@ -159,7 +159,7 @@ public:
     MenuVideoSubmenu *getMenuAudioStreams();
 
     MenuVideoSubmenu *getMenuSubtitlesStreams();
-
+    MenuVideoSubmenu *getMenuSubtitleSettings();
     MenuVideoSubmenu *getMenuPlaylist();
 
     // the OSD back, on the button it was
@@ -343,6 +343,7 @@ private:
     MenuVideoSubmenu *menuVideoStreams = nullptr;
     MenuVideoSubmenu *menuAudioStreams = nullptr;
     MenuVideoSubmenu *menuSubtitlesStreams = nullptr;
+    MenuVideoSubmenu *menuSubtitleSettings = nullptr;
     MenuVideoSubmenu *menuPlaylist = nullptr;
     // what menuPlaylist lists
     std::string playlistKey;

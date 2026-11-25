@@ -23,13 +23,13 @@ namespace {
     std::vector<MenuItem> withValues(std::vector<MenuItem> items) {
         for (auto &item: items) {
             const std::string &n = item.name;
-            if (n == "Current playlist" || n == "Audio" || n == "Video" || n == "Subtitles" || n == "Settings") {
+            if (n == "Current playlist" || n == "Audio" || n == "Video" || n == "Subtitles" || n == "Subtitle appearance" || n == "Settings") {
                 item.opens = true;
             }
             if (n == "Speed" || n == "Brightness" || n == "Screen brightness" || n == "Sleep timer") {
                 item.slider = 0;
             }
-            if (n != "Stop" && n != "Current playlist" && n != "Settings") {
+            if (n != "Stop" && n != "Current playlist" && n != "Settings" && n != "Subtitle appearance") {
                 item.value = "-";
             }
         }
@@ -269,6 +269,11 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
             setVisibility(Visibility::Hidden, true);
         } else {
             main->getStatus()->show("Info", "No subtitles streams found in media", false, false);
+        }
+    } else if (item->name == "Subtitle appearance") {
+        if (main->getPlayer()->getMenuSubtitleSettings()) {
+            main->getPlayer()->getMenuSubtitleSettings()->setVisibility(Visibility::Visible, true);
+            setVisibility(Visibility::Hidden, true);
         }
     } else if (item->name == "Current playlist") {
         if (main->getPlayer()->getMenuPlaylist()) {

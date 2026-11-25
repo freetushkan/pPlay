@@ -16,6 +16,7 @@
 #include "encodings.h"
 #include "i18n.h"
 #include "input_map.h"
+#include "pplay_config.h"
 
 using namespace c2d;
 
@@ -600,14 +601,18 @@ void PlayerOSD::onUpdate() {
     full += (fullTarget - full) * k;
     if (std::fabs(shown - shownTarget) < 0.01f) shown = shownTarget;
     if (std::fabs(full - fullTarget) < 0.01f) full = fullTarget;
-    // video: the subtitles above the shown part of the panel, with it
-    float lift = 0;
-    if (!audioLayout && player->isFullscreen() && shown > 0) {
-        float sc = main->getScaling().y;
-        float top = titleY - titleClip->getSize().y / 2 + (1 - full) * peekOffset + (1 - shown) * 12 * sc;
-        lift = std::max(0.0f, main->getSize().y - top) * shown;
+    // Keep ASS script coordinates untouched; move plain subtitles above the OSD or to the top.
+    if (mpv->isAssSubtitle()) mpv->setSubPos(100.0);
+    else if (main->getConfig()->getOption(OPT_SUB_POSITION)->getInteger()) mpv->setSubPos(0.0);
+    else {
+        float lift=0;
+        if(!audioLayout && player->isFullscreen() && shown>0) {
+            float sc=main->getScaling().y;
+            float top=titleY-titleClip->getSize().y/2+(1-full)*peekOffset+(1-shown)*12*sc;
+            lift=std::max(0.0f,main->getSize().y-top)*shown;
+        }
+        mpv->setSubPos(100.0-100.0*lift/main->getSize().y);
     }
-    mpv->setSubPos(100.0 - 100.0 * lift / main->getSize().y);
     focusX += (buttons[(size_t) index]->getPosition().x - focusX) * std::min(1.0f, dt * 16);
     focus->setPosition(focusX, buttons[(size_t) index]->getPosition().y);
 

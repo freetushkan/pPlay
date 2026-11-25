@@ -175,6 +175,7 @@ void Main::createMenus() {
     items.emplace_back("Audio", "audio.png", MenuItem::Position::Top);
     items.emplace_back("Video", "video.png", MenuItem::Position::Top);
     items.emplace_back("Subtitles", "subtitles.png", MenuItem::Position::Top);
+    items.emplace_back("Subtitle appearance", "subtitles.png", MenuItem::Position::Top);
     items.emplace_back("Volume normalization", "normalize.png", MenuItem::Position::Top);
     items.emplace_back("Visualization", "visualizer.png", MenuItem::Position::Top);
 #ifdef PPLAY_HW_DECODING

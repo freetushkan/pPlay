@@ -321,6 +321,16 @@ void Mpv::setSubPos(double pos) {
     lastSubPos = pos;
 }
 
+void Mpv::setSubFontSize(int size) {
+    if (isAvailable()) mpv_set_property_string(handle, "sub-font-size", std::to_string(size).c_str());
+}
+void Mpv::setSubColor(const std::string &color) {
+    if (isAvailable()) mpv_set_property_string(handle, "sub-color", color.c_str());
+}
+void Mpv::setSubOutlineColor(const std::string &color) {
+    if (isAvailable()) mpv_set_property_string(handle, "sub-border-color", color.c_str());
+}
+
 void Mpv::setCache(int seconds, int megabytes) {
     if (!isAvailable()) {
         return;

@@ -62,6 +62,7 @@ namespace {
                 {"progress", {OPT_PROGRESS_MIN_LENGTH, OPT_WATCHED_TOLERANCE, OPT_PROGRESS_INTERVAL,
                               OPT_PROGRESS_LINE, OPT_FOLDER_MARKS, OPT_TS_PROGRESS}},
                 {"audio_and_subtitles", {OPT_AUDIO_LANGUAGE, OPT_SUB_LANGUAGE, OPT_EXTERNAL_TRACKS, OPT_SUB_ASS_PLAIN,
+                                         OPT_SUB_POSITION, OPT_SUB_FONT_SIZE, OPT_SUB_COLOR, OPT_SUB_OUTLINE_COLOR,
                                          OPT_AUDIO_CHANNELS, OPT_AUDIO_NORMALIZE, OPT_AUDIO_VISUALIZER}},
                 {"video", {OPT_VIDEO_QUALITY, OPT_AUTO_DROPS, OPT_AUTO_DROPS_TIME, OPT_AUTO_QUALITY_DELAY,
                            OPT_AUTO_SWITCH_PAUSE, OPT_HW_DECODING, OPT_AUTO_HW_RETRY, OPT_AUTO_HW_RETRIES, OPT_DITHER}},
@@ -353,6 +354,10 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_LANGUAGE, "en"});
     addOption({OPT_AUDIO_LANGUAGE, "Auto"});
     addOption({OPT_SUB_LANGUAGE, "Off"});
+    addOption({OPT_SUB_POSITION, (int) 0});
+    addOption({OPT_SUB_FONT_SIZE, (int) 55});
+    addOption({OPT_SUB_COLOR, "#FFFFFF"});
+    addOption({OPT_SUB_OUTLINE_COLOR, "#000000"});
     addOption({OPT_EXTERNAL_TRACKS, (int) 1});
 #if defined(__PS4__) || defined(__PS5__)
     addOption({OPT_SUB_ASS_PLAIN, (int) 1});
@@ -813,12 +818,16 @@ void PPLAYConfig::sanitize() {
     clamp(OPT_STANDBY_TIME, -1, 1440);
     clamp(OPT_OSD_HIDE_TIME, 0, 30);
     clamp(OPT_SLEEP_TIMER, -1, 1440);
+    clamp(OPT_SUB_POSITION, 0, 1);
+    clamp(OPT_SUB_FONT_SIZE, 20, 120);
     clamp(OPT_SAVE_KEEP_DAYS, 0, 3650);
     clamp(OPT_SAVE_MAX_GB, 0, 100000);
 
     if (!pplay::Utility::isValidHexColor(getOption(OPT_ACCENT_COLOR)->getString())) {
         getOption(OPT_ACCENT_COLOR)->setString("#1078C8");
     }
+    if (!pplay::Utility::isValidHexColor(getOption(OPT_SUB_COLOR)->getString())) getOption(OPT_SUB_COLOR)->setString("#FFFFFF");
+    if (!pplay::Utility::isValidHexColor(getOption(OPT_SUB_OUTLINE_COLOR)->getString())) getOption(OPT_SUB_OUTLINE_COLOR)->setString("#000000");
     pplay::Utility::setAccentColor(getOption(OPT_ACCENT_COLOR)->getString());
 
     if (getOption(OPT_LANGUAGE)->getString().empty()) {

@@ -154,6 +154,17 @@ h = ч
 min = мин
 Secure connections (HTTPS) may fail: check the date, time and time zone in the system settings. = Защищённые соединения (HTTPS) могут не работать: проверьте дату, время и часовой пояс в настройках системы.
 
+# Оформление субтитров
+Subtitle appearance = Оформление субтитров
+Subtitle position = Положение субтитров
+Subtitle size = Размер субтитров
+Subtitle color = Цвет текста
+Subtitle outline = Цвет обводки
+Top = Сверху
+Bottom = Снизу
+Black = Чёрный
+White = Белый
+
 # Track languages and external tracks
 Audio language = Язык аудио
 Subtitles language = Язык субтитров

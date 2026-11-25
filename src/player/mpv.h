@@ -168,6 +168,13 @@ public:
 
     // the subtitles bottom, % of the screen height (100: the default place)
     void setSubPos(double pos);
+    void setSubFontSize(int size);
+    void setSubColor(const std::string &color);
+    void setSubOutlineColor(const std::string &color);
+    bool isAssSubtitle() {
+        const std::string codec = getString("current-tracks/sub/codec");
+        return codec == "ass" || codec == "ssa" || codec == "ASS" || codec == "SSA";
+    }
 
 private:
 

@@ -36,6 +36,10 @@
 // external audio / subtitles files found next to the video
 #define OPT_EXTERNAL_TRACKS "EXTERNAL_TRACKS"
 #define OPT_SUB_ASS_PLAIN "SUB_ASS_PLAIN"
+#define OPT_SUB_POSITION "SUB_POSITION"
+#define OPT_SUB_FONT_SIZE "SUB_FONT_SIZE"
+#define OPT_SUB_COLOR "SUB_COLOR"
+#define OPT_SUB_OUTLINE_COLOR "SUB_OUTLINE_COLOR"
 // 0 off, 1 normalize, 2 night mode (dialogue up, no LFE, compressed)
 #define OPT_AUDIO_NORMALIZE "AUDIO_NORMALIZE"
 // output channels: 0 stereo, 1 auto (the device ones), 2 5.1, 3 7.1

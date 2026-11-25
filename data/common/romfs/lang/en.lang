@@ -154,6 +154,17 @@ h = h
 min = min
 Secure connections (HTTPS) may fail: check the date, time and time zone in the system settings. = Secure connections (HTTPS) may fail: check the date, time and time zone in the system settings.
 
+# Subtitle appearance
+Subtitle appearance = Subtitle appearance
+Subtitle position = Subtitle position
+Subtitle size = Subtitle size
+Subtitle color = Subtitle color
+Subtitle outline = Subtitle outline
+Top = Top
+Bottom = Bottom
+Black = Black
+White = White
+
 # Track languages and external tracks
 Audio language = Audio language
 Subtitles language = Subtitles language
