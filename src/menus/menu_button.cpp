@@ -110,7 +110,7 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
     name->setFillColor(textColor);
     if (hasTextColor && textColor.r == 0 && textColor.g == 0 && textColor.b == 0) {
         name->setOutlineColor(COLOR_WHITE);
-        name->setOutlineThickness(std::max(1.0f, std::round(main->getMenuScaling().y)));
+        name->setOutlineThickness(1.0f);
     }
 
     float textX = 12.0f * main->getMenuScaling().x + (column > 0 ? column + 12.0f * main->getMenuScaling().x : 0);

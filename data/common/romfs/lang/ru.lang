@@ -223,6 +223,11 @@ Dropped frames = Пропущено кадров
 Render = Рендер
 Volume = Громкость
 Speed = Скорость
+TorrServer.Silo = TorrServer.Silo (testing)
+P2Play = P2Play (testing)
+P2Play_embedded = P2Play embedded (testing)
+
+# Languages
 Belarusian = Белорусский
 Kazakh = Казахский
 Uzbek = Узбекский
@@ -472,3 +477,59 @@ s = с
 Offline: the file is not accessible = Нет связи: файл недоступен
 Bumpers and triggers = Бамперы и триггеры
 Seek = Перемотка
+
+# Настройки масштаба интерфейса
+Main screen size = Размер основного экрана
+Player OSD size = Размер панели плеера
+Menu size = Размер меню
+Main menu button = Кнопка главного меню
+Show the main menu shortcut in the path bar = Показывать кнопку главного меню в строке пути
+Size of the main screen interface = Размер интерфейса основного экрана
+Size of the player controls = Размер элементов управления плеером
+Size of menus and their elements = Размер меню и его элементов
+
+# Управление пользователями P2Play
+Owner = Владелец
+Administrator = Администратор
+Guest = Гость
+Banned = Заблокирован
+Users = Пользователи
+User not found = Пользователь не найден
+Role = Роль
+New username = Новое имя пользователя
+New password = Новый пароль
+User created = Пользователь создан
+Role updated = Роль обновлена
+Password updated = Пароль обновлён
+Delete user = Удалить пользователя
+User deleted = Пользователь удалён
+
+# Поиск по каталогам P2Play и сведения о торренте
+P2Play = P2Play
+Published = Опубликовано
+Tags = Теги
+Torrent = Торрент
+More files = Ещё файлов
+Search torrents = Поиск торрентов
+Query: = Запрос:
+Search all available catalogs or narrow the search to selected lists. = Ищите по всем доступным каталогам или выберите отдельные списки.
+Select lists = Выбрать списки
+No catalog lists are available on this server yet. = На этом сервере пока нет списков каталогов.
+You can still search all records currently known to this server. To test a populated list selector, publish or subscribe to a MediaMesh catalog list; the P2Play CI mesh test creates and removes a temporary list. = По-прежнему можно искать среди всех записей, известных серверу. Чтобы проверить выбор списков, опубликуйте список MediaMesh или подпишитесь на него; тест P2Play CI временно создаёт и удаляет такой список.
+Meta-list = Мета-список
+Catalog = Каталог
+Enabled catalogs: = Включённые каталоги:
+List key: = Ключ списка:
+Included in this search. = Включён в поиск.
+Not selected. = Не выбран.
+Apply = Применить
+Remove = Убрать
+Include = Включить
+All catalogs = Все каталоги
+catalogs selected = каталогов выбрано
+Search scope: = Область поиска:
+Change lists = Изменить списки
+Loading torrent information = Загрузка информации о торренте
+Torrent details = Сведения о торренте
+Adding torrent = Добавление торрента
+Add a P2Play network before opening this link = Добавьте сеть P2Play, прежде чем открывать эту ссылку.

@@ -619,25 +619,18 @@ void MenuMain::updateNetworkLabels() {
             submenu->second->setTitle(label);
             for (auto *button: submenu->second->getButtons()) {
                 if (button->item.name == key + " name") {
-                    button->item.label = pplay::tr("Name") + ": " + (name.empty() ? pplay::tr("<empty>") : name);
+                    button->item.label = pplay::tr("Name");
                 } else if (button->item.name == key + " url") {
-                    button->item.label = pplay::tr("URL") + ": " + (url.empty() ? pplay::tr("<empty>") : url);
+                    button->item.label = pplay::tr("URL");
                 } else if (button->item.name == key + " type") {
-                    button->item.label = pplay::tr("Type") + ": " + pplay::tr(type);
+                    button->item.label = pplay::tr("Type");
                 } else if (button->item.name == key + " user") {
-                    std::string user = main->getConfig()->getOption(PPLAYConfig::networkUserOption(i))->getString();
-                    button->item.label = pplay::tr("User") + ": " + (user.empty() ? pplay::tr("<empty>") : user);
+                    button->item.label = pplay::tr("User");
                 } else if (button->item.name == key + " password") {
-                    bool set = !main->getConfig()->getOption(PPLAYConfig::networkPasswordOption(i))->getString().empty();
                     const bool embedded = pplay::Io::parseNetworkType(type) == pplay::Io::NetworkType::P2PlayEmbedded;
-                    button->item.label = pplay::tr(embedded ? "Owner password" : "Password") + ": "
-                                          + (set ? "******" : pplay::tr("<empty>"));
+                    button->item.label = pplay::tr(embedded ? "Owner password" : "Password");
                 } else if (button->item.name == key + " token") {
-                    // its start only
-                    std::string token = main->getConfig()->getOption(PPLAYConfig::networkTokenOption(i))->getString();
-                    button->item.label = pplay::tr("Token") + ": "
-                                         + (token.empty() ? pplay::tr("<empty>")
-                                                          : token.size() > 9 ? token.substr(0, 9) + "..." : token);
+                    button->item.label = pplay::tr("Token");
                 } else if (button->item.name == key + " search") {
                     button->item.label = pplay::tr("Search servers");
                 } else if (button->item.name == key + " users") {

@@ -627,16 +627,19 @@ void Filer::run(DetailsView::Action action) {
 namespace {
     std::string p2playTorrentSummary(const pplay::P2Play::TorrentInfo &torrent) {
         std::ostringstream out;
-        out << (torrent.title.empty() ? "Torrent" : torrent.title);
-        if (torrent.size > 0) out << "\nSize: " << pplay::Utility::formatSize(static_cast<uint64_t>(torrent.size));
-        out << "\nFiles: " << torrent.files.size();
+        out << (torrent.title.empty() ? pplay::tr("Torrent") : torrent.title);
+        if (torrent.size > 0) out << "\n" << pplay::tr("Size") << ": "
+                                  << pplay::Utility::formatSize(static_cast<uint64_t>(torrent.size));
+        out << "\n" << pplay::tr("Files") << ": " << torrent.files.size();
         const size_t count = std::min<size_t>(torrent.files.size(), 18);
         for (size_t i = 0; i < count; ++i) {
             const auto &file = torrent.files[i];
             out << "\n" << pplay::Utility::formatSize(static_cast<uint64_t>(std::max<int64_t>(0, file.size)))
                 << "  " << file.path;
         }
-        if (torrent.files.size() > count) out << "\n... " << (torrent.files.size() - count) << " more files";
+        if (torrent.files.size() > count) {
+            out << "\n" << pplay::tr("More files") << ": " << (torrent.files.size() - count);
+        }
         return out.str();
     }
 }
@@ -659,7 +662,7 @@ void Filer::searchP2Play(const std::string &entryPath) {
 
     std::vector<std::string> selectedLists;
     int action = main->showMessage(pplay::tr("Search torrents"),
-        pplay::tr("Query: ") + query + "\n\n" +
+        pplay::tr("Query:") + " " + query + "\n\n" +
         pplay::tr("Search all available catalogs or narrow the search to selected lists."),
         pplay::tr("Search"), pplay::tr("Select lists"));
 
@@ -682,8 +685,8 @@ void Filer::searchP2Play(const std::string &entryPath) {
                     const bool included = isIncluded();
                     const std::string kind = list.meta ? pplay::tr("Meta-list") : pplay::tr("Catalog");
                     const std::string message = list.name + "\n" + kind + "\n" +
-                        pplay::tr("Enabled catalogs: ") + std::to_string(list.includes.size()) + "\n" +
-                        pplay::tr("List key: ") + list.pubkey.substr(0, 16) + "…\n\n" +
+                        pplay::tr("Enabled catalogs:") + " " + std::to_string(list.includes.size()) + "\n" +
+                        pplay::tr("List key:") + " " + list.pubkey.substr(0, 16) + "…\n\n" +
                         (included ? pplay::tr("Included in this search.") : pplay::tr("Not selected."));
                     const std::string next = i + 1 == lists.size() ? pplay::tr("Apply") : pplay::tr("Next");
                     const int choice = main->showMessage(pplay::tr("Select lists"), message,
@@ -713,7 +716,7 @@ void Filer::searchP2Play(const std::string &entryPath) {
         std::string scope = selectedLists.empty() ? pplay::tr("All catalogs")
                                                   : std::to_string(selectedLists.size()) + " " + pplay::tr("catalogs selected");
         action = main->showMessage(pplay::tr("Search torrents"),
-            pplay::tr("Query: ") + query + "\n" + pplay::tr("Search scope: ") + scope,
+            pplay::tr("Query:") + " " + query + "\n" + pplay::tr("Search scope:") + " " + scope,
             pplay::tr("Search"), pplay::tr("Change lists"));
     }
 

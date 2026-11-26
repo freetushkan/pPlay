@@ -223,6 +223,11 @@ Dropped frames = Dropped frames
 Render = Render
 Volume = Volume
 Speed = Speed
+TorrServer.Silo = TorrServer.Silo (testing)
+P2Play = P2Play (testing)
+P2Play_embedded = P2Play embedded (testing)
+
+# Languages
 Belarusian = Belarusian
 Kazakh = Kazakh
 Uzbek = Uzbek
@@ -472,3 +477,59 @@ s = s
 Offline: the file is not accessible = Offline: the file is not accessible
 Bumpers and triggers = Bumpers and triggers
 Seek = Seek
+
+# Interface scaling settings
+Main screen size = Main screen size
+Player OSD size = Player OSD size
+Menu size = Menu size
+Main menu button = Main menu button
+Show the main menu shortcut in the path bar = Show the main menu shortcut in the path bar
+Size of the main screen interface = Size of the main screen interface
+Size of the player controls = Size of the player controls
+Size of menus and their elements = Size of menus and their elements
+
+# P2Play user management
+Owner = Owner
+Administrator = Administrator
+Guest = Guest
+Banned = Banned
+Users = Users
+User not found = User not found
+Role = Role
+New username = New username
+New password = New password
+User created = User created
+Role updated = Role updated
+Password updated = Password updated
+Delete user = Delete user
+User deleted = User deleted
+
+# P2Play catalog search and torrent details
+P2Play = P2Play
+Published = Published
+Tags = Tags
+Torrent = Torrent
+More files = More files
+Search torrents = Search torrents
+Query: = Query:
+Search all available catalogs or narrow the search to selected lists. = Search all available catalogs or narrow the search to selected lists.
+Select lists = Select lists
+No catalog lists are available on this server yet. = No catalog lists are available on this server yet.
+You can still search all records currently known to this server. To test a populated list selector, publish or subscribe to a MediaMesh catalog list; the P2Play CI mesh test creates and removes a temporary list. = You can still search all records currently known to this server. To test a populated list selector, publish or subscribe to a MediaMesh catalog list; the P2Play CI mesh test creates and removes a temporary list.
+Meta-list = Meta-list
+Catalog = Catalog
+Enabled catalogs: = Enabled catalogs:
+List key: = List key:
+Included in this search. = Included in this search.
+Not selected. = Not selected.
+Apply = Apply
+Remove = Remove
+Include = Include
+All catalogs = All catalogs
+catalogs selected = catalogs selected
+Search scope: = Search scope:
+Change lists = Change lists
+Loading torrent information = Loading torrent information
+Torrent details = Torrent details
+Adding torrent = Adding torrent
+Add a P2Play network before opening this link = Add a P2Play network before opening this link
