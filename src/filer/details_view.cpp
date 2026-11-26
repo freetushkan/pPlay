@@ -135,7 +135,9 @@ bool DetailsView::isWatched(const MediaFile &file, double position) {
     std::string url = pplay::TorrServe::toStreamUrl(file.path);
     long duration = file.mediaInfo.duration;
     if (pplay::Utility::isWatchLaterExist(url)) {
-        return pplay::Utility::isWatchLaterWatched(url) || pplay::Utility::isNearEnd(position, (double) duration);
+        return pplay::Utility::isWatchLaterWatched(url)
+               || pplay::Utility::isWatchLaterNearEnd(url, (double) duration)
+               || pplay::Utility::isNearEnd(position, (double) duration);
     }
     // the server one only: at its end (the player then starts over)
     return duration > 0 && (position >= (double) duration - 30 || pplay::Utility::isNearEnd(position, (double) duration));
@@ -318,24 +320,36 @@ DetailsView::Action DetailsView::onPointerUp(const Vector2f &position) {
         return Action::None;
     }
 
-    // From the file list, the first tap only enters button mode and selects its first
-    // available action. A second tap can activate the chosen button.
+    const int hit = hints->indexAt(position);
     if (!focused) {
+        // The first tap enters button mode and transfers focus to the action
+        // that was actually clicked. "Details" becomes the text/content focus.
+        const std::string clickedAction = hit >= 0 && !hints->isOff(hit)
+                                          ? hints->actionAt(hit) : std::string();
         setFocused(true);
-        button = hints->usable(0, 1);
+        if (clickedAction == "Details") {
+            button = -1;
+        } else {
+            button = hints->indexOfAction(clickedAction);
+            if (button < 0) {
+                button = hints->usable(0, 1);
+            }
+        }
         hints->setFocus(button);
         return Action::None;
     }
 
-    const int hit = hints->indexAt(position);
     if (hit >= 0 && !hints->isOff(hit)) {
-        button = hit;
-        hints->setFocus(button);
+        if (hit != button) {
+            // First click on another button only moves the focus.
+            button = hit;
+            hints->setFocus(button);
+            return Action::None;
+        }
+        // The same button is already focused: the second click activates it.
         return (Action) hints->idAt(button);
     }
 
-    button = hints->usable(0, 1);
-    hints->setFocus(button);
     return Action::None;
 }
 

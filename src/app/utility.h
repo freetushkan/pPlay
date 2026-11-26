@@ -106,6 +106,8 @@ namespace pplay {
         // the position kept by mpv (seconds), 0 if none
         static double watchLaterPosition(const std::string &video_path);
 
+        static bool isWatchLaterNearEnd(const std::string &video_path, double duration);
+
         static bool deleteWatchLater(const std::string &video_path);
 
         // "mark watched": the full duration kept; such a file starts over

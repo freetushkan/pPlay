@@ -656,7 +656,7 @@ void Filer::searchP2Play(const std::string &entryPath) {
     std::vector<pplay::P2Play::CatalogList> lists;
     std::string error;
     if (!pplay::P2Play::getCatalogLists(entryPath, timeout, &lists, &error)) {
-        main->showMessage(pplay::tr("P2Play"), error, pplay::tr("OK"));
+        main->showMessage("P2Play", error, pplay::tr("OK"));
         return;
     }
 
@@ -737,7 +737,7 @@ void Filer::showP2PlayRecord(const MediaFile &file) {
     main->getStatus()->show("Wait", pplay::tr("Loading torrent information"), true);
     if (!pplay::P2Play::previewCatalogRecord(file.path, hash, timeout, &record, &torrent, &error)) {
         main->getStatus()->hide();
-        main->showMessage(pplay::tr("P2Play"), error, pplay::tr("OK"));
+        main->showMessage("P2Play", error, pplay::tr("OK"));
         return;
     }
     main->getStatus()->hide();
@@ -747,7 +747,7 @@ void Filer::showP2PlayRecord(const MediaFile &file) {
     main->getStatus()->show("Wait", pplay::tr("Adding torrent"), true);
     if (!pplay::P2Play::addCatalogRecord(file.path, hash, timeout, &torrent, &error)) {
         main->getStatus()->hide();
-        main->showMessage(pplay::tr("P2Play"), error, pplay::tr("OK"));
+        main->showMessage("P2Play", error, pplay::tr("OK"));
         return;
     }
     main->getStatus()->hide();
@@ -760,7 +760,7 @@ void Filer::openP2PlayLink(const std::string &url, const std::string &name) {
     auto *io = pplay::Io::get();
     const int network = io ? io->lastP2PlayNetworkIndex() : 0;
     if (network <= 0) {
-        main->showMessage(pplay::tr("P2Play"), pplay::tr("Add a P2Play network before opening this link"),
+        main->showMessage("P2Play", pplay::tr("Add a P2Play network before opening this link"),
                           pplay::tr("OK"));
         return;
     }
@@ -774,7 +774,7 @@ void Filer::openP2PlayLink(const std::string &url, const std::string &name) {
     main->getStatus()->show("Wait", pplay::tr("Loading torrent information"), true);
     if (!pplay::P2Play::previewTorrentLink(root, url, name, timeout, &torrent, &error)) {
         main->getStatus()->hide();
-        main->showMessage(pplay::tr("P2Play"), error, pplay::tr("OK"));
+        main->showMessage("P2Play", error, pplay::tr("OK"));
         return;
     }
     main->getStatus()->hide();
@@ -784,7 +784,7 @@ void Filer::openP2PlayLink(const std::string &url, const std::string &name) {
     main->getStatus()->show("Wait", pplay::tr("Adding torrent"), true);
     if (!pplay::P2Play::addTorrentLink(root, url, name, timeout, &torrent, &error)) {
         main->getStatus()->hide();
-        main->showMessage(pplay::tr("P2Play"), error, pplay::tr("OK"));
+        main->showMessage("P2Play", error, pplay::tr("OK"));
         return;
     }
     main->getStatus()->hide();

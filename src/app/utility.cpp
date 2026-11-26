@@ -485,6 +485,15 @@ double Utility::watchLaterPosition(const std::string &video_path) {
     return readWatchLater(getWatchLater(video_path)).position;
 }
 
+bool Utility::isWatchLaterNearEnd(const std::string &video_path, double duration) {
+    constexpr double MinRemainingSeconds = 10.0;
+    if (duration <= 0.0) {
+        return false;
+    }
+    const WatchLaterInfo info = readWatchLater(getWatchLater(video_path));
+    return info.exists && info.position > 0.0 && duration - info.position <= MinRemainingSeconds;
+}
+
 // "watched": the end kept, with a mark (a comment for mpv) so it starts over
 
 bool Utility::setWatchLaterWatched(const std::string &video_path, double duration) {

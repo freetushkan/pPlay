@@ -335,9 +335,12 @@ void MenuMainOptionsSubmenu::refreshValues() {
                     config->getOption(PPLAYConfig::networkTypeOption(network))->getString()) !=
                     pplay::Io::NetworkType::P2PlayEmbedded;
         } else if (network > 0 && Utility::endsWith(name, " search")) {
-            shown = pplay::Io::parseNetworkType(
-                    config->getOption(PPLAYConfig::networkTypeOption(network))->getString()) !=
-                    pplay::Io::NetworkType::P2PlayEmbedded;
+            button->item.value.clear();
+            button->item.opens = true;
+            button->refreshValue();
+            const auto type = pplay::Io::parseNetworkType(
+                    config->getOption(PPLAYConfig::networkTypeOption(network))->getString());
+            shown = type != pplay::Io::NetworkType::P2PlayEmbedded && pplay::Discovery::supports(type);
         } else if (network > 0 && Utility::endsWith(name, " user")) {
             const auto type = pplay::Io::parseNetworkType(
                     config->getOption(PPLAYConfig::networkTypeOption(network))->getString());
@@ -350,13 +353,6 @@ void MenuMainOptionsSubmenu::refreshValues() {
             // DLNA has no login
             shown = pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(network))->getString()) !=
                     pplay::Io::NetworkType::Dlna;
-        } else if (sub != nullptr && sub->isSearch()) {
-            // DLNA networks only, a list behind (no value)
-            button->item.value = "";
-            button->item.opens = true;
-            button->refreshValue();
-            shown = pplay::Discovery::supports(pplay::Io::parseNetworkType(config->getOption(
-                    PPLAYConfig::networkTypeOption(std::atoi(button->item.name.c_str() + strlen("Network "))))->getString()));
         } else if (key == OPT_AUTO_DROPS || key == OPT_AUTO_DROPS_TIME || key == OPT_AUTO_QUALITY_DELAY) {
             shown = qualityAuto;
         } else if (key == OPT_AUTO_HW_RETRY || key == OPT_AUTO_HW_RETRIES) {

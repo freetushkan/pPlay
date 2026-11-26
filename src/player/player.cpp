@@ -242,8 +242,13 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
     if (hadWatchLater && !moving) {
         pplay::Utility::fixWatchLater(path);
     }
-    // marked watched (its end kept): from the start
-    if (hadWatchLater && opts.find("start=") == std::string::npos && pplay::Utility::isWatchLaterWatched(path)) {
+    // A marked-watched file, or a watch-later position in its final 10 seconds,
+    // starts over instead of resuming near the end.
+    const double watchLaterPosition = pplay::Utility::watchLaterPosition(path);
+    const bool watchLaterNearEnd = pplay::Utility::isWatchLaterNearEnd(path, file.mediaInfo.duration)
+                                   || pplay::Utility::isNearEnd(watchLaterPosition, file.mediaInfo.duration);
+    if (hadWatchLater && opts.find("start=") == std::string::npos
+        && (pplay::Utility::isWatchLaterWatched(path) || watchLaterNearEnd)) {
         opts += std::string(opts.empty() ? "" : ",") + "start=0";
     }
     // Restore per-user server progress, keeping the configured source priority.

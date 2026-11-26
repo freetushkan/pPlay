@@ -23,9 +23,44 @@ int KeyHints::idAt(int index) const {
     return index >= 0 && index < (int) hints.size() ? hints[index].id : 0;
 }
 
-int KeyHints::indexAt(const Vector2f &position) const {
+int KeyHints::indexAt(const Vector2f &position) {
+    const FloatRect bounds = getGlobalBounds();
+    const Vector2f size = getSize();
+    if (bounds.width <= 0.0f || bounds.height <= 0.0f || size.x <= 0.0f || size.y <= 0.0f) {
+        return -1;
+    }
+
+    // KeyHints is transformed with DetailsView/Filer, but each RoundRect's
+    // getGlobalBounds() does not include those parent transforms. Map the
+    // pointer to this container's local space and test the child rectangles there.
+    const Vector2f local{
+            (position.x - bounds.left) * size.x / bounds.width,
+            (position.y - bounds.top) * size.y / bounds.height
+    };
     for (int i = 0; i < (int) items.size(); i++) {
-        if (items[i]->isVisible() && !hints[i].off && items[i]->getGlobalBounds().contains(position)) {
+        if (!items[i]->isVisible() || hints[i].off) {
+            continue;
+        }
+        const Vector2f itemPosition = items[i]->getPosition();
+        const Vector2f itemSize = items[i]->getSize();
+        if (local.x >= itemPosition.x && local.y >= itemPosition.y
+            && local.x < itemPosition.x + itemSize.x && local.y < itemPosition.y + itemSize.y) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+std::string KeyHints::actionAt(int index) const {
+    return index >= 0 && index < (int) hints.size() ? hints[index].action : std::string();
+}
+
+int KeyHints::indexOfAction(const std::string &action) const {
+    if (action.empty()) {
+        return -1;
+    }
+    for (int i = 0; i < (int) hints.size(); i++) {
+        if (!hints[i].off && hints[i].action == action) {
             return i;
         }
     }

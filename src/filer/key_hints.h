@@ -43,7 +43,10 @@ public:
 
     int idAt(int index) const;
 
-    int indexAt(const c2d::Vector2f &position) const;
+    int indexAt(const c2d::Vector2f &position);
+
+    std::string actionAt(int index) const;
+    int indexOfAction(const std::string &action) const;
 
     bool isOff(int index) const { return index >= 0 && index < (int) hints.size() && hints[index].off; }
 
