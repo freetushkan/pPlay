@@ -59,8 +59,11 @@ public:
     // Restore the option's constructor default (the minus/reset gesture).
     bool resetSliderToDefault();
 
-    // name in MenuMain (back navigation)
+    // name in MenuMain (fallback back navigation)
     void setKey(const std::string &k) { key = k; }
+
+    // Contextual parent for the shared submenu when opened from another menu.
+    void setReturnMenu(Menu *menu) { returnMenu = menu; }
 
 private:
 
@@ -69,6 +72,8 @@ private:
     bool onOptionChange(MenuItem *item, int direction) override;
 
     void onPointerBack() override;
+
+    void returnToParent();
 
     bool onOptionSlider(MenuItem *item, float part) override;
 
@@ -104,6 +109,7 @@ private:
     std::string value_unit;
     std::string key;
     std::string zeroLabel;
+    Menu *returnMenu = nullptr;
     bool searching = false;
 };
 

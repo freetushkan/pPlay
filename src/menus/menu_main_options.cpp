@@ -21,6 +21,7 @@ void MenuMainOptions::onOptionSelection(MenuItem *item) {
     }
     auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(item->name);
     if (submenu != nullptr) {
+        submenu->setReturnMenu(this);
         setVisibility(Visibility::Hidden);
         submenu->setVisibility(Visibility::Visible);
     }

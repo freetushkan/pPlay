@@ -31,6 +31,9 @@ public:
     // the settings shown; from the player: on its side, back to its menu
     void openSettings(bool fromPlayer);
 
+    // Open a shared settings submenu from the player and return directly to its parent menu.
+    void openSettingsSubmenuFromPlayer(const std::string &name, Menu *returnMenu);
+
     // the settings opened from the player menu (and their submenus) closed
     void closePlayerSettings();
 

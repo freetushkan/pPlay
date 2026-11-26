@@ -110,6 +110,7 @@ private:
     RoundRect *sliderKnob = nullptr;
     bool sliderPreview = false;
     float sliderPreviewPart = 0.0f;
+    Main *mainRef = nullptr;
     c2d::Vector2f scaling;
     float iconSize = 0;
     float maxTextWidth = 0;

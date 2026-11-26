@@ -320,10 +320,8 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
             main->getStatus()->show("Info", "No subtitles streams found in media", false, false);
         }
     } else if (item->name == "Subtitle appearance") {
-        if (main->getPlayer()->getMenuSubtitleSettings()) {
-            main->getPlayer()->getMenuSubtitleSettings()->setVisibility(Visibility::Visible, true);
-            setVisibility(Visibility::Hidden, true);
-        }
+        setVisibility(Visibility::Hidden, true);
+        main->getMenuMain()->openSettingsSubmenuFromPlayer("Subtitle appearance", this);
     } else if (item->name == "Current playlist") {
         if (main->getPlayer()->getMenuPlaylist()) {
             main->getPlayer()->getMenuPlaylist()->fromOsd = false;

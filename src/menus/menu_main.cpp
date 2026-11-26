@@ -27,6 +27,7 @@ namespace {
         if (rank >= 10) return pplay::tr("User");
         return pplay::tr("Guest");
     }
+
 }
 
 MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<MenuItem> &items)
@@ -58,6 +59,10 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Subtitles language", "subtitles.png", Pos::Top),
                                   MenuItem("External tracks", "external.png", Pos::Top),
                                   MenuItem("Styled subtitles", "sub_style.png", Pos::Top),
+                                  MenuItem("Subtitle position", "subtitles.png", Pos::Top),
+                                  MenuItem("Subtitle size", "interface.png", Pos::Top),
+                                  MenuItem("Subtitle color", "color.png", Pos::Top),
+                                  MenuItem("Subtitle outline", "sub_style.png", Pos::Top),
                                   MenuItem("Audio channels", "audio_channels.png", Pos::Top),
                                   MenuItem("Volume normalization", "normalize.png", Pos::Top),
                                   MenuItem("Visualization", "visualizer.png", Pos::Top),
@@ -236,6 +241,22 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Styled subtitles", "ASS subtitles: their own look, or the plain one", OPT_SUB_ASS_PLAIN,
                makeIntItems({{"As made", 0}, {"Plain", 1}}), Submenu::ValueType::Integer);
+    addSubmenu("Subtitle position", "Subtitle position", OPT_SUB_POSITION,
+               makeIntItems({{"Top", 1}, {"Bottom", 0}}), Submenu::ValueType::Integer);
+    addSubmenu("Subtitle size", "Subtitle size", OPT_SUB_FONT_SIZE, makeAdjustItems(), Submenu::ValueType::Integer,
+               Submenu::MenuType::Adjust, 20.0f, 120.0f, 2.0f);
+    auto subtitleColors = makeAccentColorItems();
+    subtitleColors.insert(subtitleColors.begin(),
+                          MenuItem("Black", "", Pos::Top, 0, true, "#000000"));
+    subtitleColors.insert(subtitleColors.begin(),
+                          MenuItem("White", "", Pos::Top, 0, true, "#FFFFFF"));
+    addSubmenu("Subtitle color", "Subtitle color", OPT_SUB_COLOR, subtitleColors, Submenu::ValueType::String);
+    addSubmenu("Subtitle outline", "Subtitle outline", OPT_SUB_OUTLINE_COLOR, subtitleColors, Submenu::ValueType::String);
+    addSubmenu("Subtitle appearance", "Subtitle appearance", "",
+               {MenuItem("Subtitle position", "subtitles.png", Pos::Top),
+                MenuItem("Subtitle size", "interface.png", Pos::Top),
+                MenuItem("Subtitle color", "color.png", Pos::Top),
+                MenuItem("Subtitle outline", "sub_style.png", Pos::Top)});
     addSubmenu("Audio channels", "Audio output channels (more ones: if the device takes them)", OPT_AUDIO_CHANNELS,
                makeIntItems({{"Stereo", 0}, {"Auto", 1}, {"5.1", 2}, {"7.1", 3}}), Submenu::ValueType::Integer);
     addSubmenu("Volume normalization", "Volume normalization", OPT_AUDIO_NORMALIZE,
@@ -669,12 +690,24 @@ void MenuMain::openSettings(bool fromPlayer) {
     menuMainOptions->setVisibility(Visibility::Visible);
 }
 
+void MenuMain::openSettingsSubmenuFromPlayer(const std::string &name, Menu *returnMenu) {
+    MenuMainOptionsSubmenu *submenu = getMenuMainOptionsSubmenu(name);
+    if (submenu == nullptr || returnMenu == nullptr) {
+        return;
+    }
+    openSettings(true);
+    menuMainOptions->setVisibility(Visibility::Hidden, true);
+    submenu->setReturnMenu(returnMenu);
+    submenu->setVisibility(Visibility::Visible, true);
+}
+
 void MenuMain::closePlayerSettings() {
     if (!menuMainOptions->fromPlayer) {
         return;
     }
     menuMainOptions->setVisibility(Visibility::Hidden, true);
     for (auto &submenu: menuMainOptionsSubmenus) {
+        submenu.second->setReturnMenu(nullptr);
         submenu.second->setVisibility(Visibility::Hidden, true);
     }
     if (fileEditor != nullptr) {

@@ -39,15 +39,6 @@ void Player::buildMenus() {
 
     buildTrackMenus();
     buildPlaylistMenu();
-    if (menuSubtitleSettings == nullptr) {
-        menuSubtitleSettings = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Subtitle appearance",
-            {MenuItem("Subtitle position", "", MenuItem::Position::Top, 0), MenuItem("Subtitle size", "", MenuItem::Position::Top, 1),
-             MenuItem("Subtitle color", "", MenuItem::Position::Top, 2), MenuItem("Subtitle outline", "", MenuItem::Position::Top, 3)},
-            MENU_VIDEO_TYPE_SUB_SETTINGS);
-        menuSubtitleSettings->setLayer(3);
-        menuSubtitleSettings->setVisibility(Visibility::Hidden, false);
-        main->add(menuSubtitleSettings);
-    }
 
     if (menuNormalize == nullptr) {
         menuNormalize = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Volume normalization",
@@ -212,7 +203,7 @@ void Player::buildPlaylistMenu() {
 
 std::vector<MenuVideoSubmenu *> Player::menus() const {
     std::vector<MenuVideoSubmenu *> list;
-    for (auto *menu: {menuVideoStreams, menuAudioStreams, menuSubtitlesStreams, menuSubtitleSettings, menuPlaylist, menuPlaybackMode,
+    for (auto *menu: {menuVideoStreams, menuAudioStreams, menuSubtitlesStreams, menuPlaylist, menuPlaybackMode,
                       menuNormalize, menuVisualizer, menuSpeed, menuBrightness}) {
         if (menu != nullptr) {
             list.push_back(menu);
@@ -222,7 +213,7 @@ std::vector<MenuVideoSubmenu *> Player::menus() const {
 }
 
 bool Player::isMenuVisible() const {
-    if (main->getMenuVideo()->isVisible()) {
+    if (main->getMenuVideo()->isVisible() || main->getMenuMain()->isMenuVisible()) {
         return true;
     }
     for (auto *menu: menus()) {
@@ -246,11 +237,11 @@ void Player::hideMenus() {
 }
 
 void Player::deleteMenus(bool all) {
-    for (auto **menu: {&menuVideoStreams, &menuAudioStreams, &menuSubtitlesStreams, &menuSubtitleSettings, &menuPlaylist, &menuPlaybackMode,
+    for (auto **menu: {&menuVideoStreams, &menuAudioStreams, &menuSubtitlesStreams, &menuPlaylist, &menuPlaybackMode,
                        &menuNormalize, &menuVisualizer, &menuSpeed, &menuBrightness}) {
         // the file independent ones are kept between files
         bool kept = menu == &menuPlaybackMode || menu == &menuNormalize || menu == &menuVisualizer
-                    || menu == &menuSpeed || menu == &menuBrightness || menu == &menuSubtitleSettings
+                    || menu == &menuSpeed || menu == &menuBrightness
                     // its list may stay (another file of it)
                     || menu == &menuPlaylist;
         if (*menu != nullptr && (all || !kept)) {
@@ -304,10 +295,6 @@ MenuVideoSubmenu *Player::getMenuAudioStreams() {
 
 MenuVideoSubmenu *Player::getMenuSubtitlesStreams() {
     return menuSubtitlesStreams;
-}
-
-MenuVideoSubmenu *Player::getMenuSubtitleSettings() {
-    return menuSubtitleSettings;
 }
 
 MenuVideoSubmenu *Player::getMenuPlaylist() {

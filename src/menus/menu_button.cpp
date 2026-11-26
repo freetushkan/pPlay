@@ -55,7 +55,7 @@ std::string MenuItem::text() const {
 }
 
 MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, unsigned int fontSize)
-    : Rectangle(rect), item(it) {
+    : Rectangle(rect), item(it), mainRef(main) {
     MenuButton::setOrigin(Origin::Left);
 
     // the group line: half transparent, inside the card margins
@@ -105,8 +105,13 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
 
     name = new Text(item.text(), fontSize, main->getFont());
     name->setOrigin(Origin::Left);
-    name->setFillColor(pplay::Utility::isValidHexColor(item.data_str) ? pplay::Utility::hexToColor(item.data_str)
-                                                                      : COLOR_FONT);
+    const bool hasTextColor = pplay::Utility::isValidHexColor(item.data_str);
+    const Color textColor = hasTextColor ? pplay::Utility::hexToColor(item.data_str) : COLOR_FONT;
+    name->setFillColor(textColor);
+    if (hasTextColor && textColor.r == 0 && textColor.g == 0 && textColor.b == 0) {
+        name->setOutlineColor(COLOR_WHITE);
+        name->setOutlineThickness(std::max(1.0f, std::round(main->getMenuScaling().y)));
+    }
 
     float textX = 12.0f * main->getMenuScaling().x + (column > 0 ? column + 12.0f * main->getMenuScaling().x : 0);
     // up to the button edge (the highlight cursor), or the value part
@@ -225,8 +230,16 @@ void MenuButton::clearSliderPreview() {
 }
 
 void MenuButton::refreshValue() {
+    // Some settings groups learn a row's value/slider only after their child
+    // settings have been registered. Create the value column lazily in that case.
     if (valueText == nullptr) {
-        return;
+        if (item.value.empty() && item.slider < 0 && !item.opens) {
+            return;
+        }
+        valueText = new Text("", mainRef->getMenuFontSize(Main::FontSize::Small), mainRef->getFont());
+        valueText->setOrigin(Origin::Right);
+        valueText->setPosition(getSize().x - 18 * scaling.x, getSize().y / 2);
+        add(valueText);
     }
     // a slider known later (settings groups)
     if (item.slider >= 0 && sliderTrack == nullptr) {

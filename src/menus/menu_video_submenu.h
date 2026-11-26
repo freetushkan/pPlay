@@ -16,7 +16,6 @@
 #define MENU_VIDEO_TYPE_SPEED 6
 #define MENU_VIDEO_TYPE_BRIGHTNESS 7
 #define MENU_VIDEO_TYPE_VISUALIZER 8
-#define MENU_VIDEO_TYPE_SUB_SETTINGS 9
 // the value line of the speed / brightness menus
 #define MENU_ADJUST_VALUE 100
 // "Add file..." item of the audio / subtitles menus
@@ -48,7 +47,6 @@ private:
 
     void onOptionSelection(MenuItem *item) override;
     void onPointerBack() override;
-    bool onOptionChange(MenuItem *item, int direction) override;
 
     // the playlist item playing, -1 if none
     int playingId() const;

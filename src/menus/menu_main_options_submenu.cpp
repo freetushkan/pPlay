@@ -620,6 +620,7 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
         auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(item->name);
         // a slider: changed with left / right only
         if (submenu != nullptr && submenu->menu_type != MenuType::Adjust) {
+            submenu->setReturnMenu(this);
             setVisibility(Visibility::Hidden, true);
             submenu->setVisibility(Visibility::Visible, true);
         }
@@ -787,9 +788,22 @@ void MenuMainOptionsSubmenu::setVisibility(c2d::Visibility visibility, bool twee
     }
 }
 
-void MenuMainOptionsSubmenu::onPointerBack() {
+void MenuMainOptionsSubmenu::returnToParent() {
+    Menu *parent = returnMenu;
+    returnMenu = nullptr;
     setVisibility(Visibility::Hidden, true);
-    main->getMenuMain()->showParent(key);
+    if (parent != nullptr) {
+        if (parent == main->getMenuVideo()) {
+            main->getMenuMain()->closePlayerSettings();
+        }
+        parent->setVisibility(Visibility::Visible, true);
+    } else {
+        main->getMenuMain()->showParent(key);
+    }
+}
+
+void MenuMainOptionsSubmenu::onPointerBack() {
+    returnToParent();
 }
 
 bool MenuMainOptionsSubmenu::onInput(c2d::Input::Player *players) {
@@ -801,8 +815,7 @@ bool MenuMainOptionsSubmenu::onInput(c2d::Input::Player *players) {
         return true;
     }
     if (keys & Input::B) {
-        setVisibility(Visibility::Hidden, true);
-        main->getMenuMain()->showParent(key);
+        returnToParent();
         return true;
     }
 
