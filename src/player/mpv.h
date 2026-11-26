@@ -184,12 +184,26 @@ private:
         bool ok = false;
         bool known = false;
         bool watched = false;
+        uint64_t version = 0;
+        uint64_t pending = 0;
+        bool snapshotKnown = false, snapshotOk = false;
+        double snapshot = 0;
+        std::chrono::steady_clock::time_point nextPoll;
         // (a stale one not used)
         std::chrono::steady_clock::time_point read;
     };
     std::unordered_map<std::string, Prop> props;
 
     void setKnown(const char *name, double value);
+    struct PropertyQuery {
+        std::string name;
+        uint64_t generation, version;
+    };
+    std::unordered_map<uint64_t, PropertyQuery> propertyQueries;
+    uint64_t propertyQueryId = 0, refreshGeneration = 0;
+    std::chrono::steady_clock::time_point refreshUntil;
+    void pollProperties();
+    bool propertyReply(mpv_event *event);
     bool assSubtitle = false;
     int keepOpen = -1;
     bool saving = false;

@@ -214,6 +214,14 @@ Utility::NetworkLock::NetworkLock() = default;
 Utility::NetworkLock::~NetworkLock() = default;
 #endif
 
+void Utility::shutdownStage(const char *stage, bool begin) {
+    if (g_dataPath.empty()) return;
+    std::ofstream out(g_dataPath + "shutdown.log", begin ? std::ios::trunc : std::ios::app);
+    if (out) {
+        out << stage << std::endl;
+    }
+}
+
 void Utility::log(Utility::LogLevel level, const std::string &message) {
     if ((int) level > (int) g_logLevel || g_logLevel == Utility::LogLevel::Off) {
         return;

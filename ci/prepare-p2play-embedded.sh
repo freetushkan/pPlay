@@ -19,6 +19,17 @@ git -C "$CORE" fetch --no-tags origin "$BRANCH"
 git -C "$CORE" checkout --detach "$REF"
 git -C "$CORE" submodule sync --recursive
 git -C "$CORE" submodule update --init --recursive
+# pPlay-owned compatibility fix for the pinned embedded core. Idempotent on CI caches;
+# refuse an incompatible checkout instead of silently building without the fix.
+PATCH="$ROOT/ci/patches/p2play-http-shutdown.patch"
+if git -C "$CORE" apply --reverse --check "$PATCH" 2>/dev/null; then
+    : # already applied
+elif git -C "$CORE" apply --check "$PATCH"; then
+    git -C "$CORE" apply "$PATCH"
+else
+    echo "Embedded HTTP shutdown patch does not match P2Play checkout" >&2
+    exit 1
+fi
 "$CORE/ci/boost-headers.sh" 1.86.0 "$BOOST"
 
 export P2PLAY_EMBEDDED_SOURCE_DIR="$CORE"

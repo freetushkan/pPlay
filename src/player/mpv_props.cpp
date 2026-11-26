@@ -56,8 +56,49 @@ void Mpv::watchProperties() {
 }
 
 void Mpv::refresh() {
-    // Observed properties are delivered by getEvent(). Polling them for 500 ms
-    // after every reconfiguration/seek serializes rendering with mpv's core.
+    // Keep the 500 ms reconciliation window required by the information/seek
+    // overlays, but never wait for mpv's busy core on the rendering thread.
+    ++refreshGeneration;
+    refreshUntil = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
+    for (auto &entry: props) {
+        entry.second.snapshotKnown = false;
+        entry.second.nextPoll = {};
+    }
+}
+
+void Mpv::pollProperties() {
+    if (!isAvailable() || isSeekBusy()) return;
+    const auto now = std::chrono::steady_clock::now();
+    for (const auto &watchedProperty: watched) {
+        auto &p = props[watchedProperty.first];
+        if (!p.watched || p.pending || now < p.nextPoll || (p.known && now >= refreshUntil)) continue;
+        // Dedicated ids cannot collide with observation, commands or external-track replies.
+        const uint64_t id = 0x50524F5000000000ULL + ++propertyQueryId;
+        if (mpv_get_property_async(handle, id, watchedProperty.first, watchedProperty.second) >= 0) {
+            p.pending = id;
+            propertyQueries.emplace(id, PropertyQuery{watchedProperty.first, refreshGeneration, p.version});
+        }
+        p.nextPoll = now + std::chrono::milliseconds(50);
+    }
+}
+
+bool Mpv::propertyReply(mpv_event *event) {
+    if (event->event_id != MPV_EVENT_GET_PROPERTY_REPLY) return false;
+    auto it = propertyQueries.find(event->reply_userdata);
+    if (it == propertyQueries.end()) return false;
+    const auto query = it->second;
+    propertyQueries.erase(it);
+    auto &p = props[query.name];
+    if (p.pending == event->reply_userdata) p.pending = 0;
+    // A late query must not overwrite a new file, a seek, a command or a
+    // newer observation. Poll snapshots are separate from the observer cache:
+    // mpv sends changes relative to its last notification, not our last query.
+    if (query.generation != refreshGeneration || query.version != p.version) return true;
+    auto *reply = static_cast<mpv_event_property *>(event->data);
+    p.snapshotOk = event->error >= 0 && reply && reply->format != MPV_FORMAT_NONE && reply->data;
+    p.snapshotKnown = true;
+    if (p.snapshotOk) p.snapshot = valueOf(reply->format, reply->data);
+    return true;
 }
 
 bool Mpv::isSeekBusy() {
@@ -69,12 +110,24 @@ bool Mpv::isSeekBusy() {
 void Mpv::startSeek() {
     seekBusy = true;
     seekAt = std::chrono::steady_clock::now();
+    refresh();
 }
 
 bool Mpv::read(const char *name, mpv_format format, double *value) {
     Prop &p = props[name];
     auto now = std::chrono::steady_clock::now();
-    if (p.known && (isSeekBusy() || (p.watched ? true : saving && now - p.read < std::chrono::seconds(1)))) {
+    if (p.watched) {
+        // Unknown observed values are requested asynchronously too. No first-read
+        // synchronous fallback during file loading/decoder reconfiguration.
+        pollProperties();
+        if (p.snapshotKnown && now < refreshUntil) {
+            *value = p.snapshotOk ? p.snapshot : p.value;
+            return p.snapshotOk;
+        }
+        *value = p.value;
+        return p.known && p.ok;
+    }
+    if (p.known && (isSeekBusy() || (saving && now - p.read < std::chrono::seconds(1)))) {
         *value = p.value;
         return p.ok;
     }
@@ -119,6 +172,8 @@ void Mpv::setKnown(const char *name, double value) {
     p.value = value;
     p.ok = true;
     p.known = true;
+    ++p.version;
+    p.snapshotKnown = false;
 }
 
 int Mpv::pause() {
@@ -126,6 +181,7 @@ int Mpv::pause() {
     int res = mpv_command_async(handle, 0, cmd);
     if (res >= 0) {
         setKnown("pause", 1);
+        refresh();
     }
     return res;
 }
@@ -135,6 +191,7 @@ int Mpv::resume() {
     int res = mpv_command_async(handle, 0, cmd);
     if (res >= 0) {
         setKnown("pause", 0);
+        refresh();
     }
     return res;
 }
@@ -428,8 +485,10 @@ bool Mpv::isPaused() {
 }
 
 mpv_event *Mpv::getEvent() {
+    pollProperties();
     while (true) {
         mpv_event *event = mpv_wait_event(handle, 0);
+        if (propertyReply(event)) continue;
         if (event->event_id == MPV_EVENT_PROPERTY_CHANGE && event->reply_userdata == WatchReply) {
             auto *change = (mpv_event_property *) event->data;
             if (std::string(change->name) == "current-tracks/sub/codec") {
@@ -439,6 +498,8 @@ mpv_event *Mpv::getEvent() {
                 continue;
             }
             Prop &p = props[change->name];
+            ++p.version;
+            p.snapshotKnown = false;
             p.ok = change->format != MPV_FORMAT_NONE && change->data != nullptr;
             if (p.ok) {
                 p.value = valueOf(change->format, change->data);

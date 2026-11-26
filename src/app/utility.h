@@ -56,6 +56,10 @@ namespace pplay {
 
         static void log(LogLevel level, const std::string &message);
 
+        // Exit-only diagnostic, including when normal logging is disabled.
+        // A new exit attempt truncates the previous trace.
+        static void shutdownStage(const char *stage, bool begin = false);
+
         // the first line, whatever the level (again after clearLog())
         static void setLogHeader(const std::string &header);
 

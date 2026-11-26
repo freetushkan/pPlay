@@ -209,10 +209,12 @@ Mpv::Mpv(const std::string &configPath, bool initRender) {
 }
 
 Mpv::~Mpv() {
+    pplay::Utility::shutdownStage("Mpv destructor: free render context");
     if (context) {
         mpv_render_context_free(context);
     }
     if (handle) {
+        pplay::Utility::shutdownStage("Mpv destructor: quit / drain hooks");
         const char *quit[] = {"quit", nullptr};
         mpv_command_async(handle, 0, quit);
         for (;;) {
@@ -226,6 +228,7 @@ Mpv::~Mpv() {
         }
         mpv_terminate_destroy(handle);
     }
+    pplay::Utility::shutdownStage("Mpv destructor: complete");
 }
 
 int Mpv::load(const std::string &file, LoadType loadType, const std::string &fileOptions) {

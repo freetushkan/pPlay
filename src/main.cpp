@@ -412,13 +412,16 @@ void Main::applyConfig() {
 Main::~Main() {
     // Renderer deletes IO before C2DObject destroys its children. In particular
     // mpv and the probe must be gone before their IO/config and the GL context.
+    pplay::Utility::shutdownStage("Main destructor: player");
     delete player;
     player = nullptr;
+    pplay::Utility::shutdownStage("Main destructor: filer/probe");
     delete filer;
     filer = nullptr;
     while (!getChilds().empty()) {
         delete getChilds().back();
     }
+    pplay::Utility::shutdownStage("Main destructor: config/font; next Renderer/IO");
     delete config;
     delete timer;
     delete font;
@@ -736,12 +739,14 @@ void Main::quit() {
     if (exit) {
         return;
     }
+    pplay::Utility::shutdownStage("Main::quit: save location/session", true);
     // USB stays mounted until playback and background IO have stopped.
     syncLastLocation();
     // the playing file reopened at the next start (paused)
     keepSession();
     config->save();
     exit = true;
+    pplay::Utility::shutdownStage("Main::quit: request player stop");
     if (player->getMpv()->isStopped()) {
         running = false;
     } else {
@@ -969,13 +974,20 @@ int main(int argc, char *argv[]) {
         pplay::Platform::frameDone(main);
     }
 
+    pplay::Utility::shutdownStage("Main loop stopped: NetTime::stop");
     pplay::NetTime::stop();
+    pplay::Utility::shutdownStage("Saved::stop");
     pplay::Saved::stop();
+    pplay::Utility::shutdownStage("Playlists::stop");
     pplay::Playlists::stop();
+    pplay::Utility::shutdownStage("FolderMarks::stop");
     pplay::FolderMarks::stop();
+    pplay::Utility::shutdownStage("Delete Main");
     delete (main);
 
+    pplay::Utility::shutdownStage("Platform::exit");
     pplay::Platform::exit();
+    pplay::Utility::shutdownStage("main returned");
 
     return 0;
 }

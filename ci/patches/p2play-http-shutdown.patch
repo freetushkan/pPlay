@@ -1,0 +1,120 @@
+--- a/src/core/http.hpp
++++ b/src/core/http.hpp
+@@ -10,2 +10,4 @@
+ #include <map>
++#include <mutex>
++#include <set>
+ #include <string>
+@@ -93,2 +95,3 @@
+         void serve(int fd, std::string peer);
++        void closeClient(int fd);
+
+@@ -100,2 +103,4 @@
+         std::atomic<int> m_connections{0};
++        std::mutex m_clientsMutex;
++        std::set<int> m_clients;
+     };
+--- a/src/core/http.cpp
++++ b/src/core/http.cpp
+@@ -13,3 +13,5 @@
+ #include <sys/socket.h>
++#include <sys/select.h>
+ #include <unistd.h>
++#include <fcntl.h>
+
+@@ -201,2 +203,8 @@
+         }
++        const int flags = fcntl(m_fd, F_GETFL, 0);
++        if (m_fd >= FD_SETSIZE || flags < 0 || fcntl(m_fd, F_SETFL, flags | O_NONBLOCK) < 0) {
++            close(m_fd);
++            m_fd = -1;
++            return false;
++        }
+         socklen_t len = sizeof(addr);
+@@ -211,11 +219,6 @@
+     void HttpServer::stopAccepting() {
+-        if (m_running.exchange(false)) {
+-            if (m_fd >= 0) {
+-                shutdown(m_fd, SHUT_RDWR);
+-                close(m_fd);
+-                m_fd = -1;
+-            }
+-        }
+-        // Join the accept loop before reporting the connection count: a successful accept
+-        // is counted and its worker is started before this join can complete.
++        m_running = false;
++        // Do not rely on close/shutdown from another thread waking a blocking
++        // accept (not portable to all console socket implementations). The accept
++        // loop uses a bounded select; keep its fd alive until it has returned.
+         if (m_thread.joinable()) {
+@@ -223,2 +226,6 @@
+         }
++        if (m_fd >= 0) {
++            close(m_fd);
++            m_fd = -1;
++        }
+     }
+@@ -227,2 +234,8 @@
+         stopAccepting();
++        {
++            std::lock_guard<std::mutex> lock(m_clientsMutex);
++            // Cancel recv/send without closing a descriptor owned by a worker.
++            // closeClient serializes removal/close to avoid fd-reuse races.
++            for (int fd: m_clients) shutdown(fd, SHUT_RDWR);
++        }
+         // Connection workers are detached, but each decrements this counter as its last
+@@ -238,2 +251,9 @@
+         while (m_running) {
++            fd_set readable;
++            FD_ZERO(&readable);
++            FD_SET(m_fd, &readable);
++            timeval timeout{0, 100000};
++            const int ready = select(m_fd + 1, &readable, nullptr, nullptr, &timeout);
++            if (!m_running) break;
++            if (ready <= 0) continue;
+             sockaddr_in addr{};
+@@ -247,5 +267,15 @@
+             }
++            // Accepted sockets may inherit O_NONBLOCK on some platforms.
++            const int clientFlags = fcntl(client, F_GETFL, 0);
++            if (clientFlags < 0 || fcntl(client, F_SETFL, clientFlags & ~O_NONBLOCK) < 0) {
++                close(client);
++                continue;
++            }
+             char ip[INET_ADDRSTRLEN] = "";
+             inet_ntop(AF_INET, &addr.sin_addr, ip, sizeof(ip));
+-            m_connections++;
++            {
++                std::lock_guard<std::mutex> lock(m_clientsMutex);
++                m_clients.insert(client);
++                m_connections++;
++            }
+             std::thread(&HttpServer::serve, this, client, std::string(ip)).detach();
+@@ -264,4 +294,3 @@
+             if (n <= 0) {
+-                close(fd);
+-                m_connections--;
++                closeClient(fd);
+                 return;
+@@ -285,3 +314,4 @@
+                     if (n <= 0) {
+-                        break;
++                        closeClient(fd);
++                        return;
+                     }
+@@ -304,4 +334,13 @@
+         }
+-        shutdown(fd, SHUT_RDWR);
+-        close(fd);
++        closeClient(fd);
++    }
++
++    void HttpServer::closeClient(int fd) {
++        {
++            std::lock_guard<std::mutex> lock(m_clientsMutex);
++            m_clients.erase(fd);
++            shutdown(fd, SHUT_RDWR);
++            close(fd);
++        }
++        // Last access to this: stop() may destroy the object once it sees zero.
+         m_connections--;

@@ -24,6 +24,7 @@ namespace pplay::P2PlayEmbedded {
         bool g_wanted = false;
         bool g_draining = false;
         bool g_failed = false;
+        bool g_shuttingDown = false;
         std::string g_dataDir;
         std::string g_ownerPassword;
 
@@ -94,6 +95,7 @@ namespace pplay::P2PlayEmbedded {
         bool stopAccepting = false;
         {
             std::lock_guard<std::mutex> lock(g_mutex);
+            if (g_shuttingDown) return false;
             const bool changed = g_dataDir != dataDir || g_ownerPassword != ownerPassword;
             const bool wasWanted = g_wanted;
             g_wanted = true;
@@ -147,6 +149,7 @@ namespace pplay::P2PlayEmbedded {
         std::thread completedWorker;
         bool stopAccepting = false;
         bool checkDrain = false;
+        bool forceStop = false;
         {
             std::lock_guard<std::mutex> lock(g_mutex);
             if (g_workerMode != WorkerMode::None && g_workerDone) {
@@ -184,6 +187,7 @@ namespace pplay::P2PlayEmbedded {
                 }
             }
             checkDrain = g_running && g_draining && g_workerMode == WorkerMode::None;
+            forceStop = g_shuttingDown;
         }
 
         if (completedWorker.joinable()) {
@@ -192,7 +196,10 @@ namespace pplay::P2PlayEmbedded {
         if (stopAccepting) {
             p2play_stop_accepting();
         }
-        if (checkDrain && p2play_active_requests() == 0 && p2play_active_streams() == 0) {
+        // At process exit Core::stop cancels active sockets and torrent waits.
+        // Waiting for zero clients first deadlocks on an incomplete HTTP request
+        // or a client still streaming. Source switching keeps graceful draining.
+        if (checkDrain && (forceStop || (p2play_active_requests() == 0 && p2play_active_streams() == 0))) {
             std::lock_guard<std::mutex> lock(g_mutex);
             if (g_running && g_draining && g_workerMode == WorkerMode::None) {
                 stopWorkerLocked();
@@ -207,12 +214,18 @@ namespace pplay::P2PlayEmbedded {
     }
 
     void shutdown() {
+        {
+            std::lock_guard<std::mutex> lock(g_mutex);
+            g_shuttingDown = true;
+        }
+        Utility::shutdownStage("P2Play: shutdown begin");
         deactivate();
         for (;;) {
             update();
             {
                 std::lock_guard<std::mutex> lock(g_mutex);
                 if (!g_running && g_workerMode == WorkerMode::None && !g_worker.joinable()) {
+                    Utility::shutdownStage("P2Play: shutdown complete");
                     return;
                 }
             }
