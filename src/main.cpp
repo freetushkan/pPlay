@@ -188,7 +188,7 @@ void Main::createMenus() {
 
     items.clear();
     items.emplace_back("Playback mode", "pl_mode.png", MenuItem::Position::Top);
-    items.emplace_back("Current playlist", "playlist.png", MenuItem::Position::Top);
+    items.emplace_back("Playback queue", "playlist.png", MenuItem::Position::Top);
     items.emplace_back("Audio", "audio.png", MenuItem::Position::Top);
     items.emplace_back("Video", "video.png", MenuItem::Position::Top);
     items.emplace_back("Subtitles", "subtitles.png", MenuItem::Position::Top);
@@ -396,6 +396,11 @@ void Main::applyConfig() {
         filer->selectByPath(selected.path);
     }
     hidden = showHidden;
+    if (filer != nullptr && !player->isFullscreen()
+        && ((currentModuleIndex == -1 && config->getOption(OPT_SHOW_LOCAL)->getInteger() == 0)
+            || (currentModuleIndex == 0 && config->getOption(OPT_SHOW_LOCAL)->getInteger() != 0))) {
+        show(MenuType::Local);
+    }
     applyScales();
     if (pplay::I18n::current() != c2d::Utility::toLower(config->getOption(OPT_LANGUAGE)->getString())) {
         setLanguage(config->getOption(OPT_LANGUAGE)->getString());
@@ -405,9 +410,18 @@ void Main::applyConfig() {
 }
 
 Main::~Main() {
-    delete (config);
-    delete (timer);
-    delete (font);
+    // Renderer deletes IO before C2DObject destroys its children. In particular
+    // mpv and the probe must be gone before their IO/config and the GL context.
+    delete player;
+    player = nullptr;
+    delete filer;
+    filer = nullptr;
+    while (!getChilds().empty()) {
+        delete getChilds().back();
+    }
+    delete config;
+    delete timer;
+    delete font;
 }
 
 bool Main::onInput(c2d::Input::Player *players) {
@@ -722,16 +736,11 @@ void Main::quit() {
     if (exit) {
         return;
     }
-#ifdef __SWITCH__
-    usbExit();
-#endif
+    // USB stays mounted until playback and background IO have stopped.
     syncLastLocation();
     // the playing file reopened at the next start (paused)
     keepSession();
     config->save();
-    pplay::Saved::stop();
-    pplay::Playlists::stop();
-    pplay::FolderMarks::stop();
     exit = true;
     if (player->getMpv()->isStopped()) {
         running = false;
@@ -961,6 +970,9 @@ int main(int argc, char *argv[]) {
     }
 
     pplay::NetTime::stop();
+    pplay::Saved::stop();
+    pplay::Playlists::stop();
+    pplay::FolderMarks::stop();
     delete (main);
 
     pplay::Platform::exit();

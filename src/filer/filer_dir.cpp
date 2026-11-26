@@ -108,6 +108,20 @@ static bool compare(const MediaFile &a, const MediaFile &b) {
 }
 
 bool Filer::getDir(const std::string &p) {
+    if (p.empty()) {
+        mutex->lock();
+        files.clear();
+        Io::File empty(EMPTY_NAME, "", Io::Type::Unknown, 0);
+        files.emplace_back(empty, MediaInfo(empty));
+        path.clear();
+        top = 0;
+        scrollOffset = 0;
+        dirty = true;
+        mutex->unlock();
+        details->setFolderCover("");
+        setSelection(0);
+        return true;
+    }
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "Filer::getDir path=" + p);
 
     mutex->lock();
@@ -288,6 +302,7 @@ void Filer::enter(int index) {
 }
 
 void Filer::exit() {
+    if (path.empty()) return;
     std::string p = path;
 
     if (isTopLevel(p)) {

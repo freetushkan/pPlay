@@ -51,7 +51,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Progress save interval", "time.png", Pos::Top),
                                   MenuItem("Progress line", "progress_line.png", Pos::Top),
                                   MenuItem("Folder marks", "progress_end.png", Pos::Top),
-                                  MenuItem("Progress source", "net_torrserve.png", Pos::Top),
+                                  MenuItem("Progress source", "progress_from.png", Pos::Top),
                           }});
     categories.push_back({"Audio and subtitles",
                           {
@@ -94,6 +94,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Accent color", "color.png", Pos::Top),
                                   MenuItem("Hidden files", "hidden.png", Pos::Top),
                                   MenuItem("Other files", "file_other.png", Pos::Top),
+                                  MenuItem("Local section", "home.png", Pos::Top),
                                   MenuItem("Saved section", "saved.png", Pos::Top),
                                   MenuItem("Playlists section", "playlist.png", Pos::Top),
                                   MenuItem("Media information", "media_info.png", Pos::Top),
@@ -205,16 +206,16 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                {MenuItem("Disabled", "", MenuItem::Position::Top), MenuItem("Enabled", "", MenuItem::Position::Top)});
 #endif
 
-    addSubmenu("Progress source", "Preferred progress source", OPT_TS_PROGRESS,
-               makeIntItems({{"Off", 0}, {"Local first", 1}, {"TorrServer first", 2}}), Submenu::ValueType::Integer);
+    addSubmenu("Progress source", "Preferred progress source", OPT_SERVER_PROGRESS,
+               makeIntItems({{"Off", 0}, {"Local first", 1}, {"Server data first", 2}}), Submenu::ValueType::Integer);
     addSubmenu("Playback retry", "Playback retry", OPT_NETWORK_RETRIES, makeAdjustItems(), Submenu::ValueType::Integer,
                Submenu::MenuType::Adjust, 0.0f, 10.0f, 1.0f);
-    addSubmenu("Playback mode", "At file end..", OPT_AUTOPLAY_MODE,
-               makeIntItems({{"Stop playback", 0}, {"Play next", 1}, {"Loop file", 2}, {"Loop directory", 3},
+    addSubmenu("Playback mode", "Playback mode", OPT_PLAYBACK_MODE,
+               makeIntItems({{"Pause at end", 0}, {"Sequential", 1}, {"Loop file", 2}, {"Loop queue", 3},
                              {"Shuffle", 4}}),
                Submenu::ValueType::Integer);
     addSubmenu("Match media type", "Only files of the current audio or video type are added to queue",
-               OPT_AUTOPLAY_TYPE_FILTER, makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
+               OPT_PLAYBACK_TYPE_FILTER, makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
 #if !defined(__ANDROID__) && !defined(__LINUX__)
     addSubmenu("Bumpers and triggers", "Bumpers and triggers", OPT_SWAP_CONTROLS,
                makeIntItems({{"Normal", 0}, {"Swapped", 1}, {"Off", 2}}), Submenu::ValueType::Integer);
@@ -315,6 +316,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Always", 2}, {"Local files only", 1}, {"Off", 0}}), Submenu::ValueType::Integer);
     addSubmenu("Browse position after restore", "Browse position after the last file restored", OPT_RESTORE_LOCATION,
                makeIntItems({{"At the current file", 1}, {"At the last location", 0}}), Submenu::ValueType::Integer);
+    addSubmenu("Local section", "The Local section in the menu", OPT_SHOW_LOCAL,
+               makeIntItems({{"Off", 0}, {"On", 1}}), Submenu::ValueType::Integer);
     addSubmenu("Saved section", "The Saved section in the menu", OPT_SHOW_SAVED,
                makeIntItems({{"If not empty", 1}, {"Not shown", 0}}), Submenu::ValueType::Integer);
     addSubmenu("Playlists section", "The Playlists section in the menu", OPT_SHOW_PLAYLISTS,
@@ -721,6 +724,11 @@ void MenuMain::reloadModules() {
     // shown with something in them (or opened)
     for (auto &button: buttons) {
         int id = button->item.id;
+        if (button->item.name == "Local") {
+            bool shown = main->getConfig()->getOption(OPT_SHOW_LOCAL)->getInteger() != 0;
+            button->item.enabled = shown;
+            button->item.selectable = shown;
+        }
         if (id == MODULE_SAVED || id == MODULE_PLAYLISTS) {
             // hidden by the settings: still there while open
             bool allowed = main->getConfig()->getOption(id == MODULE_SAVED ? OPT_SHOW_SAVED : OPT_SHOW_PLAYLISTS)

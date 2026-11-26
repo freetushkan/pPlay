@@ -461,7 +461,7 @@ void Player::resetBrightness() {
 }
 
 void Player::togglePause() {
-    bool paused = mpv->isPaused();
+    bool paused = mpv->isPaused() || mpv->isAtEnd();
     main->getStatus()->show("Info", paused ? "Resuming playback" : "Pausing playback");
     paused ? resume() : pause();
     osd->setPaused(!paused);

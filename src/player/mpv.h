@@ -127,6 +127,8 @@ public:
     bool isStopped();
 
     bool isPaused();
+    bool isAtEnd();
+    void setKeepOpen(bool enabled);
 
     bool isAvailable();
 
@@ -171,10 +173,7 @@ public:
     void setSubFontSize(int size);
     void setSubColor(const std::string &color);
     void setSubOutlineColor(const std::string &color);
-    bool isAssSubtitle() {
-        const std::string codec = getString("current-tracks/sub/codec");
-        return codec == "ass" || codec == "ssa" || codec == "ASS" || codec == "SSA";
-    }
+    bool isAssSubtitle() const { return assSubtitle; }
 
 private:
 
@@ -187,12 +186,12 @@ private:
         bool watched = false;
         // (a stale one not used)
         std::chrono::steady_clock::time_point read;
-        // watched: read from mpv till then (a new state, its change may come later)
-        std::chrono::steady_clock::time_point polled;
     };
     std::unordered_map<std::string, Prop> props;
 
     void setKnown(const char *name, double value);
+    bool assSubtitle = false;
+    int keepOpen = -1;
     bool saving = false;
     // a seek sent, till mpv plays again: its core busy, the known values used (a read would
     // wait for it: frames and key presses lost)

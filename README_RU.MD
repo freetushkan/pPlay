@@ -148,11 +148,11 @@ P2Play MediaMesh:
 
 ### Группы
 
-* `playback` — `autoplay_mode` (`0` стоп, `1` следующий файл, `2` повтор файла, `3` повтор папки), `network_retries`,
+* `playback` — `playback_mode` (`0` пауза в конце, `1` последовательный, `2` повтор файла, `3` повтор папки, `4` случайный), `network_retries`,
   `restore_session`, `restore_location` (`1` список у восстановленного файла, `0` в последнем месте),
   `seek_preview` (предпросмотр при перемотке: `2` всегда, `1` только локальные, включая сохранённые, `0` выкл.), `sleep_timer` (минуты, `-1` до конца файла).
 * `progress` — `progress_min_length`, `watched_tolerance`, `progress_interval`, `progress_line`, `folder_marks`,
-  `ts_progress_sync` (`0` выкл., `1` сначала локальный, `2` сначала TorrServer).
+  `ts_progress_sync` (`0` выкл., `1` сначала локальный, `2` сначала данные сервера).
 * `audio_and_subtitles` — `audio_language` (`Auto`), `sub_language` (`Off`): списки mpv `alang` / `slang` вида `rus,ru`,
   `Auto` / `Off` оставляют значения из `mpv.conf`; `external_tracks`, `sub_ass_plain`, `audio_channels`,
   `audio_normalize` (`0` выкл., `1` нормализация, `2` ночной режим), `audio_visualizer`.

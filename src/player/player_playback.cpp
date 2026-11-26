@@ -1,5 +1,5 @@
 //
-// Player: end of playback (autoplay), reloads on errors / stalls, progress saving,
+// Player: end of playback (playback mode), reloads on errors / stalls, progress saving,
 // mpv log.
 //
 
@@ -91,6 +91,9 @@ void Player::onMpvEvent(mpv_event *event) {
             main->getFiler()->refresh();
             break;
         }
+        case MPV_EVENT_IDLE:
+            if (main->isExiting()) main->setRunningStop();
+            break;
         case MPV_EVENT_AUDIO_RECONFIG:
             applyAudioFilter();
             break;
@@ -180,13 +183,13 @@ void Player::onStopEvent(int reason) {
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent could not load file");
     } else if (reason == MPV_END_FILE_REASON_EOF && playbackCompleted && !isPlaylistFile()) {
         endSleep = main->getConfig()->getOption(OPT_SLEEP_TIMER)->getInteger() < 0;
-        const int autoplayMode = endSleep ? 0 : main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger();
-        if (autoplayMode == 2) {
+        const int playbackMode = endSleep ? 0 : main->getConfig()->getOption(OPT_PLAYBACK_MODE)->getInteger();
+        if (playbackMode == 2) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player::onStopEvent loopFile current=" + file.path);
             load(file, true, "pause=yes,start=0");
             return;
         }
-        if (autoplayMode == 4) {
+        if (playbackMode == 4) {
             const MediaFile *next = shuffleSibling(1);
             if (next != nullptr) {
                 texture->clearFrame();
@@ -197,36 +200,36 @@ void Player::onStopEvent(int reason) {
                 return;
             }
         }
-        if ((autoplayMode == 1 || autoplayMode == 3) && !autoplayFiles.empty()) {
+        if ((playbackMode == 1 || playbackMode == 3) && !playbackQueue.empty()) {
             texture->clearFrame();
             int currentIndex = -1;
-            for (size_t i = 0; i < autoplayFiles.size(); i++) {
-                if (autoplayFiles[i].path == file.path) {
+            for (size_t i = 0; i < playbackQueue.size(); i++) {
+                if (playbackQueue[i].path == file.path) {
                     currentIndex = (int) i;
                     break;
                 }
             }
             if (currentIndex >= 0) {
-                for (size_t idx = (size_t) currentIndex + 1; idx < autoplayFiles.size(); idx++) {
-                    if (pplay::Utility::isMedia(autoplayFiles[idx])) {
+                for (size_t idx = (size_t) currentIndex + 1; idx < playbackQueue.size(); idx++) {
+                    if (pplay::Utility::isMedia(playbackQueue[idx])) {
                         pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                                            "Player::onStopEvent autoplayNext current=" + file.path
-                                                    + " next=" + autoplayFiles[idx].path);
-                        load(autoplayFiles[idx], true, "pause=yes,start=0");
+                                            "Player::onStopEvent sequentialNext current=" + file.path
+                                                    + " next=" + playbackQueue[idx].path);
+                        load(playbackQueue[idx], true, "pause=yes,start=0");
                         return;
                     }
                 }
-                if (autoplayMode == 3) {
-                    if (autoplayFiles.size() == 1) {
+                if (playbackMode == 3) {
+                    if (playbackQueue.size() == 1) {
                         load(file, true, "pause=yes,start=0");
                         return;
                     }
                     for (size_t idx = 0; idx < (size_t) currentIndex; idx++) {
-                        if (pplay::Utility::isMedia(autoplayFiles[idx])) {
+                        if (pplay::Utility::isMedia(playbackQueue[idx])) {
                             pplay::Utility::log(pplay::Utility::LogLevel::Info,
-                                                "Player::onStopEvent autoplayLoop current=" + file.path
-                                                        + " next=" + autoplayFiles[idx].path);
-                            load(autoplayFiles[idx], true, "pause=yes,start=0");
+                                                "Player::onStopEvent queueLoop current=" + file.path
+                                                        + " next=" + playbackQueue[idx].path);
+                            load(playbackQueue[idx], true, "pause=yes,start=0");
                             return;
                         }
                     }
@@ -300,14 +303,56 @@ void Player::saveProgress(bool wait) {
         }
     }
     mpv->save(wait);
-    if (syncsProgress() && lastKnownPosition > 0) {
+    if (syncsProgress() && lastKnownPosition > 0) writeServerProgress(wait);
+}
+
+int Player::progressWriteThread(void *self) {
+    auto *player = static_cast<Player *>(self);
+    auto *io = pplay::Io::get();
+    std::string error;
+    const auto &job = player->progressWrite;
+    if (io != nullptr && !io->setPlaybackProgress(job.path, job.position, job.duration, &error)
+        && !error.empty()) {
+        pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Server progress write: " + error);
+    }
+    player->progressWriteDone = true;
+    return 0;
+}
+
+void Player::updateServerProgress() {
+    if (progressWorker && progressWriteDone) {
+        delete progressWorker;
+        progressWorker = nullptr;
+    }
+    if (!progressWorker && !pendingProgressWrite.path.empty()) {
+        progressWrite = pendingProgressWrite;
+        pendingProgressWrite = {};
+        progressWriteDone = false;
+        progressWorker = new pplay::Worker(progressWriteThread, this);
+    }
+}
+
+void Player::writeServerProgress(bool wait) {
+    // Periodic saves and Pause must not wait for a remote server. Coalesce
+    // updates of the same file; explicit exit saves retain write ordering.
+    ProgressWrite next{file.path, (double) lastKnownPosition, (double) lastKnownDuration};
+    if (wait || (!pendingProgressWrite.path.empty() && pendingProgressWrite.path != next.path)) {
+        delete progressWorker;
+        progressWorker = nullptr;
         auto *io = pplay::Io::get();
         std::string error;
-        if (io != nullptr && !io->setPlaybackProgress(file.path, (double) lastKnownPosition,
-                                                       (double) lastKnownDuration, &error) && !error.empty()) {
-            pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Server progress write: " + error);
+        if (io && !pendingProgressWrite.path.empty()) {
+            io->setPlaybackProgress(pendingProgressWrite.path, pendingProgressWrite.position,
+                                    pendingProgressWrite.duration, &error);
+        }
+        pendingProgressWrite = {};
+        if (wait) {
+            if (io) io->setPlaybackProgress(next.path, next.position, next.duration, &error);
+            return;
         }
     }
+    pendingProgressWrite = next;
+    updateServerProgress();
 }
 
 void Player::updateWatchdog() {
@@ -405,17 +450,17 @@ void Player::onMpvLog(const mpv_event_log_message *message) {
 }
 
 void Player::updateShuffle() {
-    if (main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger() != 4 || isPlaylistFile()) {
+    if (main->getConfig()->getOption(OPT_PLAYBACK_MODE)->getInteger() != 4 || isPlaylistFile()) {
         if (!shuffleOrder.empty()) {
             shuffleOrder.clear();
             menusPlaylistBuildPending = true;
         }
         return;
     }
-    if (!shuffleOrder.empty() || autoplayFiles.empty() || mpv->isStopped()) {
+    if (!shuffleOrder.empty() || playbackQueue.empty() || mpv->isStopped()) {
         return;
     }
-    for (auto &f: autoplayFiles) {
+    for (auto &f: playbackQueue) {
         if (pplay::Utility::isMedia(f) && f.path != file.path) {
             shuffleOrder.push_back(f.path);
         }
@@ -433,7 +478,7 @@ const MediaFile *Player::shuffleSibling(int direction) const {
     // looped
     long count = (long) shuffleOrder.size();
     long index = ((it - shuffleOrder.begin()) + direction + count) % count;
-    for (auto &f: autoplayFiles) {
+    for (auto &f: playbackQueue) {
         if (f.path == shuffleOrder[index]) {
             return &f;
         }
@@ -442,7 +487,7 @@ const MediaFile *Player::shuffleSibling(int direction) const {
 }
 
 std::string Player::nextTitle() const {
-    int mode = main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger();
+    int mode = main->getConfig()->getOption(OPT_PLAYBACK_MODE)->getInteger();
     if (!isPlaylistFile() && mode == 4) {
         const MediaFile *next = shuffleSibling(1);
         return next != nullptr && next->path != file.path ? next->name : "";
@@ -451,8 +496,8 @@ std::string Player::nextTitle() const {
         return "";
     }
     int current = -1;
-    for (size_t i = 0; i < autoplayFiles.size(); i++) {
-        if (autoplayFiles[i].path == file.path) {
+    for (size_t i = 0; i < playbackQueue.size(); i++) {
+        if (playbackQueue[i].path == file.path) {
             current = (int) i;
             break;
         }
@@ -460,11 +505,11 @@ std::string Player::nextTitle() const {
     if (current < 0) {
         return "";
     }
-    size_t count = autoplayFiles.size();
+    size_t count = playbackQueue.size();
     // the directory loop goes on from the first one
     size_t last = mode == 3 ? count : count - (size_t) current - 1;
     for (size_t step = 1; step <= last && step < count + 1; step++) {
-        const MediaFile &next = autoplayFiles[((size_t) current + step) % count];
+        const MediaFile &next = playbackQueue[((size_t) current + step) % count];
         if (pplay::Utility::isMedia(next) && ((size_t) current + step) % count != (size_t) current) {
             return next.name;
         }
@@ -486,7 +531,7 @@ bool Player::playSibling(int direction) {
         return mpv_command(mpv->getHandle(), cmd) >= 0;
     }
     // shuffled: its order
-    if (main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger() == 4 && !shuffleOrder.empty()) {
+    if (main->getConfig()->getOption(OPT_PLAYBACK_MODE)->getInteger() == 4 && !shuffleOrder.empty()) {
         const MediaFile *sibling = shuffleSibling(direction);
         if (sibling != nullptr) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
@@ -498,8 +543,8 @@ bool Player::playSibling(int direction) {
         return false;
     }
     int current = -1;
-    for (size_t i = 0; i < autoplayFiles.size(); i++) {
-        if (autoplayFiles[i].path == file.path) {
+    for (size_t i = 0; i < playbackQueue.size(); i++) {
+        if (playbackQueue[i].path == file.path) {
             current = (int) i;
             break;
         }
@@ -507,12 +552,12 @@ bool Player::playSibling(int direction) {
     if (current < 0) {
         return false;
     }
-    for (int i = current + direction; i >= 0 && i < (int) autoplayFiles.size(); i += direction) {
-        if (pplay::Utility::isMedia(autoplayFiles[i])) {
+    for (int i = current + direction; i >= 0 && i < (int) playbackQueue.size(); i += direction) {
+        if (pplay::Utility::isMedia(playbackQueue[i])) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info,
                                 "Player: " + std::string(direction > 0 ? "next" : "previous") + " "
-                                        + autoplayFiles[i].path);
-            MediaFile next = autoplayFiles[i];
+                                        + playbackQueue[i].path);
+            MediaFile next = playbackQueue[i];
             return load(next);
         }
     }

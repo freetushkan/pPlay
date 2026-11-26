@@ -213,6 +213,17 @@ Mpv::~Mpv() {
         mpv_render_context_free(context);
     }
     if (handle) {
+        const char *quit[] = {"quit", nullptr};
+        mpv_command_async(handle, 0, quit);
+        for (;;) {
+            mpv_event *event = mpv_wait_event(handle, -1);
+            if (event->event_id == MPV_EVENT_HOOK) {
+                auto *hook = (mpv_event_hook *) event->data;
+                mpv_hook_continue(handle, hook->id);
+            } else if (event->event_id == MPV_EVENT_SHUTDOWN) {
+                break;
+            }
+        }
         mpv_terminate_destroy(handle);
     }
 }

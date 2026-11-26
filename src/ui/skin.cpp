@@ -21,7 +21,11 @@ c2d::Texture *pplay::Skin::texture(const std::string &name) {
     }
     std::string path = Utility::getDataPath() + "skin/" + name;
     c2d::Texture *texture = Utility::fileExists(path) ? new c2d::C2DTexture(path) : nullptr;
-    textures[name] = texture;
+    if (texture != nullptr && !texture->available) {
+        delete texture;
+        return nullptr;
+    }
+    if (texture != nullptr) textures[name] = texture;
     return texture;
 }
 
@@ -70,9 +74,8 @@ c2d::Texture *pplay::Skin::icon(const std::string &name, int height, bool smooth
     if (it != textures.end()) {
         return it->second;
     }
-    std::string path = Utility::getDataPath() + "skin/" + name;
     c2d::Texture *texture = nullptr;
-    auto *source = Utility::fileExists(path) ? new c2d::C2DTexture(path) : nullptr;
+    auto *source = pplay::Skin::texture(name);
     uint8_t *in = nullptr;
     int inPitch = 0;
     c2d::Vector2i size = source != nullptr ? source->getTextureSize() : c2d::Vector2i();
@@ -124,7 +127,6 @@ c2d::Texture *pplay::Skin::icon(const std::string &name, int height, bool smooth
             texture = nullptr;
         }
     }
-    delete (source);
     // A failed allocation/lock must be retried later, not cached as a permanent miss.
     if (texture != nullptr) {
         textures[key] = texture;

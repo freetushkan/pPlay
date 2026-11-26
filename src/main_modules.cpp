@@ -52,6 +52,29 @@ void Main::show(MenuType type) {
     }
 
     filer->setVisibility(Visibility::Visible, true);
+    if (type == MenuType::Local && config->getOption(OPT_SHOW_LOCAL)->getInteger() == 0) {
+        // No recursion through failed/empty sources. Settings and Exit remain usable
+        // even on a fresh configuration with every content section hidden.
+        for (int i = 1; i <= config->getNetworkCount(); ++i) {
+            if (!config->getOption(PPLAYConfig::networkOption(i))->getString().empty()) {
+                setCurrentModuleIndex(i);
+                show(MenuType::Network);
+                return;
+            }
+        }
+        if (config->getOption(OPT_SHOW_SAVED)->getInteger() != 0 && pplay::Saved::any()) {
+            show(MenuType::Saved);
+            return;
+        }
+        if (config->getOption(OPT_SHOW_PLAYLISTS)->getInteger() != 0 && pplay::Playlists::any()) {
+            show(MenuType::Playlists);
+            return;
+        }
+        setCurrentModuleIndex(0);
+        filer->getDir("");
+        filer->clearHistory();
+        return;
+    }
     if (type == MenuType::Local) {
 #ifdef __SWITCH__
         usbExit();
@@ -139,7 +162,8 @@ void Main::show(MenuType type) {
         if (!filer->getDir(dirPath)) {
             if (!filer->getDir(root)) {
                 showMessage(pplay::tr("ERROR"), filer->getError(), pplay::tr("OK"));
-                show(MenuType::Local);
+                setCurrentModuleIndex(0);
+                filer->getDir("");
             }
         } else {
             filer->selectByPath(path);
@@ -331,6 +355,7 @@ void Main::restoreSession() {
 }
 
 void Main::syncLastLocation() {
+    if (currentModuleIndex == 0) return;
     MediaFile selected = filer->getSelection();
     std::string selectedPath = selected.path.empty() ? filer->getPath() + "/.." : selected.path;
     std::string path = Paths::normalizePath(selectedPath);

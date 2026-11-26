@@ -68,7 +68,7 @@ Below are the main practical improvements and modernizations included in this fo
 2. **TorrServer integration**: torrent browsing, files playback and watched-state support.
 3. **Samba/SMB support**: custom `smb://` mpv handler, configurable SMB read buffer.
 4. **Flexible network retry/timeouts**: playback retry count, connection timeout per network.
-5. **UX/player options**: settings menu with configurable seek intervals, autoplay-after-finish behavior,
+5. **UX/player options**: settings menu with configurable seek intervals, playback modes,
    swapped controls mode, UI accent color, logging and more.
 6. **Interface languages**: Settings > Language (see below).
 7. **Configuration editor**: Settings > Edit files: `pplay_config.json`, `mpv/mpv.conf`, `mpv/input.conf`,
@@ -148,11 +148,11 @@ the old file itself is left as it is (for the older versions).
 
 ### Groups
 
-* `playback` — `autoplay_mode` (`0` stop, `1` next file, `2` loop file, `3` loop directory), `network_retries`,
+* `playback` — `playback_mode` (`0` pause at EOF, `1` sequential, `2` loop file, `3` loop directory, `4` shuffle), `network_retries`,
   `restore_session`, `restore_location` (`1` list at the restored file, `0` at the last location),
   `seek_preview` (preview position while seeking: `2` always, `1` local files only, saved too, `0` off), `sleep_timer` (minutes, `-1` end of file).
 * `progress` — `progress_min_length`, `watched_tolerance`, `progress_interval`, `progress_line`, `folder_marks`,
-  `ts_progress_sync` (`0` off, `1` local first, `2` TorrServer first).
+  `ts_progress_sync` (`0` off, `1` local first, `2` server data first).
 * `audio_and_subtitles` — `audio_language` (`Auto`), `sub_language` (`Off`): mpv `alang` / `slang` lists like `rus,ru`,
   `Auto` / `Off` keep `mpv.conf` ones; `external_tracks`, `sub_ass_plain`, `audio_channels`,
   `audio_normalize` (`0` off, `1` normalize, `2` night mode), `audio_visualizer`.

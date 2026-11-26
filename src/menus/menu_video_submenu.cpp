@@ -54,7 +54,7 @@ void MenuVideoSubmenu::updateSelectionHighlight() {
     } else if (type == MENU_VIDEO_TYPE_SUB) {
         setSelection(main->getPlayer()->getSubtitleStream());
     } else if (type == MENU_VIDEO_TYPE_PL_MODE) {
-        setSelection(main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger());
+        setSelection(main->getConfig()->getOption(OPT_PLAYBACK_MODE)->getInteger());
     } else if (type == MENU_VIDEO_TYPE_NORMALIZE) {
         setSelection(main->getConfig()->getOption(OPT_AUDIO_NORMALIZE)->getInteger());
     } else if (type == MENU_VIDEO_TYPE_VISUALIZER) {
@@ -119,13 +119,13 @@ void MenuVideoSubmenu::onOptionSelection(MenuItem *item) {
                                           + pplay::tr("This can take a few seconds"));
             main->getPlayer()->setSubtitleStream(item->id);
         } else if (type == MENU_VIDEO_TYPE_PL_MODE) {
-            auto *option = main->getConfig()->getOption(OPT_AUTOPLAY_MODE);
+            auto *option = main->getConfig()->getOption(OPT_PLAYBACK_MODE);
             const std::string oldValue = option->getString();
             option->setType(c2d::config::Option::Type::Integer);
             option->setInteger(item->id);
             main->getConfig()->save();
             pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-                "Options: " + std::string(OPT_AUTOPLAY_MODE)
+                "Options: " + std::string(OPT_PLAYBACK_MODE)
                             + " changed from " + oldValue + " to " + option->getString());
         } else if (type == MENU_VIDEO_TYPE_NORMALIZE) {
             main->getPlayer()->setAudioNormalize(item->id);
@@ -139,7 +139,7 @@ void MenuVideoSubmenu::onOptionSelection(MenuItem *item) {
             if (main->getPlayer()->isPlaylistFile()) {
                 main->getPlayer()->getMpv()->setPlaylistPos(item->id);
             } else {
-                auto files = main->getPlayer()->getAutoplayFiles();
+                auto files = main->getPlayer()->getPlaybackQueue();
                 if (item->id >= 0 && item->id < (int) files.size()) {
                     main->getPlayer()->load(files[item->id]);
                 }

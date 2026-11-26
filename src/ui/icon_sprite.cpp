@@ -15,8 +15,15 @@ namespace {
 }
 
 bool pplay::IconSprite::setIcon(const std::string &n, float h, bool s) {
+    if (name == n && height == h && smooth == s && !textureDirty) return true;
     name = n;
     height = h;
+    if (name.empty() || height <= 0) {
+        setSize(0, 0);
+        textureDirty = true;
+        scalePending = false;
+        return false;
+    }
     smooth = s;
     textureDirty = true;
     scalePending = false;
@@ -40,6 +47,10 @@ bool pplay::IconSprite::make() {
 
     // The same cached pixel texture can be used at two nearby scales. Its logical
     // size must still follow the current scale even when the texture pointer matches.
+    // Set a pixel-space rect explicitly: do not inherit a stale rect or a
+    // texture's logical rectangle (which may differ after scaling).
+    const auto pixels = texture->getTextureSize();
+    setTextureRect({0, 0, pixels.x, pixels.y});
     const c2d::IntRect rect = getTextureRect();
     if (rect.width <= 0 || rect.height <= 0) {
         textureDirty = true;

@@ -63,9 +63,9 @@ namespace {
 
     const Color TEXT_DIM(160, 168, 178, 255);
     const char *const playbackModeIcons[] = {
-            "pl_stop.png", "pl_next.png", "pl_loop_file.png", "pl_loop_directory.png", "pl_shuffle.png"};
+            "pl_pause.png", "pl_next.png", "pl_loop_file.png", "pl_loop_directory.png", "pl_shuffle.png"};
     const char *const playbackModeNames[] = {
-            "Stop playback", "Play next", "Loop file", "Loop directory", "Shuffle"};
+            "Pause at end", "Sequential", "Loop file", "Loop queue", "Shuffle"};
 }
 
 PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
@@ -137,7 +137,7 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     btn_play->setVisibility(Visibility::Hidden);
     buttons = {addButton("btn_prev.png"), addButton("btn_seek_backward.png"), btn_pause,
                addButton("btn_seek_forward.png"), addButton("btn_next.png"), addButton("btn_stop.png"),
-               addButton("btn_frame_step.png"), addButton("pl_stop.png"), addButton("btn_playlist.png"),
+               addButton("btn_frame_step.png"), addButton("pl_pause.png"), addButton("btn_playlist.png"),
                addButton("btn_settings.png")};
 
     next = new Text("", main->getOsdFontSize(Main::FontSize::Small), main->getFont());
@@ -319,6 +319,10 @@ void PlayerOSD::showVolume() {
 }
 
 void PlayerOSD::setPaused(bool paused) {
+    const bool replay = main->getPlayer()->getMpv()->isAtEnd();
+    const std::string icon = replay ? "btn_replay.png" : "btn_play.png";
+    if (btn_play->getIcon() != icon) btn_play->setIcon(icon, std::round(48 * main->getOsdScaling().y));
+    paused = paused || replay;
     btn_play->setVisibility(paused ? Visibility::Visible : Visibility::Hidden);
     btn_pause->setVisibility(paused ? Visibility::Hidden : Visibility::Visible);
 }
@@ -455,9 +459,9 @@ void PlayerOSD::updateChips() {
     if (volume != 100 || volumeShown) {
         labels.push_back(pplay::tr("Volume") + " " + std::to_string(volume) + "%");
     }
-    int mode = config->getOption(OPT_AUTOPLAY_MODE)->getInteger();
+    int mode = config->getOption(OPT_PLAYBACK_MODE)->getInteger();
     if (mode >= 2 && mode <= 4) {
-        labels.push_back(pplay::tr(mode == 2 ? "Loop file" : mode == 3 ? "Loop directory" : "Shuffle"));
+        labels.push_back(pplay::tr(mode == 2 ? "Loop file" : mode == 3 ? "Loop queue" : "Shuffle"));
     }
     int normalize = config->getOption(OPT_AUDIO_NORMALIZE)->getInteger();
     if (normalize == 1 || normalize == 2) {
@@ -502,7 +506,7 @@ void PlayerOSD::updateChips() {
 }
 
 void PlayerOSD::updatePlaybackMode() {
-    int mode = std::max(0, std::min(4, main->getConfig()->getOption(OPT_AUTOPLAY_MODE)->getInteger()));
+    int mode = std::max(0, std::min(4, main->getConfig()->getOption(OPT_PLAYBACK_MODE)->getInteger()));
     if (mode == playbackModeShown) {
         return;
     }
@@ -669,7 +673,8 @@ void PlayerOSD::onUpdate() {
         updateProgress();
         // paused elsewhere (a restored session, a frame step, a menu)
         bool paused = mpv->isPaused();
-        if (paused != btn_play->isVisible()) {
+        if ((paused || mpv->isAtEnd()) != btn_play->isVisible()
+            || (btn_play->getIcon() == "btn_replay.png") != mpv->isAtEnd()) {
             setPaused(paused);
         }
     }
@@ -822,7 +827,7 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
     } else if (keys & Input::A) {
         switch ((ButtonID) index) {
             case ButtonID::Pause: {
-                bool pause = !mpv->isPaused();
+                bool pause = !mpv->isPaused() && !mpv->isAtEnd();
                 setPaused(pause);
                 main->getStatus()->show("Info", pause ? "Pausing playback" : "Resuming playback");
                 pause ? player->pause() : player->resume();
@@ -855,7 +860,7 @@ bool PlayerOSD::onInput(c2d::Input::Player *players) {
                 }
                 break;
             case ButtonID::PlaybackMode: {
-                auto *option = main->getConfig()->getOption(OPT_AUTOPLAY_MODE);
+                auto *option = main->getConfig()->getOption(OPT_PLAYBACK_MODE);
                 option->setType(c2d::config::Option::Type::Integer);
                 int mode = std::max(0, std::min(4, option->getInteger()));
                 mode = (mode + 1) % 5;

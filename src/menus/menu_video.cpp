@@ -23,21 +23,21 @@ namespace {
     std::vector<MenuItem> withValues(std::vector<MenuItem> items) {
         for (auto &item: items) {
             const std::string &n = item.name;
-            if (n == "Current playlist" || n == "Audio" || n == "Video"
+            if (n == "Playback queue" || n == "Audio" || n == "Video"
                 || n == "Subtitles" || n == "Subtitle appearance" || n == "Settings") {
                 item.opens = true;
             }
             if (n == "Speed" || n == "Brightness" || n == "Screen brightness" || n == "Sleep timer") {
                 item.slider = 0;
             }
-            if (n != "Stop" && n != "Current playlist" && n != "Settings" && n != "Subtitle appearance") {
+            if (n != "Stop" && n != "Playback queue" && n != "Settings" && n != "Subtitle appearance") {
                 item.value = "-";
             }
         }
         return items;
     }
 
-    const char *modeNames[] = {"Stop playback", "Play next", "Loop file", "Loop directory", "Shuffle"};
+    const char *modeNames[] = {"Pause at end", "Sequential", "Loop file", "Loop queue", "Shuffle"};
     const char *normalizeNames[] = {"Off", "Normalize", "Night mode"};
     const char *screenNames[] = {"Cover > visualizer", "Visualizer", "Icon only"};
     const char *qualityNames[] = {"Best", "Balanced", "Fast"};
@@ -127,7 +127,7 @@ void MenuVideo::refreshValues() {
         MenuItem &item = button->item;
         const std::string &n = item.name;
         if (n == "Playback mode") {
-            int mode = std::max(0, std::min(4, config->getOption(OPT_AUTOPLAY_MODE)->getInteger()));
+            int mode = std::max(0, std::min(4, config->getOption(OPT_PLAYBACK_MODE)->getInteger()));
             item.value = pplay::tr(modeNames[mode]);
             item.valueAccent = mode >= 2;
         } else if (n == "Audio" || n == "Video") {
@@ -216,7 +216,7 @@ bool MenuVideo::onOptionChange(MenuItem *item, int direction) {
     PPLAYConfig *config = main->getConfig();
     const std::string &n = item->name;
     if (n == "Playback mode") {
-        auto *option = config->getOption(OPT_AUTOPLAY_MODE);
+        auto *option = config->getOption(OPT_PLAYBACK_MODE);
         option->setType(c2d::config::Option::Type::Integer);
         option->setInteger(cycle(option->getInteger(), direction, 5));
         config->save();
@@ -322,7 +322,7 @@ void MenuVideo::onOptionSelection(MenuItem *item) {
     } else if (item->name == "Subtitle appearance") {
         setVisibility(Visibility::Hidden, true);
         main->getMenuMain()->openSettingsSubmenuFromPlayer("Subtitle appearance", this);
-    } else if (item->name == "Current playlist") {
+    } else if (item->name == "Playback queue") {
         if (main->getPlayer()->getMenuPlaylist()) {
             main->getPlayer()->getMenuPlaylist()->fromOsd = false;
             main->getPlayer()->getMenuPlaylist()->setVisibility(Visibility::Visible, true);

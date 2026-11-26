@@ -57,7 +57,7 @@ namespace {
     // the file groups, as in the menu; the others in "state"
     const std::vector<std::pair<const char *, std::vector<const char *>>> &groups() {
         static const std::vector<std::pair<const char *, std::vector<const char *>>> list = {
-                {"playback", {OPT_AUTOPLAY_MODE, OPT_AUTOPLAY_TYPE_FILTER, OPT_NETWORK_RETRIES, OPT_RESTORE_SESSION,
+                {"playback", {OPT_PLAYBACK_MODE, OPT_PLAYBACK_TYPE_FILTER, OPT_NETWORK_RETRIES, OPT_RESTORE_SESSION,
                               OPT_RESTORE_LOCATION, OPT_SEEK_PREVIEW, OPT_SLEEP_TIMER}},
                 {"progress", {OPT_PROGRESS_MIN_LENGTH, OPT_WATCHED_TOLERANCE, OPT_PROGRESS_INTERVAL,
                               OPT_PROGRESS_LINE, OPT_FOLDER_MARKS, OPT_TS_PROGRESS}},
@@ -67,7 +67,7 @@ namespace {
                 {"video", {OPT_VIDEO_QUALITY, OPT_AUTO_DROPS, OPT_AUTO_DROPS_TIME, OPT_AUTO_QUALITY_DELAY,
                            OPT_AUTO_SWITCH_PAUSE, OPT_HW_DECODING, OPT_AUTO_HW_RETRY, OPT_AUTO_HW_RETRIES, OPT_DITHER}},
                 {"interface", {OPT_LANGUAGE, OPT_PS5_UI_4K, OPT_TEXT_ENCODING, OPT_ACCENT_COLOR, OPT_SHOW_HIDDEN,
-                               OPT_SHOW_ALL_FILES, OPT_SHOW_SAVED, OPT_SHOW_PLAYLISTS, OPT_MEDIA_PROBE,
+                               OPT_SHOW_ALL_FILES, OPT_SHOW_LOCAL, OPT_SHOW_SAVED, OPT_SHOW_PLAYLISTS, OPT_MEDIA_PROBE,
                                OPT_OSD_HIDE_TIME, OPT_SWAP_CONTROLS, OPT_UI_SCALE, OPT_OSD_SCALE, OPT_MENU_SCALE,
                                OPT_SHOW_MENU_BUTTON}},
                 {"networks", {OPT_NETWORK_TIMEOUT, OPT_TLS_VERIFY, OPT_TS_VIEWED_SYNC, OPT_CACHE_SECS, OPT_CACHE_MB,
@@ -361,13 +361,14 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
 #ifdef __SMB2__
     addOption({OPT_SMB_READ_BUFFER_MB, (int) 10});
 #endif
-    addOption({OPT_AUTOPLAY_MODE, (int) 1});
-    addOption({OPT_AUTOPLAY_TYPE_FILTER, (int) 1});
+    addOption({OPT_PLAYBACK_MODE, (int) 1});
+    addOption({OPT_PLAYBACK_TYPE_FILTER, (int) 1});
     addOption({OPT_LOG_LEVEL, (int) 0}); // 0 OFF, 1 ERROR, 2 INFO, 3 DEBUG, 4 TRACE
     addOption({OPT_SWAP_CONTROLS, (int) 0});
     addOption({OPT_UI_SCALE, 1.0f});
     addOption({OPT_OSD_SCALE, 1.0f});
     addOption({OPT_MENU_SCALE, 1.0f});
+    addOption({OPT_SHOW_LOCAL, (int) 1});
     addOption({OPT_SHOW_MENU_BUTTON, (int) 1});
 #ifdef __SWITCH__
     addOption({OPT_CPU_BOOST, "Disabled"}); // Disabled, Enabled
@@ -601,6 +602,13 @@ bool PPLAYConfig::load(const std::string &overridePath) {
         auto group = root.find(groupOf(name));
         if (group != root.end() && group->is_object()) {
             auto value = group->find(keyOf(name));
+            // New names win; preserve settings written by older dev builds.
+            if (value == group->end() && name == OPT_PLAYBACK_MODE) {
+                value = group->find("autoplay_mode");
+            }
+            if (value == group->end() && name == OPT_PLAYBACK_TYPE_FILTER) {
+                value = group->find("autoplay_type_filter");
+            }
             if (value != group->end()) {
                 setValue(&option, *value);
             }
@@ -707,7 +715,16 @@ bool PPLAYConfig::importOld() {
     }
     allocateNetworks(oldNetworks);
     networkCount = oldNetworks;
-    if (!Config::load(cfg)) {
+    addOption({"AUTOPLAY_MODE", getOption(OPT_PLAYBACK_MODE)->getInteger()});
+    addOption({"AUTOPLAY_TYPE_FILTER", getOption(OPT_PLAYBACK_TYPE_FILTER)->getInteger()});
+    const bool loaded = Config::load(cfg);
+    getOption(OPT_PLAYBACK_MODE)->setInteger(getOption("AUTOPLAY_MODE")->getInteger());
+    getOption(OPT_PLAYBACK_TYPE_FILTER)->setInteger(getOption("AUTOPLAY_TYPE_FILTER")->getInteger());
+    auto *options = getOptions();
+    options->erase(std::remove_if(options->begin(), options->end(), [](const config::Option &option) {
+        return option.getName() == "AUTOPLAY_MODE" || option.getName() == "AUTOPLAY_TYPE_FILTER";
+    }), options->end());
+    if (!loaded) {
         networkCount = 0;
         for (int i = 1; i <= oldNetworks; i++) {
             clearNetwork(i);
@@ -814,6 +831,8 @@ bool PPLAYConfig::reload() {
 
 void PPLAYConfig::sanitize() {
     NetworksChanged changed;
+    auto *mode = getOption(OPT_PLAYBACK_MODE);
+    mode->setInteger(std::max(0, std::min(4, mode->getInteger())));
 
     // a missing home is kept (an unplugged drive), only an empty one is reset
     if (getOption(OPT_HOME_PATH)->getString().empty()) {

@@ -6,6 +6,7 @@
 #define PPLAY_PLAYER_H
 
 #include <atomic>
+#include "worker.h"
 #include "menu_video_submenu.h"
 #include "media_file.h"
 #include "mpv.h"
@@ -215,7 +216,7 @@ public:
     // the file the playback mode goes to at the end, "" if none
     std::string nextTitle() const;
 
-    const std::vector<MediaFile> &getAutoplayFiles() const;
+    const std::vector<MediaFile> &getPlaybackQueue() const;
 
     bool onInput(c2d::Input::Player *players) override;
 
@@ -367,13 +368,13 @@ private:
     // the file
     MediaFile file;
     std::string playingKey;
-    std::vector<MediaFile> autoplayFiles;
-    bool autoplayTypeFiltered = false;
-    // shuffle: the media paths of autoplayFiles mixed once (when turned on, with a new list),
+    std::vector<MediaFile> playbackQueue;
+    bool queueTypeFiltered = false;
+    // shuffle: the media paths of playbackQueue mixed once (when turned on, with a new list),
     // the file playing then first
     std::vector<std::string> shuffleOrder;
 
-    void refreshAutoplayFiles();
+    void refreshPlaybackQueue();
     void updateShuffle();
 
     void buildPlaylistMenu();
@@ -492,6 +493,17 @@ private:
     std::string externalJobPath;
     std::string externalJobName;
     std::vector<pplay::ExternalTracks::Track> externalFound;
+    struct ProgressWrite {
+        std::string path;
+        double position = 0, duration = 0;
+    };
+    ProgressWrite progressWrite, pendingProgressWrite;
+    pplay::Worker *progressWorker = nullptr;
+    std::atomic<bool> progressWriteDone{false};
+    void writeServerProgress(bool wait);
+    void updateServerProgress();
+    static int progressWriteThread(void *self);
+    bool eofPaused = false;
     bool endSleep = false;
     void updateScrub();
     bool scrubbing = false;

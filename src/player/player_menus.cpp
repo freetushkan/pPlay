@@ -78,11 +78,11 @@ void Player::buildMenus() {
     }
 
     if (menuPlaybackMode == nullptr) {
-        menuPlaybackMode = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "At file end..",
-                                                {MenuItem("Stop playback", "pl_stop.png", MenuItem::Position::Top, 0),
-                                                 MenuItem("Play next", "pl_next.png", MenuItem::Position::Top, 1),
+        menuPlaybackMode = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Playback mode",
+                                                {MenuItem("Pause at end", "pl_pause.png", MenuItem::Position::Top, 0),
+                                                 MenuItem("Sequential", "pl_next.png", MenuItem::Position::Top, 1),
                                                  MenuItem("Loop file", "pl_loop_file.png", MenuItem::Position::Top, 2),
-                                                 MenuItem("Loop directory", "pl_loop_directory.png", MenuItem::Position::Top, 3),
+                                                 MenuItem("Loop queue", "pl_loop_directory.png", MenuItem::Position::Top, 3),
                                                  MenuItem("Shuffle", "pl_shuffle.png", MenuItem::Position::Top, 4)},
                                                 MENU_VIDEO_TYPE_PL_MODE);
         menuPlaybackMode->setLayer(3);
@@ -147,20 +147,20 @@ void Player::buildPlaylistMenu() {
         // shuffled: in its order
         std::vector<size_t> order;
         for (auto &path: shuffleOrder) {
-            for (size_t i = 0; i < autoplayFiles.size(); i++) {
-                if (autoplayFiles[i].path == path) {
+            for (size_t i = 0; i < playbackQueue.size(); i++) {
+                if (playbackQueue[i].path == path) {
                     order.push_back(i);
                     break;
                 }
             }
         }
         if (order.empty()) {
-            for (size_t i = 0; i < autoplayFiles.size(); i++) {
+            for (size_t i = 0; i < playbackQueue.size(); i++) {
                 order.push_back(i);
             }
         }
         for (size_t n = 0; n < order.size(); n++) {
-            auto &item = autoplayFiles[order[n]];
+            auto &item = playbackQueue[order[n]];
             if (!pplay::Utility::isMedia(item)) {
                 continue;
             }
@@ -190,7 +190,7 @@ void Player::buildPlaylistMenu() {
     menuPlaylist = nullptr;
     playlistKey = key;
     if (!playlistItems.empty()) {
-        menuPlaylist = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Current playlist",
+        menuPlaylist = new MenuVideoSubmenu(main, main->getMenuVideo()->getGlobalBounds(), "Playback queue",
                                             playlistItems, MENU_VIDEO_TYPE_PLAYLIST);
         menuPlaylist->setVisibility(Visibility::Hidden, false);
         if (shown) {

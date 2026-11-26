@@ -16,6 +16,8 @@ namespace {
     const std::pair<const char *, mpv_format> watched[] = {
             {"playback-abort", MPV_FORMAT_FLAG},
             {"pause", MPV_FORMAT_FLAG},
+            {"eof-reached", MPV_FORMAT_FLAG},
+            {"idle-active", MPV_FORMAT_FLAG},
             {"paused-for-cache", MPV_FORMAT_FLAG},
             {"seeking", MPV_FORMAT_FLAG},
             {"playback-time", MPV_FORMAT_DOUBLE},
@@ -27,6 +29,7 @@ namespace {
             {"current-tracks/video/albumart", MPV_FORMAT_FLAG},
             {"frame-drop-count", MPV_FORMAT_INT64},
             {"decoder-frame-drop-count", MPV_FORMAT_INT64},
+            {"estimated-frame-number", MPV_FORMAT_INT64},
     };
 
     double valueOf(mpv_format format, void *data) {
@@ -44,6 +47,7 @@ namespace {
 }
 
 void Mpv::watchProperties() {
+    mpv_observe_property(handle, WatchReply, "current-tracks/sub/codec", MPV_FORMAT_STRING);
     for (auto &p: watched) {
         if (mpv_observe_property(handle, WatchReply, p.first, p.second) >= 0) {
             props[p.first].watched = true;
@@ -52,12 +56,8 @@ void Mpv::watchProperties() {
 }
 
 void Mpv::refresh() {
-    auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(500);
-    for (auto &p: props) {
-        if (p.second.watched) {
-            p.second.polled = until;
-        }
-    }
+    // Observed properties are delivered by getEvent(). Polling them for 500 ms
+    // after every reconfiguration/seek serializes rendering with mpv's core.
 }
 
 bool Mpv::isSeekBusy() {
@@ -74,7 +74,7 @@ void Mpv::startSeek() {
 bool Mpv::read(const char *name, mpv_format format, double *value) {
     Prop &p = props[name];
     auto now = std::chrono::steady_clock::now();
-    if (p.known && (isSeekBusy() || (p.watched ? now >= p.polled : saving && now - p.read < std::chrono::seconds(1)))) {
+    if (p.known && (isSeekBusy() || (p.watched ? true : saving && now - p.read < std::chrono::seconds(1)))) {
         *value = p.value;
         return p.ok;
     }
@@ -122,7 +122,8 @@ void Mpv::setKnown(const char *name, double value) {
 }
 
 int Mpv::pause() {
-    int res = mpv_command_string(handle, "set pause yes");
+    const char *cmd[] = {"set", "pause", "yes", nullptr};
+    int res = mpv_command_async(handle, 0, cmd);
     if (res >= 0) {
         setKnown("pause", 1);
     }
@@ -130,7 +131,8 @@ int Mpv::pause() {
 }
 
 int Mpv::resume() {
-    int res = mpv_command_string(handle, "set pause no");
+    const char *cmd[] = {"set", "pause", "no", nullptr};
+    int res = mpv_command_async(handle, 0, cmd);
     if (res >= 0) {
         setKnown("pause", 0);
     }
@@ -138,7 +140,8 @@ int Mpv::resume() {
 }
 
 int Mpv::stop() {
-    int res = mpv_command_string(handle, "stop");
+    const char *cmd[] = {"stop", nullptr};
+    int res = mpv_command_async(handle, 0, cmd);
     refresh();
     return res;
 }
@@ -405,7 +408,18 @@ bool Mpv::isAvailable() {
 
 bool Mpv::isStopped() {
     double res = 1;
-    return !read("playback-abort", MPV_FORMAT_FLAG, &res) || res != 0;
+    return !read("idle-active", MPV_FORMAT_FLAG, &res) || res != 0;
+}
+
+bool Mpv::isAtEnd() {
+    double res = 0;
+    return read("eof-reached", MPV_FORMAT_FLAG, &res) && res != 0;
+}
+
+void Mpv::setKeepOpen(bool enabled) {
+    if (keepOpen == (int) enabled || !isAvailable()) return;
+    const char *cmd[] = {"set", "keep-open", enabled ? "yes" : "no", nullptr};
+    if (mpv_command_async(handle, 0, cmd) >= 0) keepOpen = (int) enabled;
 }
 
 bool Mpv::isPaused() {
@@ -418,6 +432,12 @@ mpv_event *Mpv::getEvent() {
         mpv_event *event = mpv_wait_event(handle, 0);
         if (event->event_id == MPV_EVENT_PROPERTY_CHANGE && event->reply_userdata == WatchReply) {
             auto *change = (mpv_event_property *) event->data;
+            if (std::string(change->name) == "current-tracks/sub/codec") {
+                const std::string codec = change->format == MPV_FORMAT_STRING && change->data && *(char **) change->data
+                                          ? *(char **) change->data : "";
+                assSubtitle = codec == "ass" || codec == "ssa" || codec == "ASS" || codec == "SSA";
+                continue;
+            }
             Prop &p = props[change->name];
             p.ok = change->format != MPV_FORMAT_NONE && change->data != nullptr;
             if (p.ok) {
@@ -425,6 +445,15 @@ mpv_event *Mpv::getEvent() {
             }
             p.known = true;
             continue;
+        }
+        // Seed lifecycle state immediately. Property-change notifications can
+        // follow FILE_LOADED/END_FILE, but their handlers need the new state now.
+        if (event->event_id == MPV_EVENT_START_FILE || event->event_id == MPV_EVENT_FILE_LOADED) {
+            setKnown("idle-active", 0);
+            setKnown("eof-reached", 0);
+        } else if (event->event_id == MPV_EVENT_END_FILE || event->event_id == MPV_EVENT_IDLE) {
+            setKnown("idle-active", 1);
+            setKnown("eof-reached", 0);
         }
         switch (event->event_id) {
             case MPV_EVENT_COMMAND_REPLY:

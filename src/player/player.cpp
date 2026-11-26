@@ -105,6 +105,15 @@ Player::Player(Main *_main) : Rectangle(_main->getSize()) {
 }
 
 Player::~Player() {
+    // The request uses IO/config. Join before Main tears either down.
+    delete progressWorker;
+    progressWorker = nullptr;
+    if (!pendingProgressWrite.path.empty()) {
+        auto *io = pplay::Io::get();
+        std::string error;
+        if (io) io->setPlaybackProgress(pendingProgressWrite.path, pendingProgressWrite.position,
+                                       pendingProgressWrite.duration, &error);
+    }
     if (externalThread != nullptr) {
         externalThread->join();
         delete (externalThread);
@@ -154,20 +163,24 @@ bool Player::load(const MediaFile &f, bool firstTry, const std::string &options)
         mpv->stop();
     }
 
+    eofPaused = false;
     file = f;
+    mpv->setKeepOpen(!isPlaylistFile()
+                     && main->getConfig()->getOption(OPT_PLAYBACK_MODE)->getInteger() == 0
+                     && main->getConfig()->getOption(OPT_SLEEP_TIMER)->getInteger() >= 0);
     std::string opts = options;
     if (!isPlaylistFile()) {
-        bool existsInAutoplay = false;
-        for (auto &autoplayFile: autoplayFiles) {
-            if (autoplayFile.path == file.path) {
-                existsInAutoplay = true;
+        bool existsInQueue = false;
+        for (auto &queueFile: playbackQueue) {
+            if (queueFile.path == file.path) {
+                existsInQueue = true;
                 break;
             }
         }
         const bool filterByType =
-                main->getConfig()->getOption(OPT_AUTOPLAY_TYPE_FILTER)->getInteger() != 0;
-        if (!existsInAutoplay || autoplayTypeFiltered != filterByType) {
-            refreshAutoplayFiles();
+                main->getConfig()->getOption(OPT_PLAYBACK_TYPE_FILTER)->getInteger() != 0;
+        if (!existsInQueue || queueTypeFiltered != filterByType) {
+            refreshPlaybackQueue();
         }
     }
 
@@ -351,13 +364,13 @@ void Player::updateFrame() {
     frame->setVisibility(Visibility::Visible);
 }
  
-void Player::refreshAutoplayFiles() {
-    autoplayFiles = main->getFiler()->getFilesSnapshot();
-    autoplayTypeFiltered = main->getConfig()->getOption(OPT_AUTOPLAY_TYPE_FILTER)->getInteger() != 0;
-    if (autoplayTypeFiltered) {
+void Player::refreshPlaybackQueue() {
+    playbackQueue = main->getFiler()->getFilesSnapshot();
+    queueTypeFiltered = main->getConfig()->getOption(OPT_PLAYBACK_TYPE_FILTER)->getInteger() != 0;
+    if (queueTypeFiltered) {
         const bool audio = pplay::ExternalTracks::isAudio(file.name);
-        autoplayFiles.erase(
-                std::remove_if(autoplayFiles.begin(), autoplayFiles.end(), [audio](const MediaFile &candidate) {
+        playbackQueue.erase(
+                std::remove_if(playbackQueue.begin(), playbackQueue.end(), [audio](const MediaFile &candidate) {
                     if (!pplay::Utility::isMedia(candidate)) {
                         return false;
                     }
@@ -368,18 +381,30 @@ void Player::refreshAutoplayFiles() {
                     }
                     return pplay::ExternalTracks::isAudio(candidate.name) != audio;
                 }),
-                autoplayFiles.end());
+                playbackQueue.end());
     }
     shuffleOrder.clear();
     menusPlaylistBuildPending = true;
 }
 
 void Player::onUpdate() {
+    updateServerProgress();
+    mpv->setKeepOpen(!isPlaylistFile()
+                     && main->getConfig()->getOption(OPT_PLAYBACK_MODE)->getInteger() == 0
+                     && main->getConfig()->getOption(OPT_SLEEP_TIMER)->getInteger() >= 0);
+    if (!mpv->isStopped() && mpv->isAtEnd() && !eofPaused
+        && main->getConfig()->getOption(OPT_PLAYBACK_MODE)->getInteger() == 0
+        && main->getConfig()->getOption(OPT_SLEEP_TIMER)->getInteger() >= 0 && !isPlaylistFile()) {
+        eofPaused = true;
+        pause();
+        osd->expand();
+    }
+    if (!mpv->isAtEnd()) eofPaused = false;
     if (!mpv->isStopped() && !isPlaylistFile()) {
         const bool filterByType =
-                main->getConfig()->getOption(OPT_AUTOPLAY_TYPE_FILTER)->getInteger() != 0;
-        if (autoplayTypeFiltered != filterByType) {
-            refreshAutoplayFiles();
+                main->getConfig()->getOption(OPT_PLAYBACK_TYPE_FILTER)->getInteger() != 0;
+        if (queueTypeFiltered != filterByType) {
+            refreshPlaybackQueue();
         }
     }
     updateShuffle();
@@ -486,7 +511,7 @@ void Player::onUpdate() {
 void Player::pause() {
     mpv->pause();
     if (keepsProgress(lastKnownPosition, lastKnownDuration)) {
-        saveProgress();
+        saveProgress(false);
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
                             "Player::pause::saveProgress lastKnownPosition=" + std::to_string(lastKnownPosition)
                                     + " lastKnownDuration=" + std::to_string(lastKnownDuration));
@@ -499,6 +524,13 @@ void Player::pause() {
 }
 
 void Player::resume() {
+    if (mpv->isAtEnd()) {
+        // Keep the EOF latch until the observed eof-reached flag clears;
+        // otherwise the next update could pause the just-restarted file again.
+        mpv->seekTo(0, true);
+        progressClock.restart();
+        lastProgressSave = 0;
+    }
     mpv->resume();
 #ifdef __SWITCH__
     if (main->getConfig()->getOption(OPT_CPU_BOOST)->getString() == "Enabled") {
@@ -606,8 +638,8 @@ bool Player::isPlaylistFile() const {
                || file.name.compare(file.name.size() - 5, 5, ".m3u8") == 0);
 }
 
-const std::vector<MediaFile> &Player::getAutoplayFiles() const {
-    return autoplayFiles;
+const std::vector<MediaFile> &Player::getPlaybackQueue() const {
+    return playbackQueue;
 }
 
 Mpv *Player::getMpv() {
