@@ -40,6 +40,7 @@ import android.provider.Settings;
 import android.text.InputFilter;
 import android.text.InputType;
 import android.util.Log;
+import android.util.DisplayMetrics;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
@@ -559,6 +560,14 @@ public class PPlayActivity extends SDLActivity {
 
     public static String getRomFsPath() {
         return romFsPath;
+    }
+
+    public static String getDisplayDensity() {
+        DisplayMetrics metrics = new DisplayMetrics();
+        if (instance != null) {
+            instance.getWindowManager().getDefaultDisplay().getMetrics(metrics);
+        }
+        return Integer.toString(metrics.densityDpi > 0 ? metrics.densityDpi : 160);
     }
 
     public static String getDeviceName() {

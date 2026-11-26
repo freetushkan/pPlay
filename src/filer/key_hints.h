@@ -43,6 +43,8 @@ public:
 
     int idAt(int index) const;
 
+    int indexAt(const c2d::Vector2f &position) const;
+
     bool isOff(int index) const { return index >= 0 && index < (int) hints.size() && hints[index].off; }
 
     // the next one not off from index (itself too) in the direction, -1 if none

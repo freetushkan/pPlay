@@ -16,6 +16,8 @@ namespace {
     // the ui size, scaled to the window
     c2d::Vector2f g_ui;
     int g_width = 0, g_height = 0;
+    float g_scale = 1.0f;
+    c2d::Vector2f g_offset;
 
     SDL_Window *window() {
         return ((c2d::SDL2Renderer *) c2d_renderer)->getWindow();
@@ -62,12 +64,30 @@ void pplay::DesktopWindow::update(Main *main) {
                         "Window: " + std::to_string(width) + "x" + std::to_string(height));
     // the whole ui in the window, the borders as the background
     float scale = std::min((float) width / g_ui.x, (float) height / g_ui.y);
+    g_scale = scale;
+    g_offset = {std::round(((float) width - g_ui.x * scale) / 2),
+                std::round(((float) height - g_ui.y * scale) / 2)};
     main->setScale(scale, scale);
-    main->setPosition(std::round(((float) width - g_ui.x * scale) / 2),
-                      std::round(((float) height - g_ui.y * scale) / 2));
+    main->setPosition(g_offset);
+}
+
+c2d::Vector2f pplay::DesktopWindow::mapPointer(const c2d::Vector2f &position) {
+    if (g_scale <= 0.0f) return position;
+    SDL_Window *w = window();
+    int ww = 0, wh = 0, dw = 0, dh = 0;
+    if (w != nullptr) {
+        SDL_GetWindowSize(w, &ww, &wh);
+        SDL_GL_GetDrawableSize(w, &dw, &dh);
+    }
+    float sx = ww > 0 && dw > 0 ? (float) dw / (float) ww : 1.0f;
+    float sy = wh > 0 && dh > 0 ? (float) dh / (float) wh : 1.0f;
+    return {(position.x * sx - g_offset.x) / g_scale,
+            (position.y * sy - g_offset.y) / g_scale};
 }
 
 #else
+
+c2d::Vector2f pplay::DesktopWindow::mapPointer(const c2d::Vector2f &position) { return position; }
 
 void pplay::DesktopWindow::setup(Main *) {}
 

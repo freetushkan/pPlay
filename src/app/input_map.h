@@ -10,8 +10,11 @@
 
 namespace pplay::InputMap {
 
-    // media buttons, after the libcross2d ones
+    // PointerUp is emitted once when a mouse / touch contact is released.
+    // It is deliberately separate from Touch, which remains active while dragging.
     enum Button : unsigned int {
+        PointerUp = BIT(22),
+        PointerDown = BIT(23),
         PlayPause = BIT(24),
         Stop = BIT(25),
         Next = BIT(26),
@@ -36,6 +39,13 @@ namespace pplay::InputMap {
 
     // every frame: buttons of the other devices to handle now
     unsigned int update();
+
+    // mouse / finger pointer state; PointerUp is consumed once by the UI
+    bool isPointerDown();
+    bool takePointerDown();
+    bool isPointerFinger();
+    c2d::Vector2f pointerPosition();
+    bool takePointerUp(c2d::Vector2f *position);
 
     // auto repeat (ms): first repeat, then three speeds by hold time
 #define REPEAT_DELAY 500

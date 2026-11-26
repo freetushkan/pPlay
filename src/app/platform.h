@@ -24,6 +24,9 @@ namespace pplay::Platform {
     // the interface size asked to the renderer
     c2d::Vector2f resolution(PPLAYConfig *config);
 
+    // Automatic Android interface scale from the display's logical density.
+    float interfaceScale();
+
     // "Switch", "PS4"... with the system version when known
     std::string name();
 

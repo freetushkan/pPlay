@@ -70,7 +70,7 @@ namespace {
 
 PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     const Vector2f size = main->getSize();
-    const float sc = main->getScaling().y;
+    const float sc = main->getOsdScaling().y;
 
     scrim = new GradientRectangle({0, size.y - 260 * sc, size.x, 260 * sc});
     PlayerOSD::add(scrim);
@@ -81,12 +81,12 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     // the title scrolls when too long
     titleClip = new pplay::ClipRect({0, 0, 10, std::round(40 * sc)});
     panel->add(titleClip);
-    title = new Text("", main->getFontSize(Main::FontSize::Bigger), main->getFont());
+    title = new Text("", main->getOsdFontSize(Main::FontSize::Bigger), main->getFont());
     title->setOutlineThickness(1);
     title->setOrigin(Origin::Left);
     titleClip->add(title);
 
-    meta = new Text("", main->getFontSize(Main::FontSize::Small), main->getFont());
+    meta = new Text("", main->getOsdFontSize(Main::FontSize::Small), main->getFont());
     meta->setOutlineThickness(1);
     panel->add(meta);
 
@@ -102,16 +102,16 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
     knob->setOrigin(Origin::Center);
     track->add(knob);
 
-    elapsed = new Text("0:00", main->getFontSize(Main::FontSize::Small), main->getFont());
+    elapsed = new Text("0:00", main->getOsdFontSize(Main::FontSize::Small), main->getFont());
     elapsed->setOrigin(Origin::Right);
     panel->add(elapsed);
-    remaining = new Text("-0:00", main->getFontSize(Main::FontSize::Small), main->getFont());
+    remaining = new Text("-0:00", main->getOsdFontSize(Main::FontSize::Small), main->getFont());
     remaining->setOrigin(Origin::Left);
     panel->add(remaining);
 
     for (int i = 0; i < 6; i++) {
         Chip chip{new RoundRect({10, std::round(22 * sc)}),
-                  new Text("", main->getFontSize(Main::FontSize::XS), main->getFont())};
+                  new Text("", main->getOsdFontSize(Main::FontSize::XS), main->getFont())};
         chip.text->setOrigin(Origin::Center);
         chip.back->add(chip.text);
         chip.back->setVisibility(Visibility::Hidden);
@@ -140,7 +140,7 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
                addButton("btn_frame_step.png"), addButton("pl_stop.png"), addButton("btn_playlist.png"),
                addButton("btn_settings.png")};
 
-    next = new Text("", main->getFontSize(Main::FontSize::Small), main->getFont());
+    next = new Text("", main->getOsdFontSize(Main::FontSize::Small), main->getFont());
     next->setOutlineThickness(1);
     panel->add(next);
 
@@ -153,27 +153,39 @@ PlayerOSD::PlayerOSD(Main *m) : Rectangle(m->getSize()), main(m) {
 
 void PlayerOSD::layout(bool audio) {
     const Vector2f size = main->getSize();
-    const float sc = main->getScaling().y;
+    const float sc = main->getOsdScaling().y;
     audioLayout = audio;
     laidOut = true;
 
     float buttonsY;
+    float audioBottom = 0.0f;
     if (audio) {
-        // under the cover / visualizer zone, centered
+        // Under the cover / visualizer zone, centered. The optional interface-size
+        // multiplier must not push the controls and "Up next" below the screen.
         FloatRect zone = AudioView::zone();
-        float bottom = (zone.top + zone.height) * size.y;
-        titleY = bottom + 38 * sc;
+        audioBottom = (zone.top + zone.height) * size.y;
+        const float available = std::max(1.0f, size.y - audioBottom - 3 * sc);
+        const float availableUnits = available / std::max(0.001f, sc);
+        // Keep the actual controls and fonts at the requested UI scale. Only compress
+        // their vertical spacing when the "Up next" row would otherwise leave the screen.
+        // 0: compact layout; 1: the original, roomier audio layout.
+        layoutScale = std::max(0.0f, std::min(1.0f, (availableUnits - 132.0f) / 105.0f));
+        auto offset = [this](float compact, float roomy) {
+            return (compact + (roomy - compact) * layoutScale) * main->getOsdScaling().y;
+        };
+        titleY = audioBottom + offset(20.0f, 38.0f);
         trackW = size.x * 0.47f;
         trackX = (size.x - trackW) / 2;
-        trackY = bottom + 104 * sc;
-        buttonsY = trackY + 84 * sc;
+        trackY = audioBottom + offset(68.0f, 104.0f);
+        buttonsY = audioBottom + offset(94.0f, 188.0f);
         titleMax = size.x * 0.8f;
         meta->setOrigin(Origin::Center);
-        meta->setPosition(size.x / 2, titleY + 28 * sc);
+        meta->setPosition(size.x / 2, audioBottom + offset(48.0f, 66.0f));
         peekOffset = 0;
         elapsed->setOrigin(Origin::Right);
         remaining->setOrigin(Origin::Left);
     } else {
+        layoutScale = 1.0f;
         float margin = 54 * sc;
         buttonsY = size.y - 40 * sc;
         trackY = buttonsY - 38 * sc;
@@ -221,7 +233,7 @@ void PlayerOSD::layout(bool audio) {
     // video: before the playlist; audio: under the buttons
     if (audio) {
         next->setOrigin(Origin::Center);
-        next->setPosition(size.x / 2, buttonsY + 40 * sc);
+        next->setPosition(size.x / 2, audioBottom + (124.0f + 104.0f * layoutScale) * sc);
         next->setSizeMax(size.x * 0.6f, 0);
     } else {
         next->setOrigin(Origin::Right);
@@ -237,7 +249,7 @@ void PlayerOSD::layout(bool audio) {
 
 // the bar between the times, their room from the duration (its digits): the same all along
 void PlayerOSD::placeTrack() {
-    const float sc = main->getScaling().y;
+    const float sc = main->getOsdScaling().y;
     const float gap = std::round(14 * sc);
     auto widthOf = [this](const std::string &text) {
         std::string kept = elapsed->getString();
@@ -262,6 +274,22 @@ void PlayerOSD::placeTrack() {
     }
     track->setPosition(x, std::round(trackY - track->getSize().y / 2));
     track->setSize(std::round(w), track->getSize().y);
+}
+
+void PlayerOSD::copyStateFrom(const PlayerOSD &other) {
+    state = other.state;
+    index = other.index;
+    shown = other.shown;
+    full = other.full;
+    lineShown = other.lineShown;
+    volumeShown = other.volumeShown;
+    audioLayout = other.audioLayout;
+    layoutScale = other.layoutScale;
+    focusX = other.focusX;
+    laidOut = false;
+    textKey.clear();
+    clock.restart();
+    frameClock.restart();
 }
 
 void PlayerOSD::expand(bool keepFocus) {
@@ -367,7 +395,7 @@ void PlayerOSD::updateTexts() {
 }
 
 void PlayerOSD::placeTitle() {
-    const float sc = main->getScaling().y;
+    const float sc = main->getOsdScaling().y;
     FloatRect bounds = title->getLocalBounds();
     float width = std::min(bounds.width, titleMax);
     // Keep equal room for the text outline and glyph antialiasing on both sides.
@@ -387,7 +415,7 @@ void PlayerOSD::placeTitle() {
 
 void PlayerOSD::scrollTitle() {
     // too long: a pause, to the end, a pause, back to the start
-    const float sc = main->getScaling().y;
+    const float sc = main->getOsdScaling().y;
     FloatRect bounds = title->getLocalBounds();
     float padding = std::ceil(2.0f * sc);
     float contentWidth = titleClip->getSize().x - 2 * padding;
@@ -437,7 +465,7 @@ void PlayerOSD::updateChips() {
     }
 
     const Vector2f size = main->getSize();
-    const float sc = main->getScaling().y;
+    const float sc = main->getOsdScaling().y;
     float pad = 12 * sc, gap = 8 * sc;
     // video: right of the media info; audio: the bar width
     float room = audioLayout ? track->getSize().x
@@ -458,9 +486,12 @@ void PlayerOSD::updateChips() {
         used.push_back(i);
     }
     float x = audioLayout ? (size.x - width) / 2 : size.x - 54 * sc - width;
-    float y = audioLayout ? track->getPosition().y + 32 * sc : metaY;
+    float y = audioLayout ? track->getPosition().y + (12.0f + 20.0f * layoutScale) * sc : metaY;
+    // The chips are optional metadata. Hide them when the compact layout has no
+    // vertical lane between the progress line and the enlarged transport buttons.
+    const bool showAudioChips = !audioLayout || layoutScale >= 0.45f;
     for (size_t i = 0; i < chips.size(); i++) {
-        bool shown = i < used.size();
+        bool shown = i < used.size() && showAudioChips;
         chips[i].back->setVisibility(shown ? Visibility::Visible : Visibility::Hidden);
         if (shown) {
             chips[i].back->setOrigin(Origin::Left);
@@ -476,7 +507,7 @@ void PlayerOSD::updatePlaybackMode() {
         return;
     }
     buttons[(size_t) ButtonID::PlaybackMode]->setIcon(playbackModeIcons[mode],
-                                                       std::round(40 * main->getScaling().y));
+                                                       std::round(40 * main->getOsdScaling().y));
     playbackModeShown = mode;
 }
 
@@ -517,7 +548,7 @@ void PlayerOSD::updateProgress() {
     double speed = std::max(0.01, mpv->getSpeed());
     remaining->setString("-" + clockText(std::max(0.0, (duration - position) / speed), hours));
     // full screen: 3 px; minimized (a quarter): taller here, 2 px on the screen
-    float sc = main->getScaling().y;
+    float sc = main->getOsdScaling().y;
     float minimized = std::max(0.0f, std::min(1.0f, (1 - main->getPlayer()->getScale().x) / 0.75f));
     float height = std::max(2.0f, std::round(3 * sc + minimized * 5 * sc));
     edge->setPosition(0, getSize().y - height);
@@ -526,7 +557,7 @@ void PlayerOSD::updateProgress() {
 
 void PlayerOSD::applyFade() {
     float base = shown, extra = shown * full;
-    float sc = main->getScaling().y;
+    float sc = main->getOsdScaling().y;
     panel->setPosition(0, (1 - full) * peekOffset + (1 - shown) * 12 * sc);
 
     scrim->setVisibility(audioLayout || base <= 0 ? Visibility::Hidden : Visibility::Visible);
@@ -607,7 +638,7 @@ void PlayerOSD::onUpdate() {
     else {
         float lift=0;
         if(!audioLayout && player->isFullscreen() && shown>0) {
-            float sc=main->getScaling().y;
+            float sc=main->getOsdScaling().y;
             float top=titleY-titleClip->getSize().y/2+(1-full)*peekOffset+(1-shown)*12*sc;
             lift=std::max(0.0f,main->getSize().y-top)*shown;
         }
@@ -649,14 +680,124 @@ void PlayerOSD::onUpdate() {
 bool PlayerOSD::onInput(c2d::Input::Player *players) {
     Player *player = main->getPlayer();
     Mpv *mpv = player->getMpv();
-    // the menus over it get the keys
-    if (state != State::Full || player->isMenuVisible()) {
+    // Main routes all visible menus before the player. A hidden menu therefore never
+    // prevents the OSD from receiving input, and no manually maintained menu list is needed.
+    if (state != State::Full) {
         return false;
     }
 
     unsigned int keys = players[0].buttons;
     pplay::Utility::log(pplay::Utility::LogLevel::Debug,
                         "PlayerOSD::onInput keys=" + pplay::Utility::getKeysString(keys));
+    if (keys & Input::Touch) {
+        Vector2f position = players[0].touch;
+        if (!pointerDown) {
+            pointerDown = true;
+            pointerStart = position;
+            pointerLongPress = false;
+            pointerHoldClock.restart();
+            pointerSeekClock.restart();
+            FloatRect trackBounds = track != nullptr ? track->getGlobalBounds() : FloatRect();
+            float touchPad = 20 * main->getOsdScaling().y;
+            trackBounds.top -= touchPad;
+            trackBounds.height += touchPad * 2;
+            pointerSeeking = track != nullptr && trackBounds.contains(position);
+        } else if (!pointerSeeking) {
+            float dx = position.x - pointerStart.x;
+            float dy = position.y - pointerStart.y;
+            const float threshold = 28 * main->getOsdScaling().x;
+            if (std::fabs(dx) < threshold && std::fabs(dy) < threshold
+                && !scrim->getGlobalBounds().contains(pointerStart)
+                && pointerHoldClock.getElapsedTime().asSeconds() >= 0.45f
+                && (pointerStart.x < main->getSize().x / 3
+                    || pointerStart.x > main->getSize().x * 2 / 3)) {
+                // Hold on the left or right side: start seeking; repeated calls accelerate
+                // through Player::scrub() using its existing hold-time curve.
+                int direction = pointerStart.x < main->getSize().x / 2 ? -1 : 1;
+                if (!pointerLongPress || pointerSeekClock.getElapsedTime().asSeconds() >= 0.18f) {
+                    player->scrub(direction);
+                    pointerSeekClock.restart();
+                }
+                pointerLongPress = true;
+            }
+        }
+        return true;
+    }
+
+    if (keys & pplay::InputMap::PointerUp) {
+        Vector2f position = players[0].touch;
+        const bool wasDown = pointerDown;
+        const bool wasSeeking = pointerSeeking;
+        const bool wasLongPress = pointerLongPress;
+        pointerDown = false;
+        pointerSeeking = false;
+        pointerLongPress = false;
+        if (!wasDown) {
+            return true;
+        }
+        FloatRect bounds = track != nullptr ? track->getGlobalBounds() : FloatRect();
+        float touchPad = 20 * main->getOsdScaling().y;
+        bounds.top -= touchPad;
+        bounds.height += touchPad * 2;
+        if (wasSeeking && track != nullptr && bounds.contains(position)) {
+            if (bounds.width > 0) {
+                double duration = (double) mpv->getDuration();
+                float part = std::max(0.0f, std::min(1.0f, (position.x - bounds.left) / bounds.width));
+                if (duration > 0) {
+                    mpv->seekTo(part * duration, true);
+                    clock.restart();
+                }
+            }
+            return true;
+        }
+
+        if (wasLongPress) {
+            return true;
+        }
+
+        // A downward swipe minimizes the player. The reverse gesture from a left edge
+        // opens the app menu; a horizontal swipe elsewhere goes to the previous/next file.
+        if (pointerStart.y <= main->getSize().y * 0.4f
+            && position.y - pointerStart.y >= 80 * main->getOsdScaling().y) {
+            player->setFullscreen(false);
+            return true;
+        }
+        float dx = position.x - pointerStart.x;
+        float dy = position.y - pointerStart.y;
+        if (std::fabs(dx) >= 100 * main->getOsdScaling().x && std::fabs(dy) < 70 * main->getOsdScaling().y) {
+            player->playSibling(dx < 0 ? 1 : -1);
+            return true;
+        }
+
+        // The visible play/pause glyph differs from the permanent button entry.
+        if (btn_play->isVisible() && btn_play->getGlobalBounds().contains(position)) {
+            index = (int) ButtonID::Pause;
+            keys = Input::A;
+        } else {
+            int hit = -1;
+            for (size_t i = 0; i < buttons.size(); i++) {
+                if ((int) i == (int) ButtonID::Pause && btn_play->isVisible()) {
+                    continue;
+                }
+                if (buttons[i]->isVisible() && buttons[i]->getGlobalBounds().contains(position)) {
+                    hit = (int) i;
+                    break;
+                }
+            }
+            if (hit < 0) {
+                // A tap on the video while the OSD is open pauses/resumes. Taps on the
+                // OSD's lower scrim are intentionally inert.
+                if (!scrim->getGlobalBounds().contains(position)) {
+                    player->togglePause();
+                    clock.restart();
+                }
+                return true;
+            }
+            index = hit;
+            keys = Input::A;
+        }
+    }
+
     if (!keys) {
         return true;
     }

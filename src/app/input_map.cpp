@@ -96,6 +96,46 @@ namespace {
     std::atomic<bool> g_fullscreenToggle{false};
     c2d::Input *g_input = nullptr;
 
+    bool g_pointerDown = false;
+    bool g_pointerPressed = false;
+    bool g_pointerIsFinger = false;
+    bool g_pointerReleased = false;
+    c2d::Vector2f g_pointerPosition;
+    SDL_FingerID g_pointerFinger = 0;
+    SDL_TouchID g_pointerTouch = 0;
+
+    void setPointer(float x, float y, bool down, bool press = false) {
+        g_pointerPosition = {x, y};
+        if (down) {
+            if (press || !g_pointerDown) {
+                g_pointerPressed = true;
+            }
+            g_pointerDown = true;
+        } else if (g_pointerDown) {
+            g_pointerDown = false;
+            g_pointerReleased = true;
+        }
+    }
+
+    c2d::Vector2f mousePosition(int x, int y) {
+        return {(float) x, (float) y};
+    }
+
+    c2d::Vector2f fingerPosition(const SDL_TouchFingerEvent &event) {
+        SDL_Window *window = SDL_GetWindowFromID(event.windowID);
+        if (window == nullptr) {
+            window = SDL_GetMouseFocus();
+        }
+        if (window == nullptr) {
+            window = SDL_GetKeyboardFocus();
+        }
+        int width = 0, height = 0;
+        if (window != nullptr) {
+            SDL_GetWindowSize(window, &width, &height);
+        }
+        return {event.x * (float) width, event.y * (float) height};
+    }
+
     bool isKeyboardMapped(SDL_Scancode scancode) {
 #if !defined(NO_KEYBOARD) || defined(__ANDROID__)
         for (const auto &map: g_keyboard) {
@@ -486,6 +526,65 @@ namespace {
         if (g_textInput) {
             return 1;
         }
+
+        // SDL synthesizes mouse events for touch on Android. Do not feed those
+        // alongside SDL_FINGER events: the two coordinate streams can interleave and
+        // make a single drag jump or reverse direction.
+#if SDL_VERSION_ATLEAST(2, 0, 10)
+        if ((event->type == SDL_MOUSEBUTTONDOWN || event->type == SDL_MOUSEBUTTONUP)
+            && event->button.which == SDL_TOUCH_MOUSEID) {
+            return 1;
+        }
+        if (event->type == SDL_MOUSEMOTION && event->motion.which == SDL_TOUCH_MOUSEID) {
+            return 1;
+        }
+#endif
+
+        // Pointer coordinates are stored in the same window space as libcross2d's touch.
+        if (event->type == SDL_MOUSEBUTTONDOWN) {
+            if (event->button.button == SDL_BUTTON_LEFT) {
+                { c2d::Vector2f p = mousePosition(event->button.x, event->button.y); setPointer(p.x, p.y, true, true); }
+            } else if (event->button.button == SDL_BUTTON_RIGHT) {
+                addPending(Input::Button::B);
+            }
+        } else if (event->type == SDL_MOUSEBUTTONUP && event->button.button == SDL_BUTTON_LEFT) {
+            { c2d::Vector2f p = mousePosition(event->button.x, event->button.y); setPointer(p.x, p.y, false); }
+        } else if (event->type == SDL_MOUSEMOTION && g_pointerDown) {
+            { c2d::Vector2f p = mousePosition(event->motion.x, event->motion.y); setPointer(p.x, p.y, true); }
+        } else if (event->type == SDL_MOUSEWHEEL) {
+            int vertical = event->wheel.y;
+            int horizontal = event->wheel.x;
+#if SDL_VERSION_ATLEAST(2, 0, 4)
+            if (event->wheel.direction == SDL_MOUSEWHEEL_FLIPPED) {
+                vertical = -vertical;
+                horizontal = -horizontal;
+            }
+#endif
+            if (vertical != 0) {
+                addPending(vertical > 0 ? Input::Button::Up : Input::Button::Down);
+            }
+            if (horizontal != 0) {
+                addPending(horizontal > 0 ? Input::Button::Right : Input::Button::Left);
+            }
+        } else if (event->type == SDL_FINGERDOWN) {
+            c2d::Vector2f pos = fingerPosition(event->tfinger);
+            g_pointerFinger = event->tfinger.fingerId;
+            g_pointerTouch = event->tfinger.touchId;
+            g_pointerIsFinger = true;
+            setPointer(pos.x, pos.y, true, true);
+        } else if (event->type == SDL_FINGERMOTION
+                   && event->tfinger.fingerId == g_pointerFinger && event->tfinger.touchId == g_pointerTouch) {
+            c2d::Vector2f pos = fingerPosition(event->tfinger);
+            setPointer(pos.x, pos.y, true);
+        } else if (event->type == SDL_FINGERUP
+                   && event->tfinger.fingerId == g_pointerFinger && event->tfinger.touchId == g_pointerTouch) {
+            c2d::Vector2f pos = fingerPosition(event->tfinger);
+            setPointer(pos.x, pos.y, false);
+            g_pointerIsFinger = false;
+            g_pointerFinger = 0;
+            g_pointerTouch = 0;
+        }
+
         if (event->type == SDL_KEYDOWN) {
             const SDL_Keycode sym = event->key.keysym.sym;
             const SDL_Scancode scancode = event->key.keysym.scancode;
@@ -560,12 +659,50 @@ namespace pplay::InputMap {
 #endif
 #endif
         }
+#if defined(__ANDROID__) && SDL_VERSION_ATLEAST(2, 0, 10)
+        // Android finger events are routed explicitly through the pointer path below.
+        // Disable SDL's parallel synthetic mouse stream to avoid duplicate/mixed drags.
+        SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
+#endif
         SDL_AddEventWatch(onEvent, nullptr);
         scanDevices();
 #ifdef __PS4__
         pplay::Utility::log(pplay::Utility::LogLevel::Info,
                             "Input: probing native PS4 HDMI-CEC remote on system pad port 16");
 #endif
+    }
+
+    bool isPointerDown() {
+        return g_pointerDown;
+    }
+
+    bool takePointerDown() {
+        if (!g_pointerPressed) {
+            return false;
+        }
+        g_pointerPressed = false;
+        return true;
+    }
+
+    bool isPointerFinger() {
+        // Pointer coordinates are injected through the common UI path for both mouse
+        // and finger input; callers should not transform them a second time.
+        return g_pointerDown;
+    }
+
+    c2d::Vector2f pointerPosition() {
+        return g_pointerPosition;
+    }
+
+    bool takePointerUp(c2d::Vector2f *position) {
+        if (!g_pointerReleased) {
+            return false;
+        }
+        if (position != nullptr) {
+            *position = g_pointerPosition;
+        }
+        g_pointerReleased = false;
+        return true;
     }
 
     unsigned int update() {

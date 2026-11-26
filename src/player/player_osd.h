@@ -40,6 +40,9 @@ public:
 
     void reset();
 
+    // Carry the visible OSD state when its scale-dependent contents are recreated.
+    void copyStateFrom(const PlayerOSD &other);
+
     // keepFocus: on the button it was (back from what it opened)
     void expand(bool keepFocus = false);
 
@@ -89,6 +92,7 @@ private:
     Main *main;
     State state = State::Hidden;
     bool audioLayout = false;
+    float layoutScale = 1.0f;
     bool laidOut = false;
     // animated: the panel shown, its full part shown
     float shown = 0, full = 0;
@@ -132,6 +136,12 @@ private:
     int index = (int) ButtonID::Pause;
     int playbackModeShown = -1;
     float focusX = 0;
+    bool pointerDown = false;
+    bool pointerSeeking = false;
+    bool pointerLongPress = false;
+    c2d::Vector2f pointerStart;
+    c2d::C2DClock pointerHoldClock;
+    c2d::C2DClock pointerSeekClock;
 };
 
 #endif //PPLAY_PLAYER_OSD_H

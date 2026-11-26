@@ -173,6 +173,91 @@ float MenuMainOptionsSubmenu::sliderPart() const {
     return std::min(1.0f, std::max(0.0f, (getCurrentValue() - min_value) / (max_value - min_value)));
 }
 
+bool MenuMainOptionsSubmenu::setSliderPart(float part) {
+    if (menu_type != MenuType::Adjust || max_value <= min_value) {
+        return false;
+    }
+    const float value = min_value + std::max(0.0f, std::min(1.0f, part)) * (max_value - min_value);
+    const float steps = std::round((value - min_value) / step_value);
+    const float snapped = min_value + steps * step_value;
+    const float oldValue = getCurrentValue();
+    if (std::fabs(oldValue - snapped) < 0.001f) {
+        return true;
+    }
+    setCurrentValue(snapped);
+    refresh();
+    return true;
+}
+
+void MenuMainOptionsSubmenu::finishSliderChange() {
+    if (menu_type == MenuType::Adjust) {
+        main->getConfig()->save();
+        main->applyConfig();
+        return;
+    }
+    // A category row delegates its slider to the currently selected child Adjust menu.
+    if (option_name.empty() && index >= 0 && index < (int) buttons.size()) {
+        auto *child = main->getMenuMain()->getMenuMainOptionsSubmenu(buttons[index]->item.name);
+        if (child != nullptr && child->menu_type == MenuType::Adjust) {
+            child->finishSliderChange();
+        }
+    }
+}
+
+void MenuMainOptionsSubmenu::onOptionSliderEnd(MenuItem *item) {
+    if (menu_type == MenuType::Adjust) {
+        finishSliderChange();
+    } else if (option_name.empty()) {
+        auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(item->name);
+        if (submenu != nullptr) {
+            submenu->finishSliderChange();
+        }
+    }
+}
+
+bool MenuMainOptionsSubmenu::onOptionSlider(MenuItem *item, float part) {
+    if (menu_type == MenuType::Adjust) {
+        return setSliderPart(part);
+    }
+    if (option_name.empty()) {
+        auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(item->name);
+        if (submenu == nullptr || !submenu->setSliderPart(part)) {
+            return false;
+        }
+        // This row owns the visible slider/value, while the child owns the setting.
+        // Copy the live value back before Menu::onInput refreshes this button.
+        item->value = submenu->currentText();
+        item->slider = submenu->sliderPart();
+        return true;
+    }
+    return false;
+}
+
+bool MenuMainOptionsSubmenu::resetSliderToDefault() {
+    if (menu_type != MenuType::Adjust || option_name.empty() || max_value <= min_value) {
+        return false;
+    }
+    const float value = main->getConfig()->getDefaultNumber(option_name, getCurrentValue());
+    setCurrentValue(value);
+    main->getConfig()->save();
+    main->applyConfig();
+    refresh();
+    return true;
+}
+
+void MenuMainOptionsSubmenu::onOptionSliderReset(MenuItem *item) {
+    if (menu_type == MenuType::Adjust) {
+        resetSliderToDefault();
+        return;
+    }
+    if (option_name.empty()) {
+        auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(item->name);
+        if (submenu != nullptr && submenu->resetSliderToDefault()) {
+            refreshValues();
+        }
+    }
+}
+
 bool MenuMainOptionsSubmenu::step(int direction) {
     if (menu_type == MenuType::TextInput || buttons.empty()) {
         return false;
@@ -222,7 +307,7 @@ void MenuMainOptionsSubmenu::refreshValues() {
         bool option = sub != nullptr && sub->hasOption();
         button->item.value = option ? sub->currentText() : "";
         button->item.slider = option ? sub->sliderPart() : -1;
-        button->item.opens = sub != nullptr && !option;
+        button->item.opens = (sub != nullptr && !option) || button->item.name == "Edit files";
         button->refreshValue();
         const std::string &key = sub != nullptr ? sub->getOptionName() : "";
         bool shown = true;
@@ -700,6 +785,11 @@ void MenuMainOptionsSubmenu::setVisibility(c2d::Visibility visibility, bool twee
     if (visibility == Visibility::Visible) {
         refresh();
     }
+}
+
+void MenuMainOptionsSubmenu::onPointerBack() {
+    setVisibility(Visibility::Hidden, true);
+    main->getMenuMain()->showParent(key);
 }
 
 bool MenuMainOptionsSubmenu::onInput(c2d::Input::Player *players) {

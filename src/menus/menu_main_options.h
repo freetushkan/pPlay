@@ -21,6 +21,13 @@ private:
     bool onInput(c2d::Input::Player *players) override;
 
     void onOptionSelection(MenuItem *item) override;
+
+    void onPointerBack() override;
+
+    bool onOptionSlider(MenuItem *item, float part) override;
+
+    void onOptionSliderReset(MenuItem *item) override;
+    void onOptionSliderEnd(MenuItem *item) override;
 };
 
 #endif //PPLAY_MENU_MAIN_OPTIONS_H

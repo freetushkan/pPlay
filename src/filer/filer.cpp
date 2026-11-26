@@ -37,7 +37,7 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     Filer::setSize(main->getSize().x, main->getScaling().y);
     Vector2f size;
     size = {rect.width, rect.height - (16 * m->getScaling().y)};
-    float panelWidth = 560 * m->getScaling().x;
+    float panelWidth = size.x * 0.4f;
     listWidth = size.x - panelWidth;
     const float inset = 8 * m->getScaling().y;
     float crumbHeight = std::round(44 * m->getScaling().y);
@@ -117,6 +117,47 @@ void Filer::setVisibility(Visibility visibility, bool tweenPlay) {
     fadeClock.restart();
 }
 
+void Filer::copyStateFrom(const Filer &other) {
+    if (this == &other) {
+        return;
+    }
+
+    other.mutex->lock();
+    path = other.path;
+    files = other.files;
+    folderCovers = other.folderCovers;
+    item_index = other.item_index;
+    top = other.top;
+    scrollOffset = item_height * (other.item_height > 0 ? other.scrollOffset / other.item_height : 0.0f);
+    item_index_prev = other.item_index_prev;
+    picking = other.picking;
+    pickExtensions = other.pickExtensions;
+    pickCallback = other.pickCallback;
+    pickPrevPath = other.pickPrevPath;
+    pickPrevSelection = other.pickPrevSelection;
+    dirty = other.dirty;
+    playerWasFullscreen = other.playerWasFullscreen;
+    playlistGeneration = other.playlistGeneration;
+    torrentsGeneration = other.torrentsGeneration;
+    durationsGeneration = other.durationsGeneration;
+    fadeDirection = other.fadeDirection;
+    coverAlpha = other.coverAlpha;
+    const bool detailsFocused = other.details->isFocused();
+    other.mutex->unlock();
+
+    const int maxTop = std::max(0, (int) files.size() - item_max);
+    top = std::max(0, std::min(top, maxTop));
+    details->setPicking(picking);
+    details->setFocused(detailsFocused);
+    auto coverIt = folderCovers.find(path);
+    details->setFolderCover(coverIt == folderCovers.end() ? "" : coverIt->second);
+    crumbs->setPath(path);
+    cover->setFillColor({COLOR_BG.r, COLOR_BG.g, COLOR_BG.b, (uint8_t) coverAlpha});
+    cover->setVisibility(fadeDirection != 0 ? Visibility::Visible : Visibility::Hidden);
+    setSelection(item_index);
+    queueDurations();
+}
+
 void Filer::setMediaInfo(const MediaFile &target, const MediaInfo &mediaInfo) {
     mutex->lock();
     for (size_t i = 0; i < files.size(); i++) {
@@ -192,6 +233,43 @@ void Filer::setSelection(int index) {
     main->syncLastLocation();
 }
 
+void Filer::scrollList(float delta) {
+    if (delta == 0.0f) {
+        return;
+    }
+
+    mutex->lock();
+    const int count = (int) files.size();
+    mutex->unlock();
+
+    const int maxTop = std::max(0, count - item_max);
+    scrollOffset += delta;
+
+    // Move the first visible file whenever the finger has crossed a full row.
+    while (scrollOffset <= -item_height && top < maxTop) {
+        top++;
+        scrollOffset += item_height;
+    }
+    while (scrollOffset >= item_height && top > 0) {
+        top--;
+        scrollOffset -= item_height;
+    }
+
+    // Do not allow blank space to be dragged beyond either end of the list.
+    if (top == 0 && scrollOffset > 0.0f) {
+        scrollOffset = 0.0f;
+    }
+    if (top == maxTop && scrollOffset < 0.0f) {
+        scrollOffset = 0.0f;
+    }
+
+    // Keep the same viewport row highlighted; the file under it changes as the
+    // list scrolls. setSelection() refreshes the visible rows and details panel.
+    const int row = std::max(0, std::min(pointerStartRow, item_max - 1));
+    const int selection = std::max(0, std::min(count - 1, top + row));
+    setSelection(selection);
+}
+
 void Filer::placeItems() {
     for (int i = 0; i < (int) items.size(); i++) {
         items[i]->setPosition(0, std::round((float) (i - 1) * item_height + scrollOffset));
@@ -264,6 +342,142 @@ bool Filer::onInput(c2d::Input::Player *players) {
     unsigned int keys = players[0].buttons;
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Filer::onInput keys=" + pplay::Utility::getKeysString(keys));
 
+    using Action = DetailsView::Action;
+    Player *player = main->getPlayer();
+    if (keys & Input::Touch) {
+        Vector2f position = players[0].touch;
+        if (!pointerDown) {
+            pointerDown = true;
+            pointerDragging = false;
+            pointerStart = pointerLast = position;
+            pointerStartRow = item_index - top;
+            pointerListScrolling = false;
+            pointerInCrumbs = crumbs->getGlobalBounds().contains(position);
+            pointerInPlayer = !player->isFullscreen() && !player->getMpv()->isStopped()
+                              && player->isVisible() && player->getGlobalBounds().contains(position);
+            pointerInDetails = !pointerInCrumbs && !pointerInPlayer && details->getGlobalBounds().contains(position);
+            if (pointerInDetails) {
+                details->onPointerDown(position);
+            } else if (!pointerInPlayer) {
+                // A tap or drag back in the file list (or the path bar) returns focus
+                // to the filer, so vertical gestures scroll the list rather than details.
+                details->setFocused(false);
+            }
+        } else if (pointerInDetails) {
+            details->onPointerMove(position);
+        } else if (pointerInPlayer) {
+            if (std::fabs(position.y - pointerStart.y) > 12 * main->getScaling().y
+                || std::fabs(position.x - pointerStart.x) > 16 * main->getScaling().x) {
+                pointerDragging = true;
+            }
+            pointerLast = position;
+        } else if (pointerInCrumbs) {
+            if (std::fabs(position.x - pointerStart.x) > 12 * main->getScaling().x
+                || std::fabs(position.y - pointerStart.y) > 12 * main->getScaling().y) {
+                pointerDragging = true;
+            }
+            pointerLast = position;
+        } else if (list->getGlobalBounds().contains(pointerStart)) {
+            const float totalDy = position.y - pointerStart.y;
+            const float dx = position.x - pointerStart.x;
+            const float verticalThreshold = 12 * main->getScaling().y;
+            if (std::fabs(totalDy) > verticalThreshold || std::fabs(dx) > 20 * main->getScaling().x) {
+                pointerDragging = true;
+            }
+            if (pointerDragging && std::fabs(totalDy) > verticalThreshold) {
+                // Keep the focus row fixed while the list contents move underneath it.
+                // Include the initial threshold-crossing distance, then follow incremental
+                // pointer movement for the remainder of the drag.
+                const float delta = pointerListScrolling ? position.y - pointerLast.y : totalDy;
+                pointerListScrolling = true;
+                scrollList(delta);
+            }
+            pointerLast = position;
+        }
+        return true;
+    }
+
+    if (keys & pplay::InputMap::PointerUp) {
+        Vector2f position = players[0].touch;
+        bool wasDown = pointerDown;
+        bool dragged = pointerDragging;
+        bool inDetails = pointerInDetails;
+        bool inCrumbs = pointerInCrumbs;
+        bool inPlayer = pointerInPlayer;
+        float dx = position.x - pointerStart.x;
+        float dy = position.y - pointerStart.y;
+        pointerDown = pointerDragging = pointerInDetails = pointerInCrumbs = pointerInPlayer = false;
+        pointerListScrolling = false;
+
+        if (wasDown) {
+            if (inPlayer) {
+                // Tapping the minimized video, or swiping up from its thumbnail, expands it.
+                const float swipe = 80 * main->getScaling().y;
+                if (!dragged || (dy <= -swipe && std::fabs(dx) < 100 * main->getScaling().x)) {
+                    details->cancelPointer();
+                    player->setFullscreen(true);
+                }
+                return true;
+            }
+
+            if (inCrumbs) {
+                if (!dragged && crumbs->isMenuButtonAt(position)) {
+                    main->getMenuMain()->setVisibility(Visibility::Visible, true);
+                    return true;
+                }
+                std::string target;
+                if (!dragged && crumbs->pathAt(position, &target) && target != path) {
+                    item_index_prev.clear();
+                    getDir(target);
+                }
+                return true;
+            }
+
+            if (inDetails) {
+                Action action = details->onPointerUp(position);
+                run(action);
+                return true;
+            }
+
+            if (dragged && !inDetails) {
+                const float horizontal = 100 * main->getScaling().x;
+                const float vertical = 70 * main->getScaling().y;
+                if (std::fabs(dx) >= horizontal && std::fabs(dy) < vertical) {
+                    if (dx < 0) {
+                        // left: parent directory; right: enter the selected directory
+                        exit();
+                    } else {
+                        MediaFile selected = getSelection();
+                        if (selected.type == Io::Type::Directory && !isPlaceholder(selected)) {
+                            enter(item_index);
+                        }
+                    }
+                    return true;
+                }
+            }
+
+            if (!dragged) {
+                for (size_t i = 0; i < items.size(); i++) {
+                    if (!items[i]->isVisible() || !items[i]->getGlobalBounds().contains(position)) {
+                        continue;
+                    }
+                    int fileIndex = top - 1 + (int) i;
+                    if (fileIndex < 0 || fileIndex >= (int) filesSize) {
+                        break;
+                    }
+                    if (fileIndex == item_index) {
+                        if (picking) pick();
+                        else run(Action::Open);
+                    } else {
+                        setSelection(fileIndex);
+                    }
+                    break;
+                }
+            }
+        }
+        return true;
+    }
+
     if (picking) {
         if (keys & (Input::LB | Input::RB | Input::Left | Input::Right | Input::Y)) {
             return true;
@@ -279,7 +493,6 @@ bool Filer::onInput(c2d::Input::Player *players) {
         }
     }
 
-    using Action = DetailsView::Action;
     Action action = Action::None;
     if (details->isFocused()) {
         action = details->onKeys(keys);
@@ -341,8 +554,7 @@ void Filer::run(DetailsView::Action action) {
         case Action::Menu:
             details->setFocused(false);
             main->getMenuMain()->setVisibility(Visibility::Visible, true);
-            // on the module open (back from the settings: where it was)
-            main->getMenuMain()->selectId(main->getcurrentModuleIndex());
+            // Keep the menu's remembered focus; the active module is marked separately.
             break;
         case Action::Panel:
             details->setFocused(true);
@@ -858,7 +1070,8 @@ void Filer::onUpdate() {
         }
     }
     float dt = std::min(0.1f, scrollClock.restart().asSeconds());
-    if (scrollOffset != 0) {
+    const bool pointerScrolling = pointerDown && pointerDragging && pointerListScrolling;
+    if (scrollOffset != 0 && !pointerScrolling) {
         scrollOffset -= scrollOffset * std::min(1.0f, dt * 16);
         if (std::fabs(scrollOffset) < 0.5f) {
             scrollOffset = 0;

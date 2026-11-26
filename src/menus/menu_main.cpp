@@ -79,6 +79,9 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
     categories.push_back({"Interface",
                           {
                                   MenuItem("Language", "translate.png", Pos::Top),
+                                  MenuItem("Main screen size", "interface.png", Pos::Top),
+                                  MenuItem("Player OSD size", "interface.png", Pos::Top),
+                                  MenuItem("Menu size", "interface.png", Pos::Top),
 #ifdef __PS5__
                                   MenuItem("Resolution", "interface.png", Pos::Top),
 #endif
@@ -90,6 +93,7 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                                   MenuItem("Playlists section", "playlist.png", Pos::Top),
                                   MenuItem("Media information", "media_info.png", Pos::Top),
                                   MenuItem("Player panel", "time.png", Pos::Top),
+                                  MenuItem("Main menu button", "options.png", Pos::Top),
 #if !defined(__ANDROID__) && !defined(__LINUX__)
                                   MenuItem("Bumpers and triggers", "swap.png", Pos::Top),
 #endif
@@ -139,7 +143,8 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
             item.value = "-";
         }
     }
-    wide = {-420 * main->getScaling().x, rect.top, 420 * main->getScaling().x, rect.height};
+    const Vector2f menuScale = main->getMenuScaling();
+    wide = {-420 * menuScale.x, rect.top, 420 * menuScale.x, rect.height};
 
     menuMainOptions = new MenuMainOptions(main, wide, it);
     // over the shade under the menus (see Main)
@@ -309,6 +314,15 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeIntItems({{"Off", 0}, {"Error", 1}, {"Info", 2}, {"Debug", 3}, {"Trace", 4}}),
                Submenu::ValueType::Integer);
     addSubmenu("Accent color", "Accent color", OPT_ACCENT_COLOR, makeAccentColorItems(), Submenu::ValueType::String);
+    addSubmenu("Main menu button", "Show the main menu shortcut in the path bar", OPT_SHOW_MENU_BUTTON,
+               makeIntItems({{"Shown", 1}, {"Hidden", 0}}), Submenu::ValueType::Integer);
+    addSubmenu("Main screen size", "Size of the main screen interface", OPT_UI_SCALE,
+               makeAdjustItems(), Submenu::ValueType::Float, Submenu::MenuType::Adjust, 0.8f, 2.0f, 0.1f, "x");
+    addSubmenu("Player OSD size", "Size of the player controls", OPT_OSD_SCALE,
+               makeAdjustItems(), Submenu::ValueType::Float, Submenu::MenuType::Adjust, 0.8f, 2.0f, 0.1f, "x");
+    addSubmenu("Menu size", "Size of menus and their elements", OPT_MENU_SCALE,
+               makeAdjustItems(), Submenu::ValueType::Float, Submenu::MenuType::Adjust, 0.8f, 1.5f, 0.1f, "x");
+
 
     fileEditor = new MenuFileEditor(main, rect);
     fileEditor->setLayer(3);
@@ -738,29 +752,29 @@ void MenuMain::reloadModules() {
         ensureSelectionVisible();
     }
     updateScroll();
+    if (index >= 0 && index < (int) buttons.size()) {
+        highlight->tweenTo({0, buttons[index]->getPosition().y});
+    }
     updateSelectionHighlight();
 }
 
 void MenuMain::setSelection(int moduleId) {
-    pplay::Utility::log(pplay::Utility::LogLevel::Debug, "MenuMain::setSelection moduleId=" + std::to_string(moduleId));
+    // id 0 belongs to the Exit command, never to an active module.
+    bool found = false;
     for (auto &button: buttons) {
-        pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-                            "MenuMain::setSelection btnId=" + std::to_string(button->item.id));
-        if (button->item.id == moduleId) {
-            current->setVisibility(button->isVisible() ? Visibility::Visible : Visibility::Hidden);
-            if (isVisible()) {
-                pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-                                    "MenuMain::setSelection btnId=" + std::to_string(button->item.id) + " tweenTo()");
-                current->tweenTo(button->getPosition());
-            } else {
-                pplay::Utility::log(pplay::Utility::LogLevel::Debug,
-                                    "MenuMain::setSelection btnId=" + std::to_string(button->item.id)
-                                            + " setPosition()");
-                current->setPosition(button->getPosition());
-                current->tweenTo(button->getPosition());
-            }
-            break;
+        if (moduleId == 0 || button->item.id != moduleId
+            || !button->item.enabled || !button->item.selectable) {
+            continue;
         }
+        found = true;
+        current->setVisibility(button->isVisible() ? Visibility::Visible : Visibility::Hidden);
+        current->tweenTo(button->getPosition());
+        break;
+    }
+    // The active module marker is separate from keyboard / pointer focus. Never leave
+    // it at an old row when the active network or module is no longer in this menu.
+    if (!found) {
+        hideCurrent();
     }
 }
 

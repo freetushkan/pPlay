@@ -68,7 +68,8 @@ namespace {
                            OPT_AUTO_SWITCH_PAUSE, OPT_HW_DECODING, OPT_AUTO_HW_RETRY, OPT_AUTO_HW_RETRIES, OPT_DITHER}},
                 {"interface", {OPT_LANGUAGE, OPT_PS5_UI_4K, OPT_TEXT_ENCODING, OPT_ACCENT_COLOR, OPT_SHOW_HIDDEN,
                                OPT_SHOW_ALL_FILES, OPT_SHOW_SAVED, OPT_SHOW_PLAYLISTS, OPT_MEDIA_PROBE,
-                               OPT_OSD_HIDE_TIME, OPT_SWAP_CONTROLS}},
+                               OPT_OSD_HIDE_TIME, OPT_SWAP_CONTROLS, OPT_UI_SCALE, OPT_OSD_SCALE, OPT_MENU_SCALE,
+                               OPT_SHOW_MENU_BUTTON}},
                 {"networks", {OPT_NETWORK_TIMEOUT, OPT_TLS_VERIFY, OPT_TS_VIEWED_SYNC, OPT_CACHE_SECS, OPT_CACHE_MB,
 #ifdef __SMB2__
                               OPT_SMB_READ_BUFFER_MB
@@ -344,6 +345,10 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_AUTOPLAY_TYPE_FILTER, (int) 1});
     addOption({OPT_LOG_LEVEL, (int) 0}); // 0 OFF, 1 ERROR, 2 INFO, 3 DEBUG, 4 TRACE
     addOption({OPT_SWAP_CONTROLS, (int) 0});
+    addOption({OPT_UI_SCALE, 1.0f});
+    addOption({OPT_OSD_SCALE, 1.0f});
+    addOption({OPT_MENU_SCALE, 1.0f});
+    addOption({OPT_SHOW_MENU_BUTTON, (int) 1});
 #ifdef __SWITCH__
     addOption({OPT_CPU_BOOST, "Disabled"}); // Disabled, Enabled
 #endif
@@ -419,7 +424,42 @@ PPLAYConfig::PPLAYConfig(pplay::Io *_io, int version)
     addOption({OPT_LAST_PLAYLIST, ""});
     addOption({OPT_LAST_PLAYLISTS_PATH, ""});
 
+    // Apply device DPI scaling only when no current or legacy settings file exists.
+    // Once a configuration has been created, the user's UI_SCALE remains authoritative.
+    // Preserve the constructor defaults separately: load() overwrites the live values.
+    for (auto &option: *getOptions()) {
+        if (option.getType() == config::Option::Type::Float) {
+            defaultNumbers[option.getName()] = option.getFloat();
+        } else if (option.getType() == config::Option::Type::Integer) {
+            defaultNumbers[option.getName()] = (float) option.getInteger();
+        }
+    }
+
+    // DPI is applied only when the current JSON has no explicit UI_SCALE. The legacy
+    // pplay.cfg is intentionally ignored here: it never stored this setting.
+    bool hasUiScale = false;
+    bool hasOsdScale = false;
+    {
+        std::ifstream in(getPath(), std::ios::binary);
+        if (in.is_open()) {
+            std::stringstream jsonText;
+            jsonText << in.rdbuf();
+            const nlohmann::json root = nlohmann::json::parse(jsonText.str(), nullptr, false);
+            if (root.is_object()) {
+                auto interface = root.find("interface");
+                if (interface != root.end() && interface->is_object()) {
+                    hasUiScale = interface->contains("ui_scale");
+                    hasOsdScale = interface->contains("osd_scale");
+                }
+            }
+        }
+    }
     load();
+    firstRun = !hasUiScale;
+    if (hasUiScale && !hasOsdScale) {
+        // Existing JSON configurations used one shared interface scale.
+        getOption(OPT_OSD_SCALE)->setFloat(getOption(OPT_UI_SCALE)->getFloat());
+    }
     sanitize();
     // the new options written
     save();

@@ -86,6 +86,19 @@ public:
     }
 
     // its fill stays transparent
+    void applyScale(const FloatRect &rect, const Vector2f &scaling) {
+        const float outline = std::ceil(scaling.x);
+        setOutlineThickness(outline);
+        setSize(32 * scaling.x, rect.height - scaling.y * 16);
+        setPosition((rect.width - 8 * scaling.x) + outline, (rect.height / 2) + outline);
+        maxWidth = getSize().x - 4 * scaling.x;
+        Vector2f size = {maxWidth, getSize().y - 4 * scaling.y};
+        batteryRect->setSize(size);
+        batteryRect->setPosition(getSize().x - 2 * scaling.x, (getSize().y + outline / 2) / 2);
+        leftRect->setSize(scaling.x * 6, rect.height / 3);
+        leftRect->setPosition(0, batteryRect->getPosition().y);
+    }
+
     void fade(uint8_t alpha) {
         setOutlineColor({COLOR_FONT.r, COLOR_FONT.g, COLOR_FONT.b, alpha});
         batteryRect->setAlpha(alpha);
@@ -142,6 +155,22 @@ StatusBar::StatusBar(Main *m) : Rectangle({0, 0, 64, 64}) {
     offlineText->setVisibility(Visibility::Hidden);
     StatusBar::add(offlineText);
     applyAlpha();
+}
+
+void StatusBar::applyScale() {
+    const Vector2f sc = main->getScaling();
+    setSize(main->getSize().x, 32 * sc.y);
+    setPosition(0, 18 * sc.y);
+    chip->setSize(10, std::round(26 * sc.y));
+    timeText->setCharacterSize(main->getFontSize(Main::FontSize::Big));
+#ifdef __SWITCH__
+    battery->applyScale(getGlobalBounds(), sc);
+    timeText->setPosition(battery->getPosition().x - battery->getSize().x - 16 * sc.x, getSize().y / 2);
+#else
+    timeText->setPosition(getGlobalBounds().width - 38 * sc.x, getSize().y / 2);
+#endif
+    offline->setIcon("offline.png", std::round(22 * sc.y));
+    offlineText->setCharacterSize(main->getFontSize(Main::FontSize::Small));
 }
 
 void StatusBar::setVisibility(Visibility visibility, bool tweenPlay) {

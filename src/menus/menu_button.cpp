@@ -59,8 +59,8 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
     MenuButton::setOrigin(Origin::Left);
 
     // the group line: half transparent, inside the card margins
-    const float inset = std::round(12 * main->getScaling().x);
-    line = new RectangleShape({MenuButton::getSize().x - inset * 2, std::max(1.0f, std::round(main->getScaling().y))});
+    const float inset = std::round(12 * main->getMenuScaling().x);
+    line = new RectangleShape({MenuButton::getSize().x - inset * 2, std::max(1.0f, std::round(main->getMenuScaling().y))});
     line->setOrigin(Origin::Left);
     line->setPosition(inset, 0);
     line->setFillColor(Color(255, 255, 255, 40));
@@ -71,7 +71,7 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
     float column = 0;
     if (!item.icon.empty() || item.badgeChars > 0) {
         // any resolution: 30 px at 720p, smaller in compact menus; made at its size (sharp)
-        iconSize = std::round(std::min(30.0f * main->getScaling().y, MenuButton::getSize().y * 0.65f));
+        iconSize = std::round(std::min(30.0f * main->getMenuScaling().y, MenuButton::getSize().y * 0.65f));
         if (item.badgeChars > 0) {
             // in place of a number: as high as its digits
             Text digit("0", fontSize, main->getFont());
@@ -83,7 +83,7 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
             icon->setIcon(item.icon, iconSize);
         }
         icon->setOrigin(Origin::Left);
-        icon->setPosition(std::round(12 * main->getScaling().x), std::round(MenuButton::getSize().y / 2));
+        icon->setPosition(std::round(12 * main->getMenuScaling().x), std::round(MenuButton::getSize().y / 2));
         icon->setFillColor(COLOR_FONT);
         MenuButton::add(icon);
     }
@@ -91,7 +91,7 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
         column = std::max(column, std::ceil(pplay::TextWrap::width(main->getFont(), fontSize,
                                                                    std::string((size_t) item.badgeChars, '0'))));
         // both at the right of the column (the names in a straight line after it)
-        float right = std::round(12 * main->getScaling().x + column);
+        float right = std::round(12 * main->getMenuScaling().x + column);
         icon->setOrigin(Origin::Right);
         icon->setPosition(right, std::round(MenuButton::getSize().y / 2));
         badgeText = new Text(item.badge, fontSize, main->getFont());
@@ -108,9 +108,9 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
     name->setFillColor(pplay::Utility::isValidHexColor(item.data_str) ? pplay::Utility::hexToColor(item.data_str)
                                                                       : COLOR_FONT);
 
-    float textX = 12.0f * main->getScaling().x + (column > 0 ? column + 12.0f * main->getScaling().x : 0);
+    float textX = 12.0f * main->getMenuScaling().x + (column > 0 ? column + 12.0f * main->getMenuScaling().x : 0);
     // up to the button edge (the highlight cursor), or the value part
-    const float sc = main->getScaling().x;
+    const float sc = main->getMenuScaling().x;
     float right = MenuButton::getSize().x - 18 * sc;
     bool valued = !item.value.empty() || item.slider >= 0 || item.opens;
     // the name gets what the value leaves (refreshValue), at least half the row
@@ -118,16 +118,16 @@ MenuButton::MenuButton(Main *main, const MenuItem &it, const FloatRect &rect, un
                                         : (item.opens && item.value.empty() ? 24 * sc : MenuButton::getSize().x * 0.5f);
     maxTextWidth = std::max(0.0f, (valued ? right - valueWidth - 12 * sc : MenuButton::getSize().x - 6.0f) - textX);
     if (valued) {
-        valueText = new Text("", main->getFontSize(Main::FontSize::Small), main->getFont());
+        valueText = new Text("", main->getMenuFontSize(Main::FontSize::Small), main->getFont());
         valueText->setOrigin(Origin::Right);
         valueText->setPosition(right, MenuButton::getSize().y / 2);
         MenuButton::add(valueText);
     }
-    scaling = main->getScaling();
+    scaling = main->getMenuScaling();
     if (item.slider >= 0) {
         createSlider();
     }
-    scrollSpeed = SCROLL_SPEED * main->getScaling().x;
+    scrollSpeed = SCROLL_SPEED * main->getMenuScaling().x;
     clip = new pplay::ClipRect({textX, 0, maxTextWidth, MenuButton::getSize().y});
     clip->add(name);
     MenuButton::add(clip);
@@ -140,10 +140,13 @@ void MenuButton::createSlider() {
     float right = getSize().x - 18 * scaling.x, valueWidth = getSize().x * 0.36f;
     float line = std::max(2.0f, std::round(4 * scaling.y));
     float left = right - valueWidth, end = right - 60 * scaling.x;
-    sliderTrack = new RectangleShape({left, getSize().y / 2 - line / 2, end - left, line});
+    // Keep the drawn track and pointer hit-test geometry aligned.
+    sliderTrack = new RectangleShape({end - left, line});
+    sliderTrack->setOrigin(Origin::Left);
+    sliderTrack->setPosition(left, std::round(getSize().y / 2));
     sliderTrack->setFillColor(Color(255, 255, 255, 40));
     add(sliderTrack);
-    sliderFill = new RectangleShape({0, 0, 0, line});
+    sliderFill = new RectangleShape({0, line});
     sliderTrack->add(sliderFill);
     float knob = std::round(12 * scaling.y);
     sliderKnob = new RoundRect({knob, knob});
@@ -159,6 +162,68 @@ void MenuButton::createSlider() {
     }
 }
 
+Vector2f MenuButton::pointerToLocal(const Vector2f &position, const Transform &parentTransform) const {
+    // Pointer coordinates have already been mapped into Main's logical space.
+    // Compose only the menu and button transforms, deliberately excluding Main's
+    // desktop-window scale/letterbox offset.
+    const Transform localToMain = parentTransform * getTransform();
+    return localToMain.getInverse().transformPoint(position);
+}
+
+bool MenuButton::containsPointer(const Vector2f &position, const Transform &parentTransform) {
+    const Vector2f local = pointerToLocal(position, parentTransform);
+    const Vector2f size = getSize();
+    return local.x >= 0.0f && local.y >= 0.0f && local.x < size.x && local.y < size.y;
+}
+
+float MenuButton::sliderPartAt(const Vector2f &position, const Transform &parentTransform, bool dragging) {
+    if (sliderTrack == nullptr || !sliderTrack->isVisible() || getSize().x <= 0) {
+        return -1.0f;
+    }
+
+    // Work entirely in button-local coordinates. RectangleShape::getGlobalBounds()
+    // does not include the parent transform, while Rectangle::getGlobalBounds() does;
+    // mixing those bounds with Main-local pointer coordinates shifted the hitbox.
+    const Vector2f local = pointerToLocal(position, parentTransform);
+    const Vector2f rowSize = getSize();
+    if (!dragging && (local.x < 0.0f || local.y < 0.0f
+                      || local.x >= rowSize.x || local.y >= rowSize.y)) {
+        return -1.0f;
+    }
+
+    const float trackLeft = sliderTrack->getPosition().x;
+    const float trackWidth = sliderTrack->getSize().x;
+    if (trackWidth <= 0.0f) {
+        return -1.0f;
+    }
+
+    // A press must start on the visible track (with a small knob-sized tolerance).
+    // After capture, keep mapping against this same track and clamp outside movement.
+    const float tolerance = std::max(6.0f, rowSize.y * 0.22f);
+    if (!dragging && (local.x < trackLeft - tolerance
+                      || local.x > trackLeft + trackWidth + tolerance)) {
+        return -1.0f;
+    }
+    return std::max(0.0f, std::min(1.0f, (local.x - trackLeft) / trackWidth));
+}
+
+void MenuButton::setSliderPreview(float part) {
+    if (sliderTrack == nullptr || item.slider < 0) {
+        return;
+    }
+    sliderPreview = true;
+    sliderPreviewPart = std::max(0.0f, std::min(1.0f, part));
+    refreshValue();
+}
+
+void MenuButton::clearSliderPreview() {
+    if (!sliderPreview) {
+        return;
+    }
+    sliderPreview = false;
+    refreshValue();
+}
+
 void MenuButton::refreshValue() {
     if (valueText == nullptr) {
         return;
@@ -169,6 +234,9 @@ void MenuButton::refreshValue() {
     }
     if (sliderTrack != nullptr) {
         sliderTrack->setVisibility(item.slider >= 0 ? Visibility::Visible : Visibility::Hidden);
+        if (item.slider < 0) {
+            sliderPreview = false;
+        }
     }
     std::string text = item.value.empty() && item.opens ? "›" : oneLine(item.value);
     if (!item.value.empty() && item.opens) {
@@ -194,7 +262,7 @@ void MenuButton::refreshValue() {
     }
     valueText->setFillColor(item.valueAccent ? COLOR_ACCENT : Color(160, 168, 178, 255));
     if (sliderTrack != nullptr) {
-        float part = std::min(1.0f, std::max(0.0f, item.slider));
+        float part = sliderPreview ? sliderPreviewPart : std::min(1.0f, std::max(0.0f, item.slider));
         float width = sliderTrack->getSize().x;
         sliderFill->setSize(std::round(part * width), sliderFill->getSize().y);
         sliderFill->setFillColor(COLOR_ACCENT);

@@ -7,6 +7,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include "cross2d/c2d.h"
 #include "cross2d/skeleton/config.h"
 
@@ -27,6 +28,10 @@
 #define OPT_AUTOPLAY_TYPE_FILTER "AUTOPLAY_TYPE_FILTER"
 #define OPT_LOG_LEVEL "LOG_LEVEL"
 #define OPT_SWAP_CONTROLS "SWAP_CONTROLS"
+#define OPT_UI_SCALE "UI_SCALE"          // main screen layout (restart to apply)
+#define OPT_OSD_SCALE "OSD_SCALE"        // player OSD (live)
+#define OPT_MENU_SCALE "MENU_SCALE"      // menus (live)
+#define OPT_SHOW_MENU_BUTTON "SHOW_MENU_BUTTON"
 #define OPT_CPU_BOOST "CPU_BOOST"
 #define OPT_ACCENT_COLOR "ACCENT_COLOR"
 #define OPT_LANGUAGE "LANGUAGE"
@@ -167,7 +172,16 @@ public:
     // TS Silo: its api token (got with the user and password, or typed)
     static const char *networkTokenOption(int index);
 
+    // True only when neither the current nor legacy settings file existed on startup.
+    bool needsDpiScale() const { return firstRun; }
+
     int getNetworkCount() const { return networkCount; }
+
+    // Numeric defaults captured before loading user preferences, used by slider reset.
+    float getDefaultNumber(const std::string &name, float fallback = 0.0f) const {
+        auto found = defaultNumbers.find(name);
+        return found == defaultNumbers.end() ? fallback : found->second;
+    }
 
     // a new one at the end: its index
     int addNetwork();
@@ -219,6 +233,8 @@ private:
     std::string defaultHomePath() const;
 
     pplay::Io *io;
+    bool firstRun = false;
+    std::map<std::string, float> defaultNumbers;
     int networkCount = 0;
     int networkSlots = 0;
 };

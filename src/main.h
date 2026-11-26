@@ -131,6 +131,14 @@ public:
 
     c2d::Vector2f getScaling();
 
+    // Menu density is independent from the main screen and player OSD.
+    c2d::Vector2f getMenuScaling() const { return {baseScaling.x * menuScale, baseScaling.y * menuScale}; }
+    c2d::Vector2f getOsdScaling() const { return {baseScaling.x * osdScale, baseScaling.y * osdScale}; }
+    c2d::Vector2f getMenuScaled(float x, float y) const {
+        const auto scale = getMenuScaling();
+        return {x * scale.x, y * scale.y};
+    }
+
     c2d::Vector2f getScaled(const c2d::Vector2f &v) { return {v.x * scaling.x, v.y * scaling.y}; }
 
     c2d::Vector2f getScaled(float x, float y) { return {x * scaling.x, y * scaling.y}; }
@@ -141,8 +149,17 @@ public:
 
     unsigned int getFontSize(FontSize fontSize);
 
-    // configuration changed (settings, file editor)
+    unsigned int getMenuFontSize(FontSize fontSize) const {
+        return (unsigned int) ((float) fontSize * baseScaling.y * menuScale);
+    }
+    unsigned int getOsdFontSize(FontSize fontSize) const {
+        return (unsigned int) ((float) fontSize * baseScaling.y * osdScale);
+    }
+
+    // Configuration values can change during pointer drags. Geometry changes are
+    // applied at the next frame boundary, after the active input handler has returned.
     void applyConfig();
+    void applyScales();
 
     // TS Silo: a token got with the user and password kept in the settings
     void keepSiloTokens();
@@ -196,6 +213,8 @@ private:
 
     void createMessageBox();
 
+    void applyScalesNow();
+
     void retranslate();
 
     pplay::Io *pplayIo;
@@ -218,6 +237,11 @@ private:
     LogView *logView = nullptr;
     unsigned int oldKeys = 0;
     c2d::Vector2f scaling = {1, 1};
+    c2d::Vector2f baseScaling = {1, 1};
+    float uiScaleApplied = 1.0f;
+    bool scalesPending = false;
+    float osdScale = 1.0f;
+    float menuScale = 1.0f;
 
     bool exit = false;
     bool running = true;

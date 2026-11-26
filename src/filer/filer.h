@@ -41,6 +41,10 @@ public:
     virtual std::vector<MediaFile> getFilesSnapshot() const;
     virtual bool selectByPath(const std::string &targetPath);
 
+    // Copy the current listing and transient picker/focus state into a freshly
+    // constructed filer after the interface scale changes.
+    void copyStateFrom(const Filer &other);
+
     virtual void setSelection(int index);
 
     int getSelectionIndex() const { return item_index; }
@@ -128,6 +132,7 @@ private:
     c2d::C2DClock scrollClock;
 
     void placeItems();
+    void scrollList(float delta);
     std::vector<MediaFile> files;
     // the listed directories pictures (PosterLoader urls)
     std::map<std::string, std::string> folderCovers;
@@ -162,6 +167,16 @@ private:
     std::string pickPrevPath;
     std::string pickPrevSelection;
     float crumbsWidth = 0;
+
+    bool pointerDown = false;
+    bool pointerDragging = false;
+    bool pointerInDetails = false;
+    bool pointerInCrumbs = false;
+    bool pointerInPlayer = false;
+    c2d::Vector2f pointerStart;
+    c2d::Vector2f pointerLast;
+    int pointerStartRow = 0;
+    bool pointerListScrolling = false;
 };
 
 #endif //NXFILER_FILER_H

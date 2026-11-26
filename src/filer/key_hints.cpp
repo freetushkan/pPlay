@@ -23,6 +23,15 @@ int KeyHints::idAt(int index) const {
     return index >= 0 && index < (int) hints.size() ? hints[index].id : 0;
 }
 
+int KeyHints::indexAt(const Vector2f &position) const {
+    for (int i = 0; i < (int) items.size(); i++) {
+        if (items[i]->isVisible() && !hints[i].off && items[i]->getGlobalBounds().contains(position)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 int KeyHints::usable(int index, int direction) const {
     for (int i = index; i >= 0 && i < (int) hints.size(); i += direction) {
         if (!hints[i].off) {

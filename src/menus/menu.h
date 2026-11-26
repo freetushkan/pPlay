@@ -25,7 +25,13 @@ public:
     // all the menus
     static const std::vector<Menu *> &all();
 
+    // Route input to the topmost visible menu before the player or filer can consume it.
+    static bool routeInput(c2d::Input::Player *players);
+
     void reset();
+
+    // Rebuild cached geometry, fonts and pointer hit areas at the current menu scale.
+    void applyScale();
 
     // the item of that name selected (if shown)
     void select(const std::string &name);
@@ -56,8 +62,18 @@ public:
 
     virtual void onOptionSelection(MenuItem *item) {};
 
+    // A tap outside a submenu: hide it or return to its parent.
+    virtual void onPointerBack() { setVisibility(c2d::Visibility::Hidden, true); }
+
     // left / right on an item: its value changed, false if it has none
     virtual bool onOptionChange(MenuItem *item, int direction) { return false; }
+
+    // Pointer placed on a slider (0..1); false if this item has no direct slider action.
+    virtual bool onOptionSlider(MenuItem *item, float part) { return false; }
+    virtual void onOptionSliderEnd(MenuItem *item) {}
+
+    // A second click on the left side of a selected slider restores its default value.
+    virtual void onOptionSliderReset(MenuItem *item) { onOptionSelection(item); }
 
     virtual MenuItem *getSelection();
 
@@ -118,6 +134,14 @@ private:
     int moveDirection = 0;
     bool moveWrapped = false;
     bool skipEnsure = false;
+    bool pointerDown = false;
+    bool pointerDragging = false;
+    int pointerSlider = -1;
+    int pointerButton = -1;
+    bool pointerWasSelected = false;
+    c2d::Vector2f appliedMenuScaling = {1, 1};
+    c2d::Vector2f pointerStart;
+    c2d::Vector2f pointerLast;
 };
 
 #endif //PPLAY_MENU_H

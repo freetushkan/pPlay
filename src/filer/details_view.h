@@ -78,6 +78,11 @@ public:
     // keys while focused
     Action onKeys(unsigned int keys);
 
+    void onPointerDown(const c2d::Vector2f &position);
+    void onPointerMove(const c2d::Vector2f &position);
+    Action onPointerUp(const c2d::Vector2f &position);
+    void cancelPointer();
+
     void onUpdate() override;
 
 private:
@@ -148,6 +153,11 @@ private:
     c2d::C2DClock hintsClock;
     unsigned int viewedGeneration = 0;
     unsigned int savedGeneration = 0;
+    bool pointerDown = false;
+    bool pointerDragging = false;
+    bool pointerOnHints = false;
+    c2d::Vector2f pointerStart;
+    c2d::Vector2f pointerLast;
 };
 
 #endif //PPLAY_DETAILS_VIEW_H

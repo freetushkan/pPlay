@@ -24,7 +24,7 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title, const
     : RectangleShape(rect), main(m) {
     // a rounded card, no border
     Menu::setFillColor(Color::Transparent);
-    card = new RoundRect(Menu::getSize(), 16 * main->getScaling().y);
+    card = new RoundRect(Menu::getSize(), 16 * main->getMenuScaling().y);
     card->setFillColor({COLOR_BG.r, COLOR_BG.g, COLOR_BG.b, 245});
     card->setLayer(-2);
     Menu::add(card);
@@ -46,8 +46,8 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title, const
 
     // on several lines when needed
     titleKey = _title;
-    title = new Text("", main->getFontSize(Main::FontSize::Big), main->getFont());
-    title->setPosition(main->getScaled(40, 40));
+    title = new Text("", main->getMenuFontSize(Main::FontSize::Big), main->getFont());
+    title->setPosition(main->getMenuScaled(40, 40));
     title->setFillColor(COLOR_FONT);
     setTitleText(pplay::tr(_title));
     Menu::add(title);
@@ -58,6 +58,7 @@ Menu::Menu(Main *m, const c2d::FloatRect &rect, const std::string &_title, const
     // the height made to the items (fit()), the screen at most
     inset = rect.top;
     leftSide = left;
+    appliedMenuScaling = main->getMenuScaling();
     if (left) {
         // as far from the left edge as from the top
         Menu::add(slide = new TweenPosition({-rect.width - rect.top, rect.top}, {rect.top, rect.top}, 0.2f));
@@ -78,17 +79,29 @@ const std::vector<Menu *> &Menu::all() {
     return menuRegistry();
 }
 
+bool Menu::routeInput(c2d::Input::Player *players) {
+    auto &menus = menuRegistry();
+    // Later-created menus are overlays of their parents (for example player submenus).
+    for (auto it = menus.rbegin(); it != menus.rend(); ++it) {
+        Menu *menu = *it;
+        if (menu != nullptr && menu->isVisible()) {
+            return menu->onInput(players);
+        }
+    }
+    return false;
+}
+
 float Menu::menuTop() const {
     // under the title; when they fit, the items and the bottom ones (exit / stop, a row
     // apart) centered in the space left
     float top = title->getPosition().y + std::max((float) title->getCharacterSize(), title->getLocalBounds().height)
-                + 56.0f * main->getScaling().y;
+                + 56.0f * main->getMenuScaling().y;
     int bottomItems = 0, topItems = 0;
     for (auto *button: buttons) {
         bottomItems += button->item.position == MenuItem::Position::Bottom;
         topItems += button->item.enabled && button->item.position == MenuItem::Position::Top;
     }
-    float area = getLocalBounds().height - 32.0f * main->getScaling().y - top;
+    float area = getLocalBounds().height - 32.0f * main->getMenuScaling().y - top;
     // from the first item center to the last one bottom
     float used = ((float) (topItems + bottomItems - 1) + (bottomItems > 0 ? 0.5f : 0)) * itemHeight() + itemHeight() / 2;
     return used <= area ? std::round(top + (area - used) / 2) : top;
@@ -100,14 +113,14 @@ float Menu::menuBottom() {
     for (auto *button: buttons) {
         bottomItems += button->item.position == MenuItem::Position::Bottom;
     }
-    return getSize().y - 32.0f * main->getScaling().y - (float) bottomItems * itemHeight();
+    return getSize().y - 32.0f * main->getMenuScaling().y - (float) bottomItems * itemHeight();
 }
 
 float Menu::itemHeight() const {
     if (compact) {
-        return std::round((float) main->getFontSize(Main::FontSize::Small) * 1.7f);
+        return std::round((float) main->getMenuFontSize(Main::FontSize::Small) * 1.7f);
     }
-    return BUTTON_HEIGHT * main->getScaling().y;
+    return BUTTON_HEIGHT * main->getMenuScaling().y;
 }
 
 int Menu::visibleSlots() {
@@ -142,28 +155,148 @@ int Menu::topIndexOf(int buttonIndex) const {
 
 bool Menu::onInput(c2d::Input::Player *players) {
     unsigned int keys = players[0].buttons;
+    // Input points are already in Main's logical coordinates, so button hit tests
+    // must use the menu transform without Main's renderer/window transform.
+    const Transform menuTransform = getTransform();
+
+    // Recover from a lost mouse-up / finger-up event. Without this, a menu could
+    // remain in pointer-capture mode and ignore every later click until reopened.
+    if (pointerDown && !(keys & Input::Touch) && !(keys & pplay::InputMap::PointerUp)) {
+        if (pointerSlider >= 0 && pointerSlider < (int) buttons.size()) {
+            buttons[pointerSlider]->clearSliderPreview();
+        }
+        pointerDown = pointerDragging = false;
+        pointerSlider = -1;
+        pointerButton = -1;
+        pointerWasSelected = false;
+    }
 
     if (buttons.empty()) {
         return true;
     }
 
+    const bool pointerStarted = (keys & pplay::InputMap::PointerDown) != 0;
+    if (pointerStarted) {
+        // A fresh physical press always starts a new capture, even if the previous
+        // mouse-up / finger-up was lost while a menu was hidden or a frame was skipped.
+        if (pointerSlider >= 0 && pointerSlider < (int) buttons.size()) {
+            buttons[pointerSlider]->clearSliderPreview();
+        }
+        pointerDown = pointerDragging = false;
+        pointerSlider = -1;
+        pointerButton = -1;
+        pointerWasSelected = false;
+    }
+
     if (keys & Input::Touch) {
-        moveDirection = 0;
-        moveWrapped = false;
-        skipEnsure = false;
         Vector2f touch = players[0].touch;
-        if (!getGlobalBounds().contains(touch)) {
-            setVisibility(Visibility::Hidden, true);
-        } else {
-            for (unsigned int i = 0; i < buttons.size(); i++) {
-                if (isButtonSelectable((int) i) && buttons[i]->isVisible()
-                    && buttons[i]->getGlobalBounds().contains(touch)) {
-                    index = (int) i;
-                    onOptionSelection(&buttons[i]->item);
+        if (!pointerDown || pointerStarted) {
+            pointerDown = true;
+            pointerDragging = false;
+            pointerSlider = -1;
+            pointerButton = -1;
+            pointerWasSelected = false;
+            pointerStart = pointerLast = touch;
+            if (getGlobalBounds().contains(touch)) {
+                for (int i = 0; i < (int) buttons.size(); i++) {
+                    if (!isButtonSelectable(i) || !buttons[i]->isVisible()
+                        || !buttons[i]->containsPointer(touch, menuTransform)) {
+                        continue;
+                    }
+                    pointerButton = i;
+                    pointerWasSelected = index == i;
+                    index = i;
+                    updateSelectionState();
+
+                    // A slider track is an immediate pointer target; it does not need
+                    // a separate focus tap. Its setting is committed only on PointerUp.
+                    const float part = buttons[i]->sliderPartAt(touch, menuTransform);
+                    if (buttons[i]->item.slider >= 0 && part >= 0.0f) {
+                        pointerSlider = i;
+                        pointerWasSelected = true;
+                        buttons[i]->setSliderPreview(part);
+                    }
+                    highlight->tweenTo({0, buttons[index]->getPosition().y});
                     break;
                 }
             }
+        } else if (pointerSlider >= 0 && pointerSlider < (int) buttons.size()) {
+            const float distance = touch.y - pointerStart.y;
+            if (std::fabs(distance) > 12 * main->getMenuScaling().y
+                || std::fabs(touch.x - pointerStart.x) > 12 * main->getMenuScaling().x) {
+                pointerDragging = true;
+            }
+            const float part = buttons[pointerSlider]->sliderPartAt(touch, menuTransform, true);
+            buttons[pointerSlider]->setSliderPreview(part);
+            pointerLast = touch;
+            return true;
+        } else {
+            float dy = touch.y - pointerLast.y;
+            float distance = touch.y - pointerStart.y;
+            if (std::fabs(distance) > 12 * main->getMenuScaling().y) {
+                pointerDragging = true;
+            }
+            if (pointerDragging) {
+                float height = itemHeight();
+                float maxOffset = (float) std::max(0, topButtonCount() - visibleSlots()) * height;
+                scrollOffset = std::max(0.0f, std::min(maxOffset, scrollOffset - dy));
+                updateScroll();
+            }
+            pointerLast = touch;
         }
+        return true;
+    } else if (keys & pplay::InputMap::PointerUp) {
+        Vector2f touch = players[0].touch;
+        bool dragged = pointerDragging;
+        int button = pointerButton;
+        int slider = pointerSlider;
+        bool wasSelected = pointerWasSelected;
+        pointerDown = false;
+        pointerDragging = false;
+        pointerSlider = -1;
+        pointerButton = -1;
+        pointerWasSelected = false;
+
+        // Commit one value after the gesture. In particular, changing a menu scale
+        // cannot move its own track underneath the pointer while that pointer is down.
+        if (slider >= 0 && slider == button && slider < (int) buttons.size()) {
+            MenuButton *sliderButton = buttons[slider];
+            const float part = sliderButton->sliderPartAt(touch, menuTransform, true);
+            sliderButton->clearSliderPreview();
+            if (isButtonSelectable(slider) && sliderButton->isVisible() && part >= 0.0f
+                && onOptionSlider(&sliderButton->item, part)) {
+                sliderButton->refreshValue();
+                onOptionSliderEnd(&sliderButton->item);
+            }
+            return true;
+        }
+
+        if (!dragged) {
+            if (button < 0) {
+                if (!getGlobalBounds().contains(touch)) {
+                    onPointerBack();
+                }
+            } else if (button < (int) buttons.size() && isButtonSelectable(button)
+                       && buttons[button]->isVisible()
+                       && buttons[button]->containsPointer(touch, menuTransform)) {
+                MenuItem &item = buttons[button]->item;
+                if (item.slider >= 0) {
+                    if (wasSelected) {
+                        onOptionSliderReset(&item);
+                        buttons[button]->refreshValue();
+                    }
+                    // A second tap outside the track restores the default value.
+                } else if (item.opens || wasSelected) {
+                    // An item whose sole purpose is opening a submenu transitions at once.
+                    // Other actions require a second tap after the row received focus.
+                    onOptionSelection(&item);
+                }
+                if (index >= 0 && index < (int) buttons.size()) {
+                    highlight->tweenTo({0, buttons[index]->getPosition().y});
+                }
+            }
+        }
+        return true;
     } else if (keys & Input::Up) {
         moveSelection(-1);
         updateSelectionState();
@@ -174,30 +307,116 @@ bool Menu::onInput(c2d::Input::Player *players) {
                && onOptionChange(&buttons[index]->item, (keys & Input::Right) ? 1 : -1)) {
         buttons[index]->refreshValue();
     } else if (keys & Input::A && isButtonSelectable(index)) {
-        onOptionSelection(&buttons[index]->item);
+        if (buttons[index]->item.slider >= 0) {
+            onOptionSliderReset(&buttons[index]->item);
+            buttons[index]->refreshValue();
+        } else {
+            onOptionSelection(&buttons[index]->item);
+        }
     }
 
     if (!skipEnsure) {
         ensureSelectionVisible();
     }
     skipEnsure = false;
-    highlight->tweenTo({0, buttons[index]->getPosition().y});
+    if (index >= 0 && index < (int) buttons.size()) {
+        highlight->tweenTo({0, buttons[index]->getPosition().y});
+    }
 
     return true;
+}
+void Menu::applyScale() {
+    const Vector2f next = main->getMenuScaling();
+    if (std::fabs(next.x - appliedMenuScaling.x) < 0.001f
+        && std::fabs(next.y - appliedMenuScaling.y) < 0.001f) {
+        return;
+    }
+
+    const float ratioX = next.x / std::max(0.001f, appliedMenuScaling.x);
+    const float ratioY = next.y / std::max(0.001f, appliedMenuScaling.y);
+    setSize(std::round(getSize().x * ratioX), getSize().y);
+    inset *= ratioY;
+    scrollOffset *= ratioY;
+    appliedMenuScaling = next;
+
+    title->setPosition(main->getMenuScaled(40, 40));
+    setTitleText(pplay::tr(titleKey));
+    highlight->resize({getSize().x, itemHeight()});
+    current->resize({getSize().x, itemHeight()});
+
+    delete card;
+    card = new RoundRect(getSize(), 16 * next.y);
+    card->setFillColor({COLOR_BG.r, COLOR_BG.g, COLOR_BG.b, 245});
+    card->setLayer(-2);
+    Menu::add(card);
+
+    std::vector<MenuItem> items;
+    items.reserve(buttons.size());
+    for (auto *button: buttons) {
+        items.push_back(button->item);
+    }
+    // Carry a live pointer capture across the button rebuild. This matters when a
+    // menu-size slider is itself being dragged from the Interface category.
+    const bool wasPointerDown = pointerDown;
+    const bool wasPointerDragging = pointerDragging;
+    const int capturedSlider = pointerSlider;
+    const int capturedButton = pointerButton;
+    const bool selectedBeforePress = pointerWasSelected;
+    const Vector2f capturedStart = pointerStart;
+    const Vector2f capturedLast = pointerLast;
+
+    setItems(items);
+    pointerDown = wasPointerDown;
+    pointerDragging = wasPointerDragging;
+    pointerSlider = capturedSlider;
+    pointerButton = capturedButton;
+    pointerWasSelected = selectedBeforePress;
+    pointerStart = capturedStart;
+    pointerLast = capturedLast;
+    updateSelectionHighlight();
 }
 
 void Menu::setVisibility(c2d::Visibility visibility, bool tweenPlay) {
     // hidden without the slide (menus created hidden, rebuilt on each file)
     C2DObject::setVisibility(visibility, tweenPlay || visibility == Visibility::Visible);
+    if (visibility != Visibility::Visible) {
+        if (pointerSlider >= 0 && pointerSlider < (int) buttons.size()) {
+            buttons[pointerSlider]->clearSliderPreview();
+        }
+        pointerDown = pointerDragging = false;
+        pointerSlider = -1;
+        pointerButton = -1;
+        pointerWasSelected = false;
+    }
     for (auto &button: buttons) {
         button->setVisibility(visibility, false);
     }
     if (visibility == Visibility::Visible) {
+        // Items may have been reflowed while the menu was hidden (for example after
+        // a DPI / UI-scale change). Keep the logical selection and realign its highlight
+        // to the newly laid-out button instead of leaving it at the old screen position.
+        if (buttons.empty()) {
+            pointerDown = pointerDragging = false;
+            pointerSlider = -1;
+            pointerButton = -1;
+            pointerWasSelected = false;
+            return;
+        }
+        if (index < 0 || index >= (int) buttons.size()
+            || !buttons[index]->item.enabled || !isButtonSelectable(index)) {
+            index = findFirstSelectableIndex();
+        }
+        updateSelectionState();
         if (!skipEnsure) {
             ensureSelectionVisible();
         }
         skipEnsure = false;
         updateScroll();
+        if (index >= 0 && index < (int) buttons.size()) {
+            // Re-target the existing tween as well as the position. A tween left active
+            // when the menu was hidden must not carry the highlight to its stale endpoint.
+            highlight->tweenTo({0, buttons[index]->getPosition().y});
+        }
     }
 }
 
@@ -206,7 +425,8 @@ MenuItem *Menu::getSelection() {
 }
 
 bool Menu::isButtonSelectable(int buttonIndex) const {
-    return buttonIndex >= 0 && buttonIndex < (int) buttons.size() && buttons[buttonIndex]->item.selectable;
+    return buttonIndex >= 0 && buttonIndex < (int) buttons.size()
+           && buttons[buttonIndex]->item.enabled && buttons[buttonIndex]->item.selectable;
 }
 
 int Menu::findFirstSelectableIndex() const {
@@ -282,8 +502,8 @@ void Menu::updateScroll() {
         bottomCount += button->item.position == MenuItem::Position::Bottom;
     }
     float last = top + ((float) (topIndex + bottomCount) - 0.5f) * height;
-    bool fits = last + height / 2 <= getSize().y - 32.0f * main->getScaling().y + 1;
-    float lowest = fits ? last : getSize().y - 32.0f * main->getScaling().y;
+    bool fits = last + height / 2 <= getSize().y - 32.0f * main->getMenuScaling().y + 1;
+    float lowest = fits ? last : getSize().y - 32.0f * main->getMenuScaling().y;
     int k = 0;
     for (auto &button: buttons) {
         if (button->item.position == MenuItem::Position::Bottom) {
@@ -355,6 +575,16 @@ void Menu::onUpdate() {
 }
 
 void Menu::setItems(const std::vector<MenuItem> &list) {
+    // Keep the current item across a rebuild. Main-menu module lists are rebuilt when
+    // networks or availability change; using the old numeric index can point at a
+    // completely different row (or the title area after the layout changes).
+    std::string selectedName;
+    int selectedId = 0;
+    if (index >= 0 && index < (int) buttons.size()) {
+        selectedName = buttons[index]->item.name;
+        selectedId = buttons[index]->item.id;
+    }
+
     // the bottom ones (exit, stop) last in the list: no footer
     std::vector<MenuItem> items;
     for (int bottom = 0; bottom < 2; bottom++) {
@@ -365,15 +595,19 @@ void Menu::setItems(const std::vector<MenuItem> &list) {
             }
         }
     }
+    pointerDown = pointerDragging = false;
+    pointerSlider = -1;
+    pointerButton = -1;
+    pointerWasSelected = false;
     for (auto *button: buttons) {
         delete (button);
     }
     buttons.clear();
 
     const float height = itemHeight();
-    const unsigned int fontSize = main->getFontSize(compact ? Main::FontSize::Small : Main::FontSize::Medium);
+    const unsigned int fontSize = main->getMenuFontSize(compact ? Main::FontSize::Small : Main::FontSize::Medium);
     FloatRect top = {0, menuTop(), Menu::getSize().x, height};
-    FloatRect bottom = {0, Menu::getSize().y - 32.0f * main->getScaling().y, Menu::getSize().x, height};
+    FloatRect bottom = {0, Menu::getSize().y - 32.0f * main->getMenuScaling().y, Menu::getSize().x, height};
     for (auto &item: items) {
         FloatRect &rect = item.position == MenuItem::Position::Top ? top : bottom;
         auto *button = new MenuButton(main, item, rect, fontSize);
@@ -383,21 +617,43 @@ void Menu::setItems(const std::vector<MenuItem> &list) {
     }
 
     index = findFirstSelectableIndex();
+    // Prefer the stable id + name pair; fall back to the name if an id was renumbered.
+    bool restored = false;
+    if (!selectedName.empty()) {
+        for (int i = 0; i < (int) buttons.size(); i++) {
+            if (isButtonSelectable(i) && buttons[i]->item.name == selectedName
+                && buttons[i]->item.id == selectedId) {
+                index = i;
+                restored = true;
+                break;
+            }
+        }
+        if (!restored) {
+            for (int i = 0; i < (int) buttons.size(); i++) {
+                if (isButtonSelectable(i) && buttons[i]->item.name == selectedName) {
+                    index = i;
+                    restored = true;
+                    break;
+                }
+            }
+        }
+    }
     updateSelectionState();
-    scrollOffset = 0.0f;
     moveDirection = 0;
     moveWrapped = false;
     skipEnsure = false;
     fit();
+    ensureSelectionVisible();
     updateScroll();
     if (!buttons.empty()) {
-        highlight->setPosition(0, buttons[index]->getPosition().y);
+        highlight->tweenTo({0, buttons[index]->getPosition().y});
+    } else {
+        highlight->setPosition(0, menuTop());
     }
 }
-
 void Menu::fit() {
     // as high as the title and the items (the bottom ones half a row apart), centered
-    const float sc = main->getScaling().y, h = itemHeight();
+    const float sc = main->getMenuScaling().y, h = itemHeight();
     int topItems = 0, bottomItems = 0;
     for (auto *button: buttons) {
         topItems += button->item.enabled && button->item.position == MenuItem::Position::Top;
@@ -452,10 +708,10 @@ void Menu::setTitle(const std::string &_title) {
 
 void Menu::setTitleText(const std::string &text) {
     // the same margins on both sides
-    float width = getSize().x - 32 * main->getScaling().x * 2;
+    float width = getSize().x - 32 * main->getMenuScaling().x * 2;
     // smaller when a word doesn't fit (not cut)
-    unsigned int size = main->getFontSize(Main::FontSize::Big);
-    unsigned int minSize = main->getFontSize(Main::FontSize::Small);
+    unsigned int size = main->getMenuFontSize(Main::FontSize::Big);
+    unsigned int minSize = main->getMenuFontSize(Main::FontSize::Small);
     for (bool fits = false; !fits && size > minSize; size -= fits ? 0 : 1) {
         fits = true;
         size_t start = 0;
@@ -483,7 +739,7 @@ void Menu::select(const std::string &name) {
             updateSelectionState();
             ensureSelectionVisible();
             updateScroll();
-            highlight->setPosition(0, buttons[index]->getPosition().y);
+            highlight->tweenTo({0, buttons[index]->getPosition().y});
             return;
         }
     }
@@ -496,13 +752,17 @@ void Menu::selectId(int id) {
             updateSelectionState();
             ensureSelectionVisible();
             updateScroll();
-            highlight->setPosition(0, buttons[index]->getPosition().y);
+            highlight->tweenTo({0, buttons[index]->getPosition().y});
             return;
         }
     }
 }
 
 void Menu::reset() {
+    pointerDown = pointerDragging = false;
+    pointerSlider = -1;
+    pointerButton = -1;
+    pointerWasSelected = false;
     index = findFirstSelectableIndex();
     updateSelectionState();
     scrollOffset = 0.0f;

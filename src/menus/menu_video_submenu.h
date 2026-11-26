@@ -47,6 +47,7 @@ public:
 private:
 
     void onOptionSelection(MenuItem *item) override;
+    void onPointerBack() override;
     bool onOptionChange(MenuItem *item, int direction) override;
 
     // the playlist item playing, -1 if none

@@ -59,6 +59,23 @@ StatusBox::~StatusBox() {
     SDL_DestroyMutex(mutex);
 }
 
+void StatusBox::applyScale() {
+    const Vector2f sc = main->getScaling();
+    setSize(main->getSize().x, std::round(32 * sc.y));
+    setPosition(0, std::round(18 * sc.y + getSize().y));
+    messageText->setCharacterSize(main->getFontSize(Main::FontSize::Medium));
+    messageText->setPosition(0, getSize().y / 2);
+    textMaxWidth = -1;
+    const float chipHeight = std::round(26 * sc.y);
+    chip->setSize(10, chipHeight);
+    for (int i = 0; i < 3; i++) {
+        shadows[i]->setSize(10, chipHeight);
+    }
+    if (!icon->getIcon().empty()) {
+        icon->setIcon(icon->getIcon(), std::round(22 * sc.y), true);
+    }
+}
+
 void StatusBox::setVisibility(Visibility visibility, bool tweenPlay) {
     target = visibility == Visibility::Visible ? 1.0f : 0.0f;
     if (!tweenPlay) {

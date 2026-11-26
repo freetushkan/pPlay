@@ -10,6 +10,7 @@
 #include "menu_video_submenu.h"
 #include "pplay_config.h"
 #include "utility.h"
+#include "input_map.h"
 
 using namespace c2d;
 
@@ -208,6 +209,12 @@ void MenuVideoSubmenu::onUpdate() {
         updateSelectionHighlight();
     }
     Menu::onUpdate();
+}
+
+void MenuVideoSubmenu::onPointerBack() {
+    setVisibility(Visibility::Hidden, true);
+    if (fromOsd) main->getPlayer()->showOsd();
+    else main->getMenuVideo()->setVisibility(Visibility::Visible, true);
 }
 
 bool MenuVideoSubmenu::onInput(c2d::Input::Player *players) {

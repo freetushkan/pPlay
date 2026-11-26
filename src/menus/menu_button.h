@@ -76,6 +76,15 @@ public:
 
     void onUpdate() override;
 
+    // Pointer positions are in Main's logical coordinates. Convert through the
+    // menu/button transforms (not the transformed renderer bounds) for hit testing.
+    bool containsPointer(const c2d::Vector2f &position, const c2d::Transform &parentTransform);
+    // The normalized slider value at a pointer position, or -1 outside its track.
+    float sliderPartAt(const c2d::Vector2f &position, const c2d::Transform &parentTransform,
+                       bool dragging = false);
+    void setSliderPreview(float part);
+    void clearSliderPreview();
+
     MenuItem item;
     pplay::IconSprite *icon = nullptr;
     c2d::RectangleShape *line = nullptr;
@@ -91,11 +100,16 @@ private:
 
     void startScroll();
 
+    c2d::Vector2f pointerToLocal(const c2d::Vector2f &position,
+                                 const c2d::Transform &parentTransform) const;
+
     c2d::Text *valueText = nullptr;
     c2d::Text *badgeText = nullptr;
     c2d::RectangleShape *sliderTrack = nullptr;
     c2d::RectangleShape *sliderFill = nullptr;
     RoundRect *sliderKnob = nullptr;
+    bool sliderPreview = false;
+    float sliderPreviewPart = 0.0f;
     c2d::Vector2f scaling;
     float iconSize = 0;
     float maxTextWidth = 0;

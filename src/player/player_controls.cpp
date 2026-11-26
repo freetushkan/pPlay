@@ -21,6 +21,36 @@ bool Player::onInput(c2d::Input::Player *players) {
     unsigned int keys = players[0].buttons;
     pplay::Utility::log(pplay::Utility::LogLevel::Debug, "Player::onInput keys=" + pplay::Utility::getKeysString(keys));
 
+    // A full OSD owns pointer input so its buttons and seek bar get first refusal.
+    if (osd->isExpanded() && isFullscreen()) {
+        if (keys & (Input::Touch | pplay::InputMap::PointerUp)) {
+            return C2DObject::onInput(players);
+        }
+    } else if (keys & Input::Touch) {
+        if (!pointerDown) {
+            pointerDown = true;
+            pointerStart = players[0].touch;
+        }
+        return true;
+    } else if (keys & pplay::InputMap::PointerUp) {
+        Vector2f released = players[0].touch;
+        bool wasDown = pointerDown;
+        pointerDown = false;
+        if (wasDown && isFullscreen()) {
+            float dy = released.y - pointerStart.y;
+            if (pointerStart.y <= main->getSize().y * 0.4f && dy >= 80 * main->getScaling().y) {
+                setFullscreen(false);
+            } else {
+                osd->expand();
+            }
+            return true;
+        }
+        if (wasDown && !isFullscreen() && !mpv->isStopped() && getGlobalBounds().contains(released)) {
+            setFullscreen(true);
+            return true;
+        }
+    }
+
     if (reloadPending && mpv->isStopped() && (keys & Input::B)) {
         pplay::Utility::log(pplay::Utility::LogLevel::Info, "Player: reload cancelled");
         stop();

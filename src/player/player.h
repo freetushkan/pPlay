@@ -79,6 +79,10 @@ public:
 
     void applyConfig();
 
+    // Refresh elements whose fonts or geometry cache the main / OSD scales.
+    void applyUiScale();
+    void applyOsdScale();
+
     // the decoder and the video quality of the current file (the player menu), started
     // from the settings; Auto: changed by the playback (a stuck hardware decoder, drops)
     static bool hasHardwareDecoding();
@@ -333,6 +337,8 @@ private:
     VideoTexture *texture = nullptr;
     PlayerOSD *osd = nullptr;
     bool fullscreen = false;
+    bool pointerDown = false;
+    c2d::Vector2f pointerStart;
     c2d::TweenScale *tweenScale = nullptr;
     c2d::TweenPosition *tweenPosition = nullptr;
 

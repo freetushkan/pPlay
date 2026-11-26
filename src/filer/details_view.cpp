@@ -279,6 +279,66 @@ void DetailsView::applyCatalogDetails(const pplay::P2Play::CatalogDetails &catal
     layout();
 }
 
+void DetailsView::onPointerDown(const Vector2f &position) {
+    pointerDown = true;
+    pointerDragging = false;
+    pointerStart = pointerLast = position;
+    pointerOnHints = hints->getGlobalBounds().contains(position);
+}
+
+void DetailsView::onPointerMove(const Vector2f &position) {
+    if (!pointerDown) return;
+    float dy = position.y - pointerLast.y;
+    if (!pointerOnHints) {
+        pointerDragging = pointerDragging || std::fabs(position.y - pointerStart.y) > 12 * main->getScaling().y;
+        if (pointerDragging) scrollBy(-dy);
+    }
+    pointerLast = position;
+}
+
+void DetailsView::cancelPointer() {
+    pointerDown = pointerDragging = pointerOnHints = false;
+}
+
+DetailsView::Action DetailsView::onPointerUp(const Vector2f &position) {
+    if (!pointerDown) return Action::None;
+    const bool hintsArea = pointerOnHints || hints->getGlobalBounds().contains(position);
+    const bool dragged = pointerDragging;
+    pointerDown = pointerDragging = pointerOnHints = false;
+    if (dragged) return Action::None;
+
+    if (!hintsArea) {
+        // The information area behaves like Right from the file list: enter the details
+        // panel, but keep the text area focused so it can be read / scrolled.
+        if (!focused) {
+            return Action::Panel;
+        }
+        button = -1;
+        hints->setFocus(-1);
+        return Action::None;
+    }
+
+    // From the file list, the first tap only enters button mode and selects its first
+    // available action. A second tap can activate the chosen button.
+    if (!focused) {
+        setFocused(true);
+        button = hints->usable(0, 1);
+        hints->setFocus(button);
+        return Action::None;
+    }
+
+    const int hit = hints->indexAt(position);
+    if (hit >= 0 && !hints->isOff(hit)) {
+        button = hit;
+        hints->setFocus(button);
+        return (Action) hints->idAt(button);
+    }
+
+    button = hints->usable(0, 1);
+    hints->setFocus(button);
+    return Action::None;
+}
+
 void DetailsView::setFocused(bool value) {
     if (focused == value) {
         return;

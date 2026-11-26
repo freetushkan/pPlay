@@ -20,6 +20,7 @@
 #include "io.h"
 #include "net_time.h"
 #include "platform.h"
+#include "desktop_window.h"
 #if defined(__LINUX__) || defined(__PS5__) || defined(__SWITCH__) || defined(__ANDROID__)
 #include "crashlog.h"
 #endif
@@ -42,8 +43,19 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
     pplayIo->setConfig(config);
     setClearColor(COLOR_BG);
 
-    // whole factors on 1280x720 multiples (1.5 at 1080p, 3 at 2160p)
-    scaling = {Main::getSize().x / 1280.0f, Main::getSize().y / 720.0f};
+    // Keep the rendering reference scale separate from the optional touch-size multiplier.
+    baseScaling = {Main::getSize().x / 1280.0f, Main::getSize().y / 720.0f};
+#ifdef __ANDROID__
+    if (config->needsDpiScale()) {
+        config->getOption(OPT_UI_SCALE)->setFloat(Platform::interfaceScale());
+        config->getOption(OPT_OSD_SCALE)->setFloat(Platform::interfaceScale());
+        config->save();
+    }
+#endif
+    uiScaleApplied = config->getOption(OPT_UI_SCALE)->getFloat();
+    osdScale = config->getOption(OPT_OSD_SCALE)->getFloat();
+    menuScale = config->getOption(OPT_MENU_SCALE)->getFloat();
+    scaling = {baseScaling.x * uiScaleApplied, baseScaling.y * uiScaleApplied};
     pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: resolution " + std::to_string((int) Main::getSize().x)
                                                                 + "x" + std::to_string((int) Main::getSize().y));
 
@@ -105,6 +117,8 @@ Main::Main(const c2d::Vector2f &size, pplay::Io *io, PPLAYConfig *cfg) : C2DRend
 
     showLast();
     restoreSession();
+    // Initial focus only: subsequent menu openings preserve the menu's own focus.
+    menu_main->selectId(currentModuleIndex);
 }
 
 void Main::createFont() {
@@ -135,7 +149,9 @@ std::vector<MenuItem> Main::moduleItems() {
         item.label = config->networkName(i);
         items.push_back(item);
     }
-    items.emplace_back("Settings", "options.png", MenuItem::Position::Top);
+    MenuItem settings("Settings", "options.png", MenuItem::Position::Top);
+    settings.opens = true;
+    items.push_back(settings);
     items.emplace_back("Exit", "exit.png", MenuItem::Position::Bottom);
     return items;
 }
@@ -163,8 +179,9 @@ void Main::renumberNetworks(const std::function<int(int)> &to) {
 void Main::createMenus() {
     std::vector<MenuItem> items = moduleItems();
     // the menus float off the screen edges, the same on both sides
-    const float inset = 28 * scaling.y;
-    menu_main = new MenuMain(this, {-300 * scaling.x, inset, 300 * scaling.x, Main::getSize().y - 2 * inset}, items);
+    const Vector2f menuScale = getMenuScaling();
+    const float inset = 28 * menuScale.y;
+    menu_main = new MenuMain(this, {-300 * menuScale.x, inset, 300 * menuScale.x, Main::getSize().y - 2 * inset}, items);
     menu_main->setVisibility(Visibility::Hidden, false);
     menu_main->setLayer(3);
     Main::add(menu_main);
@@ -192,7 +209,7 @@ void Main::createMenus() {
     items.emplace_back("Information", "info.png", MenuItem::Position::Top);
     items.emplace_back("Settings", "options.png", MenuItem::Position::Top);
     items.emplace_back("Stop", "stop.png", MenuItem::Position::Bottom);
-    menu_video = new MenuVideo(this, {Main::getSize().x, inset, 420 * scaling.x, Main::getSize().y - 2 * inset},
+    menu_video = new MenuVideo(this, {Main::getSize().x, inset, 420 * menuScale.x, Main::getSize().y - 2 * inset},
                                items);
     menu_video->setVisibility(Visibility::Hidden, false);
     menu_video->setLayer(3);
@@ -257,6 +274,86 @@ void Main::keepSiloTokens() {
     }
 }
 
+void Main::applyScales() {
+    const float requestedUi = config->getOption(OPT_UI_SCALE)->getFloat();
+    const float requestedOsd = config->getOption(OPT_OSD_SCALE)->getFloat();
+    const float requestedMenu = config->getOption(OPT_MENU_SCALE)->getFloat();
+    scalesPending = scalesPending
+                    || std::fabs(requestedUi - uiScaleApplied) > 0.001f
+                    || std::fabs(requestedOsd - osdScale) > 0.001f
+                    || std::fabs(requestedMenu - menuScale) > 0.001f;
+}
+
+void Main::applyScalesNow() {
+    const float requestedUi = config->getOption(OPT_UI_SCALE)->getFloat();
+    const float requestedOsd = config->getOption(OPT_OSD_SCALE)->getFloat();
+    const float requestedMenu = config->getOption(OPT_MENU_SCALE)->getFloat();
+    const bool uiChanged = std::fabs(requestedUi - uiScaleApplied) > 0.001f;
+    const bool osdChanged = std::fabs(requestedOsd - osdScale) > 0.001f;
+    const bool menuChanged = std::fabs(requestedMenu - menuScale) > 0.001f;
+    scalesPending = false;
+    if (!uiChanged && !osdChanged && !menuChanged) {
+        return;
+    }
+
+    // Update scale sources before rebuilding any cached geometry.
+    uiScaleApplied = requestedUi;
+    osdScale = requestedOsd;
+    menuScale = requestedMenu;
+    scaling = {baseScaling.x * uiScaleApplied, baseScaling.y * uiScaleApplied};
+
+    if (uiChanged) {
+        // Keep the current listing and selection; do not re-query the network or
+        // discard media details merely because the user changed the interface size.
+        Filer *oldFiler = filer;
+        const bool filerVisible = oldFiler != nullptr && oldFiler->isVisible();
+        if (oldFiler != nullptr) {
+            filer = new Filer(this, oldFiler->getPath(), {0, 0, Main::getSize().x, Main::getSize().y});
+            filer->copyStateFrom(*oldFiler);
+            filer->setLayer(1);
+            Main::add(filer);
+            delete oldFiler;
+            filer->setVisibility(filerVisible ? Visibility::Visible : Visibility::Hidden, false);
+        }
+
+        statusBox->applyScale();
+        statusBar->applyScale();
+        player->applyUiScale();
+
+        const bool logVisible = logView != nullptr && logView->isVisible();
+        if (logView != nullptr) {
+            delete logView;
+        }
+        logView = new LogView(this);
+        logView->setLayer(4);
+        Main::add(logView);
+        if (logVisible) {
+            logView->show();
+        }
+
+        // A scale change normally comes from Settings, with the modal dialog hidden.
+        if (messageBox != nullptr && !messageBox->isVisible()) {
+            delete messageBox;
+            createMessageBox();
+            messageBox->setVisibility(Visibility::Hidden, false);
+        }
+    }
+
+    if (osdChanged) {
+        player->applyOsdScale();
+    }
+    if (menuChanged) {
+        // Also includes player submenus created for the current file. Menu::applyScale
+        // preserves the active pointer capture and selected row.
+        const auto menus = Menu::all();
+        for (auto *menu: menus) {
+            if (menu != nullptr) {
+                menu->applyScale();
+            }
+        }
+    }
+}
+
 void Main::applyConfig() {
     pplay::Utility::setLogLevel((pplay::Utility::LogLevel) config->getOption(OPT_LOG_LEVEL)->getInteger());
     int codePage = config->getOption(OPT_TEXT_ENCODING)->getInteger();
@@ -299,6 +396,7 @@ void Main::applyConfig() {
         filer->selectByPath(selected.path);
     }
     hidden = showHidden;
+    applyScales();
     if (pplay::I18n::current() != c2d::Utility::toLower(config->getOption(OPT_LANGUAGE)->getString())) {
         setLanguage(config->getOption(OPT_LANGUAGE)->getString());
     } else {
@@ -313,6 +411,14 @@ Main::~Main() {
 }
 
 bool Main::onInput(c2d::Input::Player *players) {
+    // Mouse and finger positions enter through the same window-coordinate path.
+    // Convert exactly once here; injected pointer updates below stay unmodified.
+    if (players[0].buttons & Input::Touch) {
+        players[0].touch = pplay::DesktopWindow::mapPointer(players[0].touch);
+        if (pplay::InputMap::takePointerDown()) {
+            players[0].buttons |= pplay::InputMap::PointerDown;
+        }
+    }
     // (a press handled: not given again as missed)
     pplay::InputMap::noteSeen(players[0].buttons);
     // the black screen: any key brings the interface back, nothing else
@@ -358,6 +464,12 @@ bool Main::onInput(c2d::Input::Player *players) {
         }
     }
 
+    // Menus are siblings of the player/filer. Route to the visible topmost menu first:
+    // otherwise the paused player's OSD can consume the first pointer event.
+    if (Menu::routeInput(players)) {
+        return true;
+    }
+
     return Renderer::onInput(players);
 }
 
@@ -368,7 +480,8 @@ void Main::onUpdate() {
         timer->restart();
     }
     int heldMs = oldKeys ? (int) timer->getElapsedTime().asMilliseconds() : 0;
-    getInput()->setRepeatDelay(pplay::InputMap::repeatDelay(heldMs));
+    // Keep pointer motion live; the usual key repeat would otherwise suppress swipes.
+    getInput()->setRepeatDelay(pplay::InputMap::isPointerDown() ? 0 : pplay::InputMap::repeatDelay(heldMs));
     // the keys of this frame: a new press fires at once, a held one after the delay
     bool held = oldKeys != 0 && heldMs >= REPEAT_DELAY / 2;
 
@@ -549,7 +662,42 @@ void Main::onUpdate() {
     }
 
     pplay::InputMap::setRepeat(held);
+    pplay::DesktopWindow::update(this);
+    // Input callbacks have returned by this point; rebuilding menus/filer is safe.
+    if (scalesPending) {
+        applyScalesNow();
+    }
     Renderer::onUpdate();
+
+    // SDL touch events are not exposed as mouse coordinates by every platform driver.
+    // Feed their coordinates through the same Input::Touch path used by the UI.
+    Input::Player *pointerPlayers = getInput()->getPlayers();
+    const bool pointerStarted = pplay::InputMap::takePointerDown();
+    if (pointerStarted || pplay::InputMap::isPointerDown()) {
+        unsigned int savedButtons = pointerPlayers[0].buttons;
+        Vector2f savedTouch = pointerPlayers[0].touch;
+        pointerPlayers[0].buttons = Input::Touch
+                                    | (pointerStarted ? pplay::InputMap::PointerDown : 0);
+        pointerPlayers[0].touch = pplay::InputMap::pointerPosition();
+        onInput(pointerPlayers);
+        pointerPlayers[0].buttons = savedButtons;
+        pointerPlayers[0].touch = savedTouch;
+    }
+
+    Vector2f releasedAt;
+    if (pplay::InputMap::takePointerUp(&releasedAt)) {
+        unsigned int savedButtons = pointerPlayers[0].buttons;
+        Vector2f savedTouch = pointerPlayers[0].touch;
+        pointerPlayers[0].buttons = Input::Touch;
+        // Let Main::onInput perform the single platform coordinate transform.
+        pointerPlayers[0].touch = releasedAt;
+        onInput(pointerPlayers);
+        pointerPlayers[0].buttons = pplay::InputMap::PointerUp;
+        onInput(pointerPlayers);
+        pointerPlayers[0].buttons = savedButtons;
+        pointerPlayers[0].touch = savedTouch;
+    }
+
     player->processDeferredMenus();
 }
 
@@ -697,7 +845,28 @@ int Main::showMessage(const std::string &title, const std::string &message, cons
         if (!(keys & Input::Touch)) {
             touchReleased = true;
         }
-        if ((keys & Input::Touch) && touchReleased) {
+
+        // The modal loop is synchronous, so it handles pointer state here rather than
+        // relying on the regular renderer input dispatch.
+        Vector2f pointerUp;
+        bool pointerClicked = pplay::InputMap::takePointerUp(&pointerUp);
+        if (pplay::InputMap::isPointerDown()) {
+            Vector2f pointer = pplay::DesktopWindow::mapPointer(pplay::InputMap::pointerPosition());
+            for (int i = 0; i < choices; i++) {
+                if (messageBox->getButton(i)->getGlobalBounds().contains(pointer)) {
+                    index = i;
+                }
+            }
+        }
+        if (pointerClicked) {
+            Vector2f pointer = pplay::DesktopWindow::mapPointer(pointerUp);
+            for (int i = 0; i < choices; i++) {
+                if (messageBox->getButton(i)->getGlobalBounds().contains(pointer)) {
+                    index = i;
+                    result = i == 1 ? MessageBox::RIGHT : MessageBox::LEFT;
+                }
+            }
+        } else if ((keys & Input::Touch) && touchReleased) {
             touchReleased = false;
             for (int i = 0; i < choices; i++) {
                 if (messageBox->getButton(i)->getGlobalBounds().contains(players[0].touch)) {

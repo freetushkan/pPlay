@@ -6,6 +6,7 @@
 #include <cstring>
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstdio>
 #include <string>
 
@@ -626,6 +627,21 @@ namespace pplay::Platform {
         return value;
     }
 #endif
+
+    float interfaceScale() {
+#ifdef __ANDROID__
+        const std::string density = callActivity("getDisplayDensity", "()Ljava/lang/String;");
+        if (!density.empty()) {
+            const float dpi = (float) std::atof(density.c_str());
+            if (dpi > 0.0f) {
+                // Relative to the Android mdpi baseline; clamp extremes so TVs and
+                // unusually dense phones remain within a usable range.
+                return std::max(1.0f, std::min(1.5f, dpi / 240.0f));
+            }
+        }
+#endif
+        return 1.0f;
+    }
 
     std::string takeViewed(std::string *name) {
 #ifdef __ANDROID__

@@ -26,6 +26,11 @@ private:
 
     bool onOptionChange(MenuItem *item, int direction) override;
 
+    bool onOptionSlider(MenuItem *item, float part) override;
+
+    void onOptionSliderReset(MenuItem *item) override;
+    void onOptionSliderEnd(MenuItem *item) override;
+
     void onUpdate() override;
 
     c2d::C2DClock valuesClock;

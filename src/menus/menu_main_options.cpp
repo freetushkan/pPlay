@@ -6,6 +6,7 @@
 #include "menu_main_options.h"
 #include "menu_file_editor.h"
 #include "menu_video.h"
+#include "input_map.h"
 
 using namespace c2d;
 
@@ -22,6 +23,51 @@ void MenuMainOptions::onOptionSelection(MenuItem *item) {
     if (submenu != nullptr) {
         setVisibility(Visibility::Hidden);
         submenu->setVisibility(Visibility::Visible);
+    }
+}
+
+void MenuMainOptions::onPointerBack() {
+    setVisibility(Visibility::Hidden, true);
+    if (fromPlayer) main->getMenuVideo()->setVisibility(Visibility::Visible, true);
+    else main->getMenuMain()->setVisibility(Visibility::Visible, true);
+}
+
+bool MenuMainOptions::onOptionSlider(MenuItem *item, float part) {
+    auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(item->name);
+    if (submenu == nullptr || !submenu->setSliderPart(part)) {
+        return false;
+    }
+    // The category rows show the value of their child setting.
+    for (auto *button: buttons) {
+        if (button->item.name == item->name) {
+            button->item.value = submenu->currentText();
+            button->item.slider = submenu->sliderPart();
+            button->refreshValue();
+            break;
+        }
+    }
+    return true;
+}
+
+void MenuMainOptions::onOptionSliderEnd(MenuItem *item) {
+    auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(item->name);
+    if (submenu != nullptr) {
+        submenu->finishSliderChange();
+    }
+}
+
+void MenuMainOptions::onOptionSliderReset(MenuItem *item) {
+    auto *submenu = main->getMenuMain()->getMenuMainOptionsSubmenu(item->name);
+    if (submenu == nullptr || !submenu->resetSliderToDefault()) {
+        return;
+    }
+    for (auto *button: buttons) {
+        if (button->item.name == item->name) {
+            button->item.value = submenu->currentText();
+            button->item.slider = submenu->sliderPart();
+            button->refreshValue();
+            break;
+        }
     }
 }
 

@@ -609,6 +609,27 @@ Mpv *Player::getMpv() {
     return mpv;
 }
 
+void Player::applyUiScale() {
+    const Vector2f sc = main->getScaling();
+    frame->setOutlineThickness(std::max(1.0f, std::round(sc.x * 4 / 3)));
+
+    for (auto *text: {info_text, info_keys}) {
+        text->setCharacterSize(main->getFontSize(Main::FontSize::Medium));
+        text->setLineSpacingModifier((int) (4 * sc.y));
+    }
+    info_text->setPosition(20 * sc.x, 60 * sc.y);
+    info_keys->setPosition(getSize().x - 20 * sc.x, 60 * sc.y);
+}
+
+void Player::applyOsdScale() {
+    PlayerOSD *old = osd;
+    auto *replacement = new PlayerOSD(main);
+    replacement->copyStateFrom(*old);
+    delete old;
+    osd = replacement;
+    Player::add(osd);
+}
+
 void Player::applyConfig() {
     pplay::Utility::setWatchedTolerance(main->getConfig()->getOption(OPT_WATCHED_TOLERANCE)->getInteger());
     applyLanguages();

@@ -21,6 +21,9 @@ public:
 
     void onUpdate() override;
 
+    // Recompute cached fonts and geometry after the main UI scale changes.
+    void applyScale();
+
     // faded in / out
     void setVisibility(c2d::Visibility visibility, bool tweenPlay = false) override;
 

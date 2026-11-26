@@ -23,7 +23,8 @@ namespace {
     std::vector<MenuItem> withValues(std::vector<MenuItem> items) {
         for (auto &item: items) {
             const std::string &n = item.name;
-            if (n == "Current playlist" || n == "Audio" || n == "Video" || n == "Subtitles" || n == "Subtitle appearance" || n == "Settings") {
+            if (n == "Current playlist" || n == "Audio" || n == "Video"
+                || n == "Subtitles" || n == "Subtitle appearance" || n == "Settings") {
                 item.opens = true;
             }
             if (n == "Speed" || n == "Brightness" || n == "Screen brightness" || n == "Sleep timer") {
@@ -245,6 +246,54 @@ bool MenuVideo::onOptionChange(MenuItem *item, int direction) {
     }
     refreshValues();
     return true;
+}
+
+bool MenuVideo::onOptionSlider(MenuItem *item, float part) {
+    Player *player = main->getPlayer();
+    PPLAYConfig *config = main->getConfig();
+    part = std::max(0.0f, std::min(1.0f, part));
+    if (item->name == "Speed") {
+        player->setSpeed(0.25 + part * (3.0 - 0.25));
+    } else if (item->name == "Brightness") {
+        const double target = std::round(-100.0 + part * 200.0);
+        const double current = player->getMpv()->getDouble("brightness", 0.0);
+        player->getMpv()->changeBrightness(target - current);
+    } else if (item->name == "Sleep timer") {
+        const int index = (int) std::lround(part * (g_sleep.values.size() - 1));
+        auto *option = config->getOption(OPT_SLEEP_TIMER);
+        option->setType(c2d::config::Option::Type::Integer);
+        option->setInteger(g_sleep.values[(size_t) index]);
+    } else if (item->name == "Screen brightness") {
+        pplay::Platform::setBacklight(part);
+    } else {
+        return false;
+    }
+    refreshValues();
+    return true;
+}
+
+void MenuVideo::onOptionSliderEnd(MenuItem *item) {
+    if (item->name == "Sleep timer") {
+        main->getConfig()->save();
+    }
+}
+
+void MenuVideo::onOptionSliderReset(MenuItem *item) {
+    Player *player = main->getPlayer();
+    PPLAYConfig *config = main->getConfig();
+    if (item->name == "Speed") {
+        player->setSpeed(1.0);
+    } else if (item->name == "Brightness") {
+        player->resetBrightness();
+    } else if (item->name == "Sleep timer") {
+        auto *option = config->getOption(OPT_SLEEP_TIMER);
+        option->setType(c2d::config::Option::Type::Integer);
+        option->setInteger((int) config->getDefaultNumber(OPT_SLEEP_TIMER, 0.0f));
+        config->save();
+    } else if (item->name == "Screen brightness") {
+        pplay::Platform::setBacklight(1.0f);
+    }
+    refreshValues();
 }
 
 void MenuVideo::onOptionSelection(MenuItem *item) {

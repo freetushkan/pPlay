@@ -53,6 +53,12 @@ public:
 
     float sliderPart() const;
 
+    bool setSliderPart(float part);
+    void finishSliderChange();
+
+    // Restore the option's constructor default (the minus/reset gesture).
+    bool resetSliderToDefault();
+
     // name in MenuMain (back navigation)
     void setKey(const std::string &k) { key = k; }
 
@@ -61,6 +67,13 @@ private:
     void onOptionSelection(MenuItem *item) override;
 
     bool onOptionChange(MenuItem *item, int direction) override;
+
+    void onPointerBack() override;
+
+    bool onOptionSlider(MenuItem *item, float part) override;
+
+    void onOptionSliderReset(MenuItem *item) override;
+    void onOptionSliderEnd(MenuItem *item) override;
 
     // a group: the values of its options
     void refreshValues();
