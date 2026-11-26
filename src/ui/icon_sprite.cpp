@@ -7,7 +7,7 @@
 #include "skin.h"
 
 namespace {
-    // the screen pixels of an interface unit (the interface scaled to the window or the drawable)
+    // The scale used to rasterize icons, in screen pixels per interface unit.
     float screenScale() {
         float scale = c2d_renderer != nullptr ? c2d_renderer->getScale().y : 1.0f;
         return scale > 0 ? scale : 1.0f;
@@ -18,28 +18,67 @@ bool pplay::IconSprite::setIcon(const std::string &n, float h, bool s) {
     name = n;
     height = h;
     smooth = s;
+    textureDirty = true;
+    scalePending = false;
     return make();
 }
 
 bool pplay::IconSprite::make() {
-    madeScale = screenScale();
+    const float scale = screenScale();
     c2d::Texture *texture = name.empty() ? nullptr
-                                         : Skin::icon(name, (int) std::lround(height * madeScale), smooth);
+                                         : Skin::icon(name, (int) std::lround(height * scale), smooth);
+    // Do not mark this scale as rendered on failure. The update loop will retry
+    // after the resize has settled instead of leaving the old icon indefinitely.
     if (texture == nullptr) {
+        textureDirty = true;
         return false;
     }
+
     if (getTexture() != texture) {
         setTexture(texture, true);
-        // drawn at its pixels: its size in interface units
-        c2d::IntRect rect = getTextureRect();
-        setSize((float) rect.width / madeScale, (float) rect.height / madeScale);
     }
+
+    // The same cached pixel texture can be used at two nearby scales. Its logical
+    // size must still follow the current scale even when the texture pointer matches.
+    const c2d::IntRect rect = getTextureRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+        textureDirty = true;
+        return false;
+    }
+    setSize((float) rect.width / scale, (float) rect.height / scale);
+    madeScale = scale;
+    textureDirty = false;
     return true;
 }
 
-void pplay::IconSprite::onDraw(c2d::Transform &transform, bool draw) {
-    if (draw && !name.empty() && screenScale() != madeScale) {
-        make();
+void pplay::IconSprite::onUpdate() {
+    c2d::Sprite::onUpdate();
+    if (name.empty()) {
+        scalePending = false;
+        return;
     }
-    c2d::Sprite::onDraw(transform, draw);
+
+    const float scale = screenScale();
+    if (!textureDirty && std::fabs(scale - madeScale) < 0.001f) {
+        scalePending = false;
+        return;
+    }
+
+    // Each size change restarts the debounce. Texture creation happens only on the
+    // update thread, after the scale has stayed unchanged for one second.
+    if (!scalePending || std::fabs(scale - pendingScale) >= 0.001f) {
+        pendingScale = scale;
+        scalePending = true;
+        scaleClock.restart();
+        return;
+    }
+
+    if (scaleClock.getElapsedTime().asMilliseconds() >= 1000) {
+        if (make()) {
+            scalePending = false;
+        } else {
+            // Retry failures at a bounded rate; never spin or touch textures while drawing.
+            scaleClock.restart();
+        }
+    }
 }

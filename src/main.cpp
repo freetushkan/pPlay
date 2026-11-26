@@ -480,6 +480,10 @@ void Main::onUpdate() {
         timer->restart();
     }
     int heldMs = oldKeys ? (int) timer->getElapsedTime().asMilliseconds() : 0;
+    const bool filerNavigation = filer != nullptr && filer->isVisible()
+                                 && !player->isFullscreen() && !menu_main->isMenuVisible()
+                                 && !filer->isDetailsFocused();
+    pplay::InputMap::setFilerNavigation(filerNavigation);
     // Keep pointer motion live; the usual key repeat would otherwise suppress swipes.
     getInput()->setRepeatDelay(pplay::InputMap::isPointerDown() ? 0 : pplay::InputMap::repeatDelay(heldMs));
     // the keys of this frame: a new press fires at once, a held one after the delay

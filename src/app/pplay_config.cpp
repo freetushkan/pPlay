@@ -136,6 +136,26 @@ namespace {
             option->setString(std::to_string(value.get<int>()));
         }
     }
+
+    bool networkFieldApplies(int field, pplay::Io::NetworkType type, const std::string &url) {
+        using NetworkType = pplay::Io::NetworkType;
+        switch (field) {
+            case 4: // user: also used as the Silo identity in paths
+                return type != NetworkType::Dlna;
+            case 5: // password: Silo authenticates with its token instead
+                return type != NetworkType::Dlna && type != NetworkType::TorrServeSilo;
+            case 7: // TLS verification is meaningful for HTTPS only
+                return Utility::startWith(url, "https://");
+            case 8: // TorrServer list / viewed-mark refresh interval
+                return type == NetworkType::TorrServe || type == NetworkType::TorrServeSilo;
+            case 9: // SMB read-ahead buffer
+                return type == NetworkType::Smb;
+            case 10: // TorrServer Silo API token
+                return type == NetworkType::TorrServeSilo;
+            default:
+                return true;
+        }
+    }
 }
 
 const char *PPLAYConfig::networkOption(int index) {
@@ -632,12 +652,17 @@ bool PPLAYConfig::save() {
     nlohmann::ordered_json list = nlohmann::ordered_json::array();
     for (int i = 1; i <= networkCount; i++) {
         nlohmann::ordered_json entry = nlohmann::ordered_json::object();
+        const auto type = pplay::Io::parseNetworkType(getOption(networkTypeOption(i))->getString());
+        const std::string url = getOption(networkOption(i))->getString();
         for (int s: {2, 3, 0, 4, 5, 10, 6, 7, 8, 9, 1}) {
+            if (!networkFieldApplies(s, type, url)) {
+                continue;
+            }
             config::Option *option = getOption(networkOptionName(i, s));
             if (isIntField(s)) {
                 entry[networkKeys[s]] = option->getInteger();
             } else {
-                // (the user and password apart)
+                // Credentials are kept in their own fields; URLs and last paths stay clean.
                 entry[networkKeys[s]] = s <= 1 ? withoutCredentials(option->getString()) : option->getString();
             }
         }

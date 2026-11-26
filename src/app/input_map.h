@@ -57,6 +57,9 @@ namespace pplay::InputMap {
 
     int repeatDelay(int heldMs);
 
+    // The filer uses a faster repeat curve so physical controls follow the scroll-wheel cadence.
+    void setFilerNavigation(bool active);
+
     // the keys being handled come from a held key (auto repeat), not a new press:
     // lists stop at their ends instead of wrapping
     void setRepeat(bool value);

@@ -498,12 +498,10 @@ bool Filer::onInput(c2d::Input::Player *players) {
         action = details->onKeys(keys);
     } else if (keys & (Input::Up | Input::Down)) {
         if (filesSize > 0) {
-            int next = item_index + ((keys & Input::Up) ? -1 : 1);
-            // a held key stops at the end, a new press wraps
-            if (pplay::InputMap::isRepeat()) {
-                next = std::max(0, std::min(next, (int) filesSize - 1));
-            }
-            setSelection(next < 0 ? (int) filesSize - 1 : next >= (int) filesSize ? 0 : next);
+            const int direction = (keys & Input::Up) ? -1 : 1;
+            const int next = std::max(0, std::min(item_index + direction, (int) filesSize - 1));
+            // Wheel, keyboard and controllers share the same hard stop at both ends.
+            setSelection(next);
         }
     } else if (keys & (Input::LB | Input::RB | Input::Left)) {
         action = Action::Menu;

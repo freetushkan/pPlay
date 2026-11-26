@@ -1,5 +1,5 @@
 //
-// A skin icon made at the screen pixels: sharp at any interface scale.
+// A skin icon made at screen pixels, rebuilt after a stable resize.
 //
 
 #ifndef PPLAY_ICON_SPRITE_H
@@ -21,8 +21,8 @@ namespace pplay {
             return name;
         }
 
-        // made again when the interface scale changed
-        void onDraw(c2d::Transform &transform, bool draw = true) override;
+        // Rebuild only after the interface scale has stayed stable for one second.
+        void onUpdate() override;
 
     private:
 
@@ -32,6 +32,10 @@ namespace pplay {
         float height = 0;
         bool smooth = false;
         float madeScale = 0;
+        float pendingScale = 0;
+        bool scalePending = false;
+        bool textureDirty = true;
+        c2d::C2DClock scaleClock;
     };
 }
 

@@ -490,6 +490,7 @@ namespace {
     c2d::C2DClock *g_releaseClock = nullptr;
     bool g_extraRepeat = false;
     bool g_repeat = false;
+    bool g_filerNavigation = false;
 
     unsigned int extraFire(unsigned int held) {
         if (g_extraClock == nullptr) {
@@ -771,7 +772,17 @@ namespace pplay::InputMap {
         return fire;
     }
 
+    void setFilerNavigation(bool active) {
+        g_filerNavigation = active;
+    }
+
     int repeatDelay(int heldMs) {
+        if (g_filerNavigation) {
+            if (heldMs < 250) return 250;
+            if (heldMs < 1500) return 120;
+            if (heldMs < 3000) return 80;
+            return 55;
+        }
         if (heldMs < REPEAT_DELAY) {
             return REPEAT_DELAY;
         }

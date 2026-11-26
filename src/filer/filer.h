@@ -49,6 +49,8 @@ public:
 
     int getSelectionIndex() const { return item_index; }
 
+    bool isDetailsFocused() const { return details != nullptr && details->isFocused(); }
+
     virtual void clearHistory();
 
     std::string getError();

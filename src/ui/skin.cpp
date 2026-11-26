@@ -95,6 +95,7 @@ c2d::Texture *pplay::Skin::icon(const std::string &name, int height, bool smooth
                 }
             }
         }
+        source->unlock();
         texture = new c2d::C2DTexture(c2d::Vector2i{width, height});
         uint8_t *out = nullptr;
         int outPitch = 0;
@@ -124,6 +125,9 @@ c2d::Texture *pplay::Skin::icon(const std::string &name, int height, bool smooth
         }
     }
     delete (source);
-    textures[key] = texture;
+    // A failed allocation/lock must be retried later, not cached as a permanent miss.
+    if (texture != nullptr) {
+        textures[key] = texture;
+    }
     return texture;
 }
