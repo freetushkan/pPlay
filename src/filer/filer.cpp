@@ -805,10 +805,13 @@ void Filer::resetProgress(const MediaFile &file) {
         main->getStatus()->show("Info", "Removing local watch later data");
         pplay::Utility::deleteWatchLater(url);
     }
-    if (pplay::Io::get()->getDeviceType(file.path) == pplay::Io::DeviceType::TorrServe
-        && pplay::TorrServe::isFileViewed(file.path)) {
+    const auto device = pplay::Io::get()->getDeviceType(file.path);
+    if (device == pplay::Io::DeviceType::TorrServe && pplay::TorrServe::isFileViewed(file.path)) {
         main->getStatus()->show("Info", "Removing TorrServer watched state");
         pplay::TorrServe::remFileViewed(file.path);
+    } else if (device == pplay::Io::DeviceType::P2Play) {
+        std::string error;
+        pplay::P2Play::setFileViewed(file.path, false, pplay::Io::get()->networkTimeout(file.path), &error);
     }
     forgetPlayback(file.path);
     dirty = true;
@@ -947,8 +950,12 @@ void Filer::markWatched(const MediaFile &file) {
         return;
     }
     pplay::Utility::setWatchLaterWatched(pplay::Io::get()->streamUrl(file.path), (double) duration);
-    if (pplay::Io::get()->getDeviceType(file.path) == pplay::Io::DeviceType::TorrServe) {
+    const auto device = pplay::Io::get()->getDeviceType(file.path);
+    if (device == pplay::Io::DeviceType::TorrServe) {
         pplay::TorrServe::setFileViewed(file.path, (double) duration);
+    } else if (device == pplay::Io::DeviceType::P2Play) {
+        std::string error;
+        pplay::P2Play::setFileViewed(file.path, true, pplay::Io::get()->networkTimeout(file.path), &error);
     }
     main->getStatus()->show("Info", "Marked as watched");
     dirty = true;

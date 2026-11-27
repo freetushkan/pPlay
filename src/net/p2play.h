@@ -62,6 +62,10 @@ namespace pplay::P2Play {
                      int rank, int timeout, std::string *error);
     bool deleteUser(const std::string &contextPath, const std::string &userId,
                     int timeout, std::string *error);
+    struct LibraryTorrent { std::string hash, title; int64_t size = 0; int64_t addedAt = 0; bool viewed = false; };
+    bool getLibrary(const std::string &contextPath, int timeout, std::vector<LibraryTorrent> *torrents, std::string *error);
+    bool deleteTorrent(const std::string &contextPath, const std::string &hash, int timeout, std::string *error);
+    bool setFileViewed(const std::string &filePath, bool viewed, int timeout, std::string *error);
     bool getFileProgress(const std::string &filePath, int timeout, PlaybackProgress *progress, std::string *error);
     bool setFileProgress(const std::string &filePath, double position, double duration, int timeout, std::string *error);
     bool getProgress(const std::string &contextPath, int timeout, std::vector<ProgressEntry> *progress,

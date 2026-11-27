@@ -833,6 +833,7 @@ namespace pplay::P2Play {
         };
 
         if (parts.empty()) {
+            files.push_back(directory("My torrents", virtualPath(context, {".p2play", "library"})));
             files.push_back(directory("Search torrents", virtualPath(context, {".p2play", "search"})));
             files.push_back(directory("Continue watching", virtualPath(context, {".p2play", "progress"})));
             files.push_back(directory("Discover", virtualPath(context, {".p2play", "discover"})));
@@ -842,6 +843,15 @@ namespace pplay::P2Play {
         }
         if (parts[0] != ".p2play") {
             fail("Unknown P2Play virtual path");
+            return files;
+        }
+        if (parts.size() == 2 && parts[1] == "library") {
+            std::vector<LibraryTorrent> library;
+            if (!getLibrary(context, timeout, &library, &failure)) { fail(failure); return files; }
+            for (const auto &torrent : library) {
+                files.push_back(directory(torrent.title.empty() ? torrent.hash : torrent.title,
+                    virtualPath(context, {".p2play", "direct", torrent.hash})));
+            }
             return files;
         }
         if (parts.size() == 2 && parts[1] == "progress") {
@@ -1098,6 +1108,43 @@ namespace pplay::P2Play {
             url += "?token=" + pplay::Http::escape(token);
         }
         return pplay::Http::normalize(url);
+    }
+
+    bool getLibrary(const std::string &contextPath, int timeout, std::vector<LibraryTorrent> *torrents, std::string *error) {
+        if (!torrents || !error) return false;
+        torrents->clear(); error->clear();
+        const std::string context = rootOf(contextPath);
+        if (context.empty()) { *error = "P2Play network path is invalid"; return false; }
+        json answer;
+        if (!apiJson(cleanRoot(context), context, "/api/torrents", "GET", noBody(), timeout, &answer, error)) return false;
+        const json *items = nullptr;
+        if (!answer.is_object() || !arrayAt(answer, "torrents", &items)) { *error = "P2Play library response has no torrents array"; return false; }
+        for (const auto &item : *items) {
+            if (!item.is_object() || !item.value("hash", json()).is_string()) continue;
+            LibraryTorrent t; t.hash = item["hash"].get<std::string>();
+            t.title = item.value("title", std::string("Untitled"));
+            t.size = item.value("total_length", int64_t(0));
+            if (item.value("added_at", json()).is_number_integer()) t.addedAt = item["added_at"].get<int64_t>();
+            const json viewed = item.value("viewed_files", json::array()); t.viewed = viewed.is_array() && !viewed.empty();
+            if (!t.hash.empty()) torrents->push_back(std::move(t));
+        }
+        return true;
+    }
+
+    bool deleteTorrent(const std::string &contextPath, const std::string &hash, int timeout, std::string *error) {
+        if (!error) return false; error->clear();
+        const std::string context = rootOf(contextPath);
+        if (context.empty()) { *error = "P2Play network path is invalid"; return false; }
+        json answer;
+        return apiJson(cleanRoot(context), context, "/api/torrents/" + pplay::Http::escape(hash), "DELETE", json::object(), timeout, &answer, error);
+    }
+
+    bool setFileViewed(const std::string &filePath, bool viewed, int timeout, std::string *error) {
+        if (!error) return false;
+        std::string context, root, hash; int index = -1;
+        if (!fileAddressOf(filePath, &context, &root, &hash, &index, error)) return false;
+        json answer; const json body = {{"viewed", viewed}};
+        return apiJson(root, context, "/api/torrents/" + pplay::Http::escape(hash) + "/files/" + std::to_string(index) + "/viewed", "POST", body, timeout, &answer, error);
     }
 
     bool getFileProgress(const std::string &filePath, int timeout, PlaybackProgress *progress, std::string *error) {
