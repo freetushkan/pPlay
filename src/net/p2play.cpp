@@ -514,12 +514,12 @@ namespace {
             const json torrentCard = added.value("torrent", json::object());
             hash = torrentCard.value("hash", std::string());
         } else {
-            // Preview must not create library membership: keep the explicit non-persistent
-            // Silo add operation until a versioned preview contract is introduced.
-            json body = {{"link", link}, {"title", title}, {"poster", poster},
-                         {"category", category}, {"save_to_db", false}};
-            if (!apiJson(root, context, "/api/v1/torrents", "POST", body, timeout, &added, error)) return false;
-            hash = added.value("hash", std::string());
+            // Preview torrents are held in memory and scoped to this user; they are not
+            // written to the persistent library.
+            json body = {{"link", link}, {"title", title}, {"poster", poster}, {"category", category}};
+            if (!apiJson(root, context, "/api/v1/torrents/preview", "POST", body, timeout, &added, error)) return false;
+            const json torrentCard = added.value("torrent", json::object());
+            hash = torrentCard.value("hash", std::string());
         }
         if (hash.empty()) { *error = "P2Play did not return a torrent hash after adding the link"; return false; }
         const std::string route = (save ? "/api/v1/torrents/" : "/api/v1/torrents/") +
@@ -527,7 +527,7 @@ namespace {
         for (int attempt = 0; attempt < 40; ++attempt) {
             json status;
             if (!apiJson(root, context, route, "GET", noBody(), timeout, &status, error)) return false;
-            if (save) status = status.value("details", json::object());
+            status = status.value("details", json::object());
             if (parseTorrentInfo(status, torrent)) return true;
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
