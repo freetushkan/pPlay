@@ -131,13 +131,41 @@ namespace {
         return open;
     }
 
-    // One visible TorrServer type. MatriX answers /echo; the Silo build answers
-    // /api/system/ping. Check MatriX first because P2Play itself also exposes the Silo
-    // compatibility ping while retaining its MatriX /echo route.
+    // P2Play exposes a native public identity endpoint distinct from the Silo
+    // compatibility ping. Probe it first so an OFF-MatriX P2Play node is not
+    // mistaken for a TorrServer Silo instance.
+    bool isP2PlayNode(const std::string &url, std::string *version = nullptr) {
+        Http::Response response = Http::get(url + "api/p2play/version", 3);
+        nlohmann::json answer = nlohmann::json::parse(response.body, nullptr, false);
+        if (!response.ok() || !answer.is_object() || answer.value("name", std::string()) != "P2Play") {
+            return false;
+        }
+        if (version) *version = answer.value("version", std::string());
+        return true;
+    }
+
+    std::vector<Discovery::Server> p2playServers() {
+        std::vector<Discovery::Server> servers;
+        for (uint32_t ip: scan(8090)) {
+            const std::string url = "http://" + text(ip) + ":8090/";
+            std::string version;
+            if (isP2PlayNode(url, &version)) {
+                std::string label = "P2Play";
+                if (!version.empty()) label += " " + version;
+                label += " (" + text(ip) + ")";
+                servers.push_back({"P2Play", label, url});
+            }
+        }
+        return servers;
+    }
+
+    // One visible TorrServer type: MatriX is identified by /echo, Silo by /api/system/ping.
+    // Native P2Play is excluded first by its separate /api/p2play/version identity.
     std::vector<Discovery::Server> torrServers() {
         std::vector<Discovery::Server> servers;
         for (uint32_t ip: scan(8090)) {
             std::string url = "http://" + text(ip) + ":8090/";
+            if (isP2PlayNode(url)) continue;
 
             Http::Response matrix = Http::get(url + "echo", 3);
             std::string version = matrix.body.substr(0, 40);
@@ -247,7 +275,8 @@ namespace pplay::Discovery {
             return true;
         }
 #endif
-        return type == Io::NetworkType::Dlna || type == Io::NetworkType::TorrServe;
+        return type == Io::NetworkType::Dlna || type == Io::NetworkType::TorrServe ||
+               type == Io::NetworkType::P2Play;
     }
 
     void start(Io::NetworkType type) {
@@ -268,6 +297,8 @@ namespace pplay::Discovery {
                 }
             } else if (type == Io::NetworkType::TorrServe) {
                 servers = torrServers();
+            } else if (type == Io::NetworkType::P2Play) {
+                servers = p2playServers();
             } else if (type == Io::NetworkType::Smb) {
                 servers = smbServers();
             }

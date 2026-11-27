@@ -84,6 +84,15 @@ namespace {
             if (found != g_siloProtocol.end()) return found->second;
         }
 
+        const auto product = publicProbe(root + "api/p2play/version");
+        const auto productJson = nlohmann::json::parse(product.body, nullptr, false);
+        if (product.ok() && productJson.is_object() &&
+            productJson.value("name", std::string()) == "P2Play") {
+            std::lock_guard<std::mutex> lock(g_protocolMutex);
+            g_siloProtocol[root] = false;
+            return false;
+        }
+
         const auto matrix = publicProbe(root + "echo");
         const std::string echo = matrix.body;
         if (matrix.ok() && !echo.empty() &&
