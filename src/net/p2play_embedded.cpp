@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstring>
+#include "net_http.h"
 #include <mutex>
 #include <thread>
 #include <utility>
@@ -28,6 +30,40 @@ namespace pplay::P2PlayEmbedded {
         bool g_shuttingDown = false;
         std::string g_dataDir;
         std::string g_ownerPassword;
+
+        int fetchPoster(const char *url, const char *resolve, char *body, size_t capacity, size_t *written,
+                        char *contentType, size_t contentTypeCapacity, char *location, size_t locationCapacity,
+                        char *error, size_t errorCapacity, void *) {
+            if (written) *written = 0;
+            auto copy = [](char *out, size_t cap, const std::string &value) {
+                if (!out || cap == 0) return;
+                const size_t n = std::min(cap - 1, value.size());
+                std::memcpy(out, value.data(), n);
+                out[n] = '\\0';
+            };
+            pplay::Http::Request request;
+            request.url = url ? url : "";
+            request.context = "http://127.0.0.1:8090";
+            request.resolve = resolve ? resolve : "";
+            request.timeout = 20;
+            request.maxSize = capacity;
+            request.useNetworkCredentials = false;
+            request.followRedirects = false;
+            request.headers = {"Accept: image/avif,image/webp,image/png,image/jpeg,image/gif"};
+            pplay::Http::Response response = pplay::Http::perform(request);
+            if (response.body.size() > capacity) {
+                copy(error, errorCapacity, "poster response exceeds configured limit");
+                return 0;
+            }
+            if (!response.body.empty() && body) {
+                std::memcpy(body, response.body.data(), response.body.size());
+                if (written) *written = response.body.size();
+            }
+            copy(contentType, contentTypeCapacity, "");
+            copy(location, locationCapacity, response.location);
+            copy(error, errorCapacity, response.error);
+            return static_cast<int>(response.status);
+        }
 
         void logLine(const char *line, void *) {
             Utility::log(Utility::LogLevel::Info, std::string("P2Play: ") + (line != nullptr ? line : ""));
@@ -72,6 +108,7 @@ namespace pplay::P2PlayEmbedded {
                 config.platform = platform.c_str();
                 config.log = logLine;
                 config.owner_password = password.c_str();
+                config.http_get = fetchPoster;
                 const auto startedAt = std::chrono::steady_clock::now();
                 Utility::log(Utility::LogLevel::Info, "P2Play: embedded core start requested");
                 const int result = p2play_start(&config);

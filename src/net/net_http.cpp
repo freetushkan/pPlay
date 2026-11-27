@@ -31,6 +31,11 @@ namespace {
         size_t maxSize;
     };
 
+    struct HeaderContext {
+        time_t *date;
+        std::string *location;
+    };
+
     size_t writeCallback(void *ptr, size_t size, size_t count, void *userdata) {
         auto *ctx = static_cast<WriteContext *>(userdata);
         size_t len = size * count;
@@ -44,12 +49,16 @@ namespace {
     // "Date" header
     size_t headerCallback(char *ptr, size_t size, size_t count, void *userdata) {
         size_t len = size * count;
+        auto *ctx = static_cast<HeaderContext *>(userdata);
         if (len > 5 && strncasecmp(ptr, "date:", 5) == 0) {
             std::string value(ptr + 5, len - 5);
             time_t date = curl_getdate(value.c_str(), nullptr);
-            if (date > 0) {
-                *static_cast<time_t *>(userdata) = date;
-            }
+            if (date > 0) *ctx->date = date;
+        } else if (len > 9 && strncasecmp(ptr, "location:", 9) == 0) {
+            std::string value(ptr + 9, len - 9);
+            const size_t first = value.find_first_not_of(" \t");
+            const size_t last = value.find_last_not_of(" \t\r\n");
+            *ctx->location = first == std::string::npos ? std::string() : value.substr(first, last - first + 1);
         }
         return len;
     }
@@ -181,11 +190,12 @@ Http::Response Http::perform(const Request &request) {
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &ctx);
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, headerCallback);
-    curl_easy_setopt(curl, CURLOPT_HEADERDATA, &response.date);
+    HeaderContext headerContext{&response.date, &response.location};
+    curl_easy_setopt(curl, CURLOPT_HEADERDATA, &headerContext);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, (long) request.timeout);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, (long) std::min(request.timeout, 10));
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 5L);
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, request.followRedirects ? 1L : 0L);
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, request.followRedirects ? 5L : 0L);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
     curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
@@ -220,6 +230,11 @@ Http::Response Http::perform(const Request &request) {
         (void) parsed;
     }
 
+    struct curl_slist *resolve = nullptr;
+    if (!request.resolve.empty()) {
+        resolve = curl_slist_append(resolve, request.resolve.c_str());
+        curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve);
+    }
     struct curl_slist *headers = nullptr;
     for (auto &h: request.headers) {
         headers = curl_slist_append(headers, h.c_str());
@@ -249,9 +264,8 @@ Http::Response Http::perform(const Request &request) {
     Utility::log(Utility::LogLevel::Debug, "Http::" + request.method + " status=" + std::to_string(response.status)
                                                    + " size=" + std::to_string(response.body.size()));
 
-    if (headers) {
-        curl_slist_free_all(headers);
-    }
+    if (headers) curl_slist_free_all(headers);
+    if (resolve) curl_slist_free_all(resolve);
     curl_easy_cleanup(curl);
     return response;
 }
