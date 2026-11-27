@@ -15,15 +15,61 @@ permissions:
   contents: write
 
 env:
-  P2PLAY_CORE_REF: 1f30ceebd253cd4a71e3b978fcf0e8b70ac1f3dd
-  P2PLAY_CORE_BRANCH: master
+  # Stable pPlay/master builds (including releases targeting master) keep this reviewed core SHA.
+  # Every other source branch resolves P2Play/master once per workflow run below.
+  P2PLAY_CORE_REPOSITORY: https://github.com/freetushkan/P2Play.git
+  P2PLAY_CORE_MASTER_SHA: 1f30ceebd253cd4a71e3b978fcf0e8b70ac1f3dd
+  P2PLAY_BOOST_VERSION: "1.86.0"
   P2PLAY_BOOST_INCLUDE_DIR: .cache/p2play-boost-headers
 
 jobs:
+  resolve-p2play:
+    name: Resolve embedded P2Play revision
+    runs-on: ubuntu-latest
+    outputs:
+      core_sha: ${{ steps.resolve.outputs.core_sha }}
+      core_source: ${{ steps.resolve.outputs.core_source }}
+    steps:
+      - name: Select one immutable P2Play revision for this run
+        id: resolve
+        env:
+          SOURCE_BRANCH: ${{ github.head_ref || github.event.release.target_commitish || github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          # PRs use the source branch (github.head_ref), not the synthetic refs/pull/... ref.
+          # Only builds explicitly sourced from pPlay/master use the stable lock.
+          if [[ "$SOURCE_BRANCH" == "master" ]]; then
+            CORE_SHA="$P2PLAY_CORE_MASTER_SHA"
+            CORE_SOURCE="pPlay/master lock"
+          else
+            CORE_SHA="$(git ls-remote --exit-code "$P2PLAY_CORE_REPOSITORY" refs/heads/master | awk 'NR == 1 {print $1}')"
+            CORE_SOURCE="latest P2Play/master"
+          fi
+
+          if [[ ! "$CORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Could not resolve a full 40-character P2Play commit SHA: $CORE_SHA" >&2
+            exit 1
+          fi
+
+          {
+            echo "core_sha=$CORE_SHA"
+            echo "core_source=$CORE_SOURCE"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Embedded P2Play core"
+            echo "- Selection: $CORE_SOURCE"
+            echo "- Repository: $P2PLAY_CORE_REPOSITORY"
+            echo "- Immutable SHA: `$CORE_SHA`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   switch:
+    needs: resolve-p2play
     runs-on: ubuntu-24.04
     container: devkitpro/devkita64:latest
     env:
+      P2PLAY_CORE_SHA: ${{ needs.resolve-p2play.outputs.core_sha }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
@@ -105,7 +151,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ${{ env.P2PLAY_BOOST_INCLUDE_DIR }}
-          key: p2play-boost-1.86.0-v1
+          key: p2play-boost-${{ env.P2PLAY_BOOST_VERSION }}-${{ needs.resolve-p2play.outputs.core_sha }}-v1
       - name: Prepare embedded P2Play core
         run: ci/prepare-p2play-embedded.sh
 
@@ -151,8 +197,10 @@ jobs:
         if: always()
         run: bash ci/summarize-diagnostics.sh "pPlay Switch" job.log
   ps4:
+    needs: resolve-p2play
     runs-on: ubuntu-24.04
     env:
+      P2PLAY_CORE_SHA: ${{ needs.resolve-p2play.outputs.core_sha }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
@@ -243,7 +291,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ${{ env.P2PLAY_BOOST_INCLUDE_DIR }}
-          key: p2play-boost-1.86.0-v1
+          key: p2play-boost-${{ env.P2PLAY_BOOST_VERSION }}-${{ needs.resolve-p2play.outputs.core_sha }}-v1
       - name: Prepare embedded P2Play core
         run: ci/prepare-p2play-embedded.sh
 
@@ -291,8 +339,10 @@ jobs:
         if: always()
         run: bash ci/summarize-diagnostics.sh "pPlay PS4" job.log
   ps5:
+    needs: resolve-p2play
     runs-on: ubuntu-24.04
     env:
+      P2PLAY_CORE_SHA: ${{ needs.resolve-p2play.outputs.core_sha }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
       # pinned SDK (v0.41+: GPU OpenGL through Mesa), bump with a libplacebo/libmpv rebuild
       PS5_SDK_VERSION: v0.41.1
@@ -367,7 +417,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ${{ env.P2PLAY_BOOST_INCLUDE_DIR }}
-          key: p2play-boost-1.86.0-v1
+          key: p2play-boost-${{ env.P2PLAY_BOOST_VERSION }}-${{ needs.resolve-p2play.outputs.core_sha }}-v1
       - name: Prepare embedded P2Play core
         run: ci/prepare-p2play-embedded.sh
 
@@ -493,9 +543,11 @@ jobs:
         if: always()
         run: bash ci/summarize-diagnostics.sh "pPlay PS5 package" job.log
   linux:
+    needs: resolve-p2play
     runs-on: ubuntu-24.04
     container: ubuntu:22.04
     env:
+      P2PLAY_CORE_SHA: ${{ needs.resolve-p2play.outputs.core_sha }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
       DEBIAN_FRONTEND: noninteractive
       PPLAY_STATIC: /opt/pplay-static
@@ -534,7 +586,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ${{ env.P2PLAY_BOOST_INCLUDE_DIR }}
-          key: p2play-boost-1.86.0-v1
+          key: p2play-boost-${{ env.P2PLAY_BOOST_VERSION }}-${{ needs.resolve-p2play.outputs.core_sha }}-v1
       - name: Prepare embedded P2Play core
         run: ci/prepare-p2play-embedded.sh
 
@@ -586,8 +638,10 @@ jobs:
         if: always()
         run: bash ci/summarize-diagnostics.sh "pPlay Linux" job.log
   android:
+    needs: resolve-p2play
     runs-on: ubuntu-24.04
     env:
+      P2PLAY_CORE_SHA: ${{ needs.resolve-p2play.outputs.core_sha }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
       # mpv-android's build scripts (ffmpeg, mpv, libass...), SDL2, libpng
       MPV_ANDROID_REV: 255901dd586fa750000fa0075f69d6ffdd26cd9c
@@ -638,7 +692,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ${{ env.P2PLAY_BOOST_INCLUDE_DIR }}
-          key: p2play-boost-1.86.0-v1
+          key: p2play-boost-${{ env.P2PLAY_BOOST_VERSION }}-${{ needs.resolve-p2play.outputs.core_sha }}-v1
       - name: Build pPlay
         env:
           # optional: a stable signing key (else the debug one of the runner, a new one each time)

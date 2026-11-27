@@ -14,7 +14,7 @@ SDL="$(realpath "$2")"
 PNG="$(realpath "$3")"
 GLM="$(realpath "$4")"
 
-# One pinned core checkout / Boost header tree is shared by both Android ABIs.
+# One workflow-resolved core SHA / Boost header tree is shared by both Android ABIs.
 source "$ROOT/ci/prepare-p2play-embedded.sh"
 
 # libcross2d's Android device: a Device (sdl2_renderer.cpp asks its display size)
