@@ -24,7 +24,7 @@ env:
 
 jobs:
   resolve-p2play:
-    name: Resolve embedded P2Play revision
+    name: Get P2Play revision
     runs-on: ubuntu-latest
     outputs:
       core_sha: ${{ steps.resolve.outputs.core_sha }}
