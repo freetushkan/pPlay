@@ -439,7 +439,7 @@ namespace {
                 category = tags[0].get<std::string>();
             }
             // Persistent library adds use the product-owned, versioned API.
-            // The detailed Silo-compatible status route below is retained for file_stats.
+            // The native detailed torrent status response below contains file_stats.
             json addBody = {
                     {"link", link},
                     {"title", record.value("title", std::string())},
