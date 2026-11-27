@@ -61,7 +61,7 @@ jobs:
             echo "### Embedded P2Play core"
             echo "- Selection: $CORE_SOURCE"
             echo "- Repository: $P2PLAY_CORE_REPOSITORY"
-            echo "- Immutable SHA: `$CORE_SHA`"
+            printf '%s\n' "- Immutable SHA: $CORE_SHA" >> "$GITHUB_STEP_SUMMARY"
           } >> "$GITHUB_STEP_SUMMARY"
 
   switch:
