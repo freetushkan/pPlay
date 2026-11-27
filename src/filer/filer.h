@@ -147,6 +147,9 @@ private:
     int item_max;
     int item_index = 0;
     std::vector<int> item_index_prev;
+    // Actual navigation parents are not always textual path parents (for example
+    // P2Play's virtual directories), so keep the path paired with the selection.
+    std::vector<std::string> path_prev;
     c2d::C2DMutex *mutex;
 
     bool dirty = false;
@@ -168,6 +171,8 @@ private:
     std::function<void(const MediaFile &)> pickCallback;
     std::string pickPrevPath;
     std::string pickPrevSelection;
+    std::vector<int> pickPrevIndexHistory;
+    std::vector<std::string> pickPrevPathHistory;
     float crumbsWidth = 0;
 
     bool pointerDown = false;

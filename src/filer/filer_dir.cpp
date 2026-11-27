@@ -40,6 +40,8 @@ void Filer::startPick(const std::vector<std::string> &extensions, const std::str
                       std::function<void(const MediaFile &)> onPick) {
     pickPrevPath = path;
     pickPrevSelection = files.empty() ? "" : getSelection().path;
+    pickPrevIndexHistory = item_index_prev;
+    pickPrevPathHistory = path_prev;
     pickExtensions = extensions;
     pickCallback = std::move(onPick);
     picking = true;
@@ -60,6 +62,10 @@ void Filer::endPick() {
     if (getDir(pickPrevPath) && !pickPrevSelection.empty()) {
         selectByPath(pickPrevSelection);
     }
+    item_index_prev = pickPrevIndexHistory;
+    path_prev = pickPrevPathHistory;
+    pickPrevIndexHistory.clear();
+    pickPrevPathHistory.clear();
 }
 
 namespace {
@@ -288,6 +294,7 @@ void Filer::enter(int index) {
         return;
     }
 
+    const std::string previousPath = path;
     if (!file.path.empty() && file.name != "..") {
         success = getDir(file.path);
     } else if (path == "/") {
@@ -296,28 +303,34 @@ void Filer::enter(int index) {
         success = getDir(path + "/" + file.name);
     }
     if (success) {
+        path_prev.push_back(previousPath);
         item_index_prev.push_back(index);
         setSelection(item_index);
     }
 }
 
 void Filer::exit() {
-    if (path.empty()) return;
-    std::string p = path;
+    // if (path.empty()) return;
+    // std::string p = path;
+    const bool hasHistory = !path_prev.empty();
+    std::string p = hasHistory ? path_prev.back() : path;
 
-    if (isTopLevel(p)) {
-        return;
+    // Textual parent traversal is only a fallback for paths that were not opened
+    // through this filer (for example, a restored last location). Virtual filesystems
+    // may expose routes whose semantic parent is not the preceding URL segment.
+    if (!hasHistory) {
+        if (isTopLevel(p)) {
+            return;
+        }
+        while (!p.empty() && p.back() != '/') {
+            p.erase(p.size() - 1);
+        }
+        if (p.size() > 1 && Utility::endsWith(p, "/")) {
+            p.erase(p.size() - 1);
+        }
     }
 
-    while (p.back() != '/') {
-        p.erase(p.size() - 1);
-    }
-
-    if (p.size() > 1 && Utility::endsWith(p, "/")) {
-        p.erase(p.size() - 1);
-    }
-
-    if (getDir(p)) {
+    if (!p.empty() && getDir(p)) {
         if (!item_index_prev.empty()) {
             int last = (int) item_index_prev.size() - 1;
             mutex->lock();
@@ -327,6 +340,9 @@ void Filer::exit() {
                 item_index = item_index_prev[last];
             }
             item_index_prev.erase(item_index_prev.end() - 1);
+        }
+        if (hasHistory) {
+            path_prev.pop_back();
         }
         setSelection(item_index);
     }
@@ -339,6 +355,7 @@ std::string Filer::getError() {
 
 void Filer::clearHistory() {
     item_index_prev.clear();
+    path_prev.clear();
 }
 
 std::string Filer::getPath() {

@@ -3,6 +3,7 @@
 //
 #include "p2play_embedded.h"
 
+#include <algorithm>
 #include <chrono>
 #include <mutex>
 #include <thread>
@@ -233,6 +234,27 @@ namespace pplay::P2PlayEmbedded {
         std::lock_guard<std::mutex> lock(g_mutex);
         return g_running && g_wanted && !g_draining && g_workerMode == WorkerMode::None &&
                p2play_http_port() == 8090;
+    }
+
+    bool waitUntilReady(int timeoutSeconds) {
+        const auto deadline = std::chrono::steady_clock::now()
+                              + std::chrono::seconds(std::max(0, timeoutSeconds));
+        for (;;) {
+            update();
+            if (isReady()) {
+                return true;
+            }
+            {
+                std::lock_guard<std::mutex> lock(g_mutex);
+                if (!g_wanted || g_failed) {
+                    return false;
+                }
+            }
+            if (std::chrono::steady_clock::now() >= deadline) {
+                return false;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
     }
 
     void shutdown() {

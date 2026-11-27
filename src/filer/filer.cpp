@@ -130,11 +130,14 @@ void Filer::copyStateFrom(const Filer &other) {
     top = other.top;
     scrollOffset = item_height * (other.item_height > 0 ? other.scrollOffset / other.item_height : 0.0f);
     item_index_prev = other.item_index_prev;
+    path_prev = other.path_prev;
     picking = other.picking;
     pickExtensions = other.pickExtensions;
     pickCallback = other.pickCallback;
     pickPrevPath = other.pickPrevPath;
     pickPrevSelection = other.pickPrevSelection;
+    pickPrevIndexHistory = other.pickPrevIndexHistory;
+    pickPrevPathHistory = other.pickPrevPathHistory;
     dirty = other.dirty;
     playerWasFullscreen = other.playerWasFullscreen;
     playlistGeneration = other.playlistGeneration;
@@ -427,7 +430,7 @@ bool Filer::onInput(c2d::Input::Player *players) {
                 }
                 std::string target;
                 if (!dragged && crumbs->pathAt(position, &target) && target != path) {
-                    item_index_prev.clear();
+                    clearHistory();
                     getDir(target);
                 }
                 return true;
@@ -724,7 +727,12 @@ void Filer::searchP2Play(const std::string &entryPath) {
     const std::string results = pplay::P2Play::searchResultsPath(entryPath, query, selectedLists);
     if (results.empty()) return;
     const int previous = item_index;
-    if (getDir(results)) { item_index_prev.push_back(previous); setSelection(0); }
+    const std::string previousPath = path;
+    if (getDir(results)) {
+        path_prev.push_back(previousPath);
+        item_index_prev.push_back(previous);
+        setSelection(0);
+    }
 }
 
 void Filer::showP2PlayRecord(const MediaFile &file) {
@@ -752,8 +760,13 @@ void Filer::showP2PlayRecord(const MediaFile &file) {
     }
     main->getStatus()->hide();
     const int previous = item_index;
+    const std::string previousPath = path;
     const std::string folder = pplay::P2Play::directTorrentPath(file.path, torrent.hash);
-    if (!folder.empty() && getDir(folder)) { item_index_prev.push_back(previous); setSelection(0); }
+    if (!folder.empty() && getDir(folder)) {
+        path_prev.push_back(previousPath);
+        item_index_prev.push_back(previous);
+        setSelection(0);
+    }
 }
 
 void Filer::openP2PlayLink(const std::string &url, const std::string &name) {
@@ -789,7 +802,7 @@ void Filer::openP2PlayLink(const std::string &url, const std::string &name) {
     }
     main->getStatus()->hide();
     const std::string folder = pplay::P2Play::directTorrentPath(root, torrent.hash);
-    if (!folder.empty() && getDir(folder)) { item_index_prev.clear(); setSelection(0); }
+    if (!folder.empty() && getDir(folder)) { clearHistory(); setSelection(0); }
 }
 
 void Filer::resetProgress(const MediaFile &file) {

@@ -8,6 +8,8 @@
 
 namespace pplay::P2PlayEmbedded {
     bool activate(const std::string &dataDir, const std::string &ownerPassword);
+    // Wait for a just-activated embedded core without exposing a transient startup error.
+    bool waitUntilReady(int timeoutSeconds);
     void deactivate();
     void update();
     bool isReady();

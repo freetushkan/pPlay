@@ -838,7 +838,17 @@ namespace pplay::P2Play {
             return files;
         }
         const std::string relative = relativeOf(context, path);
-        const std::vector<std::string> parts = splitPath(relative);
+        std::vector<std::string> parts = splitPath(relative);
+        // Breadcrumbs and restored paths can address intermediate URL segments
+        // of this virtual filesystem. Treat those non-leaf route prefixes as
+        // its landing directory rather than rejecting them as malformed routes.
+        if (parts.size() == 1 && parts[0] == ".p2play") {
+            parts.clear();
+        } else if (parts.size() == 2 && parts[0] == ".p2play" &&
+                   (parts[1] == "list" || parts[1] == "record" ||
+                    parts[1] == "results" || parts[1] == "file")) {
+            parts.clear();
+        }
         auto fail = [&](const std::string &message) {
             if (error != nullptr) {
                 *error = message;
