@@ -131,26 +131,26 @@ namespace {
         return open;
     }
 
-    // the same port: TorrServer answers /echo with its version, TS Silo /api/system/ping with
-    // {"status":"ok"} (not the other one)
-    std::vector<Discovery::Server> torrServers(bool silo) {
+    // One visible TorrServer type. MatriX answers /echo; the Silo build answers
+    // /api/system/ping. Check MatriX first because P2Play itself also exposes the Silo
+    // compatibility ping while retaining its MatriX /echo route.
+    std::vector<Discovery::Server> torrServers() {
         std::vector<Discovery::Server> servers;
         for (uint32_t ip: scan(8090)) {
             std::string url = "http://" + text(ip) + ":8090/";
-            if (silo) {
-                Http::Response response = Http::get(url + "api/system/ping", 3);
-                nlohmann::json json = nlohmann::json::parse(response.body, nullptr, false);
-                if (response.ok() && !json.is_discarded() && json.is_object() && json.contains("status")
-                    && json["status"] == "ok") {
-                    servers.push_back({"TorrServer.Silo", "TorrServer.Silo (" + text(ip) + ")", url});
-                }
+
+            Http::Response matrix = Http::get(url + "echo", 3);
+            std::string version = matrix.body.substr(0, 40);
+            if (matrix.ok() && !version.empty() &&
+                version.find('<') == std::string::npos && version.find('{') == std::string::npos) {
+                servers.push_back({"TorrServer", "TorrServer MatriX " + version + " (" + text(ip) + ")", url});
                 continue;
             }
-            Http::Response response = Http::get(url + "echo", 3);
-            std::string version = response.body.substr(0, 40);
-            if (response.ok() && !version.empty() && version.find('<') == std::string::npos
-                && version.find('{') == std::string::npos) {
-                servers.push_back({"TorrServer.MatriX", "TorrServer.MatriX " + version + " (" + text(ip) + ")", url});
+
+            Http::Response silo = Http::get(url + "api/system/ping", 3);
+            nlohmann::json answer = nlohmann::json::parse(silo.body, nullptr, false);
+            if (silo.ok() && answer.is_object() && answer.value("status", std::string()) == "ok") {
+                servers.push_back({"TorrServer", "TorrServer Silo (" + text(ip) + ")", url});
             }
         }
         return servers;
@@ -247,8 +247,7 @@ namespace pplay::Discovery {
             return true;
         }
 #endif
-        return type == Io::NetworkType::Dlna || type == Io::NetworkType::TorrServe
-               || type == Io::NetworkType::TorrServeSilo;
+        return type == Io::NetworkType::Dlna || type == Io::NetworkType::TorrServe;
     }
 
     void start(Io::NetworkType type) {
@@ -267,8 +266,8 @@ namespace pplay::Discovery {
                 for (auto &s: Dlna::search(4)) {
                     servers.push_back({s.name, s.name, s.location});
                 }
-            } else if (type == Io::NetworkType::TorrServe || type == Io::NetworkType::TorrServeSilo) {
-                servers = torrServers(type == Io::NetworkType::TorrServeSilo);
+            } else if (type == Io::NetworkType::TorrServe) {
+                servers = torrServers();
             } else if (type == Io::NetworkType::Smb) {
                 servers = smbServers();
             }

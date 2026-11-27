@@ -172,6 +172,9 @@ public:
     static const char *networkSmbBufferOption(int index);
     // TS Silo: its api token (got with the user and password, or typed)
     static const char *networkTokenOption(int index);
+    static const char *networkInstanceOption(int index);
+    static const char *networkExternalUrlOption(int index);
+    static const char *networkOwnerPasswordOption(int index);
 
     // True only when neither the current nor legacy settings file existed on startup.
     bool needsDpiScale() const { return firstRun; }

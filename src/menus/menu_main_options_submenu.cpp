@@ -329,30 +329,46 @@ void MenuMainOptionsSubmenu::refreshValues() {
         } else if (network > 0 && Utility::endsWith(name, " users")) {
             const auto type = pplay::Io::parseNetworkType(
                     config->getOption(PPLAYConfig::networkTypeOption(network))->getString());
-            shown = type == pplay::Io::NetworkType::P2Play || type == pplay::Io::NetworkType::P2PlayEmbedded;
-        } else if (network > 0 && Utility::endsWith(name, " url")) {
+            shown = type == pplay::Io::NetworkType::P2Play;
+        } else if (network > 0 && Utility::endsWith(name, " instance")) {
             shown = pplay::Io::parseNetworkType(
-                    config->getOption(PPLAYConfig::networkTypeOption(network))->getString()) !=
-                    pplay::Io::NetworkType::P2PlayEmbedded;
+                    config->getOption(PPLAYConfig::networkTypeOption(network))->getString()) == pplay::Io::NetworkType::P2Play;
+        } else if (network > 0 && Utility::endsWith(name, " owner password")) {
+            shown = pplay::Io::get()->isEmbeddedNetwork(
+                    config->getOption(PPLAYConfig::networkOption(network))->getString());
+        } else if (network > 0 && Utility::endsWith(name, " url")) {
+            shown = !pplay::Io::get()->isEmbeddedNetwork(
+                    config->getOption(PPLAYConfig::networkOption(network))->getString());
         } else if (network > 0 && Utility::endsWith(name, " search")) {
             button->item.value.clear();
             button->item.opens = true;
             button->refreshValue();
             const auto type = pplay::Io::parseNetworkType(
                     config->getOption(PPLAYConfig::networkTypeOption(network))->getString());
-            shown = type != pplay::Io::NetworkType::P2PlayEmbedded && pplay::Discovery::supports(type);
+            shown = !pplay::Io::get()->isEmbeddedNetwork(
+                        config->getOption(PPLAYConfig::networkOption(network))->getString()) &&
+                    pplay::Discovery::supports(type);
         } else if (network > 0 && Utility::endsWith(name, " user")) {
             const auto type = pplay::Io::parseNetworkType(
                     config->getOption(PPLAYConfig::networkTypeOption(network))->getString());
-            shown = type != pplay::Io::NetworkType::P2PlayEmbedded && type != pplay::Io::NetworkType::Dlna;
+            shown = !pplay::Io::get()->isEmbeddedNetwork(
+                        config->getOption(PPLAYConfig::networkOption(network))->getString()) &&
+                    type != pplay::Io::NetworkType::Dlna;
         } else if (network > 0 && Utility::endsWith(name, " token")) {
-            // TS Silo only
+            // Optional cached token for a TorrServer that probes as Silo.
             shown = pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(network))->getString()) ==
-                    pplay::Io::NetworkType::TorrServeSilo;
-        } else if (network > 0 && (Utility::endsWith(name, " user") || Utility::endsWith(name, " password"))) {
-            // DLNA has no login
-            shown = pplay::Io::parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(network))->getString()) !=
-                    pplay::Io::NetworkType::Dlna;
+                    pplay::Io::NetworkType::TorrServe;
+        } else if (network > 0 && Utility::endsWith(name, " password")) {
+            // The built-in instance authenticates as owner with its separate password field.
+            const auto type = pplay::Io::parseNetworkType(
+                    config->getOption(PPLAYConfig::networkTypeOption(network))->getString());
+            shown = type != pplay::Io::NetworkType::Dlna &&
+                    !pplay::Io::get()->isEmbeddedNetwork(config->getOption(PPLAYConfig::networkOption(network))->getString());
+        } else if (network > 0 && Utility::endsWith(name, " user")) {
+            const auto type = pplay::Io::parseNetworkType(
+                    config->getOption(PPLAYConfig::networkTypeOption(network))->getString());
+            shown = type != pplay::Io::NetworkType::Dlna &&
+                    !pplay::Io::get()->isEmbeddedNetwork(config->getOption(PPLAYConfig::networkOption(network))->getString());
         } else if (key == OPT_AUTO_DROPS || key == OPT_AUTO_DROPS_TIME || key == OPT_AUTO_QUALITY_DELAY) {
             shown = qualityAuto;
         } else if (key == OPT_AUTO_HW_RETRY || key == OPT_AUTO_HW_RETRIES) {
@@ -704,18 +720,33 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
         pplay::Utility::setAccentColor(item->data_str);
     }
     option->setString(newValue);
+    int instanceNetwork = PPLAYConfig::networkOf(option_name, "_INSTANCE");
+    if (instanceNetwork > 0) {
+        auto *config = main->getConfig();
+        if (newValue == "Built-in") {
+            const std::string external = PPLAYConfig::withoutCredentials(
+                    config->getOption(PPLAYConfig::networkOption(instanceNetwork))->getString());
+            if (!external.empty() && external != "http://127.0.0.1:8090") {
+                config->getOption(PPLAYConfig::networkExternalUrlOption(instanceNetwork))->setString(external);
+            }
+            config->setNetworkUrl(instanceNetwork, "http://127.0.0.1:8090");
+        } else {
+            const std::string external = config->getOption(PPLAYConfig::networkExternalUrlOption(instanceNetwork))->getString();
+            config->setNetworkUrl(instanceNetwork, external);
+        }
+    }
     int network = PPLAYConfig::networkOf(option_name, "_TYPE");
     if (network > 0) {
         const auto selectedType = pplay::Io::parseNetworkType(newValue);
-        const auto previousType = pplay::Io::parseNetworkType(oldValue);
-        if (selectedType == pplay::Io::NetworkType::P2PlayEmbedded) {
-            main->getConfig()->getOption(PPLAYConfig::networkUserOption(network))->setString("owner");
-            main->getConfig()->getOption(PPLAYConfig::networkPasswordOption(network))->setString("");
-            main->getConfig()->setNetworkUrl(network, "http://127.0.0.1:8090");
-        } else if (previousType == pplay::Io::NetworkType::P2PlayEmbedded) {
-            main->getConfig()->getOption(PPLAYConfig::networkPasswordOption(network))->setString("");
-            main->getConfig()->getOption(PPLAYConfig::networkUserOption(network))->setString("");
-            main->getConfig()->setNetworkUrl(network, "");
+        if (selectedType == pplay::Io::NetworkType::P2Play) {
+            if (main->getConfig()->getOption(PPLAYConfig::networkInstanceOption(network))->getString() == "Built-in") {
+                main->getConfig()->setNetworkUrl(network, "http://127.0.0.1:8090");
+            } else {
+                const std::string external = main->getConfig()->getOption(PPLAYConfig::networkExternalUrlOption(network))->getString();
+                if (main->getConfig()->getOption(PPLAYConfig::networkOption(network))->getString().empty() && !external.empty()) {
+                    main->getConfig()->setNetworkUrl(network, external);
+                }
+            }
         } else {
             main->getConfig()->updateNetworkCredentials(network);
         }

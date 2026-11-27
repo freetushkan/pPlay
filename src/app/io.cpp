@@ -88,21 +88,19 @@ bool Io::embeddedReady() const {
 }
 
 const std::vector<std::string> &Io::networkTypeNames() {
-    static const std::vector<std::string> names = {"TorrServer.MatriX", "Samba", "FTP", "HTTP", "WebDAV",
-                                                   "DLNA", "TorrServer.Silo", "P2Play", "P2Play_embedded"};
+    static const std::vector<std::string> names = {"TorrServer", "Samba", "FTP", "HTTP", "WebDAV", "DLNA", "P2Play"};
     return names;
 }
 
 std::string Io::networkTypeName(NetworkType type) {
     switch (type) {
         case NetworkType::TorrServe:
-            return "TorrServer.MatriX";
+        case NetworkType::TorrServeSilo:
+            return "TorrServer";
         case NetworkType::P2Play:
             return "P2Play";
         case NetworkType::P2PlayEmbedded:
-            return "P2Play_embedded";
-        case NetworkType::TorrServeSilo:
-            return "TorrServer.Silo";
+            return "P2Play";
         case NetworkType::Smb:
             return "Samba";
         case NetworkType::Ftp:
@@ -120,17 +118,12 @@ std::string Io::networkTypeName(NetworkType type) {
 
 Io::NetworkType Io::parseNetworkType(const std::string &name) {
     const std::string n = c2d::Utility::toLower(name);
-    if (n == "torrserver.matrix" || n == "torrserver" || n == "torrserve" || n == "ts_matrix") {
+    if (n == "torrserver.matrix" || n == "torrserver.silo" || n == "torrserver" ||
+        n == "torrserve" || n == "ts_matrix" || n == "ts_silo" || n == "silo") {
         return NetworkType::TorrServe;
     }
-    if (n == "torrserver.silo" || n == "ts_silo" || n == "silo") {
-        return NetworkType::TorrServeSilo;
-    }
-    if (n == "p2play") {
+    if (n == "p2play" || n == "p2play_embedded" || n == "p2play-embedded") {
         return NetworkType::P2Play;
-    }
-    if (n == "p2play_embedded" || n == "p2play-embedded") {
-        return NetworkType::P2PlayEmbedded;
     }
     if (n == "samba" || n == "smb") {
         return NetworkType::Smb;
@@ -233,7 +226,7 @@ std::vector<c2d::Io::File> Io::list(const DeviceType &type, const std::string &p
                             "Io::" + networkTypeName(getNetworkType(path)) + " path=" + path
                                     + " entries=" + std::to_string(files.size()));
     } else if (type == DeviceType::P2Play) {
-        if (getNetworkType(path) == NetworkType::P2PlayEmbedded && !P2PlayEmbedded::isReady()) {
+        if (isEmbeddedNetwork(path) && !P2PlayEmbedded::isReady()) {
             failed = "Embedded P2Play is starting, stopping, or unavailable; check the owner password";
         } else {
             files = pplay::P2Play::getDirList(path, timeout, &failed);
@@ -252,7 +245,7 @@ std::vector<c2d::Io::File> Io::list(const DeviceType &type, const std::string &p
 #endif
     // Refused credentials / unavailable embedded server: do not display a stale offline cache.
     bool refused = failed.find(" 401") != std::string::npos || failed.find(" 403") != std::string::npos ||
-                   (getNetworkType(path) == NetworkType::P2PlayEmbedded && !P2PlayEmbedded::isReady());
+                   (isEmbeddedNetwork(path) && !P2PlayEmbedded::isReady());
 #ifdef __SMB2__
     refused = refused || Smb::isRefusal(failed);
 #endif
@@ -325,11 +318,11 @@ void Io::forgetNetworks() {
     P2Play::forgetFailures();
     const int index = currentNetwork.load();
     if (config != nullptr && index > 0 && index <= config->getNetworkCount() &&
-        parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString()) ==
-                NetworkType::P2PlayEmbedded) {
+        parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString()) == NetworkType::P2Play &&
+        config->getOption(PPLAYConfig::networkInstanceOption(index))->getString() == "Built-in") {
         const std::string dataDir = getDataPath() + "p2play_embedded/";
         create(dataDir);
-        const std::string password = config->getOption(PPLAYConfig::networkPasswordOption(index))->getString();
+        const std::string password = config->getOption(PPLAYConfig::networkOwnerPasswordOption(index))->getString();
         P2PlayEmbedded::activate(dataDir, password);
     } else {
         P2PlayEmbedded::deactivate();
@@ -422,8 +415,13 @@ bool Io::loginOf(const std::string &url, std::string *user, std::string *passwor
     if (index < 1) {
         return false;
     }
-    *user = config->getOption(PPLAYConfig::networkUserOption(index))->getString();
-    *password = config->getOption(PPLAYConfig::networkPasswordOption(index))->getString();
+    if (isEmbeddedNetwork(url)) {
+        *user = "owner";
+        *password = config->getOption(PPLAYConfig::networkOwnerPasswordOption(index))->getString();
+    } else {
+        *user = config->getOption(PPLAYConfig::networkUserOption(index))->getString();
+        *password = config->getOption(PPLAYConfig::networkPasswordOption(index))->getString();
+    }
     return true;
 }
 
@@ -432,14 +430,13 @@ bool Io::credentialsOf(const std::string &url, std::string *user, std::string *p
     if (index < 1) {
         return false;
     }
-    // DLNA has no login, TS Silo a token instead
+    // Dialect is discovered from TorrServer's public endpoints. Silo uses a Bearer token;
+    // MatriX uses Basic credentials.
     NetworkType type = parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString());
-    if (type == NetworkType::Dlna || type == NetworkType::TorrServeSilo) {
+    if (type == NetworkType::Dlna || (type == NetworkType::TorrServe && TorrServe::isSiloServer(url))) {
         return false;
     }
-    *user = config->getOption(PPLAYConfig::networkUserOption(index))->getString();
-    *password = config->getOption(PPLAYConfig::networkPasswordOption(index))->getString();
-    return !user->empty();
+    return loginOf(url, user, password) && !user->empty();
 }
 
 int Io::networkTimeout(const std::string &path) {
@@ -455,6 +452,13 @@ bool Io::tlsVerify(const std::string &url, const std::string &context) {
     return index < 1 || config->getOption(PPLAYConfig::networkTlsOption(index))->getInteger() != 0;
 }
 
+bool Io::isEmbeddedNetwork(const std::string &path) {
+    const int index = findNetwork(path, false);
+    return index > 0 &&
+           parseNetworkType(config->getOption(PPLAYConfig::networkTypeOption(index))->getString()) == NetworkType::P2Play &&
+           config->getOption(PPLAYConfig::networkInstanceOption(index))->getString() == "Built-in";
+}
+
 int Io::networkSync(const std::string &root) {
     int index = findNetwork(root, false);
     return index > 0 ? config->getOption(PPLAYConfig::networkSyncOption(index))->getInteger() : 30;
@@ -468,7 +472,7 @@ int Io::smbBuffer(const std::string &url) {
 std::string Io::withCredentials(const std::string &url) {
     std::string user, password;
     bool http = c2d::Utility::startWith(url, "http://") || c2d::Utility::startWith(url, "https://");
-    if (http && getNetworkType(url) == NetworkType::TorrServeSilo) {
+    if (http && getNetworkType(url) == NetworkType::TorrServe && TorrServe::isSiloServer(url)) {
         // its user (in its paths) not sent, its token instead
         std::string token = TorrServe::tokenOf(url);
         std::string plain = url;

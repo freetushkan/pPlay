@@ -380,8 +380,8 @@ void MenuMain::addNetworkMenus(int i) {
     const std::string name = networkKey(i);
     parents[name] = "Networks";
     std::vector<MenuItem> items;
-    for (const char *suffix: {" type", " name", " url", " user", " password", " token", " timeout", " tls", " sync",
-                              " smb", " search", " users", " up", " down", " delete"}) {
+    for (const char *suffix: {" type", " instance", " name", " url", " user", " password", " owner password", " token",
+                              " timeout", " tls", " sync", " smb", " search", " users", " up", " down", " delete"}) {
 #ifndef __SMB2__
         if (std::string(suffix) == " smb") {
             continue;
@@ -412,7 +412,11 @@ void MenuMain::addNetworkMenus(int i) {
     addText(name + " url", PPLAYConfig::networkOption(i));
     addText(name + " user", PPLAYConfig::networkUserOption(i));
     addText(name + " password", PPLAYConfig::networkPasswordOption(i));
+    addText(name + " owner password", PPLAYConfig::networkOwnerPasswordOption(i));
     addText(name + " token", PPLAYConfig::networkTokenOption(i));
+    std::vector<MenuItem> instanceItems = {MenuItem("External", "", Pos::Top), MenuItem("Built-in", "", Pos::Top)};
+    addSubmenu(name + " instance", "Instance", PPLAYConfig::networkInstanceOption(i), instanceItems,
+               Submenu::ValueType::String);
     std::vector<MenuItem> typeItems;
     for (auto &typeName: pplay::Io::networkTypeNames()) {
         typeItems.emplace_back(typeName, "", Pos::Top);
@@ -484,7 +488,8 @@ void MenuMain::showNetworkUsers(int index, const std::string &select) {
     const auto type = pplay::Io::parseNetworkType(
             main->getConfig()->getOption(PPLAYConfig::networkTypeOption(index))->getString());
     if (type != pplay::Io::NetworkType::P2Play && type != pplay::Io::NetworkType::P2PlayEmbedded) return;
-    if (type == pplay::Io::NetworkType::P2PlayEmbedded) {
+    const std::string configuredUrl = main->getConfig()->getOption(PPLAYConfig::networkOption(index))->getString();
+    if (pplay::Io::get()->isEmbeddedNetwork(configuredUrl)) {
         pplay::Io::get()->setCurrentNetwork(index);
         if (!pplay::Io::get()->embeddedReady()) {
             main->getStatus()->show("Wait", pplay::tr("Embedded P2Play is starting. Open Users again shortly."));
@@ -605,9 +610,10 @@ void MenuMain::updateNetworkLabels() {
         const std::string url =
                 PPLAYConfig::withoutCredentials(main->getConfig()->getOption(PPLAYConfig::networkOption(i))->getString());
         const std::string type = main->getConfig()->getOption(PPLAYConfig::networkTypeOption(i))->getString();
+        const bool builtIn = main->getConfig()->getOption(PPLAYConfig::networkInstanceOption(i))->getString() == "Built-in";
         // the item name stays the menu key
         std::string label = pplay::tr("Network") + " " + std::to_string(i);
-        if (!url.empty() && !name.empty() && name != key) {
+        if (!builtIn && !url.empty() && !name.empty() && name != key) {
             label += " (" + name + ")";
         }
         for (auto *button: getMenuMainOptionsSubmenu("Networks")->getButtons()) {
@@ -630,8 +636,11 @@ void MenuMain::updateNetworkLabels() {
                 } else if (button->item.name == key + " user") {
                     button->item.label = pplay::tr("User");
                 } else if (button->item.name == key + " password") {
-                    const bool embedded = pplay::Io::parseNetworkType(type) == pplay::Io::NetworkType::P2PlayEmbedded;
-                    button->item.label = pplay::tr(embedded ? "Owner password" : "Password");
+                    button->item.label = pplay::tr("Password");
+                } else if (button->item.name == key + " owner password") {
+                    button->item.label = pplay::tr("Owner password");
+                } else if (button->item.name == key + " instance") {
+                    button->item.label = pplay::tr("Instance");
                 } else if (button->item.name == key + " token") {
                     button->item.label = pplay::tr("Token");
                 } else if (button->item.name == key + " search") {
@@ -656,14 +665,16 @@ void MenuMain::updateNetworkLabels() {
                 button->refreshText();
             }
         }
-        for (const char *suffix: {" name", " url", " user", " password", " token", " type", " tls", " search", " users"}) {
+        for (const char *suffix: {" name", " url", " user", " password", " owner password", " token", " instance", " type", " tls", " search", " users"}) {
             auto sub = menuMainOptionsSubmenus.find(key + suffix);
             if (sub != menuMainOptionsSubmenus.end()) {
                 std::string what = std::string(suffix) == " name"       ? "Name"
                                    : std::string(suffix) == " url"      ? "URL"
                                    : std::string(suffix) == " user"     ? "User"
                                    : std::string(suffix) == " password" ? "Password"
+                                   : std::string(suffix) == " owner password" ? "Owner password"
                                    : std::string(suffix) == " token"    ? "Token"
+                                   : std::string(suffix) == " instance" ? "Instance"
                                    : std::string(suffix) == " type"     ? "Type"
                                    : std::string(suffix) == " tls"      ? "Certificate check"
                                    : std::string(suffix) == " users"    ? "Users"

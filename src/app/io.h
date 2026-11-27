@@ -37,6 +37,7 @@ namespace pplay {
         int lastP2PlayNetworkIndex();
         bool updateEmbedded();
         bool embeddedReady() const;
+        bool isEmbeddedNetwork(const std::string &path);
 
         // the networks settings changed: the paths found again
         void forgetNetworks();

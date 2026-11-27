@@ -71,7 +71,13 @@ namespace pplay::P2PlayEmbedded {
                 config.platform = platform.c_str();
                 config.log = logLine;
                 config.owner_password = password.c_str();
+                const auto startedAt = std::chrono::steady_clock::now();
+                Utility::log(Utility::LogLevel::Info, "P2Play: embedded core start requested");
                 const int result = p2play_start(&config);
+                const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - startedAt).count();
+                Utility::log(Utility::LogLevel::Info, "P2Play: embedded core start completed in " +
+                        std::to_string(elapsed) + " ms, result=" + std::to_string(result));
                 std::lock_guard<std::mutex> lock(g_mutex);
                 g_workerSuccess = result == 0;
                 g_workerDone = true;
@@ -83,7 +89,13 @@ namespace pplay::P2PlayEmbedded {
             g_workerDone = false;
             g_workerSuccess = false;
             g_worker = std::thread([]() {
+                const auto stoppedAt = std::chrono::steady_clock::now();
+                Utility::log(Utility::LogLevel::Info, "P2Play: embedded core stop requested after drain");
                 p2play_stop();
+                const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - stoppedAt).count();
+                Utility::log(Utility::LogLevel::Info, "P2Play: embedded core stop completed in " +
+                        std::to_string(elapsed) + " ms");
                 std::lock_guard<std::mutex> lock(g_mutex);
                 g_workerSuccess = true;
                 g_workerDone = true;
@@ -107,6 +119,7 @@ namespace pplay::P2PlayEmbedded {
                 if (g_running && !g_draining) {
                     g_draining = true;
                     stopAccepting = true;
+                    Utility::log(Utility::LogLevel::Info, "P2Play: embedded settings changed; draining active streams");
                 } else if (g_workerMode == WorkerMode::Starting) {
                     g_draining = true;
                 }
@@ -138,6 +151,7 @@ namespace pplay::P2PlayEmbedded {
             if (g_running && !g_draining) {
                 g_draining = true;
                 stopAccepting = true;
+                Utility::log(Utility::LogLevel::Info, "P2Play: embedded network deactivated; draining active streams");
             }
         }
         if (stopAccepting) {
@@ -199,6 +213,14 @@ namespace pplay::P2PlayEmbedded {
         // At process exit Core::stop cancels active sockets and torrent waits.
         // Waiting for zero clients first deadlocks on an incomplete HTTP request
         // or a client still streaming. Source switching keeps graceful draining.
+        if (checkDrain) {
+            const int activeRequests = p2play_active_requests();
+            const int activeStreams = p2play_active_streams();
+            if (forceStop || (activeRequests == 0 && activeStreams == 0)) {
+                Utility::log(Utility::LogLevel::Info, "P2Play: embedded drain complete, active_requests=" +
+                        std::to_string(activeRequests) + " active_streams=" + std::to_string(activeStreams));
+            }
+        }
         if (checkDrain && (forceStop || (p2play_active_requests() == 0 && p2play_active_streams() == 0))) {
             std::lock_guard<std::mutex> lock(g_mutex);
             if (g_running && g_draining && g_workerMode == WorkerMode::None) {

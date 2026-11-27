@@ -51,10 +51,57 @@ namespace {
         return io != nullptr && io->getDeviceType(path) == pplay::Io::DeviceType::TorrServe;
     }
 
-    // TS Silo: /api/torrents (the viewed files in it), /api/stream/<hash>/<index>, a token
+    // The configured type is simply TorrServer. Detect its API dialect using public,
+    // mutually exclusive probes: MatriX /echo first, then Silo /api/system/ping.
+    std::string apiRoot(const std::string &path);
+    std::mutex g_protocolMutex;
+    std::unordered_map<std::string, bool> g_siloProtocol;
+
+    std::string probeRoot(std::string root) {
+        const size_t scheme = root.find("://");
+        if (scheme == std::string::npos) return root;
+        const size_t authorityEnd = root.find_first_of("/?#", scheme + 3);
+        const size_t at = root.rfind('@', authorityEnd == std::string::npos ? std::string::npos : authorityEnd);
+        if (at != std::string::npos && at >= scheme + 3) root.erase(scheme + 3, at + 1 - (scheme + 3));
+        return root;
+    }
+
+    pplay::Http::Response publicProbe(const std::string &url) {
+        pplay::Http::Request request;
+        request.url = url;
+        request.timeout = 3;
+        request.useNetworkCredentials = false;
+        request.headers = {"Accept: application/json, text/plain"};
+        return pplay::Http::perform(request);
+    }
+
     bool isSilo(const std::string &path) {
-        auto *io = pplay::Io::get();
-        return io != nullptr && io->getNetworkType(path) == pplay::Io::NetworkType::TorrServeSilo;
+        const std::string root = probeRoot(apiRoot(path));
+        if (root.empty()) return false;
+        {
+            std::lock_guard<std::mutex> lock(g_protocolMutex);
+            auto found = g_siloProtocol.find(root);
+            if (found != g_siloProtocol.end()) return found->second;
+        }
+
+        const auto matrix = publicProbe(root + "echo");
+        const std::string echo = matrix.body;
+        if (matrix.ok() && !echo.empty() &&
+            echo.find('<') == std::string::npos && echo.find('{') == std::string::npos) {
+            std::lock_guard<std::mutex> lock(g_protocolMutex);
+            g_siloProtocol[root] = false;
+            return false;
+        }
+
+        const auto silo = publicProbe(root + "api/system/ping");
+        const auto json = nlohmann::json::parse(silo.body, nullptr, false);
+        if (silo.ok() && json.is_object() && json.value("status", std::string()) == "ok") {
+            std::lock_guard<std::mutex> lock(g_protocolMutex);
+            g_siloProtocol[root] = true;
+            return true;
+        }
+        // Do not cache failures: a server may still be starting or temporarily offline.
+        return false;
     }
 
     // in the log and the errors
@@ -460,6 +507,7 @@ namespace {
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> g_viewedFailedAt;
     // one request at a time (the others wait for its answer)
     std::mutex g_fetchMutex;
+    std::atomic<int> g_torrentsFetching{0};
     constexpr int FailedRetrySecs = 5;
     // bumped when a server's list changes (torrents added, removed, renamed)
     std::atomic<unsigned int> g_torrentsGeneration{0};
@@ -537,7 +585,16 @@ namespace {
         if (failed) {
             return torrents;
         }
-        std::lock_guard<std::mutex> fetch(g_fetchMutex);
+        const auto waitStarted = std::chrono::steady_clock::now();
+        std::unique_lock<std::mutex> fetch(g_fetchMutex);
+        const auto lockWaitMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - waitStarted).count();
+        // Count list synchronization separately from viewed-mark synchronization so the filer
+        // can expose a single "TorrServer is syncing" state to diagnostics.
+        g_torrentsFetching.fetch_add(1);
+        struct FetchCounter {
+            ~FetchCounter() { g_torrentsFetching.fetch_sub(1); }
+        } fetchCounter;
         // asked by another thread meanwhile
         if (cachedTorrents(root, &torrents, &failed)) {
             *ok = true;
@@ -547,7 +604,17 @@ namespace {
             return torrents;
         }
         long status = 0;
+        const auto requestStarted = std::chrono::steady_clock::now();
         torrents = getTorrents(root, timeout, ok, &status);
+        const auto requestMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - requestStarted).count();
+        if (lockWaitMs >= 100 || requestMs >= 500) {
+            pplay::Utility::log(pplay::Utility::LogLevel::Debug,
+                                "TorrServer sync: lock_wait_ms=" + std::to_string(lockWaitMs) +
+                                " request_ms=" + std::to_string(requestMs) +
+                                " status=" + std::to_string(status) +
+                                " torrents=" + std::to_string(torrents.size()));
+        }
         std::lock_guard<std::mutex> lock(g_cacheMutex);
         // refused: there (not offline), its kept list not shown
         bool refusedNow = status == 401 || status == 403;
@@ -1098,6 +1165,10 @@ namespace {
 
 namespace pplay::TorrServe {
 
+    bool isSiloServer(const std::string &path) {
+        return isSilo(path);
+    }
+
     bool isAllFiles(const std::string &path) {
         if (!isTorrServe(path)) {
             return false;
@@ -1376,7 +1447,7 @@ namespace pplay::TorrServe {
     }
 
     bool isSyncing() {
-        return g_viewedFetching > 0;
+        return g_viewedFetching > 0 || g_torrentsFetching.load() > 0;
     }
 
     void saveViewedCache() {
@@ -1388,6 +1459,10 @@ namespace pplay::TorrServe {
         g_torrentsFailedAt.clear();
         g_viewedFailedAt.clear();
         g_refused.clear();
+        {
+            std::lock_guard<std::mutex> protocols(g_protocolMutex);
+            g_siloProtocol.clear();
+        }
         std::lock_guard<std::mutex> tokens(g_tokenMutex);
         g_tokens.clear();
     }

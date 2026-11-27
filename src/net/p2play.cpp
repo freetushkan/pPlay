@@ -432,17 +432,18 @@ namespace {
             if (tags.is_array() && !tags.empty() && tags[0].is_string()) {
                 category = tags[0].get<std::string>();
             }
+            // Persistent library adds use the product-owned, versioned API.
+            // The detailed Silo-compatible status route below is retained for file_stats.
             json addBody = {
                     {"link", link},
                     {"title", record.value("title", std::string())},
-                    {"poster", record.value("poster", std::string())},
-                    {"category", category},
-                    {"save_to_db", true}};
+                    {"category", category}};
             json added;
-            if (!apiJson(root, context, "/api/torrents", "POST", addBody, timeout, &added, error)) {
+            if (!apiJson(root, context, "/api/v1/torrents", "POST", addBody, timeout, &added, error)) {
                 return false;
             }
-            torrentHash = added.value("hash", std::string());
+            const json addedTorrent = added.value("torrent", json::object());
+            torrentHash = addedTorrent.value("hash", std::string());
             if (torrentHash.empty()) {
                 *error = "P2Play did not return a torrent hash after adding the catalog record";
                 return false;
@@ -496,11 +497,23 @@ namespace {
                     bool save, int timeout, pplay::P2Play::TorrentInfo *torrent, std::string *error) {
         if (link.empty() || !torrent || !error) return false;
         json added;
-        json body = {{"link", link}, {"title", title}, {"poster", poster},
-                     {"category", category}, {"save_to_db", save}};
-        if (!apiJson(root, context, "/api/torrents", "POST", body, timeout, &added, error)) return false;
-        const std::string hash = added.value("hash", std::string());
-        if (hash.empty()) { *error = "P2Play did not return a torrent hash"; return false; }
+        std::string hash;
+        if (save) {
+            // The new native route always adds the torrent to this user's library.
+            // Poster remains a catalog-media concern and is not part of this API contract.
+            json body = {{"link", link}, {"title", title}, {"category", category}};
+            if (!apiJson(root, context, "/api/v1/torrents", "POST", body, timeout, &added, error)) return false;
+            const json torrentCard = added.value("torrent", json::object());
+            hash = torrentCard.value("hash", std::string());
+        } else {
+            // Preview must not create library membership: keep the explicit non-persistent
+            // Silo add operation until a versioned preview contract is introduced.
+            json body = {{"link", link}, {"title", title}, {"poster", poster},
+                         {"category", category}, {"save_to_db", false}};
+            if (!apiJson(root, context, "/api/torrents", "POST", body, timeout, &added, error)) return false;
+            hash = added.value("hash", std::string());
+        }
+        if (hash.empty()) { *error = "P2Play did not return a torrent hash after adding the link"; return false; }
         const std::string route = "/api/torrents/" + pplay::Http::escape(hash);
         for (int attempt = 0; attempt < 40; ++attempt) {
             json status;
@@ -1116,16 +1129,22 @@ namespace pplay::P2Play {
         const std::string context = rootOf(contextPath);
         if (context.empty()) { *error = "P2Play network path is invalid"; return false; }
         json answer;
-        if (!apiJson(cleanRoot(context), context, "/api/torrents", "GET", noBody(), timeout, &answer, error)) return false;
+        if (!apiJson(cleanRoot(context), context, "/api/v1/library/torrents", "GET", noBody(), timeout, &answer, error)) return false;
         const json *items = nullptr;
-        if (!answer.is_object() || !arrayAt(answer, "torrents", &items)) { *error = "P2Play library response has no torrents array"; return false; }
+        if (!answer.is_object() || !arrayAt(answer, "items", &items)) {
+            *error = "P2Play v1 library response has no items array";
+            return false;
+        }
         for (const auto &item : *items) {
             if (!item.is_object() || !item.value("hash", json()).is_string()) continue;
-            LibraryTorrent t; t.hash = item["hash"].get<std::string>();
+            LibraryTorrent t;
+            t.hash = item["hash"].get<std::string>();
             t.title = item.value("title", std::string("Untitled"));
-            t.size = item.value("total_length", int64_t(0));
+            t.category = item.value("category", std::string());
+            t.size = item.value("size", int64_t(0));
             if (item.value("added_at", json()).is_number_integer()) t.addedAt = item["added_at"].get<int64_t>();
-            const json viewed = item.value("viewed_files", json::array()); t.viewed = viewed.is_array() && !viewed.empty();
+            // v1 returns compact library cards, not file_stats/viewed_files. Detailed file
+            // status is fetched through the separate existing status route when a torrent opens.
             if (!t.hash.empty()) torrents->push_back(std::move(t));
         }
         return true;
@@ -1136,7 +1155,7 @@ namespace pplay::P2Play {
         const std::string context = rootOf(contextPath);
         if (context.empty()) { *error = "P2Play network path is invalid"; return false; }
         json answer;
-        return apiJson(cleanRoot(context), context, "/api/torrents/" + pplay::Http::escape(hash), "DELETE", json::object(), timeout, &answer, error);
+        return apiJson(cleanRoot(context), context, "/api/v1/torrents/" + pplay::Http::escape(hash), "DELETE", json::object(), timeout, &answer, error);
     }
 
     bool setFileViewed(const std::string &filePath, bool viewed, int timeout, std::string *error) {

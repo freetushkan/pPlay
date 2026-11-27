@@ -30,8 +30,9 @@ namespace {
     };
 
     const char *networkSuffixes[] = {"",         "_LAST",       "_NAME", "_TYPE",      "_USER",
-                                     "_PASSWORD", "_TIMEOUT", "_TLS_VERIFY", "_SYNC", "_SMB_BUFFER", "_TOKEN"};
-    const int NETWORK_FIELDS = 11;
+                                     "_PASSWORD", "_TIMEOUT", "_TLS_VERIFY", "_SYNC", "_SMB_BUFFER", "_TOKEN",
+                                     "_INSTANCE", "_EXTERNAL_URL", "_OWNER_PASSWORD"};
+    const int NETWORK_FIELDS = 14;
     // integers from this one, up to this one
     const int NETWORK_INTS = 6;
     const int NETWORK_INTS_END = 10;
@@ -42,7 +43,8 @@ namespace {
 
     // the json keys of a network
     const char *networkKeys[] = {"url",      "last",    "name",       "type", "user",
-                                 "password", "timeout", "tls_verify", "sync", "smb_buffer", "token"};
+                                 "password", "timeout", "tls_verify", "sync", "smb_buffer", "token",
+                                 "instance", "external_url", "owner_password"};
 
     // names kept for the program life: pointers given out (a deque does not move them)
     const char *networkOptionName(int index, int suffix) {
@@ -140,18 +142,21 @@ namespace {
     bool networkFieldApplies(int field, pplay::Io::NetworkType type, const std::string &url) {
         using NetworkType = pplay::Io::NetworkType;
         switch (field) {
-            case 4: // user: also used as the Silo identity in paths
+            case 4: // retained so switching Built-in / External never loses external identity
+            case 5: // password may renew a Silo token; credentials stay in config, never in the URL
                 return type != NetworkType::Dlna;
-            case 5: // password: Silo authenticates with its token instead
-                return type != NetworkType::Dlna && type != NetworkType::TorrServeSilo;
             case 7: // TLS verification is meaningful for HTTPS only
                 return Utility::startWith(url, "https://");
             case 8: // TorrServer list / viewed-mark refresh interval
                 return type == NetworkType::TorrServe || type == NetworkType::TorrServeSilo;
             case 9: // SMB read-ahead buffer
                 return type == NetworkType::Smb;
-            case 10: // TorrServer Silo API token
-                return type == NetworkType::TorrServeSilo;
+            case 10: // optional cached Silo API token
+                return type == NetworkType::TorrServe || type == NetworkType::TorrServeSilo;
+            case 11: // P2Play instance selector
+            case 12: // remembered external endpoint while Built-in is selected
+            case 13: // password of the built-in owner
+                return type == NetworkType::P2Play || type == NetworkType::P2PlayEmbedded;
             default:
                 return true;
         }
@@ -200,6 +205,18 @@ const char *PPLAYConfig::networkSmbBufferOption(int index) {
 
 const char *PPLAYConfig::networkTokenOption(int index) {
     return networkOptionName(index, 10);
+}
+
+const char *PPLAYConfig::networkInstanceOption(int index) {
+    return networkOptionName(index, 11);
+}
+
+const char *PPLAYConfig::networkExternalUrlOption(int index) {
+    return networkOptionName(index, 12);
+}
+
+const char *PPLAYConfig::networkOwnerPasswordOption(int index) {
+    return networkOptionName(index, 13);
 }
 
 // the user and password of an url (scheme://user[:password]@host...): smb "domain.user" as "domain\user"
@@ -275,14 +292,16 @@ std::string PPLAYConfig::withNetworkCredentials(int index, const std::string &ur
     size_t start = 0, end = 0;
     userInfoOf(plain, &start, &end);
     pplay::Io::NetworkType type = pplay::Io::parseNetworkType(getOption(networkTypeOption(index))->getString());
+    const bool builtIn = type == pplay::Io::NetworkType::P2Play &&
+                         getOption(networkInstanceOption(index))->getString() == "Built-in";
+    if (builtIn) return plain;
     // DLNA: no login
     if (user.empty() || plain.find("://") == std::string::npos || type == pplay::Io::NetworkType::Dlna) {
         return plain;
     }
     std::string info;
-    if (type == pplay::Io::NetworkType::TorrServeSilo) {
-        // the user only: its paths told apart from another user of the server (a token in its
-        // requests, never sent)
+    if (type == pplay::Io::NetworkType::TorrServe || type == pplay::Io::NetworkType::TorrServeSilo) {
+        // TorrServer identifies users in virtual paths, but passwords and tokens never appear there.
         info = escapeUserInfo(user);
     } else if (Utility::startWith(plain, "smb://")) {
         // "domain\user" as "domain.user"
@@ -309,11 +328,18 @@ int PPLAYConfig::networkOf(const std::string &option, const char *suffix) {
 void PPLAYConfig::setNetworkUrl(int index, const std::string &url) {
     NetworksChanged changed;
     std::string user, password;
-    if (credentialsOfUrl(url, &user, &password)) {
+    const auto type = pplay::Io::parseNetworkType(getOption(networkTypeOption(index))->getString());
+    const bool builtIn = type == pplay::Io::NetworkType::P2Play &&
+                         getOption(networkInstanceOption(index))->getString() == "Built-in";
+    if (!builtIn && credentialsOfUrl(url, &user, &password)) {
         getOption(networkUserOption(index))->setString(user);
         getOption(networkPasswordOption(index))->setString(password);
     }
-    getOption(networkOption(index))->setString(withoutCredentials(url));
+    const std::string plain = withoutCredentials(url);
+    getOption(networkOption(index))->setString(plain);
+    if (type == pplay::Io::NetworkType::P2Play && !builtIn) {
+        getOption(networkExternalUrlOption(index))->setString(plain);
+    }
     updateNetworkCredentials(index);
 }
 
@@ -493,11 +519,14 @@ void PPLAYConfig::allocateNetworks(int count) {
         addOption({networkLastOption(networkSlots), "/"});
         // "": "Network n"
         addOption({networkNameOption(networkSlots), ""});
-        // TorrServer.MatriX, TorrServer.Silo, Samba, FTP, HTTP, WebDAV, DLNA
-        addOption({networkTypeOption(networkSlots), "TorrServer.MatriX"});
+        // Visible types: TorrServer and P2Play; old dialects/modes are read and migrated.
+        addOption({networkTypeOption(networkSlots), "TorrServer"});
         addOption({networkUserOption(networkSlots), ""});
         addOption({networkPasswordOption(networkSlots), ""});
         addOption({networkTokenOption(networkSlots), ""});
+        addOption({networkInstanceOption(networkSlots), "External"});
+        addOption({networkExternalUrlOption(networkSlots), ""});
+        addOption({networkOwnerPasswordOption(networkSlots), ""});
         for (int s = NETWORK_INTS; s < NETWORK_INTS_END; s++) {
             addOption({networkOptionName(networkSlots, s), (int) 0});
         }
@@ -519,10 +548,13 @@ void PPLAYConfig::clearNetwork(int index) {
     getOption(networkOption(index))->setString("");
     getOption(networkLastOption(index))->setString("/");
     getOption(networkNameOption(index))->setString("");
-    getOption(networkTypeOption(index))->setString("TorrServer.MatriX");
+    getOption(networkTypeOption(index))->setString("TorrServer");
     getOption(networkUserOption(index))->setString("");
     getOption(networkPasswordOption(index))->setString("");
     getOption(networkTokenOption(index))->setString("");
+    getOption(networkInstanceOption(index))->setString("External");
+    getOption(networkExternalUrlOption(index))->setString("");
+    getOption(networkOwnerPasswordOption(index))->setString("");
     for (int s = NETWORK_INTS; s < NETWORK_INTS_END; s++) {
         getOption(networkOptionName(index, s))->setInteger(networkDefault(s));
     }
@@ -662,7 +694,7 @@ bool PPLAYConfig::save() {
         nlohmann::ordered_json entry = nlohmann::ordered_json::object();
         const auto type = pplay::Io::parseNetworkType(getOption(networkTypeOption(i))->getString());
         const std::string url = getOption(networkOption(i))->getString();
-        for (int s: {2, 3, 0, 4, 5, 10, 6, 7, 8, 9, 1}) {
+        for (int s: {2, 3, 0, 4, 5, 10, 11, 12, 13, 6, 7, 8, 9, 1}) {
             if (!networkFieldApplies(s, type, url)) {
                 continue;
             }
@@ -846,14 +878,53 @@ void PPLAYConfig::sanitize() {
         if (getOption(networkLastOption(i))->getString().empty()) {
             getOption(networkLastOption(i))->setString("/");
         }
-        // its name as shown ("TorrServe", "silo"... as their new names), none: TorrServer.MatriX
-        pplay::Io::NetworkType type = pplay::Io::parseNetworkType(getOption(networkTypeOption(i))->getString());
-        getOption(networkTypeOption(i))->setString(type == pplay::Io::NetworkType::Auto
-                                                           ? "TorrServer.MatriX"
-                                                           : pplay::Io::networkTypeName(type));
-        if (type == pplay::Io::NetworkType::P2PlayEmbedded) {
-            getOption(networkOption(i))->setString("http://127.0.0.1:8090");
-            getOption(networkUserOption(i))->setString("owner");
+        // Normalize legacy public names while preserving their connection settings.
+        const std::string storedType = getOption(networkTypeOption(i))->getString();
+        const std::string legacyType = Utility::toLower(storedType);
+        const bool legacyEmbedded = legacyType == "p2play_embedded" || legacyType == "p2play-embedded";
+        pplay::Io::NetworkType type = pplay::Io::parseNetworkType(storedType);
+        if (type == pplay::Io::NetworkType::Auto) type = pplay::Io::NetworkType::TorrServe;
+        if (type == pplay::Io::NetworkType::TorrServe || type == pplay::Io::NetworkType::TorrServeSilo) {
+            getOption(networkTypeOption(i))->setString("TorrServer");
+        } else if (type == pplay::Io::NetworkType::P2Play || type == pplay::Io::NetworkType::P2PlayEmbedded) {
+            getOption(networkTypeOption(i))->setString("P2Play");
+            if (legacyEmbedded) {
+                // Older builds stored the built-in owner's password in NETWORKn_PASSWORD.
+                if (getOption(networkOwnerPasswordOption(i))->getString().empty()) {
+                    getOption(networkOwnerPasswordOption(i))->setString(getOption(networkPasswordOption(i))->getString());
+                }
+                getOption(networkPasswordOption(i))->setString("");
+                getOption(networkUserOption(i))->setString("");
+                getOption(networkInstanceOption(i))->setString("Built-in");
+                // The old embedded mode always pointed at the local daemon; do not later
+                // restore that local URL as though it were an external endpoint.
+                if (getOption(networkOption(i))->getString() == "http://127.0.0.1:8090") {
+                    getOption(networkExternalUrlOption(i))->setString("");
+                }
+            }
+            std::string instance = getOption(networkInstanceOption(i))->getString();
+            if (instance != "Built-in") {
+                instance = "External";
+                getOption(networkInstanceOption(i))->setString(instance);
+                const std::string currentUrl = getOption(networkOption(i))->getString();
+                if (getOption(networkExternalUrlOption(i))->getString().empty() && !currentUrl.empty()) {
+                    getOption(networkExternalUrlOption(i))->setString(withoutCredentials(currentUrl));
+                }
+                const std::string externalUrl = getOption(networkExternalUrlOption(i))->getString();
+                if (!externalUrl.empty() && (currentUrl.empty() || currentUrl == "http://127.0.0.1:8090")) {
+                    getOption(networkOption(i))->setString(externalUrl);
+                }
+            } else {
+                // Keep an external endpoint aside; Built-in always uses the embedded listener.
+                const std::string currentUrl = withoutCredentials(getOption(networkOption(i))->getString());
+                if (!currentUrl.empty() && currentUrl != "http://127.0.0.1:8090" &&
+                    getOption(networkExternalUrlOption(i))->getString().empty()) {
+                    getOption(networkExternalUrlOption(i))->setString(currentUrl);
+                }
+                getOption(networkOption(i))->setString("http://127.0.0.1:8090");
+            }
+        } else {
+            getOption(networkTypeOption(i))->setString(pplay::Io::networkTypeName(type));
         }
         auto clampNetwork = [this](const char *name, int min, int max) {
             int value = getOption(name)->getInteger();

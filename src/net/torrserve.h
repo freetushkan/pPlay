@@ -27,6 +27,8 @@ namespace pplay::TorrServe {
     // a torrent with directories: all its files in one list, by index (<server>/<torrent title>/[all files])
     const char *const ALL_FILES = "[all files]";
     bool isAllFiles(const std::string &path);
+    // Detect MatriX (/echo) versus Silo (/api/system/ping) for a single TorrServer network type.
+    bool isSiloServer(const std::string &path);
     // the directory of a file inside its torrent ("" at its root)
     std::string dirOf(const std::string &path);
 
