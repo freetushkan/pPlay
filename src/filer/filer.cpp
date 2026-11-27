@@ -529,12 +529,15 @@ void Filer::run(DetailsView::Action action) {
     Player *player = main->getPlayer();
     MediaFile selection = getSelection();
     switch (action) {
-        case Action::Open:
+        case Action::Open: {
             details->setFocused(false);
+            std::string libraryAction;
             if (pplay::P2Play::isSearchPromptPath(selection.path)) {
                 searchP2Play(selection.path);
             } else if (pplay::P2Play::isSearchResultPath(selection.path)) {
                 showP2PlayRecord(selection);
+            } else if (pplay::P2Play::libraryAction(selection.path, &libraryAction)) {
+                runP2PlayLibraryAction(selection);
             } else if (selection.type == Io::Type::Directory) {
                 enter(item_index);
             } else if (pplay::Utility::isMedia(selection)) {
@@ -549,6 +552,7 @@ void Filer::run(DetailsView::Action action) {
                 }
             }
             break;
+        }
         case Action::Parent:
             exit();
             break;
@@ -803,6 +807,151 @@ void Filer::openP2PlayLink(const std::string &url, const std::string &name) {
     main->getStatus()->hide();
     const std::string folder = pplay::P2Play::directTorrentPath(root, torrent.hash);
     if (!folder.empty() && getDir(folder)) { clearHistory(); setSelection(0); }
+}
+
+void Filer::runP2PlayLibraryAction(const MediaFile &file) {
+    std::string action, hash;
+    if (!pplay::P2Play::libraryAction(file.path, &action, &hash)) return;
+    auto *io = pplay::Io::get();
+    const int timeout = io != nullptr ? io->networkTimeout(file.path) : 15;
+    std::string error;
+
+    auto openAddedTorrent = [&](const pplay::P2Play::TorrentInfo &torrent) {
+        const std::string folder = pplay::P2Play::directTorrentPath(file.path, torrent.hash);
+        if (!folder.empty() && getDir(folder)) {
+            clearHistory();
+            setSelection(0);
+        } else {
+            getDir(pplay::P2Play::libraryPath(file.path));
+        }
+    };
+
+    if (action == "add-link") {
+        std::string link;
+        if (!pplay::Keyboard::edit(pplay::tr("Magnet or torrent URL"), link) || link.empty()) return;
+        pplay::P2Play::TorrentInfo torrent;
+        main->getStatus()->show("Wait", pplay::tr("Adding torrent to library"), true);
+        const bool added = pplay::P2Play::addTorrentLink(file.path, link, "", timeout, &torrent, &error);
+        main->getStatus()->hide();
+        if (!added) {
+            main->showMessage("P2Play", error, pplay::tr("OK"));
+            return;
+        }
+        openAddedTorrent(torrent);
+        return;
+    }
+
+    if (action == "add-file") {
+        std::string home = main->getConfig()->getOption(OPT_HOME_PATH)->getString();
+        if (home.empty()) home = "/";
+        const std::string context = file.path;
+        startPick({".torrent"}, home, pplay::tr("Select a .torrent file"),
+                  [this, context, timeout](const MediaFile &selected) {
+                      pplay::P2Play::TorrentInfo torrent;
+                      std::string failure;
+                      main->getStatus()->show("Wait", pplay::tr("Uploading torrent file"), true);
+                      const bool added = pplay::P2Play::addTorrentFile(context, selected.path, timeout,
+                                                                       &torrent, &failure);
+                      main->getStatus()->hide();
+                      if (!added) {
+                          main->showMessage("P2Play", failure, pplay::tr("OK"));
+                          return;
+                      }
+                      const std::string folder = pplay::P2Play::directTorrentPath(context, torrent.hash);
+                      if (!folder.empty() && getDir(folder)) {
+                          clearHistory();
+                          setSelection(0);
+                      } else {
+                          getDir(pplay::P2Play::libraryPath(context));
+                      }
+                  });
+        return;
+    }
+
+    if (action == "filter-library") {
+        pplay::P2Play::LibraryQuery query;
+        if (!pplay::Keyboard::edit(pplay::tr("Search my torrents"), query.query)) return;
+
+        std::vector<std::string> categories;
+        if (!pplay::P2Play::getLibraryCategories(file.path, timeout, &categories, &error)) {
+            main->showMessage("P2Play", error, pplay::tr("OK"));
+            return;
+        }
+        std::string categoryHelp = pplay::tr("Leave empty for all categories; type none for uncategorized.");
+        if (!categories.empty()) {
+            categoryHelp += "\n" + pplay::tr("Available categories: ");
+            for (size_t i = 0; i < categories.size(); ++i) {
+                if (i) categoryHelp += ", ";
+                categoryHelp += categories[i];
+            }
+        }
+        if (!pplay::Keyboard::edit(categoryHelp, query.category)) return;
+
+        const int sortChoice = main->showMessage(pplay::tr("Sort library"),
+            pplay::tr("Choose date, title or size."), pplay::tr("Date"), pplay::tr("More"));
+        if (sortChoice == MessageBox::CANCEL) return;
+        if (sortChoice == MessageBox::RIGHT) {
+            const int second = main->showMessage(pplay::tr("Sort library"),
+                pplay::tr("Choose title or size."), pplay::tr("Title"), pplay::tr("Size"));
+            if (second == MessageBox::CANCEL) return;
+            query.sort = second == MessageBox::RIGHT ? "size" : "title";
+        } else {
+            query.sort = "date";
+        }
+        const int orderChoice = main->showMessage(pplay::tr("Sort order"),
+            pplay::tr("Choose newest/largest first or oldest/smallest first."),
+            pplay::tr("Descending"), pplay::tr("Ascending"));
+        if (orderChoice == MessageBox::CANCEL) return;
+        query.order = orderChoice == MessageBox::RIGHT ? "asc" : "desc";
+
+        const std::string target = pplay::P2Play::libraryPath(file.path, query);
+        const int previous = item_index;
+        const std::string previousPath = path;
+        if (!target.empty() && getDir(target)) {
+            path_prev.push_back(previousPath);
+            item_index_prev.push_back(previous);
+            setSelection(0);
+        }
+        return;
+    }
+
+    if (hash.empty()) return;
+    if (action == "edit-title") {
+        std::string title;
+        if (!pplay::Keyboard::edit(pplay::tr("New shared torrent title"), title) || title.empty()) return;
+        if (!pplay::P2Play::updateTorrent(file.path, hash, title, true, "", false, timeout, &error)) {
+            main->showMessage("P2Play", error, pplay::tr("OK"));
+            return;
+        }
+        main->getStatus()->show("Info", pplay::tr("Torrent title updated"));
+        getDir(pplay::P2Play::libraryPath(file.path));
+        return;
+    }
+    if (action == "edit-category") {
+        std::string category;
+        if (!pplay::Keyboard::edit(pplay::tr("New shared torrent category (empty clears it)"), category)) return;
+        if (!pplay::P2Play::updateTorrent(file.path, hash, "", false, category, true, timeout, &error)) {
+            main->showMessage("P2Play", error, pplay::tr("OK"));
+            return;
+        }
+        main->getStatus()->show("Info", pplay::tr("Torrent category updated"));
+        getDir(pplay::P2Play::libraryPath(file.path));
+        return;
+    }
+    if (action == "remove") {
+        const int choice = main->showMessage(pplay::tr("Remove torrent from my library"),
+            pplay::tr("Only your library entry is removed; other users keep theirs.") + "\n" + hash,
+            pplay::tr("Remove"), pplay::tr("Cancel"));
+        if (choice != MessageBox::LEFT) return;
+        if (!pplay::P2Play::deleteTorrent(file.path, hash, timeout, &error)) {
+            main->showMessage("P2Play", error, pplay::tr("OK"));
+            return;
+        }
+        main->getStatus()->show("Info", pplay::tr("Torrent removed from my library"));
+        clearHistory();
+        getDir(pplay::P2Play::libraryPath(file.path));
+        return;
+    }
 }
 
 void Filer::resetProgress(const MediaFile &file) {

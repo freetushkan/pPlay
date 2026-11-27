@@ -68,8 +68,28 @@ namespace pplay::P2Play {
         int64_t addedAt = 0;
         bool viewed = false; // detailed viewed state is not part of the v1 library card
     };
-    bool getLibrary(const std::string &contextPath, int timeout, std::vector<LibraryTorrent> *torrents, std::string *error);
+    struct LibraryQuery {
+        std::string query;
+        std::string category; // empty: all; "none": uncategorized; otherwise exact category
+        std::string sort = "date";
+        std::string order = "desc";
+        int offset = 0;
+        int limit = 1000;
+    };
+    bool getLibrary(const std::string &contextPath, int timeout, std::vector<LibraryTorrent> *torrents,
+                    std::string *error, const LibraryQuery &query = LibraryQuery{});
+    bool getLibraryCategories(const std::string &contextPath, int timeout, std::vector<std::string> *categories,
+                              std::string *error);
+    bool updateTorrent(const std::string &contextPath, const std::string &hash,
+                       const std::string &title, bool updateTitle,
+                       const std::string &category, bool updateCategory,
+                       int timeout, std::string *error);
     bool deleteTorrent(const std::string &contextPath, const std::string &hash, int timeout, std::string *error);
+    bool addTorrentFile(const std::string &contextPath, const std::string &localFilePath, int timeout,
+                        TorrentInfo *torrent, std::string *error);
+    // Filer virtual paths used for native library browsing and management.
+    std::string libraryPath(const std::string &contextPath, const LibraryQuery &query = LibraryQuery{});
+    bool libraryAction(const std::string &path, std::string *action, std::string *hash = nullptr);
     bool setFileViewed(const std::string &filePath, bool viewed, int timeout, std::string *error);
     bool getFileProgress(const std::string &filePath, int timeout, PlaybackProgress *progress, std::string *error);
     bool setFileProgress(const std::string &filePath, double position, double duration, int timeout, std::string *error);

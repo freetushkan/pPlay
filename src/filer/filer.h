@@ -115,6 +115,9 @@ private:
     // the selected entry of the opened playlist
     void removeFromPlaylist();
 
+    // Native P2Play library management actions shown by the virtual directory.
+    void runP2PlayLibraryAction(const MediaFile &file);
+
     virtual void enter(int index);
 
     virtual void exit();
