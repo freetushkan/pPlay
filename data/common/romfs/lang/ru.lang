@@ -158,7 +158,7 @@ h = ч
 min = мин
 Secure connections (HTTPS) may fail: check the date, time and time zone in the system settings. = Защищённые соединения (HTTPS) могут не работать: проверьте дату, время и часовой пояс в настройках системы.
 
-# Оформление субтитров
+# Subtitle appearance
 Subtitle appearance = Оформление субтитров
 Subtitle position = Положение субтитров
 Subtitle size = Размер субтитров
@@ -480,7 +480,7 @@ Offline: the file is not accessible = Нет связи: файл недосту
 Bumpers and triggers = Бамперы и триггеры
 Seek = Перемотка
 
-# Настройки масштаба интерфейса
+# Interface scaling settings
 Main screen size = Размер основного экрана
 Player OSD size = Размер панели плеера
 Menu size = Размер меню
@@ -490,7 +490,7 @@ Size of the main screen interface = Размер интерфейса основ
 Size of the player controls = Размер элементов управления плеером
 Size of menus and their elements = Размер меню и его элементов
 
-# Управление пользователями P2Play
+# P2Play user management
 Owner = Владелец
 Administrator = Администратор
 Guest = Гость
@@ -506,7 +506,7 @@ Password updated = Пароль обновлён
 Delete user = Удалить пользователя
 User deleted = Пользователь удалён
 
-# Поиск по каталогам P2Play и сведения о торренте
+# P2Play catalog search and torrent details
 Published = Опубликовано
 Tags = Теги
 Torrent = Торрент
