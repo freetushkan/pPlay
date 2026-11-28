@@ -65,6 +65,7 @@ public:
     void openP2PlayLink(const std::string &url, const std::string &name);
     void searchP2Play(const std::string &entryPath);
     void showP2PlayRecord(const MediaFile &file);
+    void applySafeInsets();
 
     // "<Empty>" entry of an empty directory
     static bool isPlaceholder(const MediaFile &file);
@@ -117,7 +118,6 @@ private:
 
     // Native P2Play library management actions shown by the virtual directory.
     void runP2PlayLibraryAction(const MediaFile &file);
-    void applySafeInsets();
 
     virtual void enter(int index);
 
