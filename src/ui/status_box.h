@@ -53,6 +53,7 @@ private:
     float textMaxWidth = -1;
     c2d::C2DClock fadeClock;
     bool infinite = false;
+    float safeLeft = 0, safeRight = 0;
 };
 
 #endif //PPLAY_STATUS_BOX_H

@@ -3,6 +3,9 @@
 //
 
 #include <utility>
+#include <algorithm>
+#include <cstdlib>
+#include <map>
 
 #include "platform.h"
 #include "main.h"
@@ -14,6 +17,7 @@
 #include "saved.h"
 #include "playlists.h"
 #include "p2play.h"
+#include "net_http.h"
 
 using namespace c2d;
 
@@ -346,6 +350,14 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeAdjustItems(), Submenu::ValueType::Float, Submenu::MenuType::Adjust, 0.8f, 2.0f, 0.1f, "x");
     addSubmenu("Menu size", "Size of menus and their elements", OPT_MENU_SCALE,
                makeAdjustItems(), Submenu::ValueType::Float, Submenu::MenuType::Adjust, 0.8f, 1.5f, 0.1f, "x");
+#ifdef __ANDROID__
+    addSubmenu("Left screen edge margin", "Additional safe margin from the left rounded edge",
+               OPT_ANDROID_SAFE_MARGIN_LEFT, makeAdjustItems(), Submenu::ValueType::Float,
+               Submenu::MenuType::Adjust, 0.0f, 64.0f, 2.0f, "dp");
+    addSubmenu("Right screen edge margin", "Additional safe margin from the right rounded edge",
+               OPT_ANDROID_SAFE_MARGIN_RIGHT, makeAdjustItems(), Submenu::ValueType::Float,
+               Submenu::MenuType::Adjust, 0.0f, 64.0f, 2.0f, "dp");
+#endif
 
 
     fileEditor = new MenuFileEditor(main, rect);
@@ -381,7 +393,7 @@ void MenuMain::addNetworkMenus(int i) {
     parents[name] = "Networks";
     std::vector<MenuItem> items;
     for (const char *suffix: {" type", " instance", " name", " url", " user", " password", " owner password", " token",
-                              " timeout", " tls", " sync", " smb", " search", " users", " up", " down", " delete"}) {
+                              " timeout", " tls", " sync", " smb", " search", " users", " share", " up", " down", " delete"}) {
 #ifndef __SMB2__
         if (std::string(suffix) == " smb") {
             continue;
@@ -397,7 +409,8 @@ void MenuMain::addNetworkMenus(int i) {
                 item.value = "-";
             }
         }
-        if (item.name == name + " users") item.line = true;
+        if (item.name == name + " users" || item.name == name + " share") item.line = true;
+        if (item.name == name + " share") item.label = pplay::tr("Share network");
     }
     addSubmenu(name, name, "", items, Submenu::ValueType::String);
     addSubmenu(name + " users", "Users", "", {});
@@ -483,22 +496,101 @@ void MenuMain::showNetwork(int index, const std::string &select) {
     }
 }
 
+bool MenuMain::importNetworkLink(const std::string &url) {
+    const std::string prefix = "pplay://network";
+    if (url.compare(0, prefix.size(), prefix) != 0 ||
+        (url.size() > prefix.size() && url[prefix.size()] != '?')) return false;
+
+    std::map<std::string, std::string> values;
+    const size_t queryAt = url.find('?');
+    if (queryAt != std::string::npos) {
+        size_t start = queryAt + 1;
+        while (start <= url.size()) {
+            const size_t end = url.find('&', start);
+            const std::string item = url.substr(start, end == std::string::npos ? std::string::npos : end - start);
+            const size_t equal = item.find('=');
+            if (equal != std::string::npos) {
+                const std::string key = pplay::Http::unescape(item.substr(0, equal));
+                const std::string value = pplay::Http::unescape(item.substr(equal + 1));
+                if (!key.empty()) values[key] = value;
+            }
+            if (end == std::string::npos) break;
+            start = end + 1;
+        }
+    }
+
+    const int version = values.count("version") ? std::atoi(values["version"].c_str()) : 0;
+    const std::string typeName = values["type"];
+    const auto type = pplay::Io::parseNetworkType(typeName);
+    const std::string name = values["name"];
+    const std::string address = PPLAYConfig::withoutCredentials(values["url"]);
+    if (version != 1 || type == pplay::Io::NetworkType::Auto || address.empty()) {
+        main->showMessage(pplay::tr("Import network"), pplay::tr("This network link is invalid or unsupported."),
+                          pplay::tr("OK"));
+        return true;
+    }
+
+    const std::string summary = (name.empty() ? typeName : name) + "\n" + typeName + "\n" + address;
+    if (main->showMessage(pplay::tr("Import network"), summary,
+                          pplay::tr("Add"), pplay::tr("Cancel")) != c2d::MessageBox::LEFT) {
+        return true;
+    }
+
+    PPLAYConfig *config = main->getConfig();
+    const int index = config->addNetwork();
+    auto setString = [&](const char *optionName, const std::string &value) {
+        auto *option = config->getOption(optionName);
+        option->setType(c2d::config::Option::Type::String);
+        option->setString(value);
+    };
+    auto setInteger = [&](const char *optionName, int value) {
+        auto *option = config->getOption(optionName);
+        option->setType(c2d::config::Option::Type::Integer);
+        option->setInteger(value);
+    };
+
+    // Never import a loopback URL as a built-in instance on another device.
+    setString(PPLAYConfig::networkTypeOption(index), typeName);
+    setString(PPLAYConfig::networkInstanceOption(index), "External");
+    setString(PPLAYConfig::networkNameOption(index), name);
+    setString(PPLAYConfig::networkUserOption(index), values["user"]);
+    setString(PPLAYConfig::networkPasswordOption(index), values["password"]);
+    setString(PPLAYConfig::networkOwnerPasswordOption(index), values["owner"]);
+    setString(PPLAYConfig::networkTokenOption(index), values["token"]);
+    setInteger(PPLAYConfig::networkTimeoutOption(index),
+               values.count("timeout") ? std::max(1, std::min(300, std::atoi(values["timeout"].c_str()))) : 15);
+    setInteger(PPLAYConfig::networkTlsOption(index),
+               values.count("tls") ? std::atoi(values["tls"].c_str()) != 0 : 1);
+    setInteger(PPLAYConfig::networkSyncOption(index),
+               values.count("sync") ? std::max(10, std::min(600, std::atoi(values["sync"].c_str()))) : 60);
+#ifdef __SMB2__
+    setInteger(PPLAYConfig::networkSmbBufferOption(index),
+               values.count("smb") ? std::max(1, std::min(100, std::atoi(values["smb"].c_str()))) : 10);
+#endif
+    config->setNetworkUrl(index, address);
+    config->save();
+    main->applyConfig();
+    updateNetworks(true);
+    showNetwork(index);
+    main->getStatus()->show("Info", pplay::tr("Network imported"));
+    return true;
+}
+
 void MenuMain::showNetworkUsers(int index, const std::string &select) {
     if (index < 1 || index > main->getConfig()->getNetworkCount()) return;
     const auto type = pplay::Io::parseNetworkType(
             main->getConfig()->getOption(PPLAYConfig::networkTypeOption(index))->getString());
     if (type != pplay::Io::NetworkType::P2Play && type != pplay::Io::NetworkType::P2PlayEmbedded) return;
     const std::string configuredUrl = main->getConfig()->getOption(PPLAYConfig::networkOption(index))->getString();
+    const std::string context = configuredUrl;
+    const int timeout = main->getConfig()->getOption(PPLAYConfig::networkTimeoutOption(index))->getInteger();
     if (pplay::Io::get()->isEmbeddedNetwork(configuredUrl)) {
         pplay::Io::get()->setCurrentNetwork(index);
-        if (!pplay::Io::get()->embeddedReady()) {
-            main->getStatus()->show("Wait", pplay::tr("Embedded P2Play is starting. Open Users again shortly."));
+        if (!pplay::Io::get()->waitUntilEmbeddedReady(timeout)) {
+            main->getStatus()->show("Error", pplay::tr("Embedded P2Play did not become ready; check the owner password."));
             return;
         }
     }
-
-    const std::string context = main->getConfig()->getOption(PPLAYConfig::networkOption(index))->getString();
-    const int timeout = main->getConfig()->getOption(PPLAYConfig::networkTimeoutOption(index))->getInteger();
     std::vector<pplay::P2Play::ServerUser> users;
     int actorRank = 0;
     std::string error;
@@ -628,7 +720,7 @@ void MenuMain::updateNetworkLabels() {
             submenu->second->setTitle(label);
             for (auto *button: submenu->second->getButtons()) {
                 if (button->item.name == key + " name") {
-                    button->item.label = pplay::tr("Name");
+                    button->item.label = pplay::tr("Network name");
                 } else if (button->item.name == key + " url") {
                     button->item.label = pplay::tr("URL");
                 } else if (button->item.name == key + " type") {
@@ -668,7 +760,7 @@ void MenuMain::updateNetworkLabels() {
         for (const char *suffix: {" name", " url", " user", " password", " owner password", " token", " instance", " type", " tls", " search", " users"}) {
             auto sub = menuMainOptionsSubmenus.find(key + suffix);
             if (sub != menuMainOptionsSubmenus.end()) {
-                std::string what = std::string(suffix) == " name"       ? "Name"
+                std::string what = std::string(suffix) == " name"       ? "Network name"
                                    : std::string(suffix) == " url"      ? "URL"
                                    : std::string(suffix) == " user"     ? "User"
                                    : std::string(suffix) == " password" ? "Password"

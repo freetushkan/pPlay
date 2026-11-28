@@ -65,6 +65,7 @@ public:
     void openP2PlayLink(const std::string &url, const std::string &name);
     void searchP2Play(const std::string &entryPath);
     void showP2PlayRecord(const MediaFile &file);
+    void applySafeInsets();
 
     // "<Empty>" entry of an empty directory
     static bool isPlaceholder(const MediaFile &file);
@@ -177,6 +178,7 @@ private:
     std::vector<int> pickPrevIndexHistory;
     std::vector<std::string> pickPrevPathHistory;
     float crumbsWidth = 0;
+    float safeLeft = 0, safeRight = 0;
 
     bool pointerDown = false;
     bool pointerDragging = false;

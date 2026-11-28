@@ -19,14 +19,14 @@
 #include "round_rect.h"
 
 #ifdef __SWITCH__
-
 #include <switch.h>
-
 #endif
+
+#include "platform.h"
 
 using namespace c2d;
 
-#ifdef __SWITCH__
+#if defined(__SWITCH__) || defined(__ANDROID__)
 class Battery : public RectangleShape {
 
 public:
@@ -58,11 +58,32 @@ public:
 
     void onUpdate() override {
 
-        if (!isVisible()) {
+#if defined(__SWITCH__)
+        if (!isVisible()) return;
+#else
+        // Keep polling while the first Android reading is unavailable so the
+        // hidden battery glyph can reappear when the system reports a level.
+        if (hasReading && !isVisible()) return;
+#endif
+
+#ifdef __SWITCH__
+        psmGetBatteryChargePercentage(&percent);
+#else
+        if (!hasAttempt || readingClock.getElapsedTime().asSeconds() >= 30) {
+            readingClock.restart();
+            hasAttempt = true;
+            const int level = pplay::Platform::batteryLevel();
+            if (level >= 0) {
+                percent = static_cast<unsigned int>(level);
+                hasReading = true;
+            }
+        }
+        if (!hasReading) {
+            setVisibility(Visibility::Hidden);
             return;
         }
-
-        psmGetBatteryChargePercentage(&percent);
+        setVisibility(Visibility::Visible);
+#endif
         // ps4: not std::clamp
         if (percent < 1) {
             percent = 1;
@@ -109,6 +130,11 @@ public:
     RectangleShape *leftRect = nullptr;
     unsigned int percent = 100;
     float maxWidth;
+#if defined(__ANDROID__)
+    C2DClock readingClock;
+    bool hasReading = false;
+    bool hasAttempt = false;
+#endif
 };
 #endif
 
@@ -118,16 +144,23 @@ StatusBar::StatusBar(Main *m) : Rectangle({0, 0, 64, 64}) {
 #endif
     main = m;
     const float sc = m->getScaling().y;
-    StatusBar::setSize(m->getSize().x, 32 * sc);
-    // off the screen edge, as the player panel at the bottom
-    StatusBar::setPosition(0, 18 * sc);
+#ifdef __ANDROID__
+    const auto safe = pplay::Platform::safeSideInsets(
+            m->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_LEFT)->getFloat(),
+            m->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_RIGHT)->getFloat());
+    safeLeft = safe.x;
+    safeRight = safe.y;
+#endif
+    StatusBar::setSize(std::max(1.0f, m->getSize().x - safeLeft - safeRight), 32 * sc);
+    // Keep the entire top row inside the device's usable rounded-screen area.
+    StatusBar::setPosition(safeLeft, 18 * sc);
 
     // a chip on the right: battery (Switch) and clock
     chip = new RoundRect({10, std::round(26 * sc)});
     chip->setOrigin(Origin::Right);
     StatusBar::add(chip);
 
-#ifdef __SWITCH__
+#if defined(__SWITCH__) || defined(__ANDROID__)
     battery = new Battery(StatusBar::getGlobalBounds(), m->getScaling());
     // as far from the chip edge as the clock from the other one
     battery->setPosition(battery->getPosition().x - 30 * m->getScaling().x, battery->getPosition().y);
@@ -159,11 +192,18 @@ StatusBar::StatusBar(Main *m) : Rectangle({0, 0, 64, 64}) {
 
 void StatusBar::applyScale() {
     const Vector2f sc = main->getScaling();
-    setSize(main->getSize().x, 32 * sc.y);
-    setPosition(0, 18 * sc.y);
+#ifdef __ANDROID__
+    const auto safe = pplay::Platform::safeSideInsets(
+            main->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_LEFT)->getFloat(),
+            main->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_RIGHT)->getFloat());
+    safeLeft = safe.x;
+    safeRight = safe.y;
+#endif
+    setSize(std::max(1.0f, main->getSize().x - safeLeft - safeRight), 32 * sc.y);
+    setPosition(safeLeft, 18 * sc.y);
     chip->setSize(10, std::round(26 * sc.y));
     timeText->setCharacterSize(main->getFontSize(Main::FontSize::Big));
-#ifdef __SWITCH__
+#if defined(__SWITCH__) || defined(__ANDROID__)
     battery->applyScale(getGlobalBounds(), sc);
     timeText->setPosition(battery->getPosition().x - battery->getSize().x - 16 * sc.x, getSize().y / 2);
 #else
@@ -190,7 +230,7 @@ void StatusBar::applyAlpha() {
     offline->setFillColor({COLOR_FONT.r, COLOR_FONT.g, COLOR_FONT.b, a});
     offlineText->setFillColor({COLOR_FONT.r, COLOR_FONT.g, COLOR_FONT.b, (uint8_t) std::lround(200 * alpha)});
     chip->setFillColor({10, 12, 16, (uint8_t) std::lround(170 * alpha)});
-#ifdef __SWITCH__
+#if defined(__SWITCH__) || defined(__ANDROID__)
     battery->fade(a);
 #endif
 }
@@ -237,7 +277,7 @@ void StatusBar::onUpdate() {
 
     // the player: off the edge as its panel; the filer: on its path line
     bool player = main->getPlayer() != nullptr && main->getPlayer()->isFullscreen();
-    setPosition(0, std::round((player ? 18 : 6) * main->getScaling().y));
+    setPosition(safeLeft, std::round((player ? 18 : 6) * main->getScaling().y));
 
     // the chip around the drawn digits (not the font line), even paddings
     const Vector2f sc = main->getScaling();

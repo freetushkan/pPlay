@@ -83,26 +83,46 @@ public class PPlayActivity extends SDLActivity {
         File romfs = new File(getFilesDir(), "romfs");
         romFsPath = romfs.getAbsolutePath();
         extractRomFs(romfs);
-        askStorage();
         instance = this;
+        // Hold native data-path initialization until storage access is resolved.
+        setAsking(true);
         super.onCreate(savedInstanceState);
         takeView(getIntent());
+        askStorage();
+        applyCutoutLayout();
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        setIntent(intent);
         takeView(intent);
     }
 
     // VIEW intent: "<url>\n<name>"
     private static volatile String viewed = null;
 
+    @SuppressWarnings("deprecation")
     private void takeView(Intent intent) {
-        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction()) || intent.getData() == null) {
+        if (intent == null) return;
+        final String action = intent.getAction();
+        Uri uri = intent.getData();
+        if (Intent.ACTION_SEND.equals(action)) {
+            Uri stream = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+            if (stream != null) {
+                uri = stream;
+            } else {
+                String text = intent.getStringExtra(Intent.EXTRA_TEXT);
+                if (text == null || text.trim().isEmpty()) return;
+                String name = intent.getStringExtra(Intent.EXTRA_SUBJECT);
+                if (name == null || name.trim().isEmpty()) name = "Shared link";
+                viewed = text.trim() + "\\n" + name;
+                return;
+            }
+        } else if (!Intent.ACTION_VIEW.equals(action) || uri == null) {
             return;
         }
-        Uri uri = intent.getData();
+        if (uri == null) return;
         String name = uri.getLastPathSegment() != null ? uri.getLastPathSegment() : uri.toString();
         String url = uri.toString();
         if ("content".equals(uri.getScheme())) {
@@ -414,6 +434,8 @@ public class PPlayActivity extends SDLActivity {
 
     private void askStorage() {
         if (hasStorage()) {
+            if (dataPath.equals(fallbackPath)) dataPath = "";
+            setAsking(false);
             return;
         }
         setAsking(true);
@@ -467,12 +489,16 @@ public class PPlayActivity extends SDLActivity {
                 setAsking(false);
             }
         }
+        // getDataPath() may already have selected the private fallback while the
+        // permission screen was open. Re-resolve it after a successful grant.
+        if (hasStorage() && dataPath.equals(fallbackPath)) dataPath = "";
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         setAsking(false);
+        if (hasStorage() && dataPath.equals(fallbackPath)) dataPath = "";
     }
 
     // the text input (src/app/keyboard.cpp, the native thread waits): the edited text, null
@@ -487,6 +513,15 @@ public class PPlayActivity extends SDLActivity {
         final CountDownLatch done = new CountDownLatch(1);
         activity.runOnUiThread(() -> {
             final EditText edit = new EditText(activity);
+            final int padding = Math.round(20 * activity.getResources().getDisplayMetrics().density);
+            int safeLeft = 0, safeRight = 0;
+            String safeInsets = getDisplaySafeInsets();
+            String[] safeParts = safeInsets.split(",");
+            if (safeParts.length == 2) {
+                try { safeLeft = Math.max(0, Integer.parseInt(safeParts[0])); } catch (NumberFormatException ignored) {}
+                try { safeRight = Math.max(0, Integer.parseInt(safeParts[1])); } catch (NumberFormatException ignored) {}
+            }
+            edit.setPadding(padding + safeLeft, padding, padding + safeRight, padding);
             edit.setText(text);
             edit.setSelection(edit.getText().length());
             edit.setFilters(new InputFilter[]{new InputFilter.LengthFilter(max)});
@@ -521,6 +556,13 @@ public class PPlayActivity extends SDLActivity {
                 dialog.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
             }
             dialog.show();
+            if (dialog.getWindow() != null) {
+                android.util.DisplayMetrics metrics = new android.util.DisplayMetrics();
+                activity.getWindowManager().getDefaultDisplay().getRealMetrics(metrics);
+                int safeWidth = Math.max(padding * 8,
+                        metrics.widthPixels - safeLeft - safeRight - padding * 2);
+                dialog.getWindow().setLayout(safeWidth, WindowManager.LayoutParams.WRAP_CONTENT);
+            }
             edit.requestFocus();
         });
         try {
@@ -560,6 +602,65 @@ public class PPlayActivity extends SDLActivity {
 
     public static String getRomFsPath() {
         return romFsPath;
+    }
+
+    public static void shareText(final String title, final String text) {
+        final PPlayActivity activity = instance;
+        if (activity == null || text == null) return;
+        activity.runOnUiThread(() -> {
+            Intent share = new Intent(Intent.ACTION_SEND);
+            share.setType("text/plain");
+            share.putExtra(Intent.EXTRA_SUBJECT, title == null ? "pPlay" : title);
+            share.putExtra(Intent.EXTRA_TEXT, text);
+            activity.startActivity(Intent.createChooser(share, title == null ? "Share" : title));
+        });
+    }
+
+    public static String getBatteryLevel() {
+        PPlayActivity activity = instance;
+        if (activity == null) return "";
+        Intent battery = activity.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        if (battery == null) return "";
+        int level = battery.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1);
+        int scale = battery.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1);
+        if (level < 0 || scale <= 0) return "";
+        return Integer.toString(Math.max(0, Math.min(100, Math.round(level * 100.0f / scale))));
+    }
+
+    // Left/right safe areas in physical pixels: display cutout + rounded corners.
+    public static String getDisplaySafeInsets() {
+        PPlayActivity activity = instance;
+        if (activity == null) return "0,0";
+        int left = 0, right = 0;
+        android.view.WindowInsets insets = activity.getWindow().getDecorView().getRootWindowInsets();
+        if (Build.VERSION.SDK_INT >= 28 && insets != null && insets.getDisplayCutout() != null) {
+            android.view.DisplayCutout cutout = insets.getDisplayCutout();
+            left = cutout.getSafeInsetLeft();
+            right = cutout.getSafeInsetRight();
+        }
+        if (Build.VERSION.SDK_INT >= 31) {
+            android.view.Display display = activity.getDisplay();
+            if (display != null) {
+                android.view.RoundedCorner corner = display.getRoundedCorner(android.view.RoundedCorner.POSITION_TOP_LEFT);
+                if (corner != null) left = Math.max(left, corner.getRadius());
+                corner = display.getRoundedCorner(android.view.RoundedCorner.POSITION_BOTTOM_LEFT);
+                if (corner != null) left = Math.max(left, corner.getRadius());
+                corner = display.getRoundedCorner(android.view.RoundedCorner.POSITION_TOP_RIGHT);
+                if (corner != null) right = Math.max(right, corner.getRadius());
+                corner = display.getRoundedCorner(android.view.RoundedCorner.POSITION_BOTTOM_RIGHT);
+                if (corner != null) right = Math.max(right, corner.getRadius());
+            }
+        }
+        return left + "," + right;
+    }
+
+    private void applyCutoutLayout() {
+        if (Build.VERSION.SDK_INT >= 28) {
+            WindowManager.LayoutParams attributes = getWindow().getAttributes();
+            attributes.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            getWindow().setAttributes(attributes);
+        }
     }
 
     public static String getDisplayDensity() {

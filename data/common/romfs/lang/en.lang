@@ -56,7 +56,7 @@ Auto = Auto
 Value = Value
 
 # Networks
-Name = Name
+Network name = Network name
 URL = URL
 User = User
 Password = Password
@@ -72,6 +72,11 @@ No servers found = No servers found
 Search again = Search again
 SMB: access denied = SMB: access denied
 SMB: wrong user name or password = SMB: wrong user name or password
+Owner password = Owner password
+Instance = Instance
+Built-in = Built-in
+External = External
+Share network = Поделиться сетью
 <empty> = <empty>
 
 # Accent colors
@@ -222,9 +227,7 @@ Dropped frames = Dropped frames
 Render = Render
 Volume = Volume
 Speed = Speed
-TorrServer.Silo = TorrServer.Silo (testing)
-P2Play = P2Play (testing)
-P2Play_embedded = P2Play embedded (testing)
+P2Play = P2Play (alpha)
 
 # Languages
 Belarusian = Belarusian

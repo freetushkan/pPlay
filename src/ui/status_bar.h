@@ -38,6 +38,7 @@ public:
 private:
 
     float offlineWidth = 0;
+    float safeLeft = 0, safeRight = 0;
 
     void applyAlpha();
 

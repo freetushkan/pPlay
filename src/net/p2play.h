@@ -93,13 +93,16 @@ namespace pplay::P2Play {
     bool setFileViewed(const std::string &filePath, bool viewed, int timeout, std::string *error);
     bool getFileProgress(const std::string &filePath, int timeout, PlaybackProgress *progress, std::string *error);
     bool setFileProgress(const std::string &filePath, double position, double duration, int timeout, std::string *error);
+    bool resetFileProgress(const std::string &filePath, int timeout, std::string *error);
     bool getProgress(const std::string &contextPath, int timeout, std::vector<ProgressEntry> *progress,
                     std::string *error);
     // Fetch signed description/poster refs only when a result is selected, never during search.
     bool getCatalogDetails(const std::string &contextPath, const std::string &recordHash, int timeout,
                            CatalogDetails *details, std::string *error);
     std::string searchResultHash(const std::string &path);
-    std::string directTorrentPath(const std::string &contextPath, const std::string &torrentHash);
+    std::string directTorrentPath(const std::string &contextPath, const std::string &torrentHash,
+                                  const std::string &torrentTitle = "");
+    std::string libraryDirectoryForFile(const std::string &filePath);
 
     bool previewCatalogRecord(const std::string &contextPath, const std::string &recordHash, int timeout,
                               CatalogRecord *record, TorrentInfo *torrent, std::string *error);

@@ -643,6 +643,64 @@ namespace pplay::Platform {
         return 1.0f;
     }
 
+    int batteryLevel() {
+#ifdef __ANDROID__
+        const std::string value = callActivity("getBatteryLevel", "()Ljava/lang/String;");
+        if (!value.empty()) {
+            char *end = nullptr;
+            const long level = std::strtol(value.c_str(), &end, 10);
+            if (end != value.c_str() && *end == '\\0' && level >= 0 && level <= 100) {
+                return static_cast<int>(level);
+            }
+        }
+#endif
+        return -1;
+    }
+
+    c2d::Vector2f safeSideInsets(float extraLeftDp, float extraRightDp) {
+#ifdef __ANDROID__
+        float left = 0.0f, right = 0.0f;
+        const std::string value = callActivity("getDisplaySafeInsets", "()Ljava/lang/String;");
+        const size_t comma = value.find(',');
+        if (comma != std::string::npos) {
+            left = std::max(0.0f, (float) std::atof(value.substr(0, comma).c_str()));
+            right = std::max(0.0f, (float) std::atof(value.substr(comma + 1).c_str()));
+        }
+        const std::string density = callActivity("getDisplayDensity", "()Ljava/lang/String;");
+        const float dpi = density.empty() ? 160.0f : std::max(1.0f, (float) std::atof(density.c_str()));
+        const float pxPerDp = dpi / 160.0f;
+        return {left + std::max(0.0f, extraLeftDp) * pxPerDp,
+                right + std::max(0.0f, extraRightDp) * pxPerDp};
+#else
+        (void) extraLeftDp;
+        (void) extraRightDp;
+        return {0.0f, 0.0f};
+#endif
+    }
+
+    bool shareText(const std::string &title, const std::string &text) {
+#ifdef __ANDROID__
+        auto *env = (JNIEnv *) SDL_AndroidGetJNIEnv();
+        if (env == nullptr) return false;
+        jstring jTitle = env->NewStringUTF(title.c_str());
+        jstring jText = env->NewStringUTF(text.c_str());
+        if (jTitle == nullptr || jText == nullptr || env->ExceptionCheck()) {
+            env->ExceptionClear();
+            if (jTitle) env->DeleteLocalRef(jTitle);
+            if (jText) env->DeleteLocalRef(jText);
+            return false;
+        }
+        callActivity("shareText", "(Ljava/lang/String;Ljava/lang/String;)V", jTitle, jText);
+        env->DeleteLocalRef(jTitle);
+        env->DeleteLocalRef(jText);
+        return true;
+#else
+        (void) title;
+        (void) text;
+        return false;
+#endif
+    }
+
     std::string takeViewed(std::string *name) {
 #ifdef __ANDROID__
         std::string value = callActivity("takeViewed", "()Ljava/lang/String;");

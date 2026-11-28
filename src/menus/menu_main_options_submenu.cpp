@@ -21,6 +21,8 @@
 #include "io.h"
 #include "discovery.h"
 #include "p2play.h"
+#include "net_http.h"
+#include "platform.h"
 
 using namespace c2d;
 
@@ -474,6 +476,50 @@ void MenuMainOptionsSubmenu::onOptionSelection(MenuItem *item) {
     }
 
     if (option_name.empty()) {
+        // Share a portable profile. Credentials are only included after the user
+        // explicitly chooses this action in the network's settings.
+        if (key.rfind("Network ", 0) == 0 && Utility::endsWith(item->name, " share")) {
+            const int network = std::atoi(key.c_str() + strlen("Network "));
+            auto *config = main->getConfig();
+            const std::string type = config->getOption(PPLAYConfig::networkTypeOption(network))->getString();
+            const bool builtIn = config->getOption(PPLAYConfig::networkInstanceOption(network))->getString() == "Built-in";
+            std::string address = PPLAYConfig::withoutCredentials(
+                    config->getOption(PPLAYConfig::networkOption(network))->getString());
+            if (builtIn) {
+                address = PPLAYConfig::withoutCredentials(
+                        config->getOption(PPLAYConfig::networkExternalUrlOption(network))->getString());
+                if (address.empty()) {
+                    main->showMessage(pplay::tr("Share network"),
+                        pplay::tr("Set an external server address before sharing this built-in network."),
+                        pplay::tr("OK"));
+                    return;
+                }
+            }
+            const std::string name = config->getOption(PPLAYConfig::networkNameOption(network))->getString();
+            auto add = [](std::string &target, const std::string &keyName, const std::string &value) {
+                target += "&" + keyName + "=" + pplay::Http::escape(value);
+            };
+            std::string link = "pplay://network?version=1";
+            add(link, "type", type);
+            add(link, "name", name);
+            add(link, "url", address);
+            add(link, "user", config->getOption(PPLAYConfig::networkUserOption(network))->getString());
+            add(link, "password", config->getOption(PPLAYConfig::networkPasswordOption(network))->getString());
+            add(link, "owner", config->getOption(PPLAYConfig::networkOwnerPasswordOption(network))->getString());
+            add(link, "token", config->getOption(PPLAYConfig::networkTokenOption(network))->getString());
+            add(link, "timeout", config->getOption(PPLAYConfig::networkTimeoutOption(network))->getString());
+            add(link, "tls", config->getOption(PPLAYConfig::networkTlsOption(network))->getString());
+            add(link, "sync", config->getOption(PPLAYConfig::networkSyncOption(network))->getString());
+#ifdef __SMB2__
+            add(link, "smb", config->getOption(PPLAYConfig::networkSmbBufferOption(network))->getString());
+#endif
+            if (!pplay::Platform::shareText(pplay::tr("Share network") + ": " + name, link)) {
+                main->showMessage(pplay::tr("Share network"), pplay::tr("Sharing is available on Android."),
+                                  pplay::tr("OK"));
+            }
+            return;
+        }
+
         // Network settings -> Users.
         if (item->name.rfind("Network ", 0) == 0 && Utility::endsWith(item->name, " users") &&
             key != item->name) {

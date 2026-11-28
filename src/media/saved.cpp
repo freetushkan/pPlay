@@ -285,7 +285,8 @@ namespace {
 
     bool escapedPaths(const std::string &path) {
         Io::DeviceType type = Io::get()->getDeviceType(path);
-        return type == Io::DeviceType::TorrServe || type == Io::DeviceType::Http || type == Io::DeviceType::WebDav;
+        return type == Io::DeviceType::TorrServe || type == Io::DeviceType::Http ||
+               type == Io::DeviceType::WebDav || type == Io::DeviceType::P2Play;
     }
 
     // a path part as shown
@@ -724,7 +725,7 @@ namespace {
         int64_t offset = 0;
 
         bool open(const std::string &remote, int64_t from, const std::atomic<bool> *cancel, std::string *error) {
-            std::string url = TorrServe::toStreamUrl(remote);
+            std::string url = Io::get() != nullptr ? Io::get()->streamUrl(remote) : remote;
 #ifdef __SMB2__
             if (c2d::Utility::startWith(url, "smb://")) {
                 smb = Smb::openFile(url, &size);
@@ -1217,9 +1218,10 @@ namespace pplay::Saved {
             || (file.type != c2d::Io::Type::File && file.type != c2d::Io::Type::Directory)) {
             return false;
         }
-        // all the torrent files: the torrent itself is saved
-        return Io::get() != nullptr && !Io::get()->getNetworkRoot(file.path).empty()
-               && !pplay::TorrServe::isAllFiles(file.path);
+        // all the torrent files: the torrent itself is saved. Only TorrServer has this pseudo-file.
+        if (Io::get() == nullptr || Io::get()->getNetworkRoot(file.path).empty()) return false;
+        return Io::get()->getDeviceType(file.path) != Io::DeviceType::TorrServe ||
+               !pplay::TorrServe::isAllFiles(file.path);
     }
 
     void save(const c2d::Io::File &file) {
@@ -1538,7 +1540,7 @@ namespace pplay::Saved {
 
     std::string openUrl(const std::string &path) {
         std::string local = localCopy(path);
-        return local.empty() ? TorrServe::toStreamUrl(path) : local;
+        return local.empty() && Io::get() != nullptr ? Io::get()->streamUrl(path) : local;
     }
 
     void touch(const std::string &path) {

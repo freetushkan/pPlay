@@ -402,6 +402,12 @@ void Main::applyConfig() {
         show(MenuType::Local);
     }
     applyScales();
+#ifdef __ANDROID__
+    // These margins are independent of the global UI scale and should apply live.
+    if (statusBox != nullptr) statusBox->applyScale();
+    if (statusBar != nullptr) statusBar->applyScale();
+    if (filer != nullptr) filer->applySafeInsets();
+#endif
     if (pplay::I18n::current() != c2d::Utility::toLower(config->getOption(OPT_LANGUAGE)->getString())) {
         setLanguage(config->getOption(OPT_LANGUAGE)->getString());
     } else {
@@ -555,8 +561,12 @@ void Main::onUpdate() {
         std::string name, url = pplay::Platform::takeViewed(&name);
         if (!url.empty()) {
             pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: opened from another app: " + url);
-            if (url.rfind("torrs://", 0) == 0) filer->openP2PlayLink(url, name);
-            else openLink(url, name);
+            if (url.rfind("torrs://", 0) == 0 || url.rfind("magnet:", 0) == 0)
+                filer->openP2PlayLink(url, name);
+            else if (url.rfind("pplay://network", 0) == 0)
+                menu_main->importNetworkLink(url);
+            else
+                openLink(url, name);
         }
         // media session: updated on state change or a seek
         static std::string lastTitle;

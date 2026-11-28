@@ -18,6 +18,7 @@ namespace pplay::Http {
         std::string error;        // transport error message
         std::string effectiveUrl; // after redirects
         time_t date = 0;          // "Date" header (server clock), 0 if none
+        std::string location;     // Location header when redirects are not followed
 
         bool ok() const { return error.empty() && status >= 200 && status < 300; }
     };
@@ -33,6 +34,9 @@ namespace pplay::Http {
         std::string context;
         // false for API clients that provide their own Bearer/Cookie authentication.
         bool useNetworkCredentials = true;
+        bool followRedirects = true;
+        std::string resolve;      // optional CURLOPT_RESOLVE host:port:ip pin
+        bool useProxy = true;     // false for DNS-pinned requests that must connect directly
     };
 
     // call once (not thread safe)

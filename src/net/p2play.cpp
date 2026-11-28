@@ -167,7 +167,7 @@ namespace {
         }
 
         json body = {{"username", user}, {"password", password}};
-        const auto response = sendRequest(root, context, "/api/auth/login", "POST", body.dump(), timeout, {});
+        const auto response = sendRequest(root, context, "/api/v1/auth/login", "POST", body.dump(), timeout, {});
         if (!response.ok()) {
             *error = "P2Play login failed: " +
                      (response.error.empty() ? "HTTP " + std::to_string(response.status) : response.error);
@@ -205,7 +205,7 @@ namespace {
                 return true;
             }
         }
-        const auto response = sendRequest(root, context, "/api/p2play/version", "GET", {}, timeout, {});
+        const auto response = sendRequest(root, context, "/api/v1/system/version", "GET", {}, timeout, {});
         if (!response.ok()) {
             *error = response.status == 404
                              ? "This server does not expose the native P2Play version endpoint"
@@ -276,14 +276,22 @@ namespace {
         const std::string networkRoot = rootOf(original);
         if (networkRoot.empty()) { *error = "P2Play file path has no network root"; return false; }
         const auto parts = splitPath(relativeOf(networkRoot, original));
+        auto isIndex = [](const std::string &value) {
+            return !value.empty() && value.size() <= 9 &&
+                   std::all_of(value.begin(), value.end(), [](unsigned char c) { return std::isdigit(c) != 0; });
+        };
+        size_t hashPart = 3, indexPart = 4;
+        if (parts.size() >= 6 && isIndex(parts[3])) {
+            hashPart = 2;
+            indexPart = 3;
+        }
         if (parts.size() < 6 || parts[0] != ".p2play" || parts[1] != "file" ||
-            parts[3].empty() || parts[4].empty() || parts[4].size() > 9 ||
-            !std::all_of(parts[4].begin(), parts[4].end(), [](unsigned char c) { return std::isdigit(c) != 0; })) {
+            parts[hashPart].empty() || !isIndex(parts[indexPart])) {
             *error = "P2Play path is not a playable torrent file"; return false;
         }
         int parsed = 0;
-        for (unsigned char c : parts[4]) parsed = parsed * 10 + (c - '0');
-        *context = original; *root = cleanRoot(networkRoot); *hash = parts[3]; *index = parsed;
+        for (unsigned char c : parts[indexPart]) parsed = parsed * 10 + (c - '0');
+        *context = original; *root = cleanRoot(networkRoot); *hash = parts[hashPart]; *index = parsed;
         return true;
     }
 
@@ -320,7 +328,7 @@ namespace {
     bool searchResults(const std::string &root, const std::string &context, const std::string &query,
                        const std::string &tag, int timeout, json *records, std::string *error,
                        const std::vector<std::string> &selectedLists = {}) {
-        std::string route = "/api/catalog/search?limit=500";
+        std::string route = "/api/v1/catalog/search?limit=500";
         if (!query.empty()) {
             route += "&q=" + pplay::Http::escape(query);
         }
@@ -364,13 +372,13 @@ namespace {
 
     bool statusForList(const std::string &root, const std::string &context, const std::string &pubkey,
                        int timeout, json *status, std::string *error) {
-        const std::string route = "/api/lists/" + pplay::Http::escape(pubkey) + "/status";
+        const std::string route = "/api/v1/lists/" + pplay::Http::escape(pubkey) + "/status";
         if (!apiJson(root, context, route, "GET", noBody(), timeout, status, error)) {
             return false;
         }
         if (!status->contains("name")) {
             json ignored;
-            if (!apiJson(root, context, "/api/lists/" + pplay::Http::escape(pubkey), "POST",
+            if (!apiJson(root, context, "/api/v1/lists/" + pplay::Http::escape(pubkey), "POST",
                          json::object(), timeout, &ignored, error)) {
                 return false;
             }
@@ -408,7 +416,7 @@ namespace {
         }
         if (torrentHash.empty()) {
             json record;
-            if (!apiJson(root, context, "/api/catalog/" + pplay::Http::escape(recordHash),
+            if (!apiJson(root, context, "/api/v1/catalog/" + pplay::Http::escape(recordHash),
                          "GET", noBody(), timeout, &record, error)) {
                 return false;
             }
@@ -439,7 +447,7 @@ namespace {
                 category = tags[0].get<std::string>();
             }
             // Persistent library adds use the product-owned, versioned API.
-            // The detailed Silo-compatible status route below is retained for file_stats.
+            // The native detailed torrent status response below contains file_stats.
             json addBody = {
                     {"link", link},
                     {"title", record.value("title", std::string())},
@@ -458,11 +466,13 @@ namespace {
             g_torrents[key] = torrentHash;
         }
 
-        const std::string statusRoute = "/api/torrents/" + pplay::Http::escape(torrentHash);
+        const std::string statusRoute = "/api/v1/torrents/" + pplay::Http::escape(torrentHash);
         for (int attempt = 0; attempt < 40; ++attempt) {
-            if (!apiJson(root, context, statusRoute, "GET", noBody(), timeout, torrent, error)) {
+            json response;
+            if (!apiJson(root, context, statusRoute, "GET", noBody(), timeout, &response, error)) {
                 return false;
             }
+            *torrent = response.value("details", json::object());
             const json fileStats = torrent->value("file_stats", json::array());
             if (fileStats.is_array() && !fileStats.empty()) {
                 return true;
@@ -512,20 +522,20 @@ namespace {
             const json torrentCard = added.value("torrent", json::object());
             hash = torrentCard.value("hash", std::string());
         } else {
-            // Preview must not create library membership: keep the explicit non-persistent
-            // Silo add operation until a versioned preview contract is introduced.
-            json body = {{"link", link}, {"title", title}, {"poster", poster},
-                         {"category", category}, {"save_to_db", false}};
-            if (!apiJson(root, context, "/api/torrents", "POST", body, timeout, &added, error)) return false;
-            hash = added.value("hash", std::string());
+            // Preview torrents are held in memory and scoped to this user; they are not
+            // written to the persistent library.
+            json body = {{"link", link}, {"title", title}, {"poster", poster}, {"category", category}};
+            if (!apiJson(root, context, "/api/v1/torrents/preview", "POST", body, timeout, &added, error)) return false;
+            const json torrentCard = added.value("torrent", json::object());
+            hash = torrentCard.value("hash", std::string());
         }
         if (hash.empty()) { *error = "P2Play did not return a torrent hash after adding the link"; return false; }
-        const std::string route = (save ? "/api/v1/torrents/" : "/api/torrents/") +
+        const std::string route = (save ? "/api/v1/torrents/" : "/api/v1/torrents/") +
                                   pplay::Http::escape(hash);
         for (int attempt = 0; attempt < 40; ++attempt) {
             json status;
             if (!apiJson(root, context, route, "GET", noBody(), timeout, &status, error)) return false;
-            if (save) status = status.value("details", json::object());
+            status = status.value("details", json::object());
             if (parseTorrentInfo(status, torrent)) return true;
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
@@ -535,7 +545,7 @@ namespace {
 
     bool getCatalogRecord(const std::string &root, const std::string &context, const std::string &hash,
                           int timeout, json *record, std::string *error) {
-        return apiJson(root, context, "/api/catalog/" + pplay::Http::escape(hash),
+        return apiJson(root, context, "/api/v1/catalog/" + pplay::Http::escape(hash),
                        "GET", noBody(), timeout, record, error);
     }
 
@@ -546,7 +556,7 @@ namespace {
             return false;
         }
         const size_t maxSize = kind == "description" ? (64u << 10) : (2u << 20);
-        const std::string route = "/api/catalog/" + pplay::Http::escape(hash) + "/" + kind;
+        const std::string route = "/api/v1/catalog/" + pplay::Http::escape(hash) + "/" + kind;
         std::string token = cachedToken(root, context);
         for (int attempt = 0; attempt < 4; ++attempt) {
             auto response = sendRequest(root, context, route, "GET", {}, timeout, token, maxSize);
@@ -704,7 +714,7 @@ namespace pplay::P2Play {
             return false;
         }
         json answer;
-        if (!apiJson(cleanRoot(context), context, "/api/lists", "GET", noBody(), timeout, &answer, error)) return false;
+        if (!apiJson(cleanRoot(context), context, "/api/v1/lists", "GET", noBody(), timeout, &answer, error)) return false;
         const json *items = nullptr;
         if (!answer.is_object() || !arrayAt(answer, "lists", &items)) {
             *error = "P2Play list response has no lists array";
@@ -794,9 +804,30 @@ namespace pplay::P2Play {
         const auto p = pathParts(path);
         return p.size() == 3 && p[0] == ".p2play" && p[1] == "result" ? p[2] : std::string();
     }
-    std::string directTorrentPath(const std::string &contextPath, const std::string &hash) {
+    std::string directTorrentPath(const std::string &contextPath, const std::string &hash,
+                                  const std::string &title) {
         const auto root = rootOf(contextPath);
-        return root.empty() ? std::string() : virtualPath(root, {".p2play", "direct", hash});
+        if (root.empty()) return {};
+        return virtualPath(root, {".p2play", "library", hash, title.empty() ? hash : title});
+    }
+
+    // Directory to restore when the last selection was a P2Play virtual file.
+    // The virtual file path itself is not a directory and must not be passed to extractDirPath().
+    std::string libraryDirectoryForFile(const std::string &filePath) {
+        const std::string context = rootOf(filePath);
+        if (context.empty()) return {};
+        const auto parts = splitPath(relativeOf(context, filePath));
+        if (parts.size() < 6 || parts[0] != ".p2play" || parts[1] != "file") return {};
+        if (parts[2] == "direct" && !parts[3].empty()) {
+            return virtualPath(context, {".p2play", "direct", parts[3]});
+        }
+        const std::string &hash = parts[2];
+        if ((hash.size() != 40 && hash.size() != 64) ||
+            !std::all_of(hash.begin(), hash.end(), [](unsigned char c) { return std::isxdigit(c) != 0; })) {
+            return {};
+        }
+        const std::string &title = parts[4];
+        return virtualPath(context, {".p2play", "library", hash, title.empty() ? hash : title});
     }
 
     bool previewCatalogRecord(const std::string &contextPath, const std::string &recordHash, int timeout,
@@ -873,16 +904,6 @@ namespace pplay::P2Play {
         }
         const std::string relative = relativeOf(context, path);
         std::vector<std::string> parts = splitPath(relative);
-        // Breadcrumbs and restored paths can address intermediate URL segments
-        // of this virtual filesystem. Treat those non-leaf route prefixes as
-        // its landing directory rather than rejecting them as malformed routes.
-        if (parts.size() == 1 && parts[0] == ".p2play") {
-            parts.clear();
-        } else if (parts.size() == 2 && parts[0] == ".p2play" &&
-                   (parts[1] == "list" || parts[1] == "record" ||
-                    parts[1] == "results" || parts[1] == "file")) {
-            parts.clear();
-        }
         auto fail = [&](const std::string &message) {
             if (error != nullptr) {
                 *error = message;
@@ -903,10 +924,75 @@ namespace pplay::P2Play {
             return files;
         }
         if (parts.size() >= 2 && parts[1] == "library") {
+            const bool torrentFolder = parts.size() >= 3 &&
+                (parts[2].size() == 40 || parts[2].size() == 64) &&
+                std::all_of(parts[2].begin(), parts[2].end(), [](unsigned char c) { return std::isxdigit(c) != 0; });
+            if (torrentFolder) {
+                const std::string &hash = parts[2];
+                const std::string requestedTitle = parts.size() > 3 ? parts[3] : std::string();
+                json response;
+                if (!apiJson(root, context, "/api/v1/torrents/" + pplay::Http::escape(hash),
+                             "GET", noBody(), timeout, &response, &failure)) {
+                    fail(failure);
+                    return files;
+                }
+                const json details = response.value("details", json::object());
+                const std::string title = requestedTitle.empty()
+                                              ? details.value("title", hash)
+                                              : requestedTitle;
+                const json stats = details.value("file_stats", json::array());
+                if (!stats.is_array()) {
+                    fail("P2Play torrent response has no file list");
+                    return files;
+                }
+                const bool allFiles = parts.size() == 5 && parts[4] == "[all files]";
+                std::vector<std::string> prefix;
+                if (!allFiles && parts.size() > 4) prefix.assign(parts.begin() + 4, parts.end());
+                std::set<std::string> directories;
+                for (const auto &file : stats) {
+                    if (!file.is_object() || !file.value("id", json()).is_number_integer() ||
+                        !file.value("path", json()).is_string()) continue;
+                    const int index = file["id"].get<int>();
+                    const std::string filePath = file["path"].get<std::string>();
+                    const auto fileParts = splitPath(filePath);
+                    if (fileParts.size() <= prefix.size() ||
+                        !std::equal(prefix.begin(), prefix.end(), fileParts.begin())) continue;
+                    const std::string next = fileParts[prefix.size()];
+                    if (!allFiles && fileParts.size() > prefix.size() + 1) {
+                        if (directories.insert(next).second) {
+                            std::vector<std::string> dirPath = {".p2play", "library", hash, title};
+                            dirPath.insert(dirPath.end(), prefix.begin(), prefix.end());
+                            dirPath.push_back(next);
+                            files.push_back(directory(next, virtualPath(context, dirPath)));
+                        }
+                        continue;
+                    }
+                    std::vector<std::string> itemPath = {".p2play", "file", hash,
+                                                         std::to_string(index), title};
+                    itemPath.insert(itemPath.end(), fileParts.begin(), fileParts.end());
+                    files.emplace_back(baseName(filePath), virtualPath(context, itemPath),
+                                       c2d::Io::Type::File,
+                                       static_cast<uint64_t>(std::max<int64_t>(0, file.value("length", int64_t(0)))));
+                }
+                if (!allFiles && prefix.empty() && !directories.empty()) {
+                    files.push_back(directory("[all files]",
+                        virtualPath(context, {".p2play", "library", hash, title, "[all files]"})));
+                }
+                if (prefix.empty()) {
+                    files.emplace_back("Edit title…", virtualPath(context, {".p2play", "action", "edit-title", hash}),
+                                       c2d::Io::Type::File, 0);
+                    files.emplace_back("Edit category…", virtualPath(context, {".p2play", "action", "edit-category", hash}),
+                                       c2d::Io::Type::File, 0);
+                    files.emplace_back("Remove from my library…",
+                        virtualPath(context, {".p2play", "action", "remove", hash}), c2d::Io::Type::File, 0);
+                }
+                return files;
+            }
+
             LibraryQuery query;
-            if (parts.size() == 6) {
-                if (parts[2].rfind("q-", 0) != 0 ||
-                    (parts[3] != "all" && parts[3].rfind("category-", 0) != 0)) {
+            const bool filtered = parts.size() == 6 && parts[2].rfind("q-", 0) == 0;
+            if (filtered) {
+                if (parts[3] != "all" && parts[3].rfind("category-", 0) != 0) {
                     fail("Invalid P2Play library filter path");
                     return files;
                 }
@@ -929,29 +1015,12 @@ namespace pplay::P2Play {
                     virtualPath(context, {".p2play", "action", "filter-library"}), c2d::Io::Type::File, 0);
             }
             for (const auto &torrent : library) {
-                std::string label = torrent.title.empty() ? torrent.hash : torrent.title;
+                const std::string title = torrent.title.empty() ? torrent.hash : torrent.title;
+                std::string label = title;
                 if (!torrent.category.empty()) label += "  [" + torrent.category + "]";
                 files.push_back(directory(label,
-                    virtualPath(context, {".p2play", "manage", torrent.hash})));
+                    virtualPath(context, {".p2play", "library", torrent.hash, title})));
             }
-            return files;
-        }
-        if (parts.size() == 3 && parts[1] == "manage") {
-            const std::string &hash = parts[2];
-            std::vector<LibraryTorrent> library;
-            if (!getLibrary(context, timeout, &library, &failure)) { fail(failure); return files; }
-            auto torrent = std::find_if(library.begin(), library.end(), [&](const LibraryTorrent &item) {
-                return item.hash == hash;
-            });
-            if (torrent == library.end()) { fail("Torrent is no longer in this user's library"); return files; }
-            files.push_back(directory("Open torrent files",
-                virtualPath(context, {".p2play", "direct", hash})));
-            files.emplace_back("Edit title…", virtualPath(context, {".p2play", "action", "edit-title", hash}),
-                               c2d::Io::Type::File, 0);
-            files.emplace_back("Edit category…", virtualPath(context, {".p2play", "action", "edit-category", hash}),
-                               c2d::Io::Type::File, 0);
-            files.emplace_back("Remove from my library…",
-                virtualPath(context, {".p2play", "action", "remove", hash}), c2d::Io::Type::File, 0);
             return files;
         }
         if (parts.size() == 2 && parts[1] == "progress") {
@@ -968,8 +1037,9 @@ namespace pplay::P2Play {
                 std::string label = labelBase + "  (" + progressTime(entry.position);
                 if (entry.duration > 0) label += " / " + progressTime(entry.duration);
                 label += ")";
-                const std::string filePath = virtualPath(context, {".p2play", "file", "progress", entry.hash,
-                                                                    std::to_string(entry.fileIndex), entry.fileName});
+                const std::string title = entry.title.empty() ? entry.hash : entry.title;
+                const std::string filePath = virtualPath(context, {".p2play", "file", entry.hash,
+                                                                    std::to_string(entry.fileIndex), title, entry.fileName});
                 c2d::Io::File file(entry.fileName, filePath, c2d::Io::Type::File, 0);
                 {
                     std::lock_guard<std::mutex> lock(g_mutex);
@@ -1034,7 +1104,7 @@ namespace pplay::P2Play {
         }
         if (parts.size() == 2 && parts[1] == "discover") {
             json answer;
-            if (!apiJson(root, context, "/api/lists/discover", "GET", noBody(),
+            if (!apiJson(root, context, "/api/v1/lists/discover", "GET", noBody(),
                          timeout, &answer, &failure)) {
                 fail(failure);
                 return files;
@@ -1061,7 +1131,7 @@ namespace pplay::P2Play {
         }
         if (parts.size() == 2 && parts[1] == "lists") {
             json answer;
-            if (!apiJson(root, context, "/api/lists", "GET", noBody(), timeout, &answer, &failure)) {
+            if (!apiJson(root, context, "/api/v1/lists", "GET", noBody(), timeout, &answer, &failure)) {
                 fail(failure);
                 return files;
             }
@@ -1170,10 +1240,14 @@ namespace pplay::P2Play {
                 const int index = file["id"].get<int>();
                 const std::string filePath = file["path"].get<std::string>();
                 const std::string name = baseName(filePath);
+                const std::string title = torrent.value("title", parts[2]);
                 const auto size = file.value("length", int64_t(0));
+                std::vector<std::string> virtualParts = {".p2play", "file", torrentHash,
+                                                         std::to_string(index), title};
+                const auto relativeParts = splitPath(filePath);
+                virtualParts.insert(virtualParts.end(), relativeParts.begin(), relativeParts.end());
                 files.emplace_back(name,
-                                   virtualPath(context, {".p2play", "file", parts[2], torrentHash,
-                                                         std::to_string(index), name}),
+                                   virtualPath(context, virtualParts),
                                    c2d::Io::Type::File, static_cast<uint64_t>(std::max<int64_t>(0, size)));
             }
             return files;
@@ -1194,8 +1268,18 @@ namespace pplay::P2Play {
             return input;
         }
         const std::string root = cleanRoot(context);
-        const std::string torrentHash = parts[3];
-        const std::string index = parts[4];
+        std::string torrentHash, index;
+        auto isIndex = [](const std::string &value) {
+            return !value.empty() && value.size() <= 9 &&
+                   std::all_of(value.begin(), value.end(), [](unsigned char c) { return std::isdigit(c) != 0; });
+        };
+        if (isIndex(parts[3])) {
+            torrentHash = parts[2];
+            index = parts[3];
+        } else {
+            torrentHash = parts[3];
+            index = parts[4];
+        }
         if (torrentHash.empty() || index.empty()) {
             return input;
         }
@@ -1206,10 +1290,9 @@ namespace pplay::P2Play {
             return input;
         }
         const std::string token = streamToken(root, context, timeout);
-        std::string url = root + "api/stream/" + pplay::Http::escape(torrentHash) + "/" + index;
-        if (!token.empty()) {
-            url += "?token=" + pplay::Http::escape(token);
-        }
+        std::string url = root + "api/v1/torrents/" + pplay::Http::escape(torrentHash) +
+                          "/files/" + index + "/stream";
+        if (!token.empty()) url += "?token=" + pplay::Http::escape(token);
         return pplay::Http::normalize(url);
     }
 
@@ -1366,7 +1449,7 @@ namespace pplay::P2Play {
         std::string context, root, hash; int index = -1;
         if (!fileAddressOf(filePath, &context, &root, &hash, &index, error)) return false;
         json answer; const json body = {{"viewed", viewed}};
-        return apiJson(root, context, "/api/torrents/" + pplay::Http::escape(hash) + "/files/" + std::to_string(index) + "/viewed", "POST", body, timeout, &answer, error);
+        return apiJson(root, context, "/api/v1/torrents/" + pplay::Http::escape(hash) + "/files/" + std::to_string(index) + "/viewed", "PUT", body, timeout, &answer, error);
     }
 
     bool getFileProgress(const std::string &filePath, int timeout, PlaybackProgress *progress, std::string *error) {
@@ -1375,7 +1458,9 @@ namespace pplay::P2Play {
         std::string context, root, hash; int index = -1;
         if (!fileAddressOf(filePath, &context, &root, &hash, &index, error)) return false;
         json status;
-        if (!apiJson(root, context, "/api/torrents/" + pplay::Http::escape(hash), "GET", noBody(), timeout, &status, error)) return false;
+        json response;
+        if (!apiJson(root, context, "/api/v1/torrents/" + pplay::Http::escape(hash), "GET", noBody(), timeout, &response, error)) return false;
+        status = response.value("details", json::object());
         const json *items = nullptr;
         if (!status.is_object() || !arrayAt(status, "file_progress", &items)) {
             *error = "P2Play torrent response has no file progress array"; return false;
@@ -1390,6 +1475,15 @@ namespace pplay::P2Play {
         return true;
     }
 
+    bool resetFileProgress(const std::string &filePath, int timeout, std::string *error) {
+        if (!error) return false;
+        std::string context, root, hash; int index = -1;
+        if (!fileAddressOf(filePath, &context, &root, &hash, &index, error)) return false;
+        json answer;
+        return apiJson(root, context, "/api/v1/torrents/" + pplay::Http::escape(hash) + "/files/" +
+                       std::to_string(index) + "/progress", "DELETE", json::object(), timeout, &answer, error);
+    }
+
     bool setFileProgress(const std::string &filePath, double position, double duration, int timeout, std::string *error) {
         if (!error) return false;
         std::string context, root, hash; int index = -1;
@@ -1397,7 +1491,7 @@ namespace pplay::P2Play {
         if (position < 0 || duration < 0) { *error = "P2Play progress values must not be negative"; return false; }
         json answer;
         const json body = {{"position", position}, {"duration", duration}};
-        return apiJson(root, context, "/api/torrents/" + pplay::Http::escape(hash) + "/files/" +
+        return apiJson(root, context, "/api/v1/torrents/" + pplay::Http::escape(hash) + "/files/" +
                        std::to_string(index) + "/progress", "PUT", body, timeout, &answer, error);
     }
 
@@ -1412,7 +1506,7 @@ namespace pplay::P2Play {
             return false;
         }
         json answer;
-        if (!apiJson(cleanRoot(context), context, "/api/progress", "GET", noBody(), timeout, &answer, error)) {
+        if (!apiJson(cleanRoot(context), context, "/api/v1/progress", "GET", noBody(), timeout, &answer, error)) {
             return false;
         }
         const json *items = nullptr;
@@ -1454,7 +1548,7 @@ namespace pplay::P2Play {
         }
         const std::string root = cleanRoot(context);
         json current;
-        if (!apiJson(root, context, "/api/auth/me", "GET", noBody(), timeout, &current, error)) return false;
+        if (!apiJson(root, context, "/api/v1/auth/me", "GET", noBody(), timeout, &current, error)) return false;
         if (!current.is_object() || !current.value("rank", json()).is_number_integer()) {
             *error = "P2Play current-user response has no rank";
             return false;
@@ -1462,7 +1556,7 @@ namespace pplay::P2Play {
         *actorRank = current["rank"].get<int>();
 
         json answer;
-        if (!apiJson(root, context, "/api/users", "GET", noBody(), timeout, &answer, error)) return false;
+        if (!apiJson(root, context, "/api/v1/users", "GET", noBody(), timeout, &answer, error)) return false;
         const json *items = nullptr;
         if (!answer.is_object() || !arrayAt(answer, "users", &items)) {
             *error = "P2Play user response has no users array";
@@ -1490,7 +1584,7 @@ namespace pplay::P2Play {
         if (context.empty()) { *error = "P2Play network path is invalid"; return false; }
         json answer;
         const json body = {{"username", username}, {"password", password}, {"rank", rank}};
-        return apiJson(cleanRoot(context), context, "/api/users", "POST", body, timeout, &answer, error);
+        return apiJson(cleanRoot(context), context, "/api/v1/users", "POST", body, timeout, &answer, error);
     }
 
     bool updateUserPassword(const std::string &contextPath, const std::string &userId,
@@ -1501,7 +1595,7 @@ namespace pplay::P2Play {
         if (context.empty()) { *error = "P2Play network path is invalid"; return false; }
         json answer;
         const json body = {{"password", password}};
-        return apiJson(cleanRoot(context), context, "/api/users/" + pplay::Http::escape(userId),
+        return apiJson(cleanRoot(context), context, "/api/v1/users/" + pplay::Http::escape(userId),
                        "PUT", body, timeout, &answer, error);
     }
 
@@ -1513,7 +1607,7 @@ namespace pplay::P2Play {
         if (context.empty()) { *error = "P2Play network path is invalid"; return false; }
         json answer;
         const json body = {{"rank", rank}};
-        return apiJson(cleanRoot(context), context, "/api/users/" + pplay::Http::escape(userId) + "/rank",
+        return apiJson(cleanRoot(context), context, "/api/v1/users/" + pplay::Http::escape(userId) + "/rank",
                        "POST", body, timeout, &answer, error);
     }
 
@@ -1524,7 +1618,7 @@ namespace pplay::P2Play {
         const std::string context = rootOf(contextPath);
         if (context.empty()) { *error = "P2Play network path is invalid"; return false; }
         json answer;
-        return apiJson(cleanRoot(context), context, "/api/users/" + pplay::Http::escape(userId),
+        return apiJson(cleanRoot(context), context, "/api/v1/users/" + pplay::Http::escape(userId),
                        "DELETE", json::object(), timeout, &answer, error);
     }
 

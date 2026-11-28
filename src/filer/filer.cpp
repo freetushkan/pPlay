@@ -16,6 +16,8 @@
 #include "torrserve.h"
 #include "p2play.h"
 #include "saved.h"
+#include "pplay_config.h"
+#include "platform.h"
 #include "offline.h"
 #include "playlists.h"
 #include "keyboard.h"
@@ -57,8 +59,15 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     probe = new MediaProbe();
     Filer::add(details);
 
-    crumbsWidth = size.x - 150 * m->getScaling().x;
-    crumbs = new Breadcrumb(main, {16 * m->getScaling().x, 0, crumbsWidth, crumbHeight});
+#ifdef __ANDROID__
+    const auto safe = pplay::Platform::safeSideInsets(
+            main->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_LEFT)->getFloat(),
+            main->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_RIGHT)->getFloat());
+    safeLeft = safe.x;
+    safeRight = safe.y;
+#endif
+    crumbsWidth = size.x - safeLeft - safeRight - 150 * m->getScaling().x;
+    crumbs = new Breadcrumb(main, {safeLeft + 16 * m->getScaling().x, 0, crumbsWidth, crumbHeight});
     Filer::add(crumbs);
     float padTop = std::round(12 * m->getScaling().y);
     size.y -= crumbHeight + padTop;
@@ -765,7 +774,7 @@ void Filer::showP2PlayRecord(const MediaFile &file) {
     main->getStatus()->hide();
     const int previous = item_index;
     const std::string previousPath = path;
-    const std::string folder = pplay::P2Play::directTorrentPath(file.path, torrent.hash);
+    const std::string folder = pplay::P2Play::directTorrentPath(file.path, torrent.hash, torrent.title);
     if (!folder.empty() && getDir(folder)) {
         path_prev.push_back(previousPath);
         item_index_prev.push_back(previous);
@@ -805,7 +814,7 @@ void Filer::openP2PlayLink(const std::string &url, const std::string &name) {
         return;
     }
     main->getStatus()->hide();
-    const std::string folder = pplay::P2Play::directTorrentPath(root, torrent.hash);
+    const std::string folder = pplay::P2Play::directTorrentPath(root, torrent.hash, torrent.title);
     if (!folder.empty() && getDir(folder)) { clearHistory(); setSelection(0); }
 }
 
@@ -817,7 +826,7 @@ void Filer::runP2PlayLibraryAction(const MediaFile &file) {
     std::string error;
 
     auto openAddedTorrent = [&](const pplay::P2Play::TorrentInfo &torrent) {
-        const std::string folder = pplay::P2Play::directTorrentPath(file.path, torrent.hash);
+        const std::string folder = pplay::P2Play::directTorrentPath(file.path, torrent.hash, torrent.title);
         if (!folder.empty() && getDir(folder)) {
             clearHistory();
             setSelection(0);
@@ -857,7 +866,7 @@ void Filer::runP2PlayLibraryAction(const MediaFile &file) {
                           main->showMessage("P2Play", failure, pplay::tr("OK"));
                           return;
                       }
-                      const std::string folder = pplay::P2Play::directTorrentPath(context, torrent.hash);
+                      const std::string folder = pplay::P2Play::directTorrentPath(context, torrent.hash, torrent.title);
                       if (!folder.empty() && getDir(folder)) {
                           clearHistory();
                           setSelection(0);
@@ -973,7 +982,7 @@ void Filer::resetProgress(const MediaFile &file) {
         pplay::TorrServe::remFileViewed(file.path);
     } else if (device == pplay::Io::DeviceType::P2Play) {
         std::string error;
-        pplay::P2Play::setFileViewed(file.path, false, pplay::Io::get()->networkTimeout(file.path), &error);
+        pplay::P2Play::resetFileProgress(file.path, pplay::Io::get()->networkTimeout(file.path), &error);
     }
     forgetPlayback(file.path);
     dirty = true;
@@ -1134,8 +1143,14 @@ void Filer::markFolder(const MediaFile &dir, bool watched) {
         std::string path = pplay::Saved::originalOf(file.path);
         std::string url = pplay::Io::get()->streamUrl(path);
         bool local = pplay::Utility::isWatchLaterExist(url);
-        bool server = pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::TorrServe
-                      && pplay::TorrServe::isFileViewed(path);
+        const auto device = pplay::Io::get()->getDeviceType(path);
+        bool server = device == pplay::Io::DeviceType::TorrServe && pplay::TorrServe::isFileViewed(path);
+        if (device == pplay::Io::DeviceType::P2Play) {
+            pplay::P2Play::PlaybackProgress progress;
+            std::string error;
+            server = pplay::P2Play::getFileProgress(path, pplay::Io::get()->networkTimeout(path),
+                                                    &progress, &error) && (progress.viewed || progress.position > 0);
+        }
         // the opened file: no more saves over the change
         if (player->isPlaying(file.path) || player->isPlaying(path)) {
             player->forgetProgress();
@@ -1147,16 +1162,22 @@ void Filer::markFolder(const MediaFile &dir, bool watched) {
             // the duration if known (the progress line full), else the mark only
             long duration = MediaInfo(file).duration;
             pplay::Utility::setWatchLaterWatched(url, duration > 0 ? (double) duration : 0);
-            if (pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::TorrServe) {
+            if (device == pplay::Io::DeviceType::TorrServe) {
                 pplay::TorrServe::setFileViewed(path, duration > 0 ? (double) duration : 0);
+            } else if (device == pplay::Io::DeviceType::P2Play) {
+                std::string error;
+                pplay::P2Play::setFileViewed(path, true, pplay::Io::get()->networkTimeout(path), &error);
             }
         } else {
             if (!local && !server) {
                 continue;
             }
             pplay::Utility::deleteWatchLater(url);
-            if (server) {
+            if (server && device == pplay::Io::DeviceType::TorrServe) {
                 pplay::TorrServe::remFileViewed(path);
+            } else if (server && device == pplay::Io::DeviceType::P2Play) {
+                std::string error;
+                pplay::P2Play::resetFileProgress(path, pplay::Io::get()->networkTimeout(path), &error);
             }
             forgetPlayback(path);
         }
@@ -1170,8 +1191,10 @@ void Filer::markFolder(const MediaFile &dir, bool watched) {
 }
 
 void Filer::queueDurations() {
-    durationsGeneration = pplay::TorrServe::viewedGeneration();
-    int mode = main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger();
+    const auto sourceType = pplay::Io::get()->getDeviceType(path);
+    durationsGeneration = sourceType == pplay::Io::DeviceType::TorrServe
+                                  ? pplay::TorrServe::viewedGeneration() : 0;
+    const int mode = main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger();
     probe->clearBackground();
     if (main->getConfig()->getOption(OPT_MEDIA_PROBE)->getInteger() != 1) {
         return;
@@ -1180,11 +1203,34 @@ void Filer::queueDurations() {
     std::vector<MediaFile> list = files;
     mutex->unlock();
     for (auto &file: list) {
-        if (file.type == Io::Type::File && file.mediaInfo.duration <= 0 && pplay::Utility::isMedia(file)
-            && pplay::TorrServe::keptPosition(file.path, mode) > 0) {
+        if (file.type != Io::Type::File || file.mediaInfo.duration > 0 || !pplay::Utility::isMedia(file)) {
+            continue;
+        }
+        const std::string url = pplay::Io::get()->streamUrl(file.path);
+        const bool hasPosition = pplay::Utility::watchLaterPosition(url) > 0 ||
+                                 (sourceType == pplay::Io::DeviceType::TorrServe &&
+                                  pplay::TorrServe::keptPosition(file.path, mode) > 0);
+        if (hasPosition) {
             probe->requestBackground(file);
         }
     }
+}
+
+void Filer::applySafeInsets() {
+#ifdef __ANDROID__
+    const auto safe = pplay::Platform::safeSideInsets(
+            main->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_LEFT)->getFloat(),
+            main->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_RIGHT)->getFloat());
+    safeLeft = safe.x;
+    safeRight = safe.y;
+    crumbsWidth = main->getSize().x - safeLeft - safeRight - 150 * main->getScaling().x;
+    if (crumbs != nullptr) {
+        crumbs->setPosition(safeLeft + 16 * main->getScaling().x, 0);
+        StatusBar *bar = main->getStatusBar();
+        const float barWidth = bar != nullptr ? bar->getOfflineWidth() : 0.0f;
+        crumbs->setWidth(std::max(1.0f, crumbsWidth - barWidth));
+    }
+#endif
 }
 
 void Filer::onUpdate() {
@@ -1214,14 +1260,15 @@ void Filer::onUpdate() {
     if (bar != nullptr) {
         crumbs->setWidth(std::max(1.0f, crumbsWidth - bar->getOfflineWidth()));
     }
+    crumbs->setPosition(safeLeft + 16 * main->getScaling().x, 0);
     crumbs->setPath(path);
-    if (pplay::TorrServe::viewedGeneration() != durationsGeneration) {
-        queueDurations();
-    }
-    // the torrents changed on the server: listed again, the selection kept
-    if (pplay::TorrServe::torrentsGeneration() != torrentsGeneration) {
-        torrentsGeneration = pplay::TorrServe::torrentsGeneration();
-        if (pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::TorrServe) {
+    if (pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::TorrServe) {
+        if (pplay::TorrServe::viewedGeneration() != durationsGeneration) {
+            queueDurations();
+        }
+        // TorrServe torrents changed: list them again while keeping the selection.
+        if (pplay::TorrServe::torrentsGeneration() != torrentsGeneration) {
+            torrentsGeneration = pplay::TorrServe::torrentsGeneration();
             std::string selected = getSelection().path;
             int index = item_index;
             getDir(path);

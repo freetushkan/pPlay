@@ -12,6 +12,8 @@
 #include "i18n.h"
 #include "player_osd.h"
 #include "utility.h"
+#include "pplay_config.h"
+#include "platform.h"
 
 using namespace c2d;
 
@@ -19,9 +21,16 @@ StatusBox::StatusBox(Main *m) : Rectangle({0, 0, 64, 64}) {
 
     main = m;
     const Vector2f sc = m->getScaling();
-    StatusBox::setSize(m->getSize().x, std::round(32 * sc.y));
+#ifdef __ANDROID__
+    const auto safe = pplay::Platform::safeSideInsets(
+            m->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_LEFT)->getFloat(),
+            m->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_RIGHT)->getFloat());
+    safeLeft = safe.x;
+    safeRight = safe.y;
+#endif
+    StatusBox::setSize(std::max(1.0f, m->getSize().x - safeLeft - safeRight), std::round(32 * sc.y));
     // Main sets BottomLeft as the origin, so position the bottom edge below the top margin.
-    StatusBox::setPosition(0, std::round(18 * sc.y + StatusBox::getSize().y));
+    StatusBox::setPosition(safeLeft, std::round(18 * sc.y + StatusBox::getSize().y));
 
     // a soft shadow (the filer: over the path line)
     for (int i = 0; i < 3; i++) {
@@ -61,8 +70,15 @@ StatusBox::~StatusBox() {
 
 void StatusBox::applyScale() {
     const Vector2f sc = main->getScaling();
-    setSize(main->getSize().x, std::round(32 * sc.y));
-    setPosition(0, std::round(18 * sc.y + getSize().y));
+#ifdef __ANDROID__
+    const auto safe = pplay::Platform::safeSideInsets(
+            main->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_LEFT)->getFloat(),
+            main->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_RIGHT)->getFloat());
+    safeLeft = safe.x;
+    safeRight = safe.y;
+#endif
+    setSize(std::max(1.0f, main->getSize().x - safeLeft - safeRight), std::round(32 * sc.y));
+    setPosition(safeLeft, std::round(18 * sc.y + getSize().y));
     messageText->setCharacterSize(main->getFontSize(Main::FontSize::Medium));
     messageText->setPosition(0, getSize().y / 2);
     textMaxWidth = -1;
@@ -150,7 +166,7 @@ void StatusBox::onUpdate() {
 
     // Match StatusBar's top edge; this object's origin is BottomLeft.
     float top = std::round((player ? 18 : 6) * sc.y);
-    setPosition(0, top + getSize().y);
+    setPosition(safeLeft, top + getSize().y);
 
     float centerY = getSize().y / 2;
     float iconSize = std::round(22 * sc.y);
