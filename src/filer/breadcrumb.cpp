@@ -175,6 +175,27 @@ std::vector<Breadcrumb::Entry> Breadcrumb::split(const std::string &path) const 
             }
             return parts;
         }
+        if (segments[1] == "results" || segments[1] == "result" || segments[1] == "record") {
+            const std::string searchPath = appendPath(appendPath(rootPath, ".p2play"), "search");
+            parts.push_back({pplay::tr("Search torrents"), searchPath});
+            if (segments.size() >= 3) {
+                std::string label = segments[1] == "results" ? segments[2] : segments[2].substr(0, 12);
+                const std::string target = appendPath(appendPath(rootPath, ".p2play"), segments[1]);
+                std::string itemPath = appendPath(target, pplay::Http::escape(segments[2]));
+                parts.push_back({encoding::fix(label), itemPath});
+            }
+            return parts;
+        }
+        if (segments[1] == "list" || segments[1] == "disabled") {
+            const std::string listsPath = appendPath(appendPath(rootPath, ".p2play"), "lists");
+            parts.push_back({pplay::tr("My lists"), listsPath});
+            if (segments.size() >= 3) {
+                const std::string label = pplay::tr("List") + " " + segments[2].substr(0, 12);
+                const std::string target = appendPath(appendPath(rootPath, ".p2play"), segments[1]);
+                parts.push_back({encoding::fix(label), appendPath(target, pplay::Http::escape(segments[2]))});
+            }
+            return parts;
+        }
         std::string section = segments[1] == "search" ? "Search torrents" :
                               segments[1] == "progress" ? "Continue watching" :
                               segments[1] == "discover" ? "Discover" :
