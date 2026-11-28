@@ -117,6 +117,7 @@ private:
 
     // Native P2Play library management actions shown by the virtual directory.
     void runP2PlayLibraryAction(const MediaFile &file);
+    void applySafeInsets();
 
     virtual void enter(int index);
 

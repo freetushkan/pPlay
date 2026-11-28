@@ -1196,6 +1196,23 @@ void Filer::queueDurations() {
     }
 }
 
+void Filer::applySafeInsets() {
+#ifdef __ANDROID__
+    const auto safe = pplay::Platform::safeSideInsets(
+            main->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_LEFT)->getFloat(),
+            main->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_RIGHT)->getFloat());
+    safeLeft = safe.x;
+    safeRight = safe.y;
+    crumbsWidth = main->getSize().x - safeLeft - safeRight - 150 * main->getScaling().x;
+    if (crumbs != nullptr) {
+        crumbs->setPosition(safeLeft + 16 * main->getScaling().x, 0);
+        StatusBar *bar = main->getStatusBar();
+        const float barWidth = bar != nullptr ? bar->getOfflineWidth() : 0.0f;
+        crumbs->setWidth(std::max(1.0f, crumbsWidth - barWidth));
+    }
+#endif
+}
+
 void Filer::onUpdate() {
     const bool playerFullscreen = main->getPlayer()->isFullscreen();
     if (playerWasFullscreen && !playerFullscreen && pplay::P2Play::isContinueWatchingPath(path)) {
