@@ -43,7 +43,7 @@ jobs:
             CORE_SHA="$P2PLAY_CORE_MASTER_SHA"
             CORE_SOURCE="pPlay/master lock"
           elif [[ "$SOURCE_BRANCH" == "feature/p2play-https-poster-fetch" ]]; then
-            CORE_SHA="2e0e96ab6099f50538e1f06ff66d3b4de130cad5"
+            CORE_SHA="668456199f572e6642cbd337d3715b4a0e39be56"
             CORE_SOURCE="P2Play PR #45 native HTTPS callback"
           else
             CORE_SHA="$(git ls-remote --exit-code "$P2PLAY_CORE_REPOSITORY" refs/heads/master | awk 'NR == 1 {print $1}')"
