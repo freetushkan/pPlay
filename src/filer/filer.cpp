@@ -16,6 +16,8 @@
 #include "torrserve.h"
 #include "p2play.h"
 #include "saved.h"
+#include "pplay_config.h"
+#include "platform.h"
 #include "offline.h"
 #include "playlists.h"
 #include "keyboard.h"
@@ -57,8 +59,15 @@ Filer::Filer(Main *m, const std::string &path, const c2d::FloatRect &rect) : Rec
     probe = new MediaProbe();
     Filer::add(details);
 
-    crumbsWidth = size.x - 150 * m->getScaling().x;
-    crumbs = new Breadcrumb(main, {16 * m->getScaling().x, 0, crumbsWidth, crumbHeight});
+#ifdef __ANDROID__
+    const auto safe = pplay::Platform::safeSideInsets(
+            main->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_LEFT)->getFloat(),
+            main->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_RIGHT)->getFloat());
+    safeLeft = safe.x;
+    safeRight = safe.y;
+#endif
+    crumbsWidth = size.x - safeLeft - safeRight - 150 * m->getScaling().x;
+    crumbs = new Breadcrumb(main, {safeLeft + 16 * m->getScaling().x, 0, crumbsWidth, crumbHeight});
     Filer::add(crumbs);
     float padTop = std::round(12 * m->getScaling().y);
     size.y -= crumbHeight + padTop;
@@ -1214,6 +1223,7 @@ void Filer::onUpdate() {
     if (bar != nullptr) {
         crumbs->setWidth(std::max(1.0f, crumbsWidth - bar->getOfflineWidth()));
     }
+    crumbs->setPosition(safeLeft + 16 * main->getScaling().x, 0);
     crumbs->setPath(path);
     if (pplay::TorrServe::viewedGeneration() != durationsGeneration) {
         queueDurations();

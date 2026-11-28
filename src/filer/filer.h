@@ -177,6 +177,7 @@ private:
     std::vector<int> pickPrevIndexHistory;
     std::vector<std::string> pickPrevPathHistory;
     float crumbsWidth = 0;
+    float safeLeft = 0, safeRight = 0;
 
     bool pointerDown = false;
     bool pointerDragging = false;
