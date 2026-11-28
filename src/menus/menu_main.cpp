@@ -720,7 +720,7 @@ void MenuMain::updateNetworkLabels() {
             submenu->second->setTitle(label);
             for (auto *button: submenu->second->getButtons()) {
                 if (button->item.name == key + " name") {
-                    button->item.label = pplay::tr("Name");
+                    button->item.label = pplay::tr("Network name");
                 } else if (button->item.name == key + " url") {
                     button->item.label = pplay::tr("URL");
                 } else if (button->item.name == key + " type") {
@@ -760,7 +760,7 @@ void MenuMain::updateNetworkLabels() {
         for (const char *suffix: {" name", " url", " user", " password", " owner password", " token", " instance", " type", " tls", " search", " users"}) {
             auto sub = menuMainOptionsSubmenus.find(key + suffix);
             if (sub != menuMainOptionsSubmenus.end()) {
-                std::string what = std::string(suffix) == " name"       ? "Name"
+                std::string what = std::string(suffix) == " name"       ? "Network name"
                                    : std::string(suffix) == " url"      ? "URL"
                                    : std::string(suffix) == " user"     ? "User"
                                    : std::string(suffix) == " password" ? "Password"

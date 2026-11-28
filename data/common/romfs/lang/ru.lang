@@ -25,7 +25,6 @@ Subtitles = Субтитры
 Stop = Стоп
 Pause at end = Пауза в конце
 Sequential = Последовательно
-Play next = Включить следующий файл
 Loop file = Повторять файл
 Loop queue = Повторять очередь
 Shuffle = Перемешать
@@ -57,7 +56,7 @@ Auto = Авто
 Value = Значение
 
 # Networks
-Name = Имя
+Network name = Имя сети
 URL = Адрес
 User = Пользователь
 Password = Пароль
@@ -73,6 +72,11 @@ No servers found = Серверы не найдены
 Search again = Искать снова
 SMB: access denied = SMB: нет доступа
 SMB: wrong user name or password = SMB: неверное имя пользователя или пароль
+Owner password = Пароль владельца
+Instance = Вариант сервера
+Built-in = Встроенный
+External = Внешний
+Share network = Поделиться сетью
 <empty> = <пусто>
 
 # Accent colors
@@ -223,9 +227,7 @@ Dropped frames = Пропущено кадров
 Render = Рендер
 Volume = Громкость
 Speed = Скорость
-TorrServer.Silo = TorrServer.Silo (testing)
-P2Play = P2Play (testing)
-P2Play_embedded = P2Play embedded (testing)
+P2Play = P2Play (alpha)
 
 # Languages
 Belarusian = Белорусский
@@ -330,7 +332,7 @@ Genre = Жанр
 Progress source = Источник прогресса
 Preferred progress source = Предпочтительный источник прогресса просмотра
 Local first = Локальные данные
-TorrServer first = TorrServer
+Server data first = Данные на сервере
 
 # Progress
 Progress line = Линия прогресса
@@ -532,3 +534,5 @@ Loading torrent information = Загрузка информации о торр�
 Torrent details = Сведения о торренте
 Adding torrent = Добавление торрента
 Add a P2Play network before opening this link = Добавьте сеть P2Play, прежде чем открывать эту ссылку.
+Local section = Раздел «На устройстве»
+The Local section in the menu = Отображение раздела «На устройстве» в главном меню
