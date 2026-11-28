@@ -102,11 +102,27 @@ public class PPlayActivity extends SDLActivity {
     // VIEW intent: "<url>\n<name>"
     private static volatile String viewed = null;
 
+    @SuppressWarnings("deprecation")
     private void takeView(Intent intent) {
-        if (intent == null || !Intent.ACTION_VIEW.equals(intent.getAction()) || intent.getData() == null) {
+        if (intent == null) return;
+        final String action = intent.getAction();
+        Uri uri = intent.getData();
+        if (Intent.ACTION_SEND.equals(action)) {
+            Uri stream = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+            if (stream != null) {
+                uri = stream;
+            } else {
+                String text = intent.getStringExtra(Intent.EXTRA_TEXT);
+                if (text == null || text.trim().isEmpty()) return;
+                String name = intent.getStringExtra(Intent.EXTRA_SUBJECT);
+                if (name == null || name.trim().isEmpty()) name = "Shared link";
+                viewed = text.trim() + "\\n" + name;
+                return;
+            }
+        } else if (!Intent.ACTION_VIEW.equals(action) || uri == null) {
             return;
         }
-        Uri uri = intent.getData();
+        if (uri == null) return;
         String name = uri.getLastPathSegment() != null ? uri.getLastPathSegment() : uri.toString();
         String url = uri.toString();
         if ("content".equals(uri.getScheme())) {
