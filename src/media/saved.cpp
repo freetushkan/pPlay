@@ -285,7 +285,8 @@ namespace {
 
     bool escapedPaths(const std::string &path) {
         Io::DeviceType type = Io::get()->getDeviceType(path);
-        return type == Io::DeviceType::TorrServe || type == Io::DeviceType::Http || type == Io::DeviceType::WebDav;
+        return type == Io::DeviceType::TorrServe || type == Io::DeviceType::Http ||
+               type == Io::DeviceType::WebDav || type == Io::DeviceType::P2Play;
     }
 
     // a path part as shown
