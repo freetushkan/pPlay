@@ -152,7 +152,7 @@ std::vector<Breadcrumb::Entry> Breadcrumb::split(const std::string &path) const 
         const std::string libraryPath = appendPath(appendPath(rootPath, ".p2play"), "library");
         if (segments[1] == "library") {
             parts.push_back({pplay::tr("My torrents"), libraryPath});
-            if (segments.size() >= 4) {
+            if (segments.size() >= 4 && segments[2].rfind("q-", 0) != 0) {
                 const std::string hash = segments[2];
                 const std::string title = segments[3];
                 const std::string torrentPath = pplay::P2Play::directTorrentPath(rootPath, hash, title);
@@ -162,8 +162,6 @@ std::vector<Breadcrumb::Entry> Breadcrumb::split(const std::string &path) const 
                     parts.push_back({segments[i] == pplay::TorrServe::ALL_FILES ? pplay::tr(segments[i]) :
                                      encoding::fix(segments[i]), target});
                 }
-            } else if (segments.size() >= 3 && segments[2].rfind("q-", 0) != 0) {
-                parts.push_back({encoding::fix(segments[2]), appendPath(libraryPath, pplay::Http::escape(segments[2]))});
             }
             return parts;
         }

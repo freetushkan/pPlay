@@ -1015,8 +1015,9 @@ namespace pplay::P2Play {
                 std::string label = labelBase + "  (" + progressTime(entry.position);
                 if (entry.duration > 0) label += " / " + progressTime(entry.duration);
                 label += ")";
-                const std::string filePath = virtualPath(context, {".p2play", "file", "progress", entry.hash,
-                                                                    std::to_string(entry.fileIndex), entry.fileName});
+                const std::string title = entry.title.empty() ? entry.hash : entry.title;
+                const std::string filePath = virtualPath(context, {".p2play", "file", entry.hash,
+                                                                    std::to_string(entry.fileIndex), title, entry.fileName});
                 c2d::Io::File file(entry.fileName, filePath, c2d::Io::Type::File, 0);
                 {
                     std::lock_guard<std::mutex> lock(g_mutex);
@@ -1217,10 +1218,14 @@ namespace pplay::P2Play {
                 const int index = file["id"].get<int>();
                 const std::string filePath = file["path"].get<std::string>();
                 const std::string name = baseName(filePath);
+                const std::string title = torrent.value("title", recordHash);
                 const auto size = file.value("length", int64_t(0));
+                std::vector<std::string> virtualParts = {".p2play", "file", torrentHash,
+                                                         std::to_string(index), title};
+                const auto relativeParts = splitPath(filePath);
+                virtualParts.insert(virtualParts.end(), relativeParts.begin(), relativeParts.end());
                 files.emplace_back(name,
-                                   virtualPath(context, {".p2play", "file", parts[2], torrentHash,
-                                                         std::to_string(index), name}),
+                                   virtualPath(context, virtualParts),
                                    c2d::Io::Type::File, static_cast<uint64_t>(std::max<int64_t>(0, size)));
             }
             return files;
