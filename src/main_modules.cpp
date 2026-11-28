@@ -11,6 +11,8 @@
 #include "torrserve.h"
 #include "platform.h"
 #include "pplay_config.h"
+#include "io.h"
+#include "p2play.h"
 
 using namespace c2d;
 using namespace pplay;
@@ -158,7 +160,10 @@ void Main::show(MenuType type) {
             || path.empty()) {
             path = root;
         }
-        std::string dirPath = Paths::extractDirPath(path);
+        std::string dirPath = pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::P2Play
+                                      ? pplay::P2Play::libraryDirectoryForFile(path)
+                                      : std::string();
+        if (dirPath.empty()) dirPath = Paths::extractDirPath(path);
         if (!filer->getDir(dirPath)) {
             if (!filer->getDir(root)) {
                 showMessage(pplay::tr("ERROR"), filer->getError(), pplay::tr("OK"));
@@ -324,7 +329,11 @@ void Main::restoreSession() {
     bool away = filer->getSelection().path != path;
     if (away) {
         setCurrentModuleIndex(moduleOf(path));
-        if (filer->getDir(Paths::extractDirPath(path))) {
+        std::string resumeDir = pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::P2Play
+                                    ? pplay::P2Play::libraryDirectoryForFile(path)
+                                    : std::string();
+        if (resumeDir.empty()) resumeDir = Paths::extractDirPath(path);
+        if (filer->getDir(resumeDir)) {
             filer->selectByPath(path);
         }
     }

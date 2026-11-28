@@ -982,7 +982,7 @@ void Filer::resetProgress(const MediaFile &file) {
         pplay::TorrServe::remFileViewed(file.path);
     } else if (device == pplay::Io::DeviceType::P2Play) {
         std::string error;
-        pplay::P2Play::setFileViewed(file.path, false, pplay::Io::get()->networkTimeout(file.path), &error);
+        pplay::P2Play::resetFileProgress(file.path, pplay::Io::get()->networkTimeout(file.path), &error);
     }
     forgetPlayback(file.path);
     dirty = true;
@@ -1143,8 +1143,14 @@ void Filer::markFolder(const MediaFile &dir, bool watched) {
         std::string path = pplay::Saved::originalOf(file.path);
         std::string url = pplay::Io::get()->streamUrl(path);
         bool local = pplay::Utility::isWatchLaterExist(url);
-        bool server = pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::TorrServe
-                      && pplay::TorrServe::isFileViewed(path);
+        const auto device = pplay::Io::get()->getDeviceType(path);
+        bool server = device == pplay::Io::DeviceType::TorrServe && pplay::TorrServe::isFileViewed(path);
+        if (device == pplay::Io::DeviceType::P2Play) {
+            pplay::P2Play::PlaybackProgress progress;
+            std::string error;
+            server = pplay::P2Play::getFileProgress(path, pplay::Io::get()->networkTimeout(path),
+                                                    &progress, &error) && (progress.viewed || progress.position > 0);
+        }
         // the opened file: no more saves over the change
         if (player->isPlaying(file.path) || player->isPlaying(path)) {
             player->forgetProgress();
@@ -1156,16 +1162,22 @@ void Filer::markFolder(const MediaFile &dir, bool watched) {
             // the duration if known (the progress line full), else the mark only
             long duration = MediaInfo(file).duration;
             pplay::Utility::setWatchLaterWatched(url, duration > 0 ? (double) duration : 0);
-            if (pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::TorrServe) {
+            if (device == pplay::Io::DeviceType::TorrServe) {
                 pplay::TorrServe::setFileViewed(path, duration > 0 ? (double) duration : 0);
+            } else if (device == pplay::Io::DeviceType::P2Play) {
+                std::string error;
+                pplay::P2Play::setFileViewed(path, true, pplay::Io::get()->networkTimeout(path), &error);
             }
         } else {
             if (!local && !server) {
                 continue;
             }
             pplay::Utility::deleteWatchLater(url);
-            if (server) {
+            if (server && device == pplay::Io::DeviceType::TorrServe) {
                 pplay::TorrServe::remFileViewed(path);
+            } else if (server && device == pplay::Io::DeviceType::P2Play) {
+                std::string error;
+                pplay::P2Play::resetFileProgress(path, pplay::Io::get()->networkTimeout(path), &error);
             }
             forgetPlayback(path);
         }

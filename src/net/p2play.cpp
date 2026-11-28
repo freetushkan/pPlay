@@ -811,6 +811,25 @@ namespace pplay::P2Play {
         return virtualPath(root, {".p2play", "library", hash, title.empty() ? hash : title});
     }
 
+    // Directory to restore when the last selection was a P2Play virtual file.
+    // The virtual file path itself is not a directory and must not be passed to extractDirPath().
+    std::string libraryDirectoryForFile(const std::string &filePath) {
+        const std::string context = rootOf(filePath);
+        if (context.empty()) return {};
+        const auto parts = splitPath(relativeOf(context, filePath));
+        if (parts.size() < 6 || parts[0] != ".p2play" || parts[1] != "file") return {};
+        if (parts[2] == "direct" && !parts[3].empty()) {
+            return virtualPath(context, {".p2play", "direct", parts[3]});
+        }
+        const std::string &hash = parts[2];
+        if ((hash.size() != 40 && hash.size() != 64) ||
+            !std::all_of(hash.begin(), hash.end(), [](unsigned char c) { return std::isxdigit(c) != 0; })) {
+            return {};
+        }
+        const std::string &title = parts[4];
+        return virtualPath(context, {".p2play", "library", hash, title.empty() ? hash : title});
+    }
+
     bool previewCatalogRecord(const std::string &contextPath, const std::string &recordHash, int timeout,
                               CatalogRecord *record, TorrentInfo *torrent, std::string *error) {
         const std::string context = rootOf(contextPath);
@@ -905,12 +924,12 @@ namespace pplay::P2Play {
             return files;
         }
         if (parts.size() >= 2 && parts[1] == "library") {
-            const bool torrentFolder = parts.size() >= 4 &&
+            const bool torrentFolder = parts.size() >= 3 &&
                 (parts[2].size() == 40 || parts[2].size() == 64) &&
                 std::all_of(parts[2].begin(), parts[2].end(), [](unsigned char c) { return std::isxdigit(c) != 0; });
             if (torrentFolder) {
                 const std::string &hash = parts[2];
-                const std::string title = parts[3].empty() ? hash : parts[3];
+                const std::string requestedTitle = parts.size() > 3 ? parts[3] : std::string();
                 json response;
                 if (!apiJson(root, context, "/api/v1/torrents/" + pplay::Http::escape(hash),
                              "GET", noBody(), timeout, &response, &failure)) {
@@ -918,6 +937,9 @@ namespace pplay::P2Play {
                     return files;
                 }
                 const json details = response.value("details", json::object());
+                const std::string title = requestedTitle.empty()
+                                              ? details.value("title", hash)
+                                              : requestedTitle;
                 const json stats = details.value("file_stats", json::array());
                 if (!stats.is_array()) {
                     fail("P2Play torrent response has no file list");
@@ -1451,6 +1473,15 @@ namespace pplay::P2Play {
             break;
         }
         return true;
+    }
+
+    bool resetFileProgress(const std::string &filePath, int timeout, std::string *error) {
+        if (!error) return false;
+        std::string context, root, hash; int index = -1;
+        if (!fileAddressOf(filePath, &context, &root, &hash, &index, error)) return false;
+        json answer;
+        return apiJson(root, context, "/api/v1/torrents/" + pplay::Http::escape(hash) + "/files/" +
+                       std::to_string(index) + "/progress", "DELETE", json::object(), timeout, &answer, error);
     }
 
     bool setFileProgress(const std::string &filePath, double position, double duration, int timeout, std::string *error) {
