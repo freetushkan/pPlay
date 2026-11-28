@@ -58,15 +58,20 @@ public:
 
     void onUpdate() override {
 
-        if (!isVisible()) {
-            return;
-        }
+#if defined(__SWITCH__)
+        if (!isVisible()) return;
+#else
+        // Keep polling while the first Android reading is unavailable so the
+        // hidden battery glyph can reappear when the system reports a level.
+        if (hasReading && !isVisible()) return;
+#endif
 
 #ifdef __SWITCH__
         psmGetBatteryChargePercentage(&percent);
 #else
-        if (!hasReading || readingClock.getElapsedTime().asSeconds() >= 30) {
+        if (!hasAttempt || readingClock.getElapsedTime().asSeconds() >= 30) {
             readingClock.restart();
+            hasAttempt = true;
             const int level = pplay::Platform::batteryLevel();
             if (level >= 0) {
                 percent = static_cast<unsigned int>(level);
@@ -128,6 +133,7 @@ public:
 #if defined(__ANDROID__)
     C2DClock readingClock;
     bool hasReading = false;
+    bool hasAttempt = false;
 #endif
 };
 #endif
@@ -138,9 +144,16 @@ StatusBar::StatusBar(Main *m) : Rectangle({0, 0, 64, 64}) {
 #endif
     main = m;
     const float sc = m->getScaling().y;
-    StatusBar::setSize(m->getSize().x, 32 * sc);
-    // off the screen edge, as the player panel at the bottom
-    StatusBar::setPosition(0, 18 * sc);
+#ifdef __ANDROID__
+    const auto safe = pplay::Platform::safeSideInsets(
+            m->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_LEFT)->getFloat(),
+            m->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_RIGHT)->getFloat());
+    safeLeft = safe.x;
+    safeRight = safe.y;
+#endif
+    StatusBar::setSize(std::max(1.0f, m->getSize().x - safeLeft - safeRight), 32 * sc);
+    // Keep the entire top row inside the device's usable rounded-screen area.
+    StatusBar::setPosition(safeLeft, 18 * sc);
 
     // a chip on the right: battery (Switch) and clock
     chip = new RoundRect({10, std::round(26 * sc)});
@@ -179,8 +192,15 @@ StatusBar::StatusBar(Main *m) : Rectangle({0, 0, 64, 64}) {
 
 void StatusBar::applyScale() {
     const Vector2f sc = main->getScaling();
-    setSize(main->getSize().x, 32 * sc.y);
-    setPosition(0, 18 * sc.y);
+#ifdef __ANDROID__
+    const auto safe = pplay::Platform::safeSideInsets(
+            main->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_LEFT)->getFloat(),
+            main->getConfig()->getOption(OPT_ANDROID_SAFE_MARGIN_RIGHT)->getFloat());
+    safeLeft = safe.x;
+    safeRight = safe.y;
+#endif
+    setSize(std::max(1.0f, main->getSize().x - safeLeft - safeRight), 32 * sc.y);
+    setPosition(safeLeft, 18 * sc.y);
     chip->setSize(10, std::round(26 * sc.y));
     timeText->setCharacterSize(main->getFontSize(Main::FontSize::Big));
 #if defined(__SWITCH__) || defined(__ANDROID__)
@@ -257,7 +277,7 @@ void StatusBar::onUpdate() {
 
     // the player: off the edge as its panel; the filer: on its path line
     bool player = main->getPlayer() != nullptr && main->getPlayer()->isFullscreen();
-    setPosition(0, std::round((player ? 18 : 6) * main->getScaling().y));
+    setPosition(safeLeft, std::round((player ? 18 : 6) * main->getScaling().y));
 
     // the chip around the drawn digits (not the font line), even paddings
     const Vector2f sc = main->getScaling();
