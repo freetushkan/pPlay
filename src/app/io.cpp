@@ -87,6 +87,10 @@ bool Io::embeddedReady() const {
     return P2PlayEmbedded::isReady();
 }
 
+bool Io::waitUntilEmbeddedReady(int timeoutSeconds) {
+    return P2PlayEmbedded::waitUntilReady(timeoutSeconds);
+}
+
 const std::vector<std::string> &Io::networkTypeNames() {
     static const std::vector<std::string> names = {"TorrServer", "Samba", "FTP", "HTTP", "WebDAV", "DLNA", "P2Play"};
     return names;
@@ -226,8 +230,8 @@ std::vector<c2d::Io::File> Io::list(const DeviceType &type, const std::string &p
                             "Io::" + networkTypeName(getNetworkType(path)) + " path=" + path
                                     + " entries=" + std::to_string(files.size()));
     } else if (type == DeviceType::P2Play) {
-        if (isEmbeddedNetwork(path) && !P2PlayEmbedded::isReady()) {
-            failed = "Embedded P2Play is starting, stopping, or unavailable; check the owner password";
+        if (isEmbeddedNetwork(path) && !waitUntilEmbeddedReady(timeout)) {
+            failed = "Embedded P2Play did not become ready; check the owner password and server settings";
         } else {
             files = pplay::P2Play::getDirList(path, timeout, &failed);
         }

@@ -18,6 +18,9 @@
 #include "paths.h"
 #include "playlists.h"
 #include "torrserve.h"
+#include "io.h"
+#include "net_http.h"
+#include "p2play.h"
 #include "menu_main.h"
 
 using namespace c2d;
@@ -130,6 +133,61 @@ std::vector<Breadcrumb::Entry> Breadcrumb::split(const std::string &path) const 
         // local paths: the root crumb returns to the filesystem root
         rootPath = "/";
         rest = path;
+    }
+
+    if (best > 0 && pplay::Io::get() != nullptr &&
+        (pplay::Io::get()->getNetworkType(path) == pplay::Io::NetworkType::P2Play ||
+         pplay::Io::get()->getNetworkType(path) == pplay::Io::NetworkType::P2PlayEmbedded)) {
+        parts.push_back({rootLabel, rootPath});
+        std::vector<std::string> segments;
+        size_t cursor = 0;
+        while (cursor <= rest.size()) {
+            const size_t end = rest.find('/', cursor);
+            const std::string raw = rest.substr(cursor, end == std::string::npos ? std::string::npos : end - cursor);
+            if (!raw.empty()) segments.push_back(decode(raw));
+            if (end == std::string::npos) break;
+            cursor = end + 1;
+        }
+        if (segments.size() < 2 || segments[0] != ".p2play") return parts;
+        const std::string libraryPath = appendPath(appendPath(rootPath, ".p2play"), "library");
+        if (segments[1] == "library") {
+            parts.push_back({pplay::tr("My torrents"), libraryPath});
+            if (segments.size() >= 4) {
+                const std::string hash = segments[2];
+                const std::string title = segments[3];
+                const std::string torrentPath = pplay::P2Play::directTorrentPath(rootPath, hash, title);
+                parts.push_back({encoding::fix(title), torrentPath});
+                for (size_t i = 4; i < segments.size(); ++i) {
+                    const std::string target = appendPath(torrentPath, pplay::Http::escape(segments[i]));
+                    parts.push_back({segments[i] == pplay::TorrServe::ALL_FILES ? pplay::tr(segments[i]) :
+                                     encoding::fix(segments[i]), target});
+                }
+            } else if (segments.size() >= 3 && segments[2].rfind("q-", 0) != 0) {
+                parts.push_back({encoding::fix(segments[2]), appendPath(libraryPath, pplay::Http::escape(segments[2]))});
+            }
+            return parts;
+        }
+        if (segments[1] == "file" && segments.size() >= 6) {
+            parts.push_back({pplay::tr("My torrents"), libraryPath});
+            const std::string torrentPath = pplay::P2Play::directTorrentPath(rootPath, segments[2], segments[4]);
+            parts.push_back({encoding::fix(segments[4]), torrentPath});
+            for (size_t i = 5; i < segments.size(); ++i) {
+                const std::string target = appendPath(torrentPath, pplay::Http::escape(segments[i]));
+                parts.push_back({encoding::fix(segments[i]), target});
+            }
+            return parts;
+        }
+        std::string section = segments[1] == "search" ? "Search torrents" :
+                              segments[1] == "progress" ? "Continue watching" :
+                              segments[1] == "discover" ? "Discover" :
+                              segments[1] == "lists" ? "My lists" : encoding::fix(segments[1]);
+        const std::string sectionPath = appendPath(appendPath(rootPath, ".p2play"), pplay::Http::escape(segments[1]));
+        parts.push_back({pplay::tr(section), sectionPath});
+        for (size_t i = 2; i < segments.size(); ++i) {
+            parts.push_back({encoding::fix(segments[i]),
+                appendPath(parts.back().path, pplay::Http::escape(segments[i]))});
+        }
+        return parts;
     }
 
     parts.push_back({rootLabel, rootPath});

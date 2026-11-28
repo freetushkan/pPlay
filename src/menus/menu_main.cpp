@@ -489,16 +489,15 @@ void MenuMain::showNetworkUsers(int index, const std::string &select) {
             main->getConfig()->getOption(PPLAYConfig::networkTypeOption(index))->getString());
     if (type != pplay::Io::NetworkType::P2Play && type != pplay::Io::NetworkType::P2PlayEmbedded) return;
     const std::string configuredUrl = main->getConfig()->getOption(PPLAYConfig::networkOption(index))->getString();
+    const std::string context = configuredUrl;
+    const int timeout = main->getConfig()->getOption(PPLAYConfig::networkTimeoutOption(index))->getInteger();
     if (pplay::Io::get()->isEmbeddedNetwork(configuredUrl)) {
         pplay::Io::get()->setCurrentNetwork(index);
-        if (!pplay::Io::get()->embeddedReady()) {
-            main->getStatus()->show("Wait", pplay::tr("Embedded P2Play is starting. Open Users again shortly."));
+        if (!pplay::Io::get()->waitUntilEmbeddedReady(timeout)) {
+            main->getStatus()->show("Error", pplay::tr("Embedded P2Play did not become ready; check the owner password."));
             return;
         }
     }
-
-    const std::string context = main->getConfig()->getOption(PPLAYConfig::networkOption(index))->getString();
-    const int timeout = main->getConfig()->getOption(PPLAYConfig::networkTimeoutOption(index))->getInteger();
     std::vector<pplay::P2Play::ServerUser> users;
     int actorRank = 0;
     std::string error;

@@ -276,14 +276,22 @@ namespace {
         const std::string networkRoot = rootOf(original);
         if (networkRoot.empty()) { *error = "P2Play file path has no network root"; return false; }
         const auto parts = splitPath(relativeOf(networkRoot, original));
+        auto isIndex = [](const std::string &value) {
+            return !value.empty() && value.size() <= 9 &&
+                   std::all_of(value.begin(), value.end(), [](unsigned char c) { return std::isdigit(c) != 0; });
+        };
+        size_t hashPart = 3, indexPart = 4;
+        if (parts.size() >= 6 && isIndex(parts[3])) {
+            hashPart = 2;
+            indexPart = 3;
+        }
         if (parts.size() < 6 || parts[0] != ".p2play" || parts[1] != "file" ||
-            parts[3].empty() || parts[4].empty() || parts[4].size() > 9 ||
-            !std::all_of(parts[4].begin(), parts[4].end(), [](unsigned char c) { return std::isdigit(c) != 0; })) {
+            parts[hashPart].empty() || !isIndex(parts[indexPart])) {
             *error = "P2Play path is not a playable torrent file"; return false;
         }
         int parsed = 0;
-        for (unsigned char c : parts[4]) parsed = parsed * 10 + (c - '0');
-        *context = original; *root = cleanRoot(networkRoot); *hash = parts[3]; *index = parsed;
+        for (unsigned char c : parts[indexPart]) parsed = parsed * 10 + (c - '0');
+        *context = original; *root = cleanRoot(networkRoot); *hash = parts[hashPart]; *index = parsed;
         return true;
     }
 
@@ -796,9 +804,11 @@ namespace pplay::P2Play {
         const auto p = pathParts(path);
         return p.size() == 3 && p[0] == ".p2play" && p[1] == "result" ? p[2] : std::string();
     }
-    std::string directTorrentPath(const std::string &contextPath, const std::string &hash) {
+    std::string directTorrentPath(const std::string &contextPath, const std::string &hash,
+                                  const std::string &title) {
         const auto root = rootOf(contextPath);
-        return root.empty() ? std::string() : virtualPath(root, {".p2play", "direct", hash});
+        if (root.empty()) return {};
+        return virtualPath(root, {".p2play", "library", hash, title.empty() ? hash : title});
     }
 
     bool previewCatalogRecord(const std::string &contextPath, const std::string &recordHash, int timeout,
@@ -875,16 +885,6 @@ namespace pplay::P2Play {
         }
         const std::string relative = relativeOf(context, path);
         std::vector<std::string> parts = splitPath(relative);
-        // Breadcrumbs and restored paths can address intermediate URL segments
-        // of this virtual filesystem. Treat those non-leaf route prefixes as
-        // its landing directory rather than rejecting them as malformed routes.
-        if (parts.size() == 1 && parts[0] == ".p2play") {
-            parts.clear();
-        } else if (parts.size() == 2 && parts[0] == ".p2play" &&
-                   (parts[1] == "list" || parts[1] == "record" ||
-                    parts[1] == "results" || parts[1] == "file")) {
-            parts.clear();
-        }
         auto fail = [&](const std::string &message) {
             if (error != nullptr) {
                 *error = message;
@@ -905,10 +905,72 @@ namespace pplay::P2Play {
             return files;
         }
         if (parts.size() >= 2 && parts[1] == "library") {
+            const bool torrentFolder = parts.size() >= 4 &&
+                (parts[2].size() == 40 || parts[2].size() == 64) &&
+                std::all_of(parts[2].begin(), parts[2].end(), [](unsigned char c) { return std::isxdigit(c) != 0; });
+            if (torrentFolder) {
+                const std::string &hash = parts[2];
+                const std::string title = parts[3].empty() ? hash : parts[3];
+                json response;
+                if (!apiJson(root, context, "/api/v1/torrents/" + pplay::Http::escape(hash),
+                             "GET", noBody(), timeout, &response, &failure)) {
+                    fail(failure);
+                    return files;
+                }
+                const json details = response.value("details", json::object());
+                const json stats = details.value("file_stats", json::array());
+                if (!stats.is_array()) {
+                    fail("P2Play torrent response has no file list");
+                    return files;
+                }
+                const bool allFiles = parts.size() == 5 && parts[4] == "[all files]";
+                std::vector<std::string> prefix;
+                if (!allFiles && parts.size() > 4) prefix.assign(parts.begin() + 4, parts.end());
+                std::set<std::string> directories;
+                for (const auto &file : stats) {
+                    if (!file.is_object() || !file.value("id", json()).is_number_integer() ||
+                        !file.value("path", json()).is_string()) continue;
+                    const int index = file["id"].get<int>();
+                    const std::string filePath = file["path"].get<std::string>();
+                    const auto fileParts = splitPath(filePath);
+                    if (fileParts.size() <= prefix.size() ||
+                        !std::equal(prefix.begin(), prefix.end(), fileParts.begin())) continue;
+                    const std::string next = fileParts[prefix.size()];
+                    if (!allFiles && fileParts.size() > prefix.size() + 1) {
+                        if (directories.insert(next).second) {
+                            std::vector<std::string> dirPath = {".p2play", "library", hash, title};
+                            dirPath.insert(dirPath.end(), prefix.begin(), prefix.end());
+                            dirPath.push_back(next);
+                            files.push_back(directory(next, virtualPath(context, dirPath)));
+                        }
+                        continue;
+                    }
+                    std::vector<std::string> itemPath = {".p2play", "file", hash,
+                                                         std::to_string(index), title};
+                    itemPath.insert(itemPath.end(), fileParts.begin(), fileParts.end());
+                    files.emplace_back(baseName(filePath), virtualPath(context, itemPath),
+                                       c2d::Io::Type::File,
+                                       static_cast<uint64_t>(std::max<int64_t>(0, file.value("length", int64_t(0)))));
+                }
+                if (!allFiles && prefix.empty() && !directories.empty()) {
+                    files.push_back(directory("[all files]",
+                        virtualPath(context, {".p2play", "library", hash, title, "[all files]"})));
+                }
+                if (prefix.empty()) {
+                    files.emplace_back("Edit title…", virtualPath(context, {".p2play", "action", "edit-title", hash}),
+                                       c2d::Io::Type::File, 0);
+                    files.emplace_back("Edit category…", virtualPath(context, {".p2play", "action", "edit-category", hash}),
+                                       c2d::Io::Type::File, 0);
+                    files.emplace_back("Remove from my library…",
+                        virtualPath(context, {".p2play", "action", "remove", hash}), c2d::Io::Type::File, 0);
+                }
+                return files;
+            }
+
             LibraryQuery query;
-            if (parts.size() == 6) {
-                if (parts[2].rfind("q-", 0) != 0 ||
-                    (parts[3] != "all" && parts[3].rfind("category-", 0) != 0)) {
+            const bool filtered = parts.size() == 6 && parts[2].rfind("q-", 0) == 0;
+            if (filtered) {
+                if (parts[3] != "all" && parts[3].rfind("category-", 0) != 0) {
                     fail("Invalid P2Play library filter path");
                     return files;
                 }
@@ -931,29 +993,12 @@ namespace pplay::P2Play {
                     virtualPath(context, {".p2play", "action", "filter-library"}), c2d::Io::Type::File, 0);
             }
             for (const auto &torrent : library) {
-                std::string label = torrent.title.empty() ? torrent.hash : torrent.title;
+                const std::string title = torrent.title.empty() ? torrent.hash : torrent.title;
+                std::string label = title;
                 if (!torrent.category.empty()) label += "  [" + torrent.category + "]";
                 files.push_back(directory(label,
-                    virtualPath(context, {".p2play", "manage", torrent.hash})));
+                    virtualPath(context, {".p2play", "library", torrent.hash, title})));
             }
-            return files;
-        }
-        if (parts.size() == 3 && parts[1] == "manage") {
-            const std::string &hash = parts[2];
-            std::vector<LibraryTorrent> library;
-            if (!getLibrary(context, timeout, &library, &failure)) { fail(failure); return files; }
-            auto torrent = std::find_if(library.begin(), library.end(), [&](const LibraryTorrent &item) {
-                return item.hash == hash;
-            });
-            if (torrent == library.end()) { fail("Torrent is no longer in this user's library"); return files; }
-            files.push_back(directory("Open torrent files",
-                virtualPath(context, {".p2play", "direct", hash})));
-            files.emplace_back("Edit title…", virtualPath(context, {".p2play", "action", "edit-title", hash}),
-                               c2d::Io::Type::File, 0);
-            files.emplace_back("Edit category…", virtualPath(context, {".p2play", "action", "edit-category", hash}),
-                               c2d::Io::Type::File, 0);
-            files.emplace_back("Remove from my library…",
-                virtualPath(context, {".p2play", "action", "remove", hash}), c2d::Io::Type::File, 0);
             return files;
         }
         if (parts.size() == 2 && parts[1] == "progress") {
@@ -1196,8 +1241,18 @@ namespace pplay::P2Play {
             return input;
         }
         const std::string root = cleanRoot(context);
-        const std::string torrentHash = parts[3];
-        const std::string index = parts[4];
+        std::string torrentHash, index;
+        auto isIndex = [](const std::string &value) {
+            return !value.empty() && value.size() <= 9 &&
+                   std::all_of(value.begin(), value.end(), [](unsigned char c) { return std::isdigit(c) != 0; });
+        };
+        if (isIndex(parts[3])) {
+            torrentHash = parts[2];
+            index = parts[3];
+        } else {
+            torrentHash = parts[3];
+            index = parts[4];
+        }
         if (torrentHash.empty() || index.empty()) {
             return input;
         }

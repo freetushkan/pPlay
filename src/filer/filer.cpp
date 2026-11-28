@@ -765,7 +765,7 @@ void Filer::showP2PlayRecord(const MediaFile &file) {
     main->getStatus()->hide();
     const int previous = item_index;
     const std::string previousPath = path;
-    const std::string folder = pplay::P2Play::directTorrentPath(file.path, torrent.hash);
+    const std::string folder = pplay::P2Play::directTorrentPath(file.path, torrent.hash, torrent.title);
     if (!folder.empty() && getDir(folder)) {
         path_prev.push_back(previousPath);
         item_index_prev.push_back(previous);
@@ -805,7 +805,7 @@ void Filer::openP2PlayLink(const std::string &url, const std::string &name) {
         return;
     }
     main->getStatus()->hide();
-    const std::string folder = pplay::P2Play::directTorrentPath(root, torrent.hash);
+    const std::string folder = pplay::P2Play::directTorrentPath(root, torrent.hash, torrent.title);
     if (!folder.empty() && getDir(folder)) { clearHistory(); setSelection(0); }
 }
 
@@ -817,7 +817,7 @@ void Filer::runP2PlayLibraryAction(const MediaFile &file) {
     std::string error;
 
     auto openAddedTorrent = [&](const pplay::P2Play::TorrentInfo &torrent) {
-        const std::string folder = pplay::P2Play::directTorrentPath(file.path, torrent.hash);
+        const std::string folder = pplay::P2Play::directTorrentPath(file.path, torrent.hash, torrent.title);
         if (!folder.empty() && getDir(folder)) {
             clearHistory();
             setSelection(0);
@@ -857,7 +857,7 @@ void Filer::runP2PlayLibraryAction(const MediaFile &file) {
                           main->showMessage("P2Play", failure, pplay::tr("OK"));
                           return;
                       }
-                      const std::string folder = pplay::P2Play::directTorrentPath(context, torrent.hash);
+                      const std::string folder = pplay::P2Play::directTorrentPath(context, torrent.hash, torrent.title);
                       if (!folder.empty() && getDir(folder)) {
                           clearHistory();
                           setSelection(0);

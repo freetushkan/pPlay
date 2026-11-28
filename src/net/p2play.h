@@ -99,7 +99,8 @@ namespace pplay::P2Play {
     bool getCatalogDetails(const std::string &contextPath, const std::string &recordHash, int timeout,
                            CatalogDetails *details, std::string *error);
     std::string searchResultHash(const std::string &path);
-    std::string directTorrentPath(const std::string &contextPath, const std::string &torrentHash);
+    std::string directTorrentPath(const std::string &contextPath, const std::string &torrentHash,
+                                  const std::string &torrentTitle = "");
 
     bool previewCatalogRecord(const std::string &contextPath, const std::string &recordHash, int timeout,
                               CatalogRecord *record, TorrentInfo *torrent, std::string *error);
