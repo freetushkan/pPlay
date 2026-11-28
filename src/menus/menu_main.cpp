@@ -3,6 +3,8 @@
 //
 
 #include <utility>
+#include <algorithm>
+#include <cstdlib>
 #include <map>
 
 #include "platform.h"
@@ -496,7 +498,8 @@ void MenuMain::showNetwork(int index, const std::string &select) {
 
 bool MenuMain::importNetworkLink(const std::string &url) {
     const std::string prefix = "pplay://network";
-    if (url.compare(0, prefix.size(), prefix) != 0) return false;
+    if (url.compare(0, prefix.size(), prefix) != 0 ||
+        (url.size() > prefix.size() && url[prefix.size()] != '?')) return false;
 
     std::map<std::string, std::string> values;
     const size_t queryAt = url.find('?');
