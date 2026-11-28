@@ -1218,7 +1218,7 @@ namespace pplay::P2Play {
                 const int index = file["id"].get<int>();
                 const std::string filePath = file["path"].get<std::string>();
                 const std::string name = baseName(filePath);
-                const std::string title = torrent.value("title", recordHash);
+                const std::string title = torrent.value("title", parts[2]);
                 const auto size = file.value("length", int64_t(0));
                 std::vector<std::string> virtualParts = {".p2play", "file", torrentHash,
                                                          std::to_string(index), title};

@@ -39,7 +39,7 @@ namespace pplay::P2PlayEmbedded {
                 if (!out || cap == 0) return;
                 const size_t n = std::min(cap - 1, value.size());
                 std::memcpy(out, value.data(), n);
-                out[n] = '\\0';
+                out[n] = '\0';
             };
             pplay::Http::Request request;
             request.url = url ? url : "";
