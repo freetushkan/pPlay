@@ -643,6 +643,20 @@ namespace pplay::Platform {
         return 1.0f;
     }
 
+    int batteryLevel() {
+#ifdef __ANDROID__
+        const std::string value = callActivity("getBatteryLevel", "()Ljava/lang/String;");
+        if (!value.empty()) {
+            char *end = nullptr;
+            const long level = std::strtol(value.c_str(), &end, 10);
+            if (end != value.c_str() && *end == '\\0' && level >= 0 && level <= 100) {
+                return static_cast<int>(level);
+            }
+        }
+#endif
+        return -1;
+    }
+
     std::string takeViewed(std::string *name) {
 #ifdef __ANDROID__
         std::string value = callActivity("takeViewed", "()Ljava/lang/String;");

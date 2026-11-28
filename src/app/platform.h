@@ -27,6 +27,9 @@ namespace pplay::Platform {
     // Automatic Android interface scale from the display's logical density.
     float interfaceScale();
 
+    // Android battery percentage; -1 when unavailable.
+    int batteryLevel();
+
     // "Switch", "PS4"... with the system version when known
     std::string name();
 

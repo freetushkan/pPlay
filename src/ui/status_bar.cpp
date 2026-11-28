@@ -19,14 +19,14 @@
 #include "round_rect.h"
 
 #ifdef __SWITCH__
-
 #include <switch.h>
-
 #endif
+
+#include "platform.h"
 
 using namespace c2d;
 
-#ifdef __SWITCH__
+#if defined(__SWITCH__) || defined(__ANDROID__)
 class Battery : public RectangleShape {
 
 public:
@@ -62,7 +62,23 @@ public:
             return;
         }
 
+#ifdef __SWITCH__
         psmGetBatteryChargePercentage(&percent);
+#else
+        if (!hasReading || readingClock.getElapsedTime().asSeconds() >= 30) {
+            readingClock.restart();
+            const int level = pplay::Platform::batteryLevel();
+            if (level >= 0) {
+                percent = static_cast<unsigned int>(level);
+                hasReading = true;
+            }
+        }
+        if (!hasReading) {
+            setVisibility(Visibility::Hidden);
+            return;
+        }
+        setVisibility(Visibility::Visible);
+#endif
         // ps4: not std::clamp
         if (percent < 1) {
             percent = 1;
@@ -109,6 +125,10 @@ public:
     RectangleShape *leftRect = nullptr;
     unsigned int percent = 100;
     float maxWidth;
+#if defined(__ANDROID__)
+    C2DClock readingClock;
+    bool hasReading = false;
+#endif
 };
 #endif
 
@@ -127,7 +147,7 @@ StatusBar::StatusBar(Main *m) : Rectangle({0, 0, 64, 64}) {
     chip->setOrigin(Origin::Right);
     StatusBar::add(chip);
 
-#ifdef __SWITCH__
+#if defined(__SWITCH__) || defined(__ANDROID__)
     battery = new Battery(StatusBar::getGlobalBounds(), m->getScaling());
     // as far from the chip edge as the clock from the other one
     battery->setPosition(battery->getPosition().x - 30 * m->getScaling().x, battery->getPosition().y);
@@ -163,7 +183,7 @@ void StatusBar::applyScale() {
     setPosition(0, 18 * sc.y);
     chip->setSize(10, std::round(26 * sc.y));
     timeText->setCharacterSize(main->getFontSize(Main::FontSize::Big));
-#ifdef __SWITCH__
+#if defined(__SWITCH__) || defined(__ANDROID__)
     battery->applyScale(getGlobalBounds(), sc);
     timeText->setPosition(battery->getPosition().x - battery->getSize().x - 16 * sc.x, getSize().y / 2);
 #else
@@ -190,7 +210,7 @@ void StatusBar::applyAlpha() {
     offline->setFillColor({COLOR_FONT.r, COLOR_FONT.g, COLOR_FONT.b, a});
     offlineText->setFillColor({COLOR_FONT.r, COLOR_FONT.g, COLOR_FONT.b, (uint8_t) std::lround(200 * alpha)});
     chip->setFillColor({10, 12, 16, (uint8_t) std::lround(170 * alpha)});
-#ifdef __SWITCH__
+#if defined(__SWITCH__) || defined(__ANDROID__)
     battery->fade(a);
 #endif
 }
