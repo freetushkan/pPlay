@@ -1191,8 +1191,10 @@ void Filer::markFolder(const MediaFile &dir, bool watched) {
 }
 
 void Filer::queueDurations() {
-    durationsGeneration = pplay::TorrServe::viewedGeneration();
-    int mode = main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger();
+    const auto sourceType = pplay::Io::get()->getDeviceType(path);
+    durationsGeneration = sourceType == pplay::Io::DeviceType::TorrServe
+                                  ? pplay::TorrServe::viewedGeneration() : 0;
+    const int mode = main->getConfig()->getOption(OPT_TS_PROGRESS)->getInteger();
     probe->clearBackground();
     if (main->getConfig()->getOption(OPT_MEDIA_PROBE)->getInteger() != 1) {
         return;
@@ -1201,8 +1203,14 @@ void Filer::queueDurations() {
     std::vector<MediaFile> list = files;
     mutex->unlock();
     for (auto &file: list) {
-        if (file.type == Io::Type::File && file.mediaInfo.duration <= 0 && pplay::Utility::isMedia(file)
-            && pplay::TorrServe::keptPosition(file.path, mode) > 0) {
+        if (file.type != Io::Type::File || file.mediaInfo.duration > 0 || !pplay::Utility::isMedia(file)) {
+            continue;
+        }
+        const std::string url = pplay::Io::get()->streamUrl(file.path);
+        const bool hasPosition = pplay::Utility::watchLaterPosition(url) > 0 ||
+                                 (sourceType == pplay::Io::DeviceType::TorrServe &&
+                                  pplay::TorrServe::keptPosition(file.path, mode) > 0);
+        if (hasPosition) {
             probe->requestBackground(file);
         }
     }
@@ -1254,13 +1262,13 @@ void Filer::onUpdate() {
     }
     crumbs->setPosition(safeLeft + 16 * main->getScaling().x, 0);
     crumbs->setPath(path);
-    if (pplay::TorrServe::viewedGeneration() != durationsGeneration) {
-        queueDurations();
-    }
-    // the torrents changed on the server: listed again, the selection kept
-    if (pplay::TorrServe::torrentsGeneration() != torrentsGeneration) {
-        torrentsGeneration = pplay::TorrServe::torrentsGeneration();
-        if (pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::TorrServe) {
+    if (pplay::Io::get()->getDeviceType(path) == pplay::Io::DeviceType::TorrServe) {
+        if (pplay::TorrServe::viewedGeneration() != durationsGeneration) {
+            queueDurations();
+        }
+        // TorrServe torrents changed: list them again while keeping the selection.
+        if (pplay::TorrServe::torrentsGeneration() != torrentsGeneration) {
+            torrentsGeneration = pplay::TorrServe::torrentsGeneration();
             std::string selected = getSelection().path;
             int index = item_index;
             getDir(path);
