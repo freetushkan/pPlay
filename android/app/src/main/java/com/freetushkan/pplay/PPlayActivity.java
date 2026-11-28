@@ -588,6 +588,18 @@ public class PPlayActivity extends SDLActivity {
         return romFsPath;
     }
 
+    public static void shareText(final String title, final String text) {
+        final PPlayActivity activity = instance;
+        if (activity == null || text == null) return;
+        activity.runOnUiThread(() -> {
+            Intent share = new Intent(Intent.ACTION_SEND);
+            share.setType("text/plain");
+            share.putExtra(Intent.EXTRA_SUBJECT, title == null ? "pPlay" : title);
+            share.putExtra(Intent.EXTRA_TEXT, text);
+            activity.startActivity(Intent.createChooser(share, title == null ? "Share" : title));
+        });
+    }
+
     public static String getBatteryLevel() {
         PPlayActivity activity = instance;
         if (activity == null) return "";

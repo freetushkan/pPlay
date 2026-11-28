@@ -48,6 +48,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="torrs" />
                 <data android:scheme="magnet" />
+                <data android:scheme="pplay" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

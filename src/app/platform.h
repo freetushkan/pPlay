@@ -30,6 +30,9 @@ namespace pplay::Platform {
     // Android battery percentage; -1 when unavailable.
     int batteryLevel();
 
+    // Open the Android system share sheet with a text payload.
+    bool shareText(const std::string &title, const std::string &text);
+
     // "Switch", "PS4"... with the system version when known
     std::string name();
 

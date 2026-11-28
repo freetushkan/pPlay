@@ -557,6 +557,8 @@ void Main::onUpdate() {
             pplay::Utility::log(pplay::Utility::LogLevel::Info, "Main: opened from another app: " + url);
             if (url.rfind("torrs://", 0) == 0 || url.rfind("magnet:", 0) == 0)
                 filer->openP2PlayLink(url, name);
+            else if (url.rfind("pplay://network", 0) == 0)
+                menu_main->importNetworkLink(url);
             else
                 openLink(url, name);
         }

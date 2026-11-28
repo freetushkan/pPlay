@@ -51,6 +51,7 @@ public:
 
     void showNetworkUsers(int index, const std::string &select = "");
     void showNetworkUserDetails(int index, const std::string &userId);
+    bool importNetworkLink(const std::string &url);
 
 private:
 

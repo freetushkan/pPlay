@@ -657,6 +657,29 @@ namespace pplay::Platform {
         return -1;
     }
 
+    bool shareText(const std::string &title, const std::string &text) {
+#ifdef __ANDROID__
+        auto *env = (JNIEnv *) SDL_AndroidGetJNIEnv();
+        if (env == nullptr) return false;
+        jstring jTitle = env->NewStringUTF(title.c_str());
+        jstring jText = env->NewStringUTF(text.c_str());
+        if (jTitle == nullptr || jText == nullptr || env->ExceptionCheck()) {
+            env->ExceptionClear();
+            if (jTitle) env->DeleteLocalRef(jTitle);
+            if (jText) env->DeleteLocalRef(jText);
+            return false;
+        }
+        callActivity("shareText", "(Ljava/lang/String;Ljava/lang/String;)V", jTitle, jText);
+        env->DeleteLocalRef(jTitle);
+        env->DeleteLocalRef(jText);
+        return true;
+#else
+        (void) title;
+        (void) text;
+        return false;
+#endif
+    }
+
     std::string takeViewed(std::string *name) {
 #ifdef __ANDROID__
         std::string value = callActivity("takeViewed", "()Ljava/lang/String;");
