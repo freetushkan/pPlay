@@ -30,6 +30,9 @@ namespace pplay::Platform {
     // Android battery percentage; -1 when unavailable.
     int batteryLevel();
 
+    // Left/right usable display insets, including rounded edges and user margins, in pixels.
+    c2d::Vector2f safeSideInsets(float extraLeftDp = 0.0f, float extraRightDp = 0.0f);
+
     // Open the Android system share sheet with a text payload.
     bool shareText(const std::string &title, const std::string &text);
 

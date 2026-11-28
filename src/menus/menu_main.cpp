@@ -348,6 +348,14 @@ MenuMain::MenuMain(Main *main, const c2d::FloatRect &rect, const std::vector<Men
                makeAdjustItems(), Submenu::ValueType::Float, Submenu::MenuType::Adjust, 0.8f, 2.0f, 0.1f, "x");
     addSubmenu("Menu size", "Size of menus and their elements", OPT_MENU_SCALE,
                makeAdjustItems(), Submenu::ValueType::Float, Submenu::MenuType::Adjust, 0.8f, 1.5f, 0.1f, "x");
+#ifdef __ANDROID__
+    addSubmenu("Left screen edge margin", "Additional safe margin from the left rounded edge",
+               OPT_ANDROID_SAFE_MARGIN_LEFT, makeAdjustItems(), Submenu::ValueType::Float,
+               Submenu::MenuType::Adjust, 0.0f, 64.0f, 2.0f, "dp");
+    addSubmenu("Right screen edge margin", "Additional safe margin from the right rounded edge",
+               OPT_ANDROID_SAFE_MARGIN_RIGHT, makeAdjustItems(), Submenu::ValueType::Float,
+               Submenu::MenuType::Adjust, 0.0f, 64.0f, 2.0f, "dp");
+#endif
 
 
     fileEditor = new MenuFileEditor(main, rect);

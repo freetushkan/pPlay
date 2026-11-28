@@ -31,6 +31,10 @@
 #define OPT_UI_SCALE "UI_SCALE"          // main screen layout (restart to apply)
 #define OPT_OSD_SCALE "OSD_SCALE"        // player OSD (live)
 #define OPT_MENU_SCALE "MENU_SCALE"      // menus (live)
+#ifdef __ANDROID__
+#define OPT_ANDROID_SAFE_MARGIN_LEFT "ANDROID_SAFE_MARGIN_LEFT"
+#define OPT_ANDROID_SAFE_MARGIN_RIGHT "ANDROID_SAFE_MARGIN_RIGHT"
+#endif
 #define OPT_SHOW_LOCAL "SHOW_LOCAL"
 #define OPT_SHOW_MENU_BUTTON "SHOW_MENU_BUTTON"
 #define OPT_CPU_BOOST "CPU_BOOST"
