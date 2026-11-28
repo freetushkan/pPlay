@@ -633,7 +633,7 @@ public class PPlayActivity extends SDLActivity {
         if (activity == null) return "0,0";
         int left = 0, right = 0;
         android.view.WindowInsets insets = activity.getWindow().getDecorView().getRootWindowInsets();
-        if (insets != null && insets.getDisplayCutout() != null) {
+        if (Build.VERSION.SDK_INT >= 28 && insets != null && insets.getDisplayCutout() != null) {
             android.view.DisplayCutout cutout = insets.getDisplayCutout();
             left = cutout.getSafeInsetLeft();
             right = cutout.getSafeInsetRight();
