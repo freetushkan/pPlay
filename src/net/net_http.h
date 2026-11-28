@@ -36,6 +36,7 @@ namespace pplay::Http {
         bool useNetworkCredentials = true;
         bool followRedirects = true;
         std::string resolve;      // optional CURLOPT_RESOLVE host:port:ip pin
+        bool useProxy = true;     // false for DNS-pinned requests that must connect directly
     };
 
     // call once (not thread safe)

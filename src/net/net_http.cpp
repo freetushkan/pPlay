@@ -235,6 +235,9 @@ Http::Response Http::perform(const Request &request) {
         resolve = curl_slist_append(resolve, request.resolve.c_str());
         curl_easy_setopt(curl, CURLOPT_RESOLVE, resolve);
     }
+    if (!request.useProxy) {
+        curl_easy_setopt(curl, CURLOPT_PROXY, "");
+    }
     struct curl_slist *headers = nullptr;
     for (auto &h: request.headers) {
         headers = curl_slist_append(headers, h.c_str());

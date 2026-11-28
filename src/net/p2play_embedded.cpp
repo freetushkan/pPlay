@@ -49,7 +49,8 @@ namespace pplay::P2PlayEmbedded {
             request.maxSize = capacity;
             request.useNetworkCredentials = false;
             request.followRedirects = false;
-            request.headers = {"Accept: image/avif,image/webp,image/png,image/jpeg,image/gif"};
+            request.useProxy = false;
+            request.headers = {"Accept: */*"};
             pplay::Http::Response response = pplay::Http::perform(request);
             if (response.body.size() > capacity) {
                 copy(error, errorCapacity, "poster response exceeds configured limit");
